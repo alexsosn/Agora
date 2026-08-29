@@ -10,8 +10,6 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
-REGISTRY = ROOT / "registry"
-SCHEMA = REGISTRY / "schema"
 
 
 def load_yaml(path: Path) -> Any:
@@ -56,19 +54,22 @@ def ensure_vocab_list(values: Iterable[str], allowed: set[str], where: str, erro
         ensure_vocab(value, allowed, where, errors)
 
 
-def validate_registry() -> list[str]:
+def validate_registry(root: Path = ROOT) -> list[str]:
+    root = Path(root)
+    registry = root / "registry"
+    schema = registry / "schema"
     errors: list[str] = []
 
-    plugins_doc = load_yaml(REGISTRY / "plugins.yaml")
-    providers_doc = load_yaml(REGISTRY / "providers.yaml")
-    resources_doc = load_yaml(REGISTRY / "resources.yaml")
-    vocab = load_yaml(REGISTRY / "vocabularies.yaml")
-    scope_doc = load_yaml(REGISTRY / "v0.1.yaml")
+    plugins_doc = load_yaml(registry / "plugins.yaml")
+    providers_doc = load_yaml(registry / "providers.yaml")
+    resources_doc = load_yaml(registry / "resources.yaml")
+    vocab = load_yaml(registry / "vocabularies.yaml")
+    scope_doc = load_yaml(registry / "v0.1.yaml")
 
-    errors += schema_errors(plugins_doc, SCHEMA / "plugins.schema.json", "plugins.yaml")
-    errors += schema_errors(providers_doc, SCHEMA / "providers.schema.json", "providers.yaml")
-    errors += schema_errors(resources_doc, SCHEMA / "resources.schema.json", "resources.yaml")
-    errors += schema_errors(scope_doc, SCHEMA / "release-scope.schema.json", "v0.1.yaml")
+    errors += schema_errors(plugins_doc, schema / "plugins.schema.json", "plugins.yaml")
+    errors += schema_errors(providers_doc, schema / "providers.schema.json", "providers.yaml")
+    errors += schema_errors(resources_doc, schema / "resources.schema.json", "resources.yaml")
+    errors += schema_errors(scope_doc, schema / "release-scope.schema.json", "v0.1.yaml")
 
     plugins = plugins_doc.get("plugins", [])
     providers = providers_doc.get("providers", [])
@@ -111,7 +112,6 @@ def validate_registry() -> list[str]:
         ensure_vocab(provider["access"]["data_mode"], data_modes, f"{prefix}.access.data_mode", errors)
         ensure_vocab(provider["verification"]["status"], verification, f"{prefix}.verification.status", errors)
 
-    collection_paths: set[Path] = set()
     for resource in resources:
         prefix = f"resource {resource['id']}"
         if resource["plugin"] not in plugin_by_id:
@@ -137,13 +137,12 @@ def validate_registry() -> list[str]:
                 errors.append(f"{prefix}: collection resources must use acquisition.strategy='collection'")
             collection = resource["collection"]
             ensure_vocab(collection["discovery"], collection_discovery, f"{prefix}.collection.discovery", errors)
-            member_index = ROOT / collection["member_index"]
-            collection_paths.add(member_index)
+            member_index = root / collection["member_index"]
             if not member_index.is_file():
                 errors.append(f"{prefix}: missing collection member index {collection['member_index']!r}")
                 continue
             index_doc = load_yaml(member_index)
-            errors += schema_errors(index_doc, SCHEMA / "collection-index.schema.json", str(member_index.relative_to(ROOT)))
+            errors += schema_errors(index_doc, schema / "collection-index.schema.json", str(member_index.relative_to(root)))
             if index_doc.get("collection_id") != resource["id"]:
                 errors.append(
                     f"{prefix}: member index collection_id {index_doc.get('collection_id')!r} does not match resource id"
