@@ -19,7 +19,7 @@ Agora must support heterogeneous upstreams, including:
 
 ## 2. Fixed first implementation
 
-The first implementation is not merely a four-plugin architectural proof of concept. Its resource scope is fixed in [`wiki/v0.1-scope.md`](v0.1-scope.md).
+The first implementation is not merely a four-plugin architectural proof of concept. Its resource scope is fixed in [`v0.1-scope-frozen.md`](../releases/v0.1-scope-frozen.md).
 
 It contains four plugin families:
 
@@ -313,9 +313,12 @@ Agora/
 │   └── integration/
 │
 └── wiki/
-    ├── research.md
-    ├── plan.md
-    └── v0.1-scope.md
+    ├── README.md
+    ├── architecture/
+    ├── releases/
+    ├── guides/
+    ├── backlog/
+    └── reviews/
 ```
 
 Exact platform-required files such as `.claude-plugin/marketplace.json` or `.agents/...` should be generated or thin projections of the canonical registry.
