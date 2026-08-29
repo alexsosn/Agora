@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/alexsosn/Agora/registry/schema/resources.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "resources"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "plugin", "provider", "kind", "languages", "disciplines", "description", "upstream", "acquisition", "licenses", "verification"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+          "source_id": {"type": "string"},
+          "name": {"type": "string", "minLength": 1},
+          "plugin": {"type": "string"},
+          "provider": {"type": "string"},
+          "kind": {"type": "string"},
+          "languages": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+          "disciplines": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+          "period": {"type": "string"},
+          "description": {"type": "string", "minLength": 1},
+          "upstream": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["repository"],
+            "properties": {
+              "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+              "ref": {"type": "string"},
+              "tf_path": {"type": "string"}
+            }
+          },
+          "acquisition": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["strategy"],
+            "properties": {
+              "strategy": {"type": "string"},
+              "lazy": {"type": "boolean"},
+              "notes": {"type": "string"}
+            }
+          },
+          "collection": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["discovery", "member_id_scheme", "lazy_members"],
+            "properties": {
+              "discovery": {"type": "string"},
+              "member_id_scheme": {"type": "string"},
+              "lazy_members": {"type": "boolean"},
+              "member_index": {"type": "string"},
+              "notes": {"type": "string"}
+            }
+          },
+          "licenses": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["data"],
+            "properties": {
+              "data": {"type": "string"},
+              "redistribution": {"type": "string"},
+              "notes": {"type": "string"}
+            }
+          },
+          "verification": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status"],
+            "properties": {
+              "status": {"type": "string"},
+              "notes": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "known_issues": {"type": "array", "items": {"type": "string"}},
+          "source_snapshot": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "checked_at"],
+            "properties": {
+              "source": {"type": "string"},
+              "checked_at": {"type": "string", "format": "date"}
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"kind": {"const": "collection"}}},
+            "then": {"required": ["collection"]},
+            "else": {"not": {"required": ["collection"]}}
+          }
+        ]
+      }
+    }
+  }
+}
