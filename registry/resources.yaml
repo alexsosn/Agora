@@ -406,16 +406,22 @@ resources:
     source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
 
   - id: translatin-manif
-    name: Translatin-manif
+    name: TransLatin manifestations
     plugin: context-fabric
     provider: context-fabric
-    kind: corpus
+    kind: collection
     languages: [latin]
     disciplines: [literary-studies, history]
     period: Early Modern
-    description: Early modern Latin drama analysis corpus.
+    description: Collection of separately loadable Text-Fabric manifestations from the TransLatin early modern Latin drama project.
     upstream: {repository: HuygensING/translatin-manif}
-    acquisition: {strategy: repository, lazy: true}
+    acquisition: {strategy: collection, lazy: true}
+    collection:
+      discovery: indexed
+      member_id_scheme: stable-relative-id
+      lazy_members: true
+      member_index: registry/collections/translatin-manif.yaml
+      notes: Each manifestation is an independent Text-Fabric dataset beneath tf/<manifestation>/<version>.
     licenses: {data: unknown, redistribution: unknown}
     verification: {status: community}
     source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
@@ -549,17 +555,21 @@ resources:
     disciplines: [hittitology, digital-philology]
     period: "2nd millennium BCE"
     description: Text-Fabric conversion of the Thesaurus Linguarum Hethaeorum digitalis Hittite corpus.
-    upstream: {repository: alexsosn/TLHdig-TF, ref: main}
+    upstream:
+      repository: alexsosn/TLHdig-TF
+      ref: 5d5e9af248566222738f8ac65ab8f9bb1b6aed3c
+      tf_path: tf/0.1.0
     acquisition:
       strategy: repository
       lazy: true
-      notes: Resolve the current TF dataset path during Phase 3; the repository layout has changed while the README still describes an older 0.1.0 layout.
+      notes: Pin the last published Text-Fabric build. Current main contains newer converter work but no committed tf/ dataset.
     licenses: {data: upstream-dependent, redistribution: unknown}
     verification:
       status: experimental
       notes:
-        - Upstream explicitly documents unresolved conversion defects and currently warns against research reliance.
-        - Repository layout observed on 2026-08-29 differs from the older dataset path described in the README; do not hard-code a stale TF path in Phase 1.
+        - The pinned 0.1.0 build is an integration prototype and must not be treated as research-ready.
+        - Current upstream main has newer converter fixes but no committed Text-Fabric dataset; update the pin only when a newer complete dataset is published.
     known_issues:
       - Preserve upstream KNOWN-ISSUES.md warnings in Agora metadata and user-facing guidance.
+      - The pinned data commit predates later converter fixes on upstream main.
     source_snapshot: {source: alexsosn/TLHdig-TF, checked_at: "2026-08-29"}
