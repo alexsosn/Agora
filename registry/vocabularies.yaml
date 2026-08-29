@@ -26,6 +26,11 @@ acquisition_strategies:
 collection_discovery_modes:
   - indexed
 
+collection_index_statuses:
+  - pending
+  - partial
+  - complete
+
 redistribution_statuses:
   - unknown
   - permitted
