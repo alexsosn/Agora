@@ -1,0 +1,53 @@
+schema_version: 1
+providers:
+  - id: context-fabric
+    name: Context-Fabric
+    plugin: context-fabric
+    description: Local Context-Fabric runtime over Text-Fabric-format corpus data.
+    access:
+      runtime_mode: local
+      data_mode: local
+    upstream:
+      repository: Context-Fabric/context-fabric
+      homepage: https://context-fabric.ai/
+    verification:
+      status: experimental
+      notes:
+        - Provider runtime has not yet been implemented in Agora.
+
+  - id: perseus
+    name: Perseus / Scaife
+    plugin: perseus
+    description: Remote Perseus and Scaife scholarly text services exposed through a local MCP server.
+    access:
+      runtime_mode: local
+      data_mode: remote
+    upstream:
+      repository: tonyjurg/Perseus-mcp
+    verification:
+      status: experimental
+
+  - id: sefaria
+    name: Sefaria Library
+    plugin: sefaria
+    description: Hosted official Sefaria Texts MCP over the Sefaria Library.
+    access:
+      runtime_mode: hosted
+      data_mode: remote
+    upstream:
+      repository: Sefaria/sefaria-mcp
+      endpoint: https://mcp.sefaria.org/sse
+    verification:
+      status: experimental
+
+  - id: sedra
+    name: Beth Mardutho SEDRA IV
+    plugin: sedra
+    description: Syriac Electronic Data Research Archive used by the local Agora SEDRA MCP adapter.
+    access:
+      runtime_mode: local
+      data_mode: remote
+    upstream:
+      homepage: https://sedra.bethmardutho.org/
+    verification:
+      status: experimental
