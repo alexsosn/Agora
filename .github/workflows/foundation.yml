@@ -25,10 +25,12 @@ jobs:
             README.md
             LICENSE
             CONTRIBUTING.md
-            wiki/research.md
-            wiki/plan.md
-            wiki/v0.1-scope.md
-            wiki/greek-collections.md
+            wiki/README.md
+            wiki/architecture/ref-marketplace-architecture.md
+            wiki/architecture/ref-context-fabric-collections.md
+            wiki/releases/v0.1-plan-active.md
+            wiki/releases/v0.1-scope-frozen.md
+            wiki/guides/installation.md
             registry/README.md
             registry/marketplace.yaml
             plugins/README.md
