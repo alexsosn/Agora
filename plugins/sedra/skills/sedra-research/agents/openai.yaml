@@ -1,0 +1,4 @@
+interface:
+  display_name: "SEDRA Research"
+  short_description: "Resolve Syriac word forms and lexemes without collapsing ambiguity"
+  default_prompt: "Use $sedra-research to look up the observed Syriac form, preserve candidate analyses, and follow confirmed lexeme IDs without inventing extra morphology."
