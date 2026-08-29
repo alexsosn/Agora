@@ -32,6 +32,7 @@ jobs:
             registry/README.md
             registry/marketplace.yaml
             plugins/README.md
+            plugins/context-fabric/resources/catalog.yaml
             profiles/README.md
             scripts/README.md
             tests/README.md
@@ -74,6 +75,9 @@ jobs:
 
       - name: Verify generated marketplace artifacts are fresh
         run: python scripts/generate_marketplaces.py --check
+
+      - name: Verify Context-Fabric runtime catalog is fresh
+        run: python scripts/generate_context_fabric_catalog.py --check
 
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
