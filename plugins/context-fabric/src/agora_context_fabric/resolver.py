@@ -90,7 +90,22 @@ class ContextFabricResolver:
         self.store = store
 
     def _repo(self, resource: ResourceSpec) -> Path:
-        return self.store.ensure_metadata(resource.repository, cache_key=resource.id)
+        kwargs = {"cache_key": resource.id}
+        if resource.ref is not None:
+            kwargs["ref"] = resource.ref
+        return self.store.ensure_metadata(resource.repository, **kwargs)
+
+    @staticmethod
+    def _select_resource_root(resource: ResourceSpec, roots: Iterable[str]) -> str:
+        candidates = list(roots)
+        if resource.tf_path is None:
+            return select_dataset_root(candidates)
+        normalized = resource.tf_path.replace("\\", "/").strip("/") or "."
+        if normalized not in candidates:
+            raise ValueError(
+                f"configured Text-Fabric path {resource.tf_path!r} was not found for resource {resource.id!r}"
+            )
+        return normalized
 
     def _collection_members_from_roots(
         self, resource: ResourceSpec, roots: Iterable[str]
@@ -177,7 +192,7 @@ class ContextFabricResolver:
         if member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
         repo = self._repo(resource)
-        relative = select_dataset_root(self.store.dataset_roots(repo))
+        relative = self._select_resource_root(resource, self.store.dataset_roots(repo))
         local = self.store.materialize(repo, relative)
         return PreparedCorpus(
             resource_id=resource.id,
