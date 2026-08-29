@@ -1,0 +1,565 @@
+schema_version: 1
+resources:
+  - id: bhsa
+    name: Biblia Hebraica Stuttgartensia Amstelodamensis
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    period: "1000-200 BCE"
+    description: Biblia Hebraica Stuttgartensia Amstelodamensis.
+    upstream: {repository: ETCBC/bhsa}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: dss
+    name: Dead Sea Scrolls
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [hebrew]
+    disciplines: [biblical-studies, judaica]
+    period: "300 BCE-100 CE"
+    description: Dead Sea Scrolls corpus.
+    upstream: {repository: ETCBC/dss}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: sp
+    name: Samaritan Pentateuch
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    period: "516 BCE-70 CE"
+    description: Samaritan Pentateuch.
+    upstream: {repository: DT-UCPH/sp}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: extrabiblical
+    name: Extra-biblical Hebrew texts
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [hebrew]
+    disciplines: [judaica, history]
+    period: "200 BCE-200 CE"
+    description: Extra-biblical Hebrew texts.
+    upstream: {repository: ETCBC/extrabiblical}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: lxx
+    name: Septuagint
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [greek]
+    disciplines: [biblical-studies, classics]
+    period: "300-100 BCE"
+    description: Septuagint, Rahlfs edition.
+    upstream: {repository: CenterBLC/LXX}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: n1904
+    name: Nestle 1904 Greek New Testament
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [greek]
+    disciplines: [biblical-studies, classics]
+    period: "100-400 CE"
+    description: Nestle 1904 Greek New Testament.
+    upstream: {repository: CenterBLC/N1904}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: SBLGNT
+    name: SBL Greek New Testament
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [greek]
+    disciplines: [biblical-studies, classics]
+    period: "100-400 CE"
+    description: SBL Greek New Testament.
+    upstream: {repository: CenterBLC/SBLGNT}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: nestle1904
+    name: Nestle 1904 LOWFAT-XML
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [greek]
+    disciplines: [biblical-studies, classics]
+    period: "100-400 CE"
+    description: New Testament from LOWFAT-XML syntax trees.
+    upstream: {repository: ETCBC/nestle1904}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: Nestle1904GBI
+    name: Nestle 1904 GBI
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [greek]
+    disciplines: [biblical-studies, classics]
+    period: "100-400 CE"
+    description: Nestle 1904 Greek New Testament corpus maintained by tonyjurg.
+    upstream: {repository: tonyjurg/Nestle1904GBI}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: tischendorf_tf
+    name: Tischendorf 8th Edition Greek New Testament
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [greek]
+    disciplines: [biblical-studies, classics]
+    period: "100-400 CE"
+    description: Tischendorf 8th Edition Greek New Testament.
+    upstream: {repository: codykingham/tischendorf_tf}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: bible
+    name: PTHU Greek Bible collection
+    plugin: context-fabric
+    provider: context-fabric
+    kind: collection
+    languages: [greek]
+    disciplines: [biblical-studies, classics]
+    period: "300 BCE-400 CE"
+    description: Greek Old Testament, New Testament, and extra-biblical texts organized as multiple independently loadable TF corpora.
+    upstream: {repository: pthu/bible}
+    acquisition: {strategy: collection, lazy: true}
+    collection:
+      discovery: indexed
+      member_id_scheme: stable-relative-id
+      lazy_members: true
+      member_index: registry/collections/bible.yaml
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: patristics
+    name: PTHU Patristics collection
+    plugin: context-fabric
+    provider: context-fabric
+    kind: collection
+    languages: [greek]
+    disciplines: [classics, biblical-studies]
+    period: "100-500 CE"
+    description: Greek Church Fathers organized across many author/work TF corpora.
+    upstream: {repository: pthu/patristics}
+    acquisition: {strategy: collection, lazy: true}
+    collection:
+      discovery: indexed
+      member_id_scheme: stable-relative-id
+      lazy_members: true
+      member_index: registry/collections/patristics.yaml
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: greek_literature
+    name: PTHU Greek Literature collection
+    plugin: context-fabric
+    provider: context-fabric
+    kind: collection
+    languages: [greek]
+    disciplines: [classics, literary-studies]
+    period: "400 BCE-400 CE"
+    description: Perseus and Open Greek texts organized as many independently loadable TF corpora.
+    upstream: {repository: pthu/greek_literature}
+    acquisition: {strategy: collection, lazy: true}
+    collection:
+      discovery: indexed
+      member_id_scheme: stable-relative-id
+      lazy_members: true
+      member_index: registry/collections/greek_literature.yaml
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: athenaeus
+    name: Athenaeus Deipnosophistae
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [greek]
+    disciplines: [classics, literary-studies]
+    period: "80-170 CE"
+    description: Athenaeus' Deipnosophistae.
+    upstream: {repository: pthu/athenaeus}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: peshitta
+    name: Syriac Old Testament
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [syriac]
+    disciplines: [syriac-studies, biblical-studies]
+    period: "1000 BCE-900 CE"
+    description: Syriac Old Testament.
+    upstream: {repository: ETCBC/peshitta}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: syrnt
+    name: Syriac New Testament
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [syriac]
+    disciplines: [syriac-studies, biblical-studies]
+    period: "0-1000 CE"
+    description: Syriac New Testament.
+    upstream: {repository: ETCBC/syrnt}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: syriac
+    name: Syriac texts collection
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [syriac]
+    disciplines: [syriac-studies, semitic-linguistics]
+    period: Various
+    description: Syriac texts collection as cataloged by Context-Fabric.
+    upstream: {repository: ETCBC/syriac}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: quran
+    name: Quranic Arabic Corpus
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [arabic]
+    disciplines: [islamic-studies, semitic-linguistics]
+    period: "600-900 CE"
+    description: Quranic Arabic Corpus.
+    upstream: {repository: q-ran/quran}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: fusus
+    name: Fusus al-Hikam
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [arabic]
+    disciplines: [islamic-studies]
+    period: Medieval
+    description: Ibn Arabi's Fusus al-Hikam.
+    upstream: {repository: among/fusus}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: nena_tf
+    name: North Eastern Neo-Aramaic
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [aramaic]
+    disciplines: [semitic-linguistics, historical-linguistics]
+    period: Modern
+    description: North Eastern Neo-Aramaic corpus.
+    upstream: {repository: CambridgeSemiticsLab/nena_tf}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: uruk
+    name: Archaic tablets from Uruk
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [proto-cuneiform]
+    disciplines: [assyriology]
+    period: "4000-3100 BCE"
+    description: Archaic proto-cuneiform tablets from Uruk.
+    upstream: {repository: Nino-cunei/uruk}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: oldassyrian
+    name: Old Assyrian documents
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [akkadian]
+    disciplines: [assyriology, semitic-linguistics]
+    period: "2000-1600 BCE"
+    description: Old Assyrian documents.
+    upstream: {repository: Nino-cunei/oldassyrian}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: oldbabylonian
+    name: Old Babylonian letters
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [akkadian]
+    disciplines: [assyriology, semitic-linguistics]
+    period: "1900-1600 BCE"
+    description: Old Babylonian letters.
+    upstream: {repository: Nino-cunei/oldbabylonian}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: ninmed
+    name: Medical Encyclopedia from Nineveh
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [akkadian]
+    disciplines: [assyriology]
+    period: "ca. 800 BCE"
+    description: Medical Encyclopedia from Nineveh.
+    upstream: {repository: Nino-cunei/ninmed}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: cuc
+    name: Copenhagen Ugaritic Corpus
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [ugaritic]
+    disciplines: [semitic-linguistics]
+    period: "1223-1172 BCE"
+    description: Copenhagen Ugaritic Corpus.
+    upstream: {repository: DT-UCPH/cuc}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: dhammapada
+    name: Dhammapada
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [pali]
+    disciplines: [buddhist-studies]
+    period: "300 BCE"
+    description: Ancient Buddhist verses.
+    upstream: {repository: ETCBC/dhammapada}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: translatin-manif
+    name: Translatin-manif
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [latin]
+    disciplines: [literary-studies, history]
+    period: Early Modern
+    description: Early modern Latin drama analysis corpus.
+    upstream: {repository: HuygensING/translatin-manif}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: wp6-missieven
+    name: VOC General Missives
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [dutch]
+    disciplines: [history]
+    period: "1600-1800 CE"
+    description: VOC General Missives.
+    upstream: {repository: CLARIAH/wp6-missieven}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: wp6-daghregisters
+    name: Batavia daily records
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [dutch]
+    disciplines: [history]
+    period: "1640-1641"
+    description: Batavia daily records.
+    upstream: {repository: CLARIAH/wp6-daghregisters}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: wp6-ferdinandhuyck
+    name: Ferdinand Huyck
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [dutch]
+    disciplines: [literary-studies]
+    period: "1884"
+    description: Dutch novel by Jacob van Lennep.
+    upstream: {repository: CLARIAH/wp6-ferdinandhuyck}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: mondriaan
+    name: Piet Mondriaan letters
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [dutch]
+    disciplines: [history]
+    period: "1892-1923"
+    description: Piet Mondriaan letters.
+    upstream: {repository: annotation/mondriaan}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: descartes-tf
+    name: Descartes correspondence
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [french, latin, dutch]
+    disciplines: [history]
+    period: "1619-1650"
+    description: Descartes correspondence.
+    upstream: {repository: CLARIAH/descartes-tf}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: suriano
+    name: Suriano diplomatic correspondence
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [italian]
+    disciplines: [history]
+    period: "1616-1623"
+    description: Diplomatic correspondence.
+    upstream: {repository: HuygensING/suriano}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: mobydick
+    name: Moby-Dick
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [english]
+    disciplines: [literary-studies]
+    period: "1851"
+    description: Herman Melville's Moby-Dick with NLP annotations.
+    upstream: {repository: annotation/mobydick}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: banks
+    name: Consider Phlebas
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [english]
+    disciplines: [literary-studies]
+    period: "1987"
+    description: Iain M. Banks' Consider Phlebas.
+    upstream: {repository: annotation/banks}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
+
+  - id: TLHdig-TF
+    name: TLHdig-TF
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [hittite]
+    disciplines: [hittitology, digital-philology]
+    period: "2nd millennium BCE"
+    description: Text-Fabric conversion of the Thesaurus Linguarum Hethaeorum digitalis Hittite corpus.
+    upstream: {repository: alexsosn/TLHdig-TF, ref: main}
+    acquisition:
+      strategy: repository
+      lazy: true
+      notes: Resolve the current TF dataset path during Phase 3; the repository layout has changed while the README still describes an older 0.1.0 layout.
+    licenses: {data: upstream-dependent, redistribution: unknown}
+    verification:
+      status: experimental
+      notes:
+        - Upstream explicitly documents unresolved conversion defects and currently warns against research reliance.
+        - Repository layout observed on 2026-08-29 differs from the older dataset path described in the README; do not hard-code a stale TF path in Phase 1.
+    known_issues:
+      - Preserve upstream KNOWN-ISSUES.md warnings in Agora metadata and user-facing guidance.
+    source_snapshot: {source: alexsosn/TLHdig-TF, checked_at: "2026-08-29"}
