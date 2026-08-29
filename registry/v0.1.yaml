@@ -1,0 +1,44 @@
+schema_version: 1
+release: v0.1
+required_plugins:
+  - context-fabric
+  - perseus
+  - sefaria
+  - sedra
+required_resources:
+  - bhsa
+  - dss
+  - sp
+  - extrabiblical
+  - lxx
+  - n1904
+  - SBLGNT
+  - nestle1904
+  - Nestle1904GBI
+  - tischendorf_tf
+  - bible
+  - patristics
+  - greek_literature
+  - athenaeus
+  - peshitta
+  - syrnt
+  - syriac
+  - quran
+  - fusus
+  - nena_tf
+  - uruk
+  - oldassyrian
+  - oldbabylonian
+  - ninmed
+  - cuc
+  - dhammapada
+  - translatin-manif
+  - wp6-missieven
+  - wp6-daghregisters
+  - wp6-ferdinandhuyck
+  - mondriaan
+  - descartes-tf
+  - suriano
+  - mobydick
+  - banks
+  - TLHdig-TF
