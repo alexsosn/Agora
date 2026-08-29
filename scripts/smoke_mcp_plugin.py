@@ -29,6 +29,17 @@ class SmokeCase:
 
 
 SMOKE_CASES: dict[str, SmokeCase] = {
+    "context-fabric": SmokeCase(
+        expected_tools={
+            "list_available_corpora",
+            "describe_available_corpus",
+            "list_collection_members",
+            "prepare_corpus",
+            "load_corpus",
+        },
+        # This validates the shipped runtime/catalog without downloading a corpus.
+        tool_call=("list_available_corpora", {"query": "Ugaritic"}),
+    ),
     "perseus": SmokeCase(
         expected_tools={"get_passage", "search_perseus", "find_author_names"},
         tool_call=("find_author_names", {"query": "Homer", "limit": 1}),
