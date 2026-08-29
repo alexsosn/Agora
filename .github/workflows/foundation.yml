@@ -63,6 +63,7 @@ jobs:
         with:
           python-version: '3.13'
           cache: pip
+          cache-dependency-path: requirements-dev.txt
 
       - name: Install registry validation dependencies
         run: python -m pip install -r requirements-dev.txt
