@@ -50,8 +50,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--host",
-        default="0.0.0.0",
-        help="Host to bind for SSE/HTTP transports",
+        default="127.0.0.1",
+        help="Host to bind for SSE/HTTP transports; override explicitly for external exposure",
     )
     parser.add_argument(
         "--verbose",
@@ -75,14 +75,9 @@ def build_runtime(
     *,
     plugin_root: Path = DEFAULT_PLUGIN_ROOT,
 ) -> tuple[Any, ContextFabricService, Any]:
-    """Build the Agora-enhanced upstream Context-Fabric MCP runtime.
-
-    The upstream dependency is imported lazily so catalog/resolver tests do not
-    require Context-Fabric itself to be installed.
-    """
     try:
         from cfabric_mcp import corpus_manager, mcp
-    except ImportError as exc:  # pragma: no cover - exercised in installed runtime
+    except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
             "cfabric-mcp is required to run the Context-Fabric plugin; install the plugin runtime dependencies"
         ) from exc
@@ -109,7 +104,7 @@ def main() -> None:
 
     try:
         from cfabric_mcp import tools as upstream_tools
-    except ImportError as exc:  # pragma: no cover - exercised in installed runtime
+    except ImportError as exc:  # pragma: no cover
         raise RuntimeError("cfabric-mcp is required to run this plugin") from exc
     upstream_tools.set_transport(transport)
 

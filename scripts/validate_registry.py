@@ -10,6 +10,7 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
+VERIFICATION_RANK = {"experimental": 0, "community": 1, "verified": 2}
 
 
 def load_yaml(path: Path) -> Any:
@@ -104,15 +105,39 @@ def validate_registry(root: Path = ROOT) -> list[str]:
         if "data_mode" in plugin:
             ensure_vocab(plugin["data_mode"], data_modes, f"{prefix}.data_mode", errors)
         ensure_vocab_list(plugin["capabilities"], capabilities, f"{prefix}.capabilities", errors)
-        ensure_vocab(plugin["verification"]["status"], verification, f"{prefix}.verification.status", errors)
+        status = plugin["verification"]["status"]
+        ensure_vocab(status, verification, f"{prefix}.verification.status", errors)
+        clients = plugin["verification"].get("clients", {})
+        client_statuses: list[str] = []
+        for client_id, evidence in clients.items():
+            client_status = evidence["status"]
+            ensure_vocab(
+                client_status,
+                verification,
+                f"{prefix}.verification.clients.{client_id}.status",
+                errors,
+            )
+            client_statuses.append(client_status)
+        if status in VERIFICATION_RANK and client_statuses:
+            weakest = min(client_statuses, key=VERIFICATION_RANK.__getitem__)
+            if status != weakest:
+                errors.append(
+                    f"{prefix}.verification.status: aggregate status {status!r} must equal weakest client status {weakest!r}"
+                )
 
     for provider in providers:
         prefix = f"provider {provider['id']}"
-        if provider["plugin"] not in plugin_by_id:
+        plugin = plugin_by_id.get(provider["plugin"])
+        if plugin is None:
             errors.append(f"{prefix}: references missing plugin {provider['plugin']!r}")
         ensure_vocab(provider["access"]["runtime_mode"], runtime_modes, f"{prefix}.access.runtime_mode", errors)
         ensure_vocab(provider["access"]["data_mode"], data_modes, f"{prefix}.access.data_mode", errors)
-        ensure_vocab(provider["verification"]["status"], verification, f"{prefix}.verification.status", errors)
+        provider_status = provider["verification"]["status"]
+        ensure_vocab(provider_status, verification, f"{prefix}.verification.status", errors)
+        if plugin is not None and provider_status != plugin["verification"]["status"]:
+            errors.append(
+                f"{prefix}.verification.status: {provider_status!r} does not match plugin aggregate status {plugin['verification']['status']!r}"
+            )
 
     for resource in resources:
         prefix = f"resource {resource['id']}"

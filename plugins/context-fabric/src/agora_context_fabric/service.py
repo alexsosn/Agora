@@ -20,11 +20,25 @@ class ContextFabricService:
         return {
             "id": resource.id,
             "name": resource.name,
+            "description": resource.description,
+            "period": resource.period,
             "kind": resource.kind,
             "repository": resource.repository,
             "languages": list(resource.languages),
             "disciplines": list(resource.disciplines),
             "member_index": resource.member_index,
+            "verification": {
+                "status": resource.verification_status,
+                "notes": list(resource.verification_notes),
+            },
+            "licenses": dict(resource.licenses),
+            "known_issues": list(resource.known_issues),
+            "source_snapshot": dict(resource.source_snapshot),
+            "source": {
+                "repository": resource.repository,
+                "configured_ref": resource.ref,
+                "tf_path": resource.tf_path,
+            },
         }
 
     @staticmethod
@@ -119,11 +133,6 @@ class ContextFabricService:
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
-        """Compatibility alias for the earlier service API.
-
-        MCP tools use list_members(). The alias preserves callers/tests from the
-        initial service draft without changing the public MCP response shape.
-        """
         result = self.list_members(
             resource_id,
             query=query,
@@ -151,6 +160,7 @@ class ContextFabricService:
             "logical_name": prepared.logical_name,
             "relative_path": prepared.relative_path,
             "path": str(prepared.path),
+            "source_revision": prepared.source_revision,
         }
 
     def load(
@@ -177,7 +187,6 @@ class ContextFabricService:
         member_id: str | None = None,
         features: str | list[str] | None = None,
     ) -> dict[str, Any]:
-        """Compatibility alias for the earlier service API."""
         result = self.load(
             resource_id,
             member_id=member_id,

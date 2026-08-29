@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
@@ -18,10 +19,6 @@ from scripts.validate_registry import validate_registry
 CODEX_CATEGORY = "Education & Research"
 CODEX_INSTALLATION = "AVAILABLE"
 CODEX_AUTHENTICATION = "ON_INSTALL"
-PERSEUS_PACKAGE = "perseus-mcp==1.0.2"
-SEFARIA_TEXTS_MCP = "https://mcp.sefaria.org/sse"
-MCP_PROXY_PACKAGE = "mcp-proxy==0.12.0"
-MCP_PROXY_MCP_COMPAT = "mcp>=1.17,<2"
 
 
 def load_yaml(path: Path) -> Any:
@@ -138,90 +135,16 @@ def codex_marketplace(
     }
 
 
-def claude_mcp(plugin_id: str) -> dict[str, Any]:
-    if plugin_id == "context-fabric":
-        server = {
-            "command": "uv",
-            "args": [
-                "run",
-                "--project",
-                "${CLAUDE_PLUGIN_ROOT}",
-                "agora-context-fabric-mcp",
-                "--plugin-root",
-                "${CLAUDE_PLUGIN_ROOT}",
-            ],
-        }
-    elif plugin_id == "perseus":
-        server = {
-            "command": "uvx",
-            "args": ["--from", PERSEUS_PACKAGE, "perseus-mcp"],
-        }
-    elif plugin_id == "sefaria":
-        server = {"type": "sse", "url": SEFARIA_TEXTS_MCP}
-    elif plugin_id == "sedra":
-        server = {
-            "command": "uv",
-            "args": [
-                "run",
-                "--project",
-                "${CLAUDE_PLUGIN_ROOT}",
-                "agora-sedra-mcp",
-            ],
-        }
-    else:
-        raise ValueError(f"no Claude MCP integration is defined for plugin {plugin_id!r}")
-    return {plugin_id: server}
+def claude_mcp(plugin: dict[str, Any]) -> dict[str, Any]:
+    return {plugin["id"]: copy.deepcopy(plugin["runtime"]["launch"]["claude"])}
 
 
-def codex_mcp(plugin_id: str) -> dict[str, Any]:
-    if plugin_id == "context-fabric":
-        server = {
-            "type": "stdio",
-            "cwd": ".",
-            "command": "uv",
-            "args": [
-                "run",
-                "--project",
-                ".",
-                "agora-context-fabric-mcp",
-                "--plugin-root",
-                ".",
-            ],
+def codex_mcp(plugin: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "mcpServers": {
+            plugin["id"]: copy.deepcopy(plugin["runtime"]["launch"]["codex"])
         }
-    elif plugin_id == "perseus":
-        server = {
-            "type": "stdio",
-            "cwd": ".",
-            "command": "uvx",
-            "args": ["--from", PERSEUS_PACKAGE, "perseus-mcp"],
-        }
-    elif plugin_id == "sefaria":
-        # Codex supports stdio and streamable HTTP, not legacy SSE. Bridge the
-        # official Sefaria Texts SSE endpoint to stdio. mcp-proxy 0.12.0 was
-        # published against MCP SDK 1.x and has an unbounded dependency that
-        # otherwise resolves incompatible MCP 2.x, so constrain its environment.
-        server = {
-            "type": "stdio",
-            "command": "uvx",
-            "args": [
-                "--from",
-                MCP_PROXY_PACKAGE,
-                "--with",
-                MCP_PROXY_MCP_COMPAT,
-                "mcp-proxy",
-                SEFARIA_TEXTS_MCP,
-            ],
-        }
-    elif plugin_id == "sedra":
-        server = {
-            "type": "stdio",
-            "cwd": ".",
-            "command": "uv",
-            "args": ["run", "--project", ".", "agora-sedra-mcp"],
-        }
-    else:
-        raise ValueError(f"no Codex MCP integration is defined for plugin {plugin_id!r}")
-    return {"mcpServers": {plugin_id: server}}
+    }
 
 
 def render_outputs(root: Path = ROOT) -> dict[Path, str]:
@@ -259,10 +182,10 @@ def render_outputs(root: Path = ROOT) -> dict[Path, str]:
             codex_plugin_manifest(plugin, marketplace, version)
         )
         outputs[plugin_root / ".claude-plugin/mcp.json"] = json_text(
-            claude_mcp(plugin["id"])
+            claude_mcp(plugin)
         )
         outputs[plugin_root / ".codex-plugin/mcp.json"] = json_text(
-            codex_mcp(plugin["id"])
+            codex_mcp(plugin)
         )
 
     return outputs

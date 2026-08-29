@@ -1,17 +1,21 @@
 from __future__ import annotations
 
+import os
 import re
 import subprocess
+import time
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 
 class GitStore:
     """Metadata-first Git cache for Text-Fabric repositories.
 
-    Repositories are cloned with no working-tree checkout. Dataset paths are
-    discovered from Git tree metadata; blobs for a selected dataset are fetched
-    only when that path is materialized. A resource may pin a historical ref; the
-    selected tree is recorded under ``refs/agora/selected`` without checking it out.
+    Floating resources refresh from the remote default branch on every metadata
+    resolution. Pinned resources fetch their configured ref. The selected commit
+    is recorded under ``refs/agora/selected`` and can be surfaced to callers as
+    provenance. Repository mutations are serialized with a filesystem lock.
     """
 
     SELECTED_REF = "refs/agora/selected"
@@ -19,6 +23,7 @@ class GitStore:
     def __init__(self, cache_dir: Path):
         self.cache_dir = Path(cache_dir).expanduser()
         self.repositories_dir = self.cache_dir / "repositories"
+        self.locks_dir = self.cache_dir / "locks"
 
     @staticmethod
     def repository_url(repository: str) -> str:
@@ -50,7 +55,31 @@ class GitStore:
         )
         return result.stdout.strip()
 
-    def _select(self, repo: Path, ref: str | None) -> None:
+    @contextmanager
+    def _repository_lock(self, key: str, timeout: float = 30.0) -> Iterator[None]:
+        self.locks_dir.mkdir(parents=True, exist_ok=True)
+        lock_path = self.locks_dir / f"{self.safe_cache_key(key)}.lock"
+        deadline = time.monotonic() + timeout
+        fd: int | None = None
+        while fd is None:
+            try:
+                fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(fd, f"{os.getpid()}\n".encode("ascii"))
+            except FileExistsError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"timed out waiting for Git cache lock: {lock_path}")
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            if fd is not None:
+                os.close(fd)
+            try:
+                lock_path.unlink()
+            except FileNotFoundError:
+                pass
+
+    def _select(self, repo: Path, ref: str | None) -> str:
         if ref:
             self._run(
                 "fetch",
@@ -64,8 +93,21 @@ class GitStore:
             )
             selected = self._run("rev-parse", "FETCH_HEAD", cwd=repo)
         else:
-            selected = self._run("rev-parse", "HEAD", cwd=repo)
+            # Resolve the current remote default branch instead of reusing the
+            # commit that happened to be HEAD when this cache was first cloned.
+            self._run(
+                "fetch",
+                "--quiet",
+                "--filter=blob:none",
+                "--depth",
+                "1",
+                "origin",
+                "HEAD",
+                cwd=repo,
+            )
+            selected = self._run("rev-parse", "FETCH_HEAD", cwd=repo)
         self._run("update-ref", self.SELECTED_REF, selected, cwd=repo)
+        return selected
 
     def ensure_metadata(
         self,
@@ -77,31 +119,37 @@ class GitStore:
         self.repositories_dir.mkdir(parents=True, exist_ok=True)
         key = self.safe_cache_key(cache_key or repository)
         destination = self.repositories_dir / key
-        if not (destination / ".git").is_dir():
-            source = self.repository_url(repository)
-            self._run(
-                "clone",
-                "--quiet",
-                "--filter=blob:none",
-                "--no-checkout",
-                "--depth",
-                "1",
-                source,
-                str(destination),
-            )
-        self._select(destination, ref)
+        with self._repository_lock(key):
+            if not (destination / ".git").is_dir():
+                source = self.repository_url(repository)
+                self._run(
+                    "clone",
+                    "--quiet",
+                    "--filter=blob:none",
+                    "--no-checkout",
+                    "--depth",
+                    "1",
+                    source,
+                    str(destination),
+                )
+            self._select(destination, ref)
         return destination
 
-    def _treeish(self, repo: Path) -> str:
+    def selected_revision(self, repo: Path) -> str:
+        return self._run("rev-parse", "--verify", self.SELECTED_REF, cwd=repo)
+
+    def _treeish(self, repo: Path, revision: str | None = None) -> str:
+        if revision:
+            return revision
         try:
             self._run("rev-parse", "--verify", self.SELECTED_REF, cwd=repo)
             return self.SELECTED_REF
         except subprocess.CalledProcessError:
             return "HEAD"
 
-    def dataset_roots(self, repo: Path) -> list[str]:
+    def dataset_roots(self, repo: Path, revision: str | None = None) -> list[str]:
         names = self._run(
-            "ls-tree", "-r", "--name-only", self._treeish(repo), cwd=repo
+            "ls-tree", "-r", "--name-only", self._treeish(repo, revision), cwd=repo
         )
         roots: set[str] = set()
         for name in names.splitlines():
@@ -112,7 +160,12 @@ class GitStore:
                 roots.add(normalized[: -len("/otype.tf")])
         return sorted(roots)
 
-    def materialize(self, repo: Path, relative_path: str) -> Path:
+    def materialize(
+        self,
+        repo: Path,
+        relative_path: str,
+        revision: str | None = None,
+    ) -> Path:
         relative = relative_path.replace("\\", "/").strip("/")
         if not relative or relative == ".":
             relative = "."
@@ -120,14 +173,17 @@ class GitStore:
         if path.is_absolute() or ".." in path.parts:
             raise ValueError(f"unsafe repository-relative path: {relative_path!r}")
 
-        self._run(
-            "checkout",
-            "--quiet",
-            self._treeish(repo),
-            "--",
-            relative,
-            cwd=repo,
-        )
+        key = repo.name
+        with self._repository_lock(key):
+            self._run(
+                "checkout",
+                "--quiet",
+                "--force",
+                self._treeish(repo, revision),
+                "--",
+                relative,
+                cwd=repo,
+            )
         local = repo if relative == "." else repo / relative
         if not (local / "otype.tf").is_file():
             raise FileNotFoundError(f"materialized path is not a Text-Fabric dataset: {relative_path}")

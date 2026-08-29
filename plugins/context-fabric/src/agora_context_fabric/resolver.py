@@ -27,6 +27,7 @@ class PreparedCorpus:
     logical_name: str
     relative_path: str
     path: Path
+    source_revision: str | None = None
 
 
 def _member_identity_path(path: str) -> str:
@@ -70,8 +71,6 @@ def _dataset_rank(path: str) -> tuple[int, tuple[tuple[int, int | str], ...], in
     marker = "/tf/"
     if normalized.startswith("tf/"):
         version = normalized[3:]
-        # A repository's canonical top-level tf/<version> tree must outrank
-        # incidental nested TF datasets such as docs/tf/*.
         return (3, _natural_tokens(version), -normalized.count("/"), normalized)
     if marker in normalized:
         version = normalized.rsplit(marker, 1)[1]
@@ -91,11 +90,12 @@ class ContextFabricResolver:
         self.catalog = catalog
         self.store = store
 
-    def _repo(self, resource: ResourceSpec) -> Path:
+    def _repo(self, resource: ResourceSpec) -> tuple[Path, str]:
         kwargs = {"cache_key": resource.id}
         if resource.ref is not None:
             kwargs["ref"] = resource.ref
-        return self.store.ensure_metadata(resource.repository, **kwargs)
+        repo = self.store.ensure_metadata(resource.repository, **kwargs)
+        return repo, self.store.selected_revision(repo)
 
     @staticmethod
     def _select_resource_root(resource: ResourceSpec, roots: Iterable[str]) -> str:
@@ -121,8 +121,12 @@ class ContextFabricResolver:
         for identity, versions in grouped.items():
             selected = select_dataset_root(versions)
             parts = PurePosixPath(identity).parts
-            author = parts[0] if len(parts) > 1 else None
-            title = parts[-1] if parts else identity
+            # Only preserve the old convenience labels for the simple
+            # author/work layout used by some repositories. Deeper repository
+            # layouts (CTS IDs, edition/version segments, etc.) are identifiers,
+            # not scholarly author/title metadata.
+            author = parts[0] if len(parts) == 2 else None
+            title = parts[1] if len(parts) == 2 else None
             members.append(
                 CollectionMember(
                     id=member_id_from_path(selected),
@@ -139,8 +143,10 @@ class ContextFabricResolver:
         resource = self.catalog.get(resource_id)
         if resource.kind != "collection":
             raise ValueError(f"resource {resource_id!r} is not a collection")
-        repo = self._repo(resource)
-        return self._collection_members_from_roots(resource, self.store.dataset_roots(repo))
+        repo, revision = self._repo(resource)
+        return self._collection_members_from_roots(
+            resource, self.store.dataset_roots(repo, revision)
+        )
 
     def search_members(self, resource_id: str, query: str) -> list[CollectionMember]:
         needle = query.casefold().strip()
@@ -169,11 +175,11 @@ class ContextFabricResolver:
         if resource.kind == "collection":
             if not member_id:
                 raise ValueError(f"member_id is required for collection resource {resource_id!r}")
-            repo = self._repo(resource)
+            repo, revision = self._repo(resource)
             members = {
                 member.id: member
                 for member in self._collection_members_from_roots(
-                    resource, self.store.dataset_roots(repo)
+                    resource, self.store.dataset_roots(repo, revision)
                 )
             }
             try:
@@ -182,24 +188,28 @@ class ContextFabricResolver:
                 raise KeyError(
                     f"unknown member {member_id!r} in collection {resource_id!r}"
                 ) from exc
-            local = self.store.materialize(repo, member.relative_path)
+            local = self.store.materialize(repo, member.relative_path, revision)
             return PreparedCorpus(
                 resource_id=resource.id,
                 member_id=member.id,
                 logical_name=f"{resource.id}:{member.id}",
                 relative_path=member.relative_path,
                 path=local,
+                source_revision=revision,
             )
 
         if member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
-        repo = self._repo(resource)
-        relative = self._select_resource_root(resource, self.store.dataset_roots(repo))
-        local = self.store.materialize(repo, relative)
+        repo, revision = self._repo(resource)
+        relative = self._select_resource_root(
+            resource, self.store.dataset_roots(repo, revision)
+        )
+        local = self.store.materialize(repo, relative, revision)
         return PreparedCorpus(
             resource_id=resource.id,
             member_id=None,
             logical_name=resource.id,
             relative_path=relative,
             path=local,
+            source_revision=revision,
         )

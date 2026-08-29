@@ -30,11 +30,20 @@
           "runtime": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["mode"],
+            "required": ["mode", "launch"],
             "properties": {
               "mode": {"type": "string"},
               "type": {"type": "string"},
-              "notes": {"type": "string"}
+              "notes": {"type": "string"},
+              "launch": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["claude", "codex"],
+                "properties": {
+                  "claude": {"$ref": "#/$defs/launch"},
+                  "codex": {"$ref": "#/$defs/launch"}
+                }
+              }
             }
           },
           "data_mode": {"type": "string"},
@@ -51,10 +60,60 @@
           "verification": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["status"],
+            "required": ["status", "clients"],
             "properties": {
               "status": {"type": "string"},
-              "notes": {"type": "array", "items": {"type": "string"}}
+              "notes": {"type": "array", "items": {"type": "string"}},
+              "clients": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["claude", "codex"],
+                "properties": {
+                  "claude": {"$ref": "#/$defs/evidence"},
+                  "codex": {"$ref": "#/$defs/evidence"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "launch": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "type": {"type": "string"},
+        "command": {"type": "string", "minLength": 1},
+        "args": {"type": "array", "items": {"type": "string"}},
+        "cwd": {"type": "string"},
+        "url": {"type": "string", "format": "uri"},
+        "env": {"type": "object", "additionalProperties": {"type": "string"}}
+      },
+      "anyOf": [
+        {"required": ["command"]},
+        {"required": ["url"]}
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "transport", "tests"],
+      "properties": {
+        "status": {"type": "string"},
+        "transport": {"type": "string", "minLength": 1},
+        "tests": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "kind"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "kind": {"type": "string", "minLength": 1}
             }
           }
         }

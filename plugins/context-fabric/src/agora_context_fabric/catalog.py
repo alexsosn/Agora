@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
@@ -20,6 +20,13 @@ class ResourceSpec:
     member_index: str | None = None
     ref: str | None = None
     tf_path: str | None = None
+    description: str | None = None
+    period: str | None = None
+    verification_status: str = "community"
+    verification_notes: tuple[str, ...] = ()
+    licenses: dict[str, str] = field(default_factory=dict)
+    known_issues: tuple[str, ...] = ()
+    source_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
 class Catalog:
@@ -40,6 +47,10 @@ class Catalog:
             if not repository:
                 raise ValueError(f"resource {item.get('id')!r} has no upstream repository")
             collection = item.get("collection") or {}
+            verification = item.get("verification") or {}
+            notes = verification.get("notes") or []
+            if isinstance(notes, str):
+                notes = [notes]
             resources.append(
                 ResourceSpec(
                     id=item["id"],
@@ -53,6 +64,13 @@ class Catalog:
                     member_index=collection.get("member_index"),
                     ref=upstream.get("ref"),
                     tf_path=upstream.get("tf_path"),
+                    description=item.get("description"),
+                    period=item.get("period"),
+                    verification_status=verification.get("status", "community"),
+                    verification_notes=tuple(notes),
+                    licenses=dict(item.get("licenses") or {}),
+                    known_issues=tuple(item.get("known_issues") or ()),
+                    source_snapshot=dict(item.get("source_snapshot") or {}),
                 )
             )
         return resources
@@ -104,9 +122,12 @@ class Catalog:
                 [
                     resource.id,
                     resource.name,
+                    resource.description or "",
+                    resource.period or "",
                     resource.repository,
                     *resource.languages,
                     *resource.disciplines,
+                    *resource.known_issues,
                 ]
             ).casefold()
             if needle and needle not in haystack:
