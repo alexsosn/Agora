@@ -6,10 +6,14 @@ on:
     - cron: "41 5 * * 3"
   push:
     paths:
-      - "plugins/context-fabric/**"
-      - "plugins/perseus/**"
-      - "plugins/sefaria/**"
-      - "plugins/sedra/**"
+      - "plugins/context-fabric/.codex-plugin/mcp.json"
+      - "plugins/context-fabric/pyproject.toml"
+      - "plugins/context-fabric/src/**"
+      - "plugins/perseus/.codex-plugin/mcp.json"
+      - "plugins/sefaria/.codex-plugin/mcp.json"
+      - "plugins/sedra/.codex-plugin/mcp.json"
+      - "plugins/sedra/pyproject.toml"
+      - "plugins/sedra/src/**"
       - "scripts/generate_marketplaces.py"
       - "scripts/smoke_mcp_plugin.py"
       - "tests/test_generation.py"
