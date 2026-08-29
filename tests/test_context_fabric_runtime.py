@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 import tempfile
@@ -16,10 +15,13 @@ sys.path.insert(0, str(PLUGIN_SRC))
 from agora_context_fabric.catalog import Catalog, ResourceSpec
 from agora_context_fabric.gitstore import GitStore
 from agora_context_fabric.resolver import (
+    CollectionMember,
     ContextFabricResolver,
+    PreparedCorpus,
     member_id_from_path,
     select_dataset_root,
 )
+from agora_context_fabric.service import ContextFabricService
 
 
 def git(repo: Path, *args: str) -> str:
@@ -216,6 +218,155 @@ class ResolverTests(unittest.TestCase):
             resolver = ContextFabricResolver(Catalog([resource]), GitStore(Path(tmp)))
             with self.assertRaisesRegex(ValueError, "member_id is required"):
                 resolver.prepare("greek")
+
+
+class FakeResolver:
+    def __init__(self):
+        self.prepare_calls: list[tuple[str, str | None]] = []
+        self.members = [
+            CollectionMember(
+                id="homer-iliad-a1b2c3d4",
+                resource_id="greek",
+                relative_path="Homer/Iliad/tf/1.0",
+                identity_path="Homer/Iliad",
+                author="Homer",
+                title="Iliad",
+            ),
+            CollectionMember(
+                id="plato-phaedo-b1c2d3e4",
+                resource_id="greek",
+                relative_path="Plato/Phaedo/tf/1.0",
+                identity_path="Plato/Phaedo",
+                author="Plato",
+                title="Phaedo",
+            ),
+            CollectionMember(
+                id="plato-cratylus-c1d2e3f4",
+                resource_id="greek",
+                relative_path="Plato/Cratylus/tf/1.0",
+                identity_path="Plato/Cratylus",
+                author="Plato",
+                title="Cratylus",
+            ),
+        ]
+
+    def list_members(self, resource_id: str) -> list[CollectionMember]:
+        if resource_id != "greek":
+            raise AssertionError(resource_id)
+        return list(self.members)
+
+    def search_members(self, resource_id: str, query: str) -> list[CollectionMember]:
+        if resource_id != "greek":
+            raise AssertionError(resource_id)
+        needle = query.casefold()
+        return [member for member in self.members if needle in member.identity_path.casefold()]
+
+    def prepare(self, resource_id: str, *, member_id: str | None = None) -> PreparedCorpus:
+        self.prepare_calls.append((resource_id, member_id))
+        return PreparedCorpus(
+            resource_id=resource_id,
+            member_id=member_id,
+            logical_name=resource_id if member_id is None else f"{resource_id}:{member_id}",
+            relative_path="tf/1.0",
+            path=Path("/tmp/agora-fixture/tf/1.0"),
+        )
+
+
+class FakeLoader:
+    def __init__(self):
+        self.calls: list[tuple[str, str | None, object]] = []
+
+    def load(self, path: str, name: str | None = None, features=None):
+        self.calls.append((path, name, features))
+        return {"name": name, "path": path, "features": features}
+
+
+class ServiceTests(unittest.TestCase):
+    def test_resource_discovery_filters_the_canonical_catalog(self):
+        service = ContextFabricService(
+            Catalog.from_registry(ROOT),
+            FakeResolver(),
+            FakeLoader(),
+        )
+
+        hittite = service.list_resources(language="hittite")
+        self.assertEqual([item["id"] for item in hittite], ["TLHdig-TF"])
+
+        collections = service.list_resources(kind="collection")
+        self.assertEqual(
+            {item["id"] for item in collections},
+            {"bible", "patristics", "greek_literature"},
+        )
+
+        dead = service.list_resources(query="dead sea")
+        self.assertEqual([item["id"] for item in dead], ["dss"])
+
+    def test_collection_member_search_is_paginated(self):
+        greek = ResourceSpec(
+            id="greek",
+            name="Greek fixture",
+            plugin="context-fabric",
+            provider="context-fabric",
+            kind="collection",
+            repository="unused",
+            languages=("greek",),
+            disciplines=("classics",),
+            member_index="unused",
+        )
+        service = ContextFabricService(Catalog([greek]), FakeResolver(), FakeLoader())
+
+        page = service.list_members("greek", query="plato", offset=1, limit=1)
+        self.assertEqual(page["total"], 2)
+        self.assertEqual(page["offset"], 1)
+        self.assertEqual(page["limit"], 1)
+        self.assertFalse(page["has_more"])
+        self.assertEqual([item["title"] for item in page["members"]], ["Cratylus"])
+
+    def test_loading_prepares_then_delegates_to_corpus_manager(self):
+        resource = ResourceSpec(
+            id="fixture",
+            name="Fixture",
+            plugin="context-fabric",
+            provider="context-fabric",
+            kind="corpus",
+            repository="unused",
+            languages=("greek",),
+            disciplines=("classics",),
+            member_index=None,
+        )
+        resolver = FakeResolver()
+        loader = FakeLoader()
+        service = ContextFabricService(Catalog([resource]), resolver, loader)
+
+        result = service.load("fixture", features=["otype", "word"])
+
+        self.assertEqual(resolver.prepare_calls, [("fixture", None)])
+        self.assertEqual(
+            loader.calls,
+            [("/tmp/agora-fixture/tf/1.0", "fixture", ["otype", "word"])],
+        )
+        self.assertEqual(result["resource_id"], "fixture")
+        self.assertEqual(result["logical_name"], "fixture")
+        self.assertEqual(result["corpus"]["name"], "fixture")
+
+    def test_pagination_arguments_are_validated_before_resolution(self):
+        greek = ResourceSpec(
+            id="greek",
+            name="Greek fixture",
+            plugin="context-fabric",
+            provider="context-fabric",
+            kind="collection",
+            repository="unused",
+            languages=("greek",),
+            disciplines=("classics",),
+            member_index="unused",
+        )
+        service = ContextFabricService(Catalog([greek]), FakeResolver(), FakeLoader())
+
+        with self.assertRaisesRegex(ValueError, "offset"):
+            service.list_members("greek", offset=-1)
+        with self.assertRaisesRegex(ValueError, "limit"):
+            service.list_members("greek", limit=0)
 
 
 if __name__ == "__main__":
