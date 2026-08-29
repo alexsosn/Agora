@@ -60,12 +60,14 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     schema = registry / "schema"
     errors: list[str] = []
 
+    marketplace_doc = load_yaml(registry / "marketplace.yaml")
     plugins_doc = load_yaml(registry / "plugins.yaml")
     providers_doc = load_yaml(registry / "providers.yaml")
     resources_doc = load_yaml(registry / "resources.yaml")
     vocab = load_yaml(registry / "vocabularies.yaml")
     scope_doc = load_yaml(registry / "v0.1.yaml")
 
+    errors += schema_errors(marketplace_doc, schema / "marketplace.schema.json", "marketplace.yaml")
     errors += schema_errors(plugins_doc, schema / "plugins.schema.json", "plugins.yaml")
     errors += schema_errors(providers_doc, schema / "providers.schema.json", "providers.yaml")
     errors += schema_errors(resources_doc, schema / "resources.schema.json", "resources.yaml")
@@ -188,7 +190,7 @@ def main() -> int:
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print("Registry validation passed: 4 plugins, 4 providers, 36 v0.1 resources.")
+    print("Registry validation passed: marketplace metadata, 4 plugins, 4 providers, 36 v0.1 resources.")
     return 0
 
 
