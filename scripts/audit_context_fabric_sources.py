@@ -18,6 +18,17 @@ from agora_context_fabric.gitstore import GitStore
 from agora_context_fabric.resolver import select_dataset_root
 
 
+def _selected_root(resource, roots: list[str]) -> str:
+    if resource.tf_path is None:
+        return select_dataset_root(roots)
+    normalized = resource.tf_path.replace("\\", "/").strip("/") or "."
+    if normalized not in roots:
+        raise ValueError(
+            f"configured Text-Fabric path {resource.tf_path!r} was not found"
+        )
+    return normalized
+
+
 def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
     resources: list[dict[str, Any]] = []
     failed = 0
@@ -29,8 +40,15 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
             "kind": resource.kind,
             "repository": resource.repository,
         }
+        if resource.ref is not None:
+            item["ref"] = resource.ref
+        if resource.tf_path is not None:
+            item["configured_tf_path"] = resource.tf_path
         try:
-            repo = store.ensure_metadata(resource.repository, cache_key=resource.id)
+            kwargs = {"cache_key": resource.id}
+            if resource.ref is not None:
+                kwargs["ref"] = resource.ref
+            repo = store.ensure_metadata(resource.repository, **kwargs)
             roots = store.dataset_roots(repo)
             if not roots:
                 raise ValueError("no Text-Fabric dataset roots were discovered")
@@ -40,7 +58,7 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
             if resource.kind == "collection":
                 item["sample_roots"] = roots[:10]
             else:
-                item["selected_root"] = select_dataset_root(roots)
+                item["selected_root"] = _selected_root(resource, roots)
         except Exception as exc:  # audit must report all upstream failures
             failed += 1
             item["status"] = "error"
