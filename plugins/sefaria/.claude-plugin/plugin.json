@@ -1,0 +1,22 @@
+{
+  "name": "sefaria",
+  "version": "0.1.0",
+  "description": "Search and retrieve Jewish texts and linked resources through the official Sefaria Texts MCP.",
+  "author": {
+    "name": "Agora contributors",
+    "url": "https://github.com/alexsosn/Agora"
+  },
+  "homepage": "https://github.com/alexsosn/Agora",
+  "repository": "https://github.com/alexsosn/Agora",
+  "license": "MIT",
+  "keywords": [
+    "biblical-studies",
+    "dictionary-lookup",
+    "digital-philology",
+    "full-text-search",
+    "judaica",
+    "linked-text-navigation",
+    "passage-retrieval",
+    "reference-resolution"
+  ]
+}
