@@ -1,0 +1,7 @@
+schema_version: 1
+collection_id: patristics
+index_status: pending
+notes:
+  - Phase 1 establishes the collection contract; member enumeration is Phase 3 implementation work.
+  - Upstream is organized across many author/work directories and must be indexed without creating marketplace entries per work.
+members: []
