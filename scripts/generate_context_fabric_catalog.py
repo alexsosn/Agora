@@ -17,35 +17,8 @@ def load_yaml(path: Path) -> Any:
         return yaml.safe_load(fh)
 
 
-def _runtime_resource(item: dict[str, Any]) -> dict[str, Any]:
-    upstream_source = item["upstream"]
-    upstream = {"repository": upstream_source["repository"]}
-    for key in ("ref", "tf_path"):
-        if upstream_source.get(key) is not None:
-            upstream[key] = upstream_source[key]
-
-    projected: dict[str, Any] = {
-        "id": item["id"],
-        "name": item["name"],
-        "plugin": item["plugin"],
-        "provider": item["provider"],
-        "kind": item["kind"],
-        "languages": list(item.get("languages", [])),
-        "disciplines": list(item.get("disciplines", [])),
-        "upstream": upstream,
-    }
-    if item["kind"] == "collection":
-        collection = item.get("collection") or {}
-        projected["collection"] = {
-            "discovery": collection.get("discovery", "indexed"),
-            "member_id_scheme": collection.get("member_id_scheme", "stable-relative-id"),
-            "lazy_members": bool(collection.get("lazy_members", True)),
-            "member_index": collection.get("member_index"),
-        }
-    return projected
-
-
 def build_catalog_document(root: Path = ROOT) -> dict[str, Any]:
+    """Build the installed catalog as a lossless v0.1 subset of resources.yaml."""
     root = Path(root)
     resources_doc = load_yaml(root / "registry" / "resources.yaml")
     scope_doc = load_yaml(root / "registry" / "v0.1.yaml")
@@ -63,12 +36,13 @@ def build_catalog_document(root: Path = ROOT) -> dict[str, Any]:
             raise ValueError(
                 f"v0.1 Context-Fabric resource {resource_id!r} is missing from registry/resources.yaml"
             ) from exc
-        ordered.append(_runtime_resource(item))
+        # Keep the full canonical record. Runtime parsing can ignore fields it
+        # does not yet consume, but generation must never discard scholarly,
+        # licensing, verification, provenance, or known-issue metadata.
+        ordered.append(item)
 
     return {
-        "schema_version": 1,
-        "source": "registry/resources.yaml",
-        "release": scope_doc["release"],
+        "schema_version": resources_doc["schema_version"],
         "resources": ordered,
     }
 
@@ -88,11 +62,11 @@ def generate(root: Path = ROOT) -> str:
 
 def check(root: Path = ROOT) -> list[str]:
     root = Path(root)
-    expected = generate(root)
+    expected = build_catalog_document(root)
     path = root / OUTPUT
     if not path.is_file():
         return [f"missing generated runtime catalog: {OUTPUT}"]
-    actual = path.read_text(encoding="utf-8")
+    actual = load_yaml(path)
     if actual != expected:
         return [f"stale generated runtime catalog: {OUTPUT}"]
     return []
@@ -115,7 +89,7 @@ def main() -> int:
             for error in errors:
                 print(error, file=sys.stderr)
             return 1
-        print("Context-Fabric runtime catalog is fresh.")
+        print("Context-Fabric runtime catalog is fresh and lossless.")
         return 0
 
     path = ROOT / OUTPUT
