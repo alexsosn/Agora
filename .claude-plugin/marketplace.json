@@ -7,7 +7,6 @@
   "plugins": [
     {
       "name": "context-fabric",
-      "displayName": "Context-Fabric",
       "source": "./plugins/context-fabric",
       "description": "Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.",
       "author": {
@@ -17,7 +16,6 @@
     },
     {
       "name": "perseus",
-      "displayName": "Perseus MCP",
       "source": "./plugins/perseus",
       "description": "Access Perseus and Scaife text discovery, CTS passages, and search through tonyjurg/Perseus-mcp.",
       "author": {
@@ -27,7 +25,6 @@
     },
     {
       "name": "sefaria",
-      "displayName": "Sefaria",
       "source": "./plugins/sefaria",
       "description": "Search and retrieve Jewish texts and linked resources through the official Sefaria Texts MCP.",
       "author": {
@@ -37,7 +34,6 @@
     },
     {
       "name": "sedra",
-      "displayName": "SEDRA",
       "source": "./plugins/sedra",
       "description": "Syriac lexical and morphological lookup against Beth Mardutho's Syriac Electronic Data Research Archive.",
       "author": {
