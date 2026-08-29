@@ -1,0 +1,4 @@
+interface:
+  display_name: "TLHdig-TF Hittite Research"
+  short_description: "Explore TLHdig-TF while preserving prototype and damage-layer cautions"
+  default_prompt: "Use $tlhdig-hittite-research to inspect TLHdig-TF morphology, ambiguity, and damage while keeping the 0.1.0 prototype warning explicit."
