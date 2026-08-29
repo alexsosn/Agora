@@ -1,409 +1,244 @@
 # Plan: Building Agora as a Digital Philology Marketplace
 
-Agora is a fresh repository. This plan does not assume a migration from `mcp-demo`, does not require preserving its interfaces, and does not treat workshop compatibility as a design goal.
-
-`mcp-demo` may be mined for tested code, metadata, examples, and integration knowledge where useful, but every reused component should be adapted to Agora's architecture rather than carried over for compatibility.
-
-The fixed first-implementation resource set is documented in [`wiki/v0.1-scope.md`](v0.1-scope.md).
+Agora is a fresh repository. `mcp-demo` is prior art and a source of reusable code/knowledge, not a compatibility target. The fixed first-implementation scope is defined in [`wiki/v0.1-scope.md`](v0.1-scope.md) and machine-enforced by `registry/v0.1.yaml`.
 
 ## Phase 0 — Establish Agora's foundation
 
 **Status: implemented.**
 
-### Tasks
+Completed:
 
-1. Define the canonical repository layout.
-2. Add basic project metadata and licensing.
-3. Add a minimal CI workflow.
-4. Decide which generated marketplace artifacts must be committed and which can be built in CI.
-5. Document the clean-slate rule: no compatibility obligation to `mcp-demo`.
+- canonical repository layout;
+- MIT project license and contribution policy;
+- clean-slate rule relative to `mcp-demo`;
+- generated-artifact policy;
+- baseline GitHub Actions workflow.
 
-**Exit criterion:** Agora has an intentional skeleton suitable for marketplace-first development.
+**Exit criterion met:** Agora has a marketplace-first skeleton independent of the old demo repository.
 
-## Phase 1 — Define the canonical marketplace and resource data model
+## Phase 1 — Canonical marketplace and resource data model
 
-The schema must be designed around the actual v0.1 scope rather than around a small proof-of-concept corpus set.
+**Status: implemented.**
 
-### Fixed plugin families
+Completed:
 
-1. `context-fabric`
-2. `perseus`
-3. `sefaria`
-4. `sedra`
+- `registry/plugins.yaml` — four v0.1 plugin families: `context-fabric`, `perseus`, `sefaria`, `sedra`;
+- `registry/providers.yaml` — provider/runtime boundary for each family;
+- `registry/resources.yaml` — all 35 Context-Fabric catalog resources plus TLHdig-TF;
+- `registry/vocabularies.yaml` — controlled languages, disciplines, capabilities, runtime/data modes, resource kinds, acquisition strategies, and verification states;
+- `registry/v0.1.yaml` — machine-readable fixed release contract: 4 plugins and 36 Context-Fabric resources;
+- JSON Schemas for plugins, providers, resources, collection indexes, and release scope;
+- explicit separation of plugin/integration status from resource/data status;
+- explicit separation of software license, data/content license, redistribution status, and service terms;
+- resource-level provenance and known-issue fields;
+- collection model for repositories containing many independent TF corpora;
+- collection-index contracts for `pthu/bible`, `pthu/patristics`, and `pthu/greek_literature`;
+- `scripts/validate_registry.py`;
+- negative tests for malformed IDs, duplicates, broken references, and unknown controlled-vocabulary values;
+- CI validation of the canonical registry and fixed v0.1 scope.
 
-### Fixed Context-Fabric resource baseline
+The three PTHU collection indexes are intentionally present but `pending`; enumerating and testing their individual TF members belongs to Phase 3.
 
-The registry must include:
+TLHdig-TF is registered as Experimental without pinning a stale TF data path/version. The current upstream layout must be resolved during implementation.
 
-- all **35 concrete corpus entries** currently listed by the Context-Fabric corpus catalog source;
-- `alexsosn/TLHdig-TF` as an additional Hittite corpus;
-- therefore **36 Context-Fabric corpus resources** at initial release.
+**Exit criterion met:** every v0.1 resource can be represented without client-specific fields leaking into the canonical schema, and the model is enforced in CI.
 
-The exact list is in [`wiki/v0.1-scope.md`](v0.1-scope.md).
+## Phase 2 — Generate marketplace manifests
 
-### Tasks
+**Status: next.**
 
-1. Add machine-readable schemas for:
-   - marketplace/plugin metadata;
-   - provider metadata;
-   - corpus/resource metadata.
-2. Add canonical registry files such as:
-   - `registry/plugins.yaml`;
-   - `registry/providers.yaml`;
-   - `registry/resources.yaml` or a structured equivalent.
-3. Register all four v0.1 plugin families.
-4. Register all 36 initial Context-Fabric corpus resources.
-5. Define controlled vocabularies for:
-   - disciplines;
-   - languages;
-   - capabilities;
-   - runtime modes;
-   - data modes;
-   - plugin verification status;
-   - resource/data verification status.
-6. Distinguish:
-   - software license;
-   - dataset/content license;
-   - redistribution rights;
-   - remote-service terms.
-7. Model collections explicitly so repositories such as `pthu/greek_literature` do not become thousands of top-level plugins.
-8. Allow resource-level known-issues/provenance metadata.
-9. Mark TLHdig-TF `0.1.0` as `experimental` initially unless the upstream status changes before release.
-10. Add JSON Schema or equivalent validation.
-11. Add tests rejecting malformed IDs, duplicate plugin IDs, duplicate resource IDs, invalid references, and unknown controlled-vocabulary values.
-
-### Design rule
-
-**Plugin verification and resource verification are separate dimensions.** A Context-Fabric integration can be technically Verified while one of its corpus resources remains Community or Experimental.
-
-**Exit criterion:** every resource in the fixed v0.1 scope can be represented cleanly without client-specific fields leaking into the canonical schema.
-
-## Phase 2 — Build marketplace manifest generators
-
-Generate client artifacts from the canonical registry.
+Generate client-facing marketplace/plugin artifacts from the canonical registry rather than maintaining parallel metadata manually.
 
 ### Tasks
 
-1. Implement `scripts/generate_marketplaces.py`.
-2. Generate the Claude marketplace manifest.
-3. Generate the ChatGPT/Codex-compatible marketplace representation.
-4. Generate Antigravity plugin descriptors/configuration where required.
-5. Add a `--check` mode that fails if committed generated files are stale.
-6. Add snapshot/schema tests for generated artifacts.
-7. Add CI that runs generation and validation.
+1. Re-check the current official marketplace/plugin specifications for:
+   - ChatGPT/Codex;
+   - Claude Code;
+   - Google Antigravity.
+2. Decide which formats can share a native manifest and which require generated adapters.
+3. Implement `scripts/generate_marketplaces.py`.
+4. Generate the Claude marketplace manifest.
+5. Generate the ChatGPT/Codex-compatible marketplace representation.
+6. Generate Antigravity descriptors/configuration where required.
+7. Keep client-specific launch details outside the canonical scholarly/resource schema.
+8. Add deterministic ordering and stable serialization.
+9. Add `--check` mode that fails when committed generated artifacts are stale.
+10. Add schema/snapshot tests and CI freshness checks.
 
-### Design rule
+**Design rule:** the canonical registry is the source of truth; generated client files are projections of it.
 
-Do not hand-maintain equivalent plugin metadata in multiple platform formats.
+**Exit criterion:** one registry edit deterministically updates all supported marketplace representations.
 
-**Exit criterion:** one canonical registry edit updates all supported marketplace formats deterministically.
+## Phase 3 — Implement Context-Fabric and the 36-resource baseline
 
-## Phase 3 — Implement the Context-Fabric provider and full v0.1 corpus baseline
+This is the main corpus implementation phase, not a representative-corpus prototype.
 
-This is not a representative-corpus prototype. The first implementation must cover the full fixed Context-Fabric resource set.
+### Provider/runtime
 
-### 3.1 Create the provider plugin
+Create `plugins/context-fabric/` with the runtime adapter, resource resolver, acquisition/cache logic, and Context-Fabric-specific instructions.
 
-Create a clean provider structure, for example:
+Target flow:
 
 ```text
-plugins/context-fabric/
-├── plugin metadata
-├── skills/
-├── scripts/
-└── resources/
-```
-
-The plugin should expose Text-Fabric-format corpora through Context-Fabric MCP.
-
-### 3.2 Corpus acquisition
-
-Implement a corpus resolver that can map canonical resource IDs to upstream repositories and TF data locations.
-
-Preferred behavior:
-
-```text
-request corpus
-→ resolve registry entry
-→ acquire/cache TF data
+resource/member ID
+→ resolve canonical registry metadata
+→ acquire/cache required TF data
+→ determine actual TF corpus path
 → compile/load with Context-Fabric
-→ expose through cfabric-mcp
+→ expose through Context-Fabric MCP
 ```
 
-Use native Text-Fabric acquisition/application mechanisms where practical. Avoid full repository clones when a narrower supported acquisition path exists.
+Canonical metadata must not contain machine-specific absolute paths.
 
-### 3.3 Logical corpus addressing
+### All 36 resources
 
-Avoid machine-specific absolute paths in canonical metadata.
+The plugin must resolve and prepare every resource in `registry/v0.1.yaml`, not only BHSA/CUC examples.
 
-If necessary, add a resolver around Context-Fabric MCP so users/plugins can specify logical corpus IDs or upstream applications rather than precomputed local paths.
+Use supported Text-Fabric/Context-Fabric acquisition mechanisms where practical. Full Git clones should not be the default when a narrower reliable method exists.
 
-A conceptual target is:
+### Collection resources
 
-```bash
-cfabric-mcp --tf-app ETCBC/bhsa
-```
+Populate the pending member indexes for:
 
-or an Agora wrapper with equivalent semantics.
+- `pthu/bible`;
+- `pthu/patristics`;
+- `pthu/greek_literature`.
 
-If upstream changes to `cfabric-mcp` are needed, keep them as separable upstream contributions rather than a permanent Agora fork.
+Each member should receive a stable internal ID, repository-relative TF location, useful author/title/canonical identifiers where available, and member-level status.
 
-### 3.4 Implement all 36 initial resources
+Collection members remain independent TF corpora. Agora must not assume common node types, section models, or feature sets across Greek works.
 
-The plugin must represent and be able to prepare the 35 current Context-Fabric catalog resources plus TLHdig-TF.
+Member acquisition/loading should be lazy where practical; using one Greek work must not require loading the entire collection.
 
-This includes, among others:
+### TLHdig-TF
 
-- BHSA, DSS, Samaritan Pentateuch, Extra-biblical Hebrew;
-- LXX and multiple Greek New Testament corpora;
-- `pthu/bible`, `pthu/patristics`, `pthu/greek_literature`, Athenaeus;
-- Peshitta and Syriac NT/resources;
-- Quran and Fusus;
-- Neo-Aramaic;
-- Uruk, Old Assyrian, Old Babylonian, NinMed;
-- Copenhagen Ugaritic Corpus;
-- Dhammapada;
-- Latin/Dutch/French/Italian/English historical and literary corpora;
-- TLHdig-TF.
+Resolve the current actual TF dataset location/version from upstream rather than relying on the older README path. Preserve upstream known-issue warnings and Experimental status unless upstream validation improves.
 
-The exact authoritative v0.1 list is [`wiki/v0.1-scope.md`](v0.1-scope.md).
+### Testing
 
-### 3.5 Collections
+Use layered CI:
 
-Treat collection repositories as resources/collections rather than marketplace plugin explosions.
+1. registry and resolver checks for all 36 resources;
+2. lightweight end-to-end tests on small representative corpora on normal PRs;
+3. representative collection-member tests;
+4. scheduled/batched tests for larger resources;
+5. per-resource/member known-issue status.
 
-In particular, `pthu/greek_literature` must remain one registered collection resource even though it contains many separately loadable TF works.
-
-### 3.6 TLHdig-TF
-
-Add `alexsosn/TLHdig-TF` through Context-Fabric MCP.
-
-Initial metadata must preserve its upstream warning that `0.1.0` is an integration prototype and should not yet be relied on for research. Inclusion is required; `experimental` status is also required unless upstream validation improves before release.
-
-### 3.7 Testing strategy
-
-Do not require every large corpus to be fully downloaded in every ordinary CI job.
-
-Use layered testing:
-
-1. registry/schema checks for all 36 resources;
-2. acquisition-resolution checks for all resources;
-3. lightweight/small-corpus end-to-end tests on every PR where practical;
-4. batched or scheduled integration tests for larger corpora;
-5. resource-specific smoke tests where meaningful.
-
-**Exit criterion:** all 36 initial corpus resources are first-class registry entries and the Context-Fabric plugin can resolve, acquire, and expose them according to documented status and testing policy.
+**Exit criterion:** all 36 resources can be resolved through the Context-Fabric plugin, and collection members can be discovered and loaded independently.
 
 ## Phase 4 — Implement Perseus, Sefaria, and SEDRA
 
-These are independent plugins, not sub-resources of Context-Fabric.
+### Perseus
 
-### 4.1 Perseus
+Integrate upstream `tonyjurg/Perseus-mcp` without vendoring it. Add installation/version policy, launch metadata, CTS/URN guidance, resource discovery guidance, and smoke tests for initialization, passage retrieval, and search.
 
-Use `tonyjurg/Perseus-mcp` upstream rather than vendoring it.
+### Sefaria
 
-Tasks:
+Use the official Sefaria Texts MCP endpoint. Add client transport adaptation only where necessary, plus reference/search/link/dictionary guidance and known-reference tests.
 
-1. determine supported installation/version policy;
-2. create `plugins/perseus/`;
-3. reference upstream;
-4. add launch/configuration only where necessary;
-5. document CTS URNs, corpus/edition discovery, passage retrieval, Scaife search, and known limitations;
-6. test MCP initialization, discovery, known-passage retrieval, and representative search;
-7. record software license and upstream data-service caveats;
-8. test supported clients.
+### SEDRA
 
-### 4.2 Sefaria
+Create the Agora SEDRA adapter around Beth Mardutho SEDRA IV. Resolve and document the adapter's software provenance/licensing, preserve the distinction between lexeme and word lookup, and add representative Syriac lexical tests.
 
-Create `plugins/sefaria/` with:
-
-- hosted endpoint configuration;
-- transport adaptation only where required;
-- text/reference/link/dictionary usage guidance;
-- health and known-reference smoke tests.
-
-Reuse endpoint/proxy knowledge from `mcp-demo` where helpful without inheriting its architecture.
-
-### 4.3 SEDRA
-
-Create `plugins/sedra/` with:
-
-- Beth Mardutho / SEDRA launch/integration logic;
-- explicit word-versus-lexeme guidance;
-- representative lexicographic smoke tests.
-
-**Exit criterion:** Perseus, Sefaria, and SEDRA can each be installed/enabled independently from the Context-Fabric plugin.
+**Exit criterion:** all three integrations install/connect independently of Context-Fabric and pass representative MCP operations.
 
 ## Phase 5 — Scholarly skills
 
-Add concise, source-grounded skills to the first-release plugins and high-value corpus resources.
+Add concise, source-grounded skills/instructions for:
 
-Initial skills should include:
+- Context-Fabric graph/search/feature discovery and corpus switching;
+- BHSA/ETCBC morphology and syntax features;
+- CUC/Ugaritic conventions;
+- TLHdig-TF morphology, ambiguity nodes, damage/editorial apparatus, and known limitations;
+- Greek collection discovery and per-work schema inspection;
+- Perseus CTS/edition/search workflows;
+- Sefaria references/links/dictionaries;
+- SEDRA word/lexeme semantics.
 
-- **Context-Fabric:** graph model, search syntax, corpus discovery, feature inspection, collection handling.
-- **BHSA/ETCBC:** morphology/features, phrase/clause structure, useful query patterns.
-- **CUC:** Ugaritic transliteration, tablet/line hierarchy, feature semantics.
-- **TLHdig-TF:** Hittite corpus hierarchy, morphology/analysis nodes, damage/editorial apparatus, explicit known limitations.
-- **Perseus:** CTS, edition discovery, passage retrieval/search, Perseus vs Scaife distinctions.
-- **Sefaria:** reference conventions, text/link/dictionary workflows.
-- **SEDRA:** word/lexeme lookup semantics.
-
-Skills should be tested against the actual tools where possible.
-
-**Exit criterion:** a newly installed plugin provides enough domain context for a capable model to make correct first attempts without reading repository internals.
+**Exit criterion:** a capable model can make correct first attempts after installing a plugin without reverse-engineering repository internals.
 
 ## Phase 6 — Verification and trust layer
 
-Create a common verification harness that distinguishes integration health from scholarly-resource status.
+Machine-enforce separate verification scopes.
 
-### Plugin checks
+### Plugin/integration checks
 
-1. metadata/schema validation;
-2. installation resolution;
-3. server startup or hosted endpoint reachability;
-4. MCP initialization;
-5. tool enumeration;
-6. representative operation;
-7. cleanup;
-8. version/provenance recording.
+- installation or endpoint resolution;
+- server startup/reachability;
+- MCP initialization;
+- tool enumeration;
+- representative operation;
+- version/provenance recording.
 
-### Resource checks
+### Resource/member checks
 
-1. upstream availability;
-2. acquisition resolution;
-3. loadability;
-4. representative text/feature access;
-5. known-issue metadata;
-6. license/provenance metadata;
-7. resource verification state.
+- upstream availability;
+- acquisition resolution;
+- loadability;
+- representative text/feature access;
+- license/provenance metadata;
+- known issues;
+- resource/member status.
 
-### Status policy
+Statuses remain `verified`, `community`, and `experimental`. Plugin verification must never automatically promote all resources underneath it.
 
-For both plugins and resources, use explicit states such as:
-
-- **Verified** — tested to the defined level in CI;
-- **Community** — valid/useful but not continuously tested to Verified standard;
-- **Experimental** — incomplete, unstable, or known to have unresolved correctness problems.
-
-A plugin's Verified status must not automatically propagate to all of its resources.
-
-**Exit criterion:** status labels are machine-enforced and accurately scoped.
+**Exit criterion:** status labels describe a defined, CI-enforced level of evidence.
 
 ## Phase 7 — Documentation and optional profiles
 
-### Documentation
+Document marketplace installation, plugin installation, resource discovery, collection semantics, adding an MCP/plugin, adding a Context-Fabric resource, verification policy, licensing policy, upstream policy, and client compatibility.
 
-Document:
+Generate resource/plugin tables from the registry where practical.
 
-- marketplace installation;
-- plugin installation;
-- the fixed v0.1 resource catalog;
-- adding a third-party MCP;
-- adding a Context-Fabric corpus;
-- collection semantics;
-- verification policy;
-- licensing policy;
-- upstream policy;
-- client compatibility.
-
-Generate plugin/resource tables from registry data where practical.
-
-### Profiles
-
-Profiles may be added as optional convenience bundles, for example:
-
-- `classics`
-- `biblical-studies`
-- `assyriology`
-- `semitic-languages`
-
-They are not compatibility layers and are not required to reproduce `mcp-demo`.
+Optional profiles such as `classics`, `biblical-studies`, `assyriology`, and `semitic-languages` may be added as declarative convenience bundles. They are not compatibility layers for `mcp-demo`.
 
 ## Phase 8 — Post-v0.1 expansion
 
-Only after the fixed first implementation works should Agora expand to new provider families/resources.
+After the fixed implementation works, investigate additional open scholarly providers and MCPs, including:
 
-Suggested investigation areas:
+- ORACC / ePSD / CDLI;
+- papyri.info and papyrological resources;
+- epigraphic databases;
+- IIIF/manuscript tooling;
+- morphology and lexicography services;
+- prosopographical/entity-linking resources;
+- bibliographic discovery;
+- additional philological MCP servers;
+- new Context-Fabric catalog entries.
 
-1. ORACC/ePSD/CDLI ecosystem;
-2. papyri.info / papyrological resources;
-3. epigraphic databases;
-4. IIIF/manuscript tooling;
-5. morphology and lexicography services;
-6. prosopographical/entity-linking resources;
-7. bibliographic discovery;
-8. other open philological MCP servers.
-
-The Context-Fabric catalog itself may also grow. New upstream catalog entries can be added after the v0.1 baseline, but must not displace completion of the fixed baseline defined in `wiki/v0.1-scope.md`.
-
-## Recommended implementation sequence
+## Recommended sequence
 
 ```text
-Phase 0 foundation
-→ Phase 1 canonical plugin/resource schema + all v0.1 registry entries
-→ Phase 2 marketplace manifest generation
-→ Phase 3 Context-Fabric plugin + all 36 corpus resources
+Phase 0 foundation                  ✓
+→ Phase 1 canonical registry        ✓
+→ Phase 2 manifest generation       NEXT
+→ Phase 3 Context-Fabric + 36 resources
 → Phase 4 Perseus + Sefaria + SEDRA
 → Phase 5 scholarly skills
 → Phase 6 verification/trust layer
 → Phase 7 documentation/profiles
-→ Phase 8 additional providers/resources
+→ Phase 8 expansion
 ```
-
-## Code reuse guidance
-
-When consulting `mcp-demo`:
-
-### Reuse freely when useful
-
-- tested endpoint URLs;
-- known-good launch arguments;
-- corpus identifiers;
-- TF feature metadata;
-- test fixtures;
-- transport workarounds;
-- utility code that is already cleanly separable.
-
-### Prefer rewriting when old assumptions leak through
-
-- absolute checkout paths;
-- monolithic multi-corpus server configuration;
-- workshop-only setup logic;
-- centralized client config generation tied to one installation;
-- environment bootstrap code that has no role in marketplace installation.
-
-Do not add shims solely to make Agora behave like `mcp-demo`.
 
 ## Non-goals for v0.1
 
-- migrating `mcp-demo` users or preserving its command-line interface;
-- reproducing the summer-school setup;
-- writing new MCP adapters for every desirable scholarly database;
-- enumerating every work inside large collection repositories as a marketplace plugin;
+- preserving `mcp-demo` interfaces or workshop behavior;
+- writing new adapters for every desirable scholarly database;
+- flattening individual Greek TF works into marketplace plugins/resources;
 - vendoring third-party MCP implementations unnecessarily;
-- guaranteeing identical capabilities across all clients;
-- hiding upstream licensing restrictions or data-quality warnings;
-- requiring every included corpus to have Verified scholarly-data status before inclusion.
+- pretending all clients have identical capabilities;
+- inventing licenses or hiding unknown licensing status;
+- treating inclusion as proof that an upstream dataset is research-grade.
 
-## v0.1 milestone
+## v0.1 definition of done
 
-Agora v0.1 is not complete with only four empty plugin shells.
+Agora v0.1 requires:
 
-It must contain:
-
-1. a working **Context-Fabric** provider plugin;
-2. **all 35 corpus resources in the current Context-Fabric catalog**;
-3. **TLHdig-TF** as the 36th Context-Fabric resource;
-4. a working **Perseus-MCP** integration;
-5. a working **Sefaria** integration;
-6. a working **SEDRA** integration;
-7. canonical registry/schema;
-8. generated marketplace metadata for supported clients;
-9. resource-level provenance, licensing, and verification status;
-10. integration and representative scholarly tests;
-11. plugin/resource-specific scholarly guidance;
-12. contributor documentation.
-
-## Definition of done
-
-The first implementation is complete when Agora functions as a curated cross-platform marketplace exposing the entire fixed v0.1 resource set in [`wiki/v0.1-scope.md`](v0.1-scope.md), with independent plugin installation, clear provider/resource boundaries, explicit provenance/licensing, scholarly guidance, and reproducible verification — without depending on or preserving the architecture of `mcp-demo`.
+1. a working Context-Fabric plugin covering all 36 fixed resources;
+2. member-aware support for the PTHU Greek collections;
+3. working Perseus-MCP, Sefaria, and SEDRA integrations;
+4. deterministic marketplace manifests for supported clients;
+5. resource-level provenance, licensing, and verification metadata;
+6. representative integration and scholarly tests;
+7. plugin/resource-specific scholarly guidance;
+8. contributor documentation.
