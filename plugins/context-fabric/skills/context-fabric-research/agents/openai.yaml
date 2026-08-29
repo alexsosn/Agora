@@ -1,0 +1,4 @@
+interface:
+  display_name: "Context-Fabric Research"
+  short_description: "Discover, load, and query heterogeneous Text-Fabric corpora safely"
+  default_prompt: "Use $context-fabric-research to discover the right corpus, inspect its schema, and plan a reproducible Context-Fabric query."
