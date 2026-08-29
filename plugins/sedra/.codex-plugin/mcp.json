@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "context-fabric": {
+    "sedra": {
       "type": "stdio",
       "cwd": ".",
       "command": "uv",
@@ -8,9 +8,7 @@
         "run",
         "--project",
         ".",
-        "agora-context-fabric-mcp",
-        "--plugin-root",
-        "."
+        "agora-sedra-mcp"
       ]
     }
   }

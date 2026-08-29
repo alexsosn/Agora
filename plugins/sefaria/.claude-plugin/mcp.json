@@ -1,0 +1,6 @@
+{
+  "sefaria": {
+    "type": "sse",
+    "url": "https://mcp.sefaria.org/sse"
+  }
+}

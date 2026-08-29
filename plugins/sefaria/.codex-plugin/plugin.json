@@ -19,6 +19,7 @@
     "passage-retrieval",
     "reference-resolution"
   ],
+  "mcpServers": "./.codex-plugin/mcp.json",
   "interface": {
     "displayName": "Sefaria",
     "shortDescription": "Search and retrieve Jewish texts and linked resources through the official Sefaria Texts MCP.",

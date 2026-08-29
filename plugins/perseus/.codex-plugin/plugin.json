@@ -17,6 +17,7 @@
     "full-text-search",
     "passage-retrieval"
   ],
+  "mcpServers": "./.codex-plugin/mcp.json",
   "interface": {
     "displayName": "Perseus MCP",
     "shortDescription": "Access Perseus and Scaife text discovery, CTS passages, and search through tonyjurg/Perseus-mcp.",

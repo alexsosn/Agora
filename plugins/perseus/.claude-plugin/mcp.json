@@ -1,0 +1,10 @@
+{
+  "perseus": {
+    "command": "uvx",
+    "args": [
+      "--from",
+      "perseus-mcp==1.0.2",
+      "perseus-mcp"
+    ]
+  }
+}

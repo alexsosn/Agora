@@ -15,5 +15,6 @@
     "lexeme-lookup",
     "semitic-linguistics",
     "syriac-studies"
-  ]
+  ],
+  "mcpServers": "./.claude-plugin/mcp.json"
 }

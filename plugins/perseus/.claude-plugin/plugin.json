@@ -16,5 +16,6 @@
     "digital-philology",
     "full-text-search",
     "passage-retrieval"
-  ]
+  ],
+  "mcpServers": "./.claude-plugin/mcp.json"
 }

@@ -1,0 +1,11 @@
+{
+  "sedra": {
+    "command": "uv",
+    "args": [
+      "run",
+      "--project",
+      "${CLAUDE_PLUGIN_ROOT}",
+      "agora-sedra-mcp"
+    ]
+  }
+}

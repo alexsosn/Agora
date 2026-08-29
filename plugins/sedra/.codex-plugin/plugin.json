@@ -16,6 +16,7 @@
     "semitic-linguistics",
     "syriac-studies"
   ],
+  "mcpServers": "./.codex-plugin/mcp.json",
   "interface": {
     "displayName": "SEDRA",
     "shortDescription": "Syriac lexical and morphological lookup against Beth Mardutho's Syriac Electronic Data Research Archive.",
