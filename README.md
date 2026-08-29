@@ -8,7 +8,7 @@ Agora is not tied to a single corpus format or backend. Text-Fabric is one impor
 
 ## Planned scope
 
-Initial integrations include or are planned around:
+Initial integrations are planned around:
 
 - Text-Fabric / ContextFabric corpora
 - Perseus / Scaife via `tonyjurg/Perseus-mcp`
@@ -27,25 +27,34 @@ The long-term goal is a curated marketplace where each plugin can bundle not onl
 - **License-aware:** distinguish software licenses from dataset/content licenses and service terms.
 - **Verified where possible:** test real scholarly operations, not only MCP startup.
 - **Scalable:** large corpus families should be represented through provider registries rather than one marketplace entry per individual text.
+- **Clean-slate:** Agora has no compatibility obligation to `mcp-demo`. Earlier code and research may be reused where useful, but Agora's architecture is defined independently.
 
 ## Status
 
-Agora is currently in the architecture and migration stage. The first milestone is to turn the existing `mcp-demo` work into independently usable integrations for:
+**Phase 0 — project foundation — is implemented.** Agora now has an intentional marketplace-first repository layout, project licensing and contribution rules, a policy for generated artifacts, and a minimal CI foundation check.
 
-1. Text-Fabric / ContextFabric
-2. Perseus
-3. Sefaria
-4. SEDRA
+The next milestone is **Phase 1: define the canonical marketplace data model and registry schema** for the initial Text-Fabric, Perseus, Sefaria, and SEDRA integrations.
 
-The existing summer-school setup will remain reproducible as a profile of the broader marketplace.
+No plugin integrations are considered implemented or verified yet.
+
+## Repository layout
+
+- `registry/` — canonical marketplace metadata and schemas.
+- `plugins/` — plugin integrations and scholarly skills.
+- `profiles/` — optional curated bundles.
+- `scripts/` — generators, validators, and repository tooling.
+- `tests/` — unit and integration tests.
+- `generated/` — generated artifacts intentionally committed to the repository.
+- `wiki/` — design research and implementation plans.
 
 ## Documentation
 
 - [Research and architecture](wiki/research.md)
 - [Implementation plan](wiki/plan.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## Contributing
 
 The intended contribution model is lightweight: adding a straightforward third-party philological MCP server should eventually require a plugin definition, scholarly metadata/instructions, and smoke tests rather than changes throughout the core repository.
 
-More contributor documentation will be added as the marketplace schema stabilizes.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for repository conventions and the clean-slate policy.
