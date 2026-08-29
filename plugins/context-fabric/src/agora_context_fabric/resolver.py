@@ -70,7 +70,9 @@ def _dataset_rank(path: str) -> tuple[int, tuple[tuple[int, int | str], ...], in
     marker = "/tf/"
     if normalized.startswith("tf/"):
         version = normalized[3:]
-        return (2, _natural_tokens(version), -normalized.count("/"), normalized)
+        # A repository's canonical top-level tf/<version> tree must outrank
+        # incidental nested TF datasets such as docs/tf/*.
+        return (3, _natural_tokens(version), -normalized.count("/"), normalized)
     if marker in normalized:
         version = normalized.rsplit(marker, 1)[1]
         return (2, _natural_tokens(version), -normalized.count("/"), normalized)
