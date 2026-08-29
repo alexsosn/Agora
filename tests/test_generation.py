@@ -199,6 +199,8 @@ class MarketplaceGenerationTests(unittest.TestCase):
             [
                 "--from",
                 "mcp-proxy==0.12.0",
+                "--with",
+                "mcp>=1.17,<2",
                 "mcp-proxy",
                 "https://mcp.sefaria.org/sse",
             ],
