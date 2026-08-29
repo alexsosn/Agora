@@ -18,6 +18,8 @@ class ResourceSpec:
     languages: tuple[str, ...]
     disciplines: tuple[str, ...]
     member_index: str | None = None
+    ref: str | None = None
+    tf_path: str | None = None
 
 
 class Catalog:
@@ -49,6 +51,8 @@ class Catalog:
                     languages=tuple(item.get("languages", [])),
                     disciplines=tuple(item.get("disciplines", [])),
                     member_index=collection.get("member_index"),
+                    ref=upstream.get("ref"),
+                    tf_path=upstream.get("tf_path"),
                 )
             )
         return resources
