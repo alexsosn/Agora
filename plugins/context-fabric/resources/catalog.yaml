@@ -325,10 +325,10 @@ resources:
   upstream:
     repository: ETCBC/dhammapada
 - id: translatin-manif
-  name: Translatin-manif
+  name: TransLatin manifestations
   plugin: context-fabric
   provider: context-fabric
-  kind: corpus
+  kind: collection
   languages:
   - latin
   disciplines:
@@ -336,6 +336,11 @@ resources:
   - history
   upstream:
     repository: HuygensING/translatin-manif
+  collection:
+    discovery: indexed
+    member_id_scheme: stable-relative-id
+    lazy_members: true
+    member_index: registry/collections/translatin-manif.yaml
 - id: wp6-missieven
   name: VOC General Missives
   plugin: context-fabric
@@ -438,3 +443,5 @@ resources:
   - digital-philology
   upstream:
     repository: alexsosn/TLHdig-TF
+    ref: 5d5e9af248566222738f8ac65ab8f9bb1b6aed3c
+    tf_path: tf/0.1.0
