@@ -1,0 +1,57 @@
+name: Foundation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    name: Repository foundation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify required Phase 0 structure
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required_files=(
+            README.md
+            LICENSE
+            CONTRIBUTING.md
+            wiki/research.md
+            wiki/plan.md
+            registry/README.md
+            plugins/README.md
+            profiles/README.md
+            scripts/README.md
+            tests/README.md
+            generated/README.md
+          )
+
+          for path in "${required_files[@]}"; do
+            if [[ ! -f "$path" ]]; then
+              echo "Missing required Phase 0 file: $path" >&2
+              exit 1
+            fi
+          done
+
+      - name: Verify clean-slate policy is documented
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'mcp-demo' CONTRIBUTING.md
+          grep -Fq 'not a compatibility target' CONTRIBUTING.md
+
+      - name: Verify generated-artifact policy is documented
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'deterministic generator' generated/README.md
+          grep -Fq 'CI freshness check' generated/README.md
