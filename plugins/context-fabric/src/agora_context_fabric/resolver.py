@@ -148,18 +148,23 @@ class ContextFabricResolver:
 
     def prepare(self, resource_id: str, *, member_id: str | None = None) -> PreparedCorpus:
         resource = self.catalog.get(resource_id)
-        repo = self._repo(resource)
 
         if resource.kind == "collection":
             if not member_id:
                 raise ValueError(f"member_id is required for collection resource {resource_id!r}")
-            members = {member.id: member for member in self._collection_members_from_roots(
-                resource, self.store.dataset_roots(repo)
-            )}
+            repo = self._repo(resource)
+            members = {
+                member.id: member
+                for member in self._collection_members_from_roots(
+                    resource, self.store.dataset_roots(repo)
+                )
+            }
             try:
                 member = members[member_id]
             except KeyError as exc:
-                raise KeyError(f"unknown member {member_id!r} in collection {resource_id!r}") from exc
+                raise KeyError(
+                    f"unknown member {member_id!r} in collection {resource_id!r}"
+                ) from exc
             local = self.store.materialize(repo, member.relative_path)
             return PreparedCorpus(
                 resource_id=resource.id,
@@ -171,6 +176,7 @@ class ContextFabricResolver:
 
         if member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
+        repo = self._repo(resource)
         relative = select_dataset_root(self.store.dataset_roots(repo))
         local = self.store.materialize(repo, relative)
         return PreparedCorpus(
