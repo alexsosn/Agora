@@ -45,31 +45,35 @@ TLHdig-TF is registered as Experimental without pinning a stale TF data path/ver
 
 ## Phase 2 — Generate marketplace manifests
 
-**Status: next.**
+**Status: implemented for Claude Code and ChatGPT/Codex. Antigravity is intentionally deferred.**
 
-Generate client-facing marketplace/plugin artifacts from the canonical registry rather than maintaining parallel metadata manually.
+Completed:
 
-### Tasks
+- re-checked the current native Claude Code and OpenAI Codex plugin/marketplace formats;
+- added platform-neutral `registry/marketplace.yaml` publisher/catalog metadata plus JSON Schema validation;
+- implemented `scripts/generate_marketplaces.py`;
+- generated `.claude-plugin/marketplace.json`;
+- generated `.agents/plugins/marketplace.json`;
+- generated per-plugin `.claude-plugin/plugin.json` for all four v0.1 plugins;
+- generated per-plugin `.codex-plugin/plugin.json` for all four v0.1 plugins;
+- kept client-specific category/policy/presentation defaults in generator adapters rather than leaking them into scholarly resource metadata;
+- made output ordering deterministic from `registry/v0.1.yaml`;
+- derived plugin semantic version `0.1.0` deterministically from the `v0.1` release identifier;
+- added `--check` mode for missing/stale generated files;
+- added tests for native output paths, ordering, Codex local-source/policy shape, Claude local sources, version conversion, freshness, and the explicit absence of Antigravity output;
+- added CI freshness enforcement.
 
-1. Re-check the current official marketplace/plugin specifications for:
-   - ChatGPT/Codex;
-   - Claude Code;
-   - Google Antigravity.
-2. Decide which formats can share a native manifest and which require generated adapters.
-3. Implement `scripts/generate_marketplaces.py`.
-4. Generate the Claude marketplace manifest.
-5. Generate the ChatGPT/Codex-compatible marketplace representation.
-6. Generate Antigravity descriptors/configuration where required.
-7. Keep client-specific launch details outside the canonical scholarly/resource schema.
-8. Add deterministic ordering and stable serialization.
-9. Add `--check` mode that fails when committed generated artifacts are stale.
-10. Add schema/snapshot tests and CI freshness checks.
+The native artifacts live at client-required paths rather than under `generated/`. The generator is their only source of truth.
+
+The generated plugin manifests are deliberately metadata-only in Phase 2. They do not declare MCP servers, skills, hooks, or apps that have not yet been implemented. Runtime-specific declarations are added in Phases 3–5.
 
 **Design rule:** the canonical registry is the source of truth; generated client files are projections of it.
 
-**Exit criterion:** one registry edit deterministically updates all supported marketplace representations.
+**Exit criterion met:** one registry edit deterministically updates all currently supported marketplace representations, and CI fails if committed projections become stale.
 
 ## Phase 3 — Implement Context-Fabric and the 36-resource baseline
+
+**Status: next.**
 
 This is the main corpus implementation phase, not a representative-corpus prototype.
 
@@ -112,7 +116,11 @@ Member acquisition/loading should be lazy where practical; using one Greek work 
 
 ### TLHdig-TF
 
-Resolve the current actual TF dataset location/version from upstream rather than relying on the older README path. Preserve upstream known-issue warnings and Experimental status unless upstream validation improves.
+Resolve the current actual TF dataset location/version from upstream rather than relying on an older README path. Preserve upstream known-issue warnings and Experimental status unless upstream validation improves.
+
+### Generated plugin metadata
+
+Once the Context-Fabric runtime exists, extend the generated Claude/Codex plugin package with the real MCP declaration and any required launcher/configuration files. Do not hand-edit the generated metadata fields that belong to Phase 2.
 
 ### Testing
 
@@ -204,20 +212,21 @@ After the fixed implementation works, investigate additional open scholarly prov
 - prosopographical/entity-linking resources;
 - bibliographic discovery;
 - additional philological MCP servers;
-- new Context-Fabric catalog entries.
+- new Context-Fabric catalog entries;
+- additional client adapters, including Antigravity if useful.
 
 ## Recommended sequence
 
 ```text
 Phase 0 foundation                  ✓
 → Phase 1 canonical registry        ✓
-→ Phase 2 manifest generation       NEXT
-→ Phase 3 Context-Fabric + 36 resources
+→ Phase 2 Claude/Codex generation   ✓
+→ Phase 3 Context-Fabric + 36 resources   NEXT
 → Phase 4 Perseus + Sefaria + SEDRA
 → Phase 5 scholarly skills
 → Phase 6 verification/trust layer
 → Phase 7 documentation/profiles
-→ Phase 8 expansion
+→ Phase 8 expansion/client adapters
 ```
 
 ## Non-goals for v0.1
@@ -227,6 +236,7 @@ Phase 0 foundation                  ✓
 - flattening individual Greek TF works into marketplace plugins/resources;
 - vendoring third-party MCP implementations unnecessarily;
 - pretending all clients have identical capabilities;
+- requiring Antigravity support in the first implementation;
 - inventing licenses or hiding unknown licensing status;
 - treating inclusion as proof that an upstream dataset is research-grade.
 
@@ -237,7 +247,7 @@ Agora v0.1 requires:
 1. a working Context-Fabric plugin covering all 36 fixed resources;
 2. member-aware support for the PTHU Greek collections;
 3. working Perseus-MCP, Sefaria, and SEDRA integrations;
-4. deterministic marketplace manifests for supported clients;
+4. deterministic Claude Code and ChatGPT/Codex marketplace manifests;
 5. resource-level provenance, licensing, and verification metadata;
 6. representative integration and scholarly tests;
 7. plugin/resource-specific scholarly guidance;
