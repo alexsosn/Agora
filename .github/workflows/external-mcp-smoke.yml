@@ -1,4 +1,4 @@
-name: External MCP live smoke
+name: Agora MCP live smoke
 
 on:
   workflow_dispatch:
@@ -6,6 +6,7 @@ on:
     - cron: "41 5 * * 3"
   push:
     paths:
+      - "plugins/context-fabric/**"
       - "plugins/perseus/**"
       - "plugins/sefaria/**"
       - "plugins/sedra/**"
@@ -26,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        plugin: [perseus, sefaria, sedra]
+        plugin: [context-fabric, perseus, sefaria, sedra]
 
     steps:
       - name: Check out Agora
