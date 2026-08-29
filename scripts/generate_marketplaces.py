@@ -18,6 +18,9 @@ from scripts.validate_registry import validate_registry
 CODEX_CATEGORY = "Education & Research"
 CODEX_INSTALLATION = "AVAILABLE"
 CODEX_AUTHENTICATION = "ON_INSTALL"
+PERSEUS_PACKAGE = "perseus-mcp==1.0.2"
+SEFARIA_TEXTS_MCP = "https://mcp.sefaria.org/sse"
+MCP_PROXY_PACKAGE = "mcp-proxy==0.12.0"
 
 
 def load_yaml(path: Path) -> Any:
@@ -48,7 +51,7 @@ def claude_plugin_manifest(
     author: dict[str, str] = {"name": publisher["name"]}
     if publisher.get("url"):
         author["url"] = publisher["url"]
-    manifest: dict[str, Any] = {
+    return {
         "name": plugin["id"],
         "version": version,
         "description": plugin["description"],
@@ -57,10 +60,8 @@ def claude_plugin_manifest(
         "repository": marketplace["repository"],
         "license": marketplace["license"],
         "keywords": keyword_list(plugin),
+        "mcpServers": "./.claude-plugin/mcp.json",
     }
-    if plugin["id"] == "context-fabric":
-        manifest["mcpServers"] = "./.claude-plugin/mcp.json"
-    return manifest
 
 
 def codex_plugin_manifest(
@@ -70,7 +71,7 @@ def codex_plugin_manifest(
     author: dict[str, str] = {"name": publisher["name"]}
     if publisher.get("url"):
         author["url"] = publisher["url"]
-    manifest: dict[str, Any] = {
+    return {
         "name": plugin["id"],
         "version": version,
         "description": plugin["description"],
@@ -79,6 +80,7 @@ def codex_plugin_manifest(
         "repository": marketplace["repository"],
         "license": marketplace["license"],
         "keywords": keyword_list(plugin),
+        "mcpServers": "./.codex-plugin/mcp.json",
         "interface": {
             "displayName": plugin["name"],
             "shortDescription": plugin["description"],
@@ -88,9 +90,6 @@ def codex_plugin_manifest(
             "websiteURL": marketplace["repository"],
         },
     }
-    if plugin["id"] == "context-fabric":
-        manifest["mcpServers"] = "./.codex-plugin/mcp.json"
-    return manifest
 
 
 def claude_marketplace(
@@ -138,9 +137,9 @@ def codex_marketplace(
     }
 
 
-def context_fabric_claude_mcp() -> dict[str, Any]:
-    return {
-        "context-fabric": {
+def claude_mcp(plugin_id: str) -> dict[str, Any]:
+    if plugin_id == "context-fabric":
+        server = {
             "command": "uv",
             "args": [
                 "run",
@@ -151,28 +150,74 @@ def context_fabric_claude_mcp() -> dict[str, Any]:
                 "${CLAUDE_PLUGIN_ROOT}",
             ],
         }
-    }
-
-
-def context_fabric_codex_mcp(plugin: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "mcpServers": {
-            "context-fabric": {
-                "title": plugin["name"],
-                "description": plugin["description"],
-                "cwd": ".",
-                "command": "uv",
-                "args": [
-                    "run",
-                    "--project",
-                    ".",
-                    "agora-context-fabric-mcp",
-                    "--plugin-root",
-                    ".",
-                ],
-            }
+    elif plugin_id == "perseus":
+        server = {
+            "command": "uvx",
+            "args": ["--from", PERSEUS_PACKAGE, "perseus-mcp"],
         }
-    }
+    elif plugin_id == "sefaria":
+        server = {"type": "sse", "url": SEFARIA_TEXTS_MCP}
+    elif plugin_id == "sedra":
+        server = {
+            "command": "uv",
+            "args": [
+                "run",
+                "--project",
+                "${CLAUDE_PLUGIN_ROOT}",
+                "agora-sedra-mcp",
+            ],
+        }
+    else:
+        raise ValueError(f"no Claude MCP integration is defined for plugin {plugin_id!r}")
+    return {plugin_id: server}
+
+
+def codex_mcp(plugin_id: str) -> dict[str, Any]:
+    if plugin_id == "context-fabric":
+        server = {
+            "type": "stdio",
+            "cwd": ".",
+            "command": "uv",
+            "args": [
+                "run",
+                "--project",
+                ".",
+                "agora-context-fabric-mcp",
+                "--plugin-root",
+                ".",
+            ],
+        }
+    elif plugin_id == "perseus":
+        server = {
+            "type": "stdio",
+            "cwd": ".",
+            "command": "uvx",
+            "args": ["--from", PERSEUS_PACKAGE, "perseus-mcp"],
+        }
+    elif plugin_id == "sefaria":
+        # Codex supports stdio and streamable HTTP, not legacy SSE. Bridge the
+        # official Sefaria Texts SSE endpoint to stdio with the same pinned proxy
+        # used by Agora's predecessor workshop configuration.
+        server = {
+            "type": "stdio",
+            "command": "uvx",
+            "args": [
+                "--from",
+                MCP_PROXY_PACKAGE,
+                "mcp-proxy",
+                SEFARIA_TEXTS_MCP,
+            ],
+        }
+    elif plugin_id == "sedra":
+        server = {
+            "type": "stdio",
+            "cwd": ".",
+            "command": "uv",
+            "args": ["run", "--project", ".", "agora-sedra-mcp"],
+        }
+    else:
+        raise ValueError(f"no Codex MCP integration is defined for plugin {plugin_id!r}")
+    return {"mcpServers": {plugin_id: server}}
 
 
 def render_outputs(root: Path = ROOT) -> dict[Path, str]:
@@ -209,13 +254,12 @@ def render_outputs(root: Path = ROOT) -> dict[Path, str]:
         outputs[plugin_root / ".codex-plugin/plugin.json"] = json_text(
             codex_plugin_manifest(plugin, marketplace, version)
         )
-        if plugin["id"] == "context-fabric":
-            outputs[plugin_root / ".claude-plugin/mcp.json"] = json_text(
-                context_fabric_claude_mcp()
-            )
-            outputs[plugin_root / ".codex-plugin/mcp.json"] = json_text(
-                context_fabric_codex_mcp(plugin)
-            )
+        outputs[plugin_root / ".claude-plugin/mcp.json"] = json_text(
+            claude_mcp(plugin["id"])
+        )
+        outputs[plugin_root / ".codex-plugin/mcp.json"] = json_text(
+            codex_mcp(plugin["id"])
+        )
 
     return outputs
 
