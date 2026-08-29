@@ -11,6 +11,15 @@ plugins:
       mode: local
       type: python
       notes: Agora bundles resource discovery and lazy acquisition around cfabric-mcp 0.1.7; corpora remain external and are materialized only when selected.
+      launch:
+        claude:
+          command: uv
+          args: [run, --project, "${CLAUDE_PLUGIN_ROOT}", agora-context-fabric-mcp, --plugin-root, "${CLAUDE_PLUGIN_ROOT}"]
+        codex:
+          type: stdio
+          cwd: "."
+          command: uv
+          args: [run, --project, ".", agora-context-fabric-mcp, --plugin-root, "."]
     data_mode: local
     capabilities:
       - corpus-discovery
@@ -22,11 +31,22 @@ plugins:
       software: upstream
       data: resource-specific
     verification:
-      status: verified
+      status: community
+      clients:
+        claude:
+          status: community
+          transport: stdio
+          tests:
+            - {name: generated Claude launch metadata, kind: deterministic}
+        codex:
+          status: verified
+          transport: stdio
+          tests:
+            - {name: scheduled live MCP catalog smoke, kind: live}
       notes:
-        - Deterministic tests cover the Agora runtime, resolver, collection discovery, MCP tool registration, and Claude/Codex launch metadata.
+        - Deterministic tests cover the Agora runtime, resolver, collection discovery, MCP tool registration, and generated client launch metadata.
         - The scheduled Context-Fabric source audit resolves all 36 v0.1 upstream resources from Git metadata without materializing corpus blobs.
-        - The live MCP smoke workflow launches the generated Codex stdio command, initializes MCP, verifies all five Agora tools, and executes a catalog discovery call.
+        - The live MCP smoke workflow currently exercises the Codex stdio path; Claude is not promoted to live-verified until an equivalent client-path check exists.
         - Plugin verification does not promote individual corpora; resource-level verification and known issues remain separate.
 
   - id: perseus
@@ -39,6 +59,15 @@ plugins:
       mode: local
       type: python
       notes: Claude and Codex launch the upstream perseus-mcp 1.0.2 package directly through uvx; Agora does not vendor or fork the server.
+      launch:
+        claude:
+          command: uvx
+          args: [--from, perseus-mcp==1.0.2, perseus-mcp]
+        codex:
+          type: stdio
+          cwd: "."
+          command: uvx
+          args: [--from, perseus-mcp==1.0.2, perseus-mcp]
     data_mode: remote
     capabilities:
       - corpus-discovery
@@ -49,11 +78,22 @@ plugins:
       software: MIT
       data: upstream-dependent
     verification:
-      status: verified
+      status: community
+      clients:
+        claude:
+          status: community
+          transport: stdio
+          tests:
+            - {name: generated Claude launch metadata, kind: deterministic}
+        codex:
+          status: verified
+          transport: stdio
+          tests:
+            - {name: scheduled live Homer discovery smoke, kind: live}
       notes:
-        - Cross-client MCP packaging is pinned to upstream perseus-mcp 1.0.2.
-        - The live MCP smoke workflow launches the generated Codex stdio command, initializes MCP, verifies representative Perseus tools, and executes an upstream author-discovery lookup for Homer.
-        - Upstream CTS/Scaife availability remains an external dependency and is monitored by the scheduled live workflow.
+        - Both clients use the pinned upstream perseus-mcp 1.0.2 package.
+        - The live workflow currently exercises the Codex stdio path and performs an upstream author-discovery lookup for Homer.
+        - Upstream CTS/Scaife availability remains an external dependency.
 
   - id: sefaria
     name: Sefaria
@@ -66,6 +106,14 @@ plugins:
     runtime:
       mode: hosted
       notes: Claude connects directly to Sefaria's hosted Texts MCP over SSE; Codex bridges the legacy SSE endpoint to stdio with mcp-proxy 0.12.0 constrained to MCP SDK 1.x compatibility because current Codex plugin MCP support does not accept legacy SSE directly.
+      launch:
+        claude:
+          type: sse
+          url: https://mcp.sefaria.org/sse
+        codex:
+          type: stdio
+          command: uvx
+          args: [--from, mcp-proxy==0.12.0, --with, "mcp>=1.17,<2", mcp-proxy, https://mcp.sefaria.org/sse]
     data_mode: remote
     capabilities:
       - passage-retrieval
@@ -78,11 +126,22 @@ plugins:
       data: upstream-dependent
       service_terms: upstream-dependent
     verification:
-      status: verified
+      status: community
+      clients:
+        claude:
+          status: community
+          transport: sse
+          tests:
+            - {name: generated official SSE launch metadata, kind: deterministic}
+        codex:
+          status: verified
+          transport: stdio-via-sse-proxy
+          tests:
+            - {name: scheduled live Genesis 1:1 retrieval smoke, kind: live}
       notes:
-        - Claude launch metadata targets Sefaria's official hosted Texts MCP endpoint; Codex uses the generated stdio proxy bridge.
-        - The live MCP smoke workflow initializes the Codex bridge, verifies representative Sefaria tools, and retrieves Genesis 1:1 in English from the live service.
-        - The proxy environment explicitly constrains mcp-proxy 0.12.0 to MCP SDK 1.x to avoid its current incompatibility with MCP SDK 2.x.
+        - Claude targets Sefaria's official hosted Texts MCP endpoint while Codex uses the generated stdio proxy bridge.
+        - The live workflow currently exercises the Codex bridge and retrieves Genesis 1:1 in English.
+        - The proxy environment constrains mcp-proxy 0.12.0 to MCP SDK 1.x to avoid its current incompatibility with MCP SDK 2.x.
 
   - id: sedra
     name: SEDRA
@@ -94,6 +153,15 @@ plugins:
       mode: local
       type: python
       notes: Agora ships a small read-only FastMCP adapter over Beth Mardutho's public SEDRA IV JSON word and lexeme endpoints; no SEDRA data is vendored.
+      launch:
+        claude:
+          command: uv
+          args: [run, --project, "${CLAUDE_PLUGIN_ROOT}", agora-sedra-mcp]
+        codex:
+          type: stdio
+          cwd: "."
+          command: uv
+          args: [run, --project, ".", agora-sedra-mcp]
     data_mode: remote
     capabilities:
       - dictionary-lookup
@@ -103,7 +171,18 @@ plugins:
       data: upstream-dependent
       service_terms: upstream-dependent
     verification:
-      status: verified
+      status: community
+      clients:
+        claude:
+          status: community
+          transport: stdio
+          tests:
+            - {name: generated Claude launch metadata, kind: deterministic}
+        codex:
+          status: verified
+          transport: stdio
+          tests:
+            - {name: scheduled live Syriac word lookup smoke, kind: live}
       notes:
         - Deterministic tests cover Syriac URL encoding, JSON/error handling, tool delegation, packaging, and generated launch metadata.
-        - The live MCP smoke workflow launches the Agora adapter, initializes MCP, verifies word and lexeme tools, and executes a real Syriac word lookup against SEDRA IV.
+        - The live workflow currently exercises the Codex adapter and executes a real Syriac word lookup against SEDRA IV.
