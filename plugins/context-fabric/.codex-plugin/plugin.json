@@ -24,5 +24,6 @@
     "developerName": "Agora contributors",
     "category": "Education & Research",
     "websiteURL": "https://github.com/alexsosn/Agora"
-  }
+  },
+  "mcpServers": "./.codex-plugin/mcp.json"
 }
