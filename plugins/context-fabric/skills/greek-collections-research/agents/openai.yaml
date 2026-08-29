@@ -1,0 +1,4 @@
+interface:
+  display_name: "Greek Collections Research"
+  short_description: "Discover and query individual Greek TF works without schema assumptions"
+  default_prompt: "Use $greek-collections-research to discover the right Greek collection member, verify edition provenance, inspect its schema, and query it reproducibly."
