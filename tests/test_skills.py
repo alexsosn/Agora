@@ -43,6 +43,18 @@ def skill_path(plugin_id: str, skill_name: str) -> Path:
     return ROOT / "plugins" / plugin_id / "skills" / skill_name / "SKILL.md"
 
 
+def skill_ui_path(plugin_id: str, skill_name: str) -> Path:
+    return (
+        ROOT
+        / "plugins"
+        / plugin_id
+        / "skills"
+        / skill_name
+        / "agents"
+        / "openai.yaml"
+    )
+
+
 def all_skill_paths() -> list[Path]:
     return sorted((ROOT / "plugins").glob("*/skills/*/SKILL.md"))
 
@@ -75,6 +87,27 @@ class ScholarlySkillTests(unittest.TestCase):
             self.assertIn("Use", metadata["description"])
             self.assertEqual(metadata.get("license"), "MIT")
             self.assertLessEqual(len(text.splitlines()), 500)
+
+    def test_every_required_skill_has_codex_ui_metadata(self):
+        for plugin_id, skills in REQUIRED_SKILLS.items():
+            for skill_name in skills:
+                path = skill_ui_path(plugin_id, skill_name)
+                self.assertTrue(
+                    path.is_file(), f"missing Codex skill metadata: {path.relative_to(ROOT)}"
+                )
+                document = yaml.safe_load(path.read_text(encoding="utf-8"))
+                self.assertEqual(set(document), {"interface"})
+                interface = document["interface"]
+                self.assertEqual(
+                    set(interface),
+                    {"display_name", "short_description", "default_prompt"},
+                )
+                self.assertIsInstance(interface["display_name"], str)
+                self.assertGreaterEqual(len(interface["display_name"]), 3)
+                self.assertIsInstance(interface["short_description"], str)
+                self.assertGreaterEqual(len(interface["short_description"]), 20)
+                self.assertLessEqual(len(interface["short_description"]), 120)
+                self.assertIn(f"${skill_name}", interface["default_prompt"])
 
     def test_required_skills_reference_their_real_plugin_tools(self):
         for plugin_id, skills in REQUIRED_SKILLS.items():
