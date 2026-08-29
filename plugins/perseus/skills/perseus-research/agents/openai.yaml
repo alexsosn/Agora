@@ -1,0 +1,4 @@
+interface:
+  display_name: "Perseus Research"
+  short_description: "Discover CTS resources and search Perseus or Scaife without invented URNs"
+  default_prompt: "Use $perseus-research to discover the author, work, and edition first, then retrieve or search the correct Perseus/Scaife resource."
