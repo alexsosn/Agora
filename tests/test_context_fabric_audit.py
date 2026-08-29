@@ -18,19 +18,33 @@ class FakeStore:
         self.roots = roots
         self.failures = failures or set()
         self.repositories: dict[str, str] = {}
+        self.refs: dict[str, str | None] = {}
 
-    def ensure_metadata(self, repository: str, *, cache_key: str | None = None) -> Path:
+    def ensure_metadata(
+        self,
+        repository: str,
+        *,
+        cache_key: str | None = None,
+        ref: str | None = None,
+    ) -> Path:
         key = cache_key or repository
         if key in self.failures:
             raise RuntimeError(f"cannot clone {key}")
         self.repositories[key] = repository
+        self.refs[key] = ref
         return Path("/metadata") / key
 
     def dataset_roots(self, repo: Path) -> list[str]:
         return list(self.roots[repo.name])
 
 
-def resource(resource_id: str, *, kind: str = "corpus") -> ResourceSpec:
+def resource(
+    resource_id: str,
+    *,
+    kind: str = "corpus",
+    ref: str | None = None,
+    tf_path: str | None = None,
+) -> ResourceSpec:
     return ResourceSpec(
         id=resource_id,
         name=resource_id,
@@ -41,6 +55,8 @@ def resource(resource_id: str, *, kind: str = "corpus") -> ResourceSpec:
         languages=("greek",),
         disciplines=("classics",),
         member_index="unused" if kind == "collection" else None,
+        ref=ref,
+        tf_path=tf_path,
     )
 
 
@@ -53,6 +69,7 @@ class SourceAuditTests(unittest.TestCase):
 
         self.assertTrue(report["ok"])
         self.assertEqual(report["checked"], 1)
+        self.assertEqual(report["passed"], 1)
         self.assertEqual(report["failed"], 0)
         item = report["resources"][0]
         self.assertEqual(item["status"], "ok")
@@ -79,11 +96,27 @@ class SourceAuditTests(unittest.TestCase):
         self.assertEqual(item["dataset_root_count"], 3)
         self.assertNotIn("selected_root", item)
 
+    def test_pinned_ref_and_tf_path_are_audited_explicitly(self):
+        catalog = Catalog(
+            [resource("pinned", ref="abc123", tf_path="tf/0.1.0")]
+        )
+        store = FakeStore({"pinned": ["tf/0.1.0", "tf/0.2.0"]})
+
+        report = audit_catalog(catalog, store)
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(store.refs["pinned"], "abc123")
+        item = report["resources"][0]
+        self.assertEqual(item["ref"], "abc123")
+        self.assertEqual(item["configured_tf_path"], "tf/0.1.0")
+        self.assertEqual(item["selected_root"], "tf/0.1.0")
+
     def test_empty_dataset_root_set_is_a_failure(self):
         catalog = Catalog([resource("empty")])
         report = audit_catalog(catalog, FakeStore({"empty": []}))
 
         self.assertFalse(report["ok"])
+        self.assertEqual(report["passed"], 0)
         self.assertEqual(report["failed"], 1)
         self.assertEqual(report["resources"][0]["status"], "error")
         self.assertIn("no Text-Fabric dataset", report["resources"][0]["error"])
@@ -95,6 +128,7 @@ class SourceAuditTests(unittest.TestCase):
         report = audit_catalog(catalog, store)
 
         self.assertEqual(report["checked"], 2)
+        self.assertEqual(report["passed"], 1)
         self.assertEqual(report["failed"], 1)
         self.assertEqual(
             [item["status"] for item in report["resources"]],
