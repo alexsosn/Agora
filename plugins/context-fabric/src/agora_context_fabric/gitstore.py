@@ -10,8 +10,11 @@ class GitStore:
 
     Repositories are cloned with no working-tree checkout. Dataset paths are
     discovered from Git tree metadata; blobs for a selected dataset are fetched
-    only when that path is materialized.
+    only when that path is materialized. A resource may pin a historical ref; the
+    selected tree is recorded under ``refs/agora/selected`` without checking it out.
     """
+
+    SELECTED_REF = "refs/agora/selected"
 
     def __init__(self, cache_dir: Path):
         self.cache_dir = Path(cache_dir).expanduser()
@@ -47,28 +50,59 @@ class GitStore:
         )
         return result.stdout.strip()
 
-    def ensure_metadata(self, repository: str, *, cache_key: str | None = None) -> Path:
+    def _select(self, repo: Path, ref: str | None) -> None:
+        if ref:
+            self._run(
+                "fetch",
+                "--quiet",
+                "--filter=blob:none",
+                "--depth",
+                "1",
+                "origin",
+                ref,
+                cwd=repo,
+            )
+            selected = self._run("rev-parse", "FETCH_HEAD", cwd=repo)
+        else:
+            selected = self._run("rev-parse", "HEAD", cwd=repo)
+        self._run("update-ref", self.SELECTED_REF, selected, cwd=repo)
+
+    def ensure_metadata(
+        self,
+        repository: str,
+        *,
+        cache_key: str | None = None,
+        ref: str | None = None,
+    ) -> Path:
         self.repositories_dir.mkdir(parents=True, exist_ok=True)
         key = self.safe_cache_key(cache_key or repository)
         destination = self.repositories_dir / key
-        if (destination / ".git").is_dir():
-            return destination
-
-        source = self.repository_url(repository)
-        self._run(
-            "clone",
-            "--quiet",
-            "--filter=blob:none",
-            "--no-checkout",
-            "--depth",
-            "1",
-            source,
-            str(destination),
-        )
+        if not (destination / ".git").is_dir():
+            source = self.repository_url(repository)
+            self._run(
+                "clone",
+                "--quiet",
+                "--filter=blob:none",
+                "--no-checkout",
+                "--depth",
+                "1",
+                source,
+                str(destination),
+            )
+        self._select(destination, ref)
         return destination
 
+    def _treeish(self, repo: Path) -> str:
+        try:
+            self._run("rev-parse", "--verify", self.SELECTED_REF, cwd=repo)
+            return self.SELECTED_REF
+        except subprocess.CalledProcessError:
+            return "HEAD"
+
     def dataset_roots(self, repo: Path) -> list[str]:
-        names = self._run("ls-tree", "-r", "--name-only", "HEAD", cwd=repo)
+        names = self._run(
+            "ls-tree", "-r", "--name-only", self._treeish(repo), cwd=repo
+        )
         roots: set[str] = set()
         for name in names.splitlines():
             normalized = name.strip().replace("\\", "/")
@@ -86,7 +120,14 @@ class GitStore:
         if path.is_absolute() or ".." in path.parts:
             raise ValueError(f"unsafe repository-relative path: {relative_path!r}")
 
-        self._run("checkout", "--quiet", "HEAD", "--", relative, cwd=repo)
+        self._run(
+            "checkout",
+            "--quiet",
+            self._treeish(repo),
+            "--",
+            relative,
+            cwd=repo,
+        )
         local = repo if relative == "." else repo / relative
         if not (local / "otype.tf").is_file():
             raise FileNotFoundError(f"materialized path is not a Text-Fabric dataset: {relative_path}")
