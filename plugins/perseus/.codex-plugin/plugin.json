@@ -1,0 +1,28 @@
+{
+  "name": "perseus",
+  "version": "0.1.0",
+  "description": "Access Perseus and Scaife text discovery, CTS passages, and search through tonyjurg/Perseus-mcp.",
+  "author": {
+    "name": "Agora contributors",
+    "url": "https://github.com/alexsosn/Agora"
+  },
+  "homepage": "https://github.com/alexsosn/Agora",
+  "repository": "https://github.com/alexsosn/Agora",
+  "license": "MIT",
+  "keywords": [
+    "classics",
+    "corpus-discovery",
+    "cts-navigation",
+    "digital-philology",
+    "full-text-search",
+    "passage-retrieval"
+  ],
+  "interface": {
+    "displayName": "Perseus MCP",
+    "shortDescription": "Access Perseus and Scaife text discovery, CTS passages, and search through tonyjurg/Perseus-mcp.",
+    "longDescription": "Access Perseus and Scaife text discovery, CTS passages, and search through tonyjurg/Perseus-mcp.",
+    "developerName": "Agora contributors",
+    "category": "Education & Research",
+    "websiteURL": "https://github.com/alexsosn/Agora"
+  }
+}
