@@ -8,7 +8,7 @@ Its purpose is to make scholarly corpora, textual databases, lexica, search serv
 
 Agora is not a continuation of `alexsosn/mcp-demo` and does not inherit that repository's workshop-oriented architecture, compatibility obligations, setup flow, or historical assumptions. The old repository may be used as a source of tested code, integration knowledge, configuration patterns, corpus metadata, and smoke tests, but Agora should only reuse pieces that fit the new architecture.
 
-Text-Fabric is an important provider family, but it must not define the design. Agora should support heterogeneous upstreams, including:
+Agora must support heterogeneous upstreams, including:
 
 - local MCP servers;
 - hosted MCP endpoints;
@@ -17,21 +17,77 @@ Text-Fabric is an important provider family, but it must not define the design. 
 - remote scholarly services;
 - plugins that add domain-specific skills around external tools.
 
-Initial integrations worth implementing include:
+## 2. Fixed first implementation
 
-- ContextFabric / Text-Fabric corpora;
-- Sefaria;
-- Beth Mardutho / SEDRA;
-- `tonyjurg/Perseus-mcp`;
-- additional philological MCP servers as they become available.
+The first implementation is not merely a four-plugin architectural proof of concept. Its resource scope is fixed in [`wiki/v0.1-scope.md`](v0.1-scope.md).
 
-## 2. Relationship to `mcp-demo`
+It contains four plugin families:
+
+1. **Context-Fabric** — the complete current Context-Fabric corpus catalog plus TLHdig-TF;
+2. **Perseus** — `tonyjurg/Perseus-mcp`;
+3. **Sefaria**;
+4. **Beth Mardutho / SEDRA**.
+
+The current Context-Fabric documentation page says it catalogs "40+" known corpora, while the current `CorporaTable.tsx` source contains 35 concrete entries. Agora v0.1 should use the concrete source-table entries as the baseline and record the snapshot provenance. Adding `alexsosn/TLHdig-TF` gives **36 initial Context-Fabric corpus resources**.
+
+The 35 Context-Fabric catalog entries are:
+
+- `bhsa`
+- `dss`
+- `sp`
+- `extrabiblical`
+- `lxx`
+- `n1904`
+- `SBLGNT`
+- `nestle1904`
+- `Nestle1904GBI`
+- `tischendorf_tf`
+- `bible`
+- `patristics`
+- `greek_literature`
+- `athenaeus`
+- `peshitta`
+- `syrnt`
+- `syriac`
+- `quran`
+- `fusus`
+- `nena_tf`
+- `uruk`
+- `oldassyrian`
+- `oldbabylonian`
+- `ninmed`
+- `cuc`
+- `dhammapada`
+- `translatin-manif`
+- `wp6-missieven`
+- `wp6-daghregisters`
+- `wp6-ferdinandhuyck`
+- `mondriaan`
+- `descartes-tf`
+- `suriano`
+- `mobydick`
+- `banks`
+
+TLHdig-TF is an explicit additional resource, not part of the current Context-Fabric catalog snapshot. It should be exposed through Context-Fabric MCP.
+
+### Inclusion is not verification
+
+Agora needs two separate trust dimensions:
+
+- **plugin/integration verification** — does the MCP/provider integration install, initialize, and perform representative operations correctly?
+- **resource/data verification** — what confidence should a researcher place in the underlying corpus/data conversion?
+
+This distinction is necessary immediately because TLHdig-TF currently labels its `0.1.0` corpus as an integration prototype with known defects and warns that it should not yet be relied on for research. Agora should include it from v0.1 but mark the resource **Experimental** until upstream status improves.
+
+The same model scales to other corpora whose upstream quality, licensing, or testing status differs from the provider runtime.
+
+## 3. Relationship to `mcp-demo`
 
 `mcp-demo` should be treated as prior art and a reusable code source, not as the system being refactored.
 
 Potentially reusable assets include:
 
-- working ContextFabric launch/configuration code;
+- working Context-Fabric launch/configuration code;
 - known-good TF corpus identifiers and feature metadata;
 - Greek Text-Fabric cataloging work;
 - Sefaria transport/proxy knowledge;
@@ -50,17 +106,15 @@ These assets should be copied, adapted, or reimplemented only when useful. Agora
 - compatibility with the old repository's file structure;
 - any promise that existing `mcp-demo` users can switch to Agora without changes.
 
-This separation is important because the clean-slate repository makes it possible to design around marketplace semantics from the beginning instead of gradually converting an installer into one.
-
-## 3. Target abstraction
+## 4. Target abstraction
 
 Agora should distinguish four concepts.
 
-### 3.1 Marketplace
+### 4.1 Marketplace
 
 The repository/catalog that advertises installable scholarly plugins.
 
-### 3.2 Plugin
+### 4.2 Plugin
 
 The unit installed by an agent client. A plugin may contain:
 
@@ -73,11 +127,11 @@ The unit installed by an agent client. A plugin may contain:
 
 A plugin is not synonymous with an MCP server.
 
-### 3.3 Provider/backend
+### 4.3 Provider/backend
 
 The mechanism supplying data or functionality. Examples:
 
-- Text-Fabric / ContextFabric
+- Context-Fabric / Text-Fabric data
 - Perseus CTS / Scaife
 - Sefaria
 - SEDRA
@@ -86,15 +140,15 @@ The mechanism supplying data or functionality. Examples:
 - IIIF
 - Wikidata
 
-Several plugins may use the same backend, and one plugin may integrate several backends.
+Several resources may use the same backend, and one plugin may integrate several backends.
 
-### 3.4 Corpus/resource
+### 4.4 Corpus/resource
 
 A scholarly dataset available through a plugin. Corpora should not automatically become top-level marketplace plugins.
 
-This distinction is necessary because repositories such as `pthu/greek_literature` contain a very large number of separately loadable Text-Fabric works. Treating every corpus directory as a marketplace plugin would make the catalog unmanageable.
+This distinction is essential for Agora v0.1 because the Context-Fabric plugin must expose 36 corpus resources while remaining one plugin family. Repositories such as `pthu/greek_literature` can contain many separately loadable works; treating every work as a marketplace plugin would make discovery unusable.
 
-## 4. Marketplace scope
+## 5. Marketplace scope
 
 The intended domain is digital philology and adjacent historical-text disciplines rather than a specific data format.
 
@@ -102,6 +156,7 @@ Likely categories include:
 
 - Classics
 - Ancient Near East / Assyriology
+- Hittitology
 - Biblical studies
 - Judaica
 - Syriac studies
@@ -118,62 +173,66 @@ Likely categories include:
 - Paleography / HTR / OCR
 - IIIF and manuscript-image tooling
 
-The scope can include generic infrastructure when it has a clear philological use case. A generic Wikidata or IIIF MCP, for example, may belong in Agora if its plugin supplies useful scholarly instructions and has a defensible research workflow.
+The scope can include generic infrastructure when it has a clear philological use case.
 
-## 5. Proposed plugin families
+## 6. v0.1 plugin families
 
-### 5.1 `text-fabric`
+### 6.1 `context-fabric`
 
-A generic Text-Fabric/ContextFabric plugin should provide access to the TF ecosystem rather than hard-code a small curated corpus set.
+Agora should use **Context-Fabric** as the provider/plugin identity, with Text-Fabric describing the corpus data format/ecosystem beneath it.
 
 Responsibilities:
 
-- maintain or consume a registry of known TF corpora;
-- discover/install/cache a requested corpus;
-- expose installed corpora through ContextFabric MCP;
+- maintain the canonical registry of v0.1 corpus resources;
+- resolve/install/cache a requested TF-format corpus;
+- compile/load corpora with Context-Fabric;
+- expose them through Context-Fabric MCP;
 - list available and installed corpora;
-- expose corpus metadata and important TF features;
-- support collections such as `pthu/greek_literature`;
-- provide TF-specific agent instructions.
+- expose corpus metadata and important features;
+- support collection repositories such as `pthu/greek_literature`;
+- provide Context-Fabric/TF-specific agent instructions.
 
-The preferred design is to use Text-Fabric's own corpus/application acquisition mechanisms where possible rather than adopting the bespoke clone/path logic used by `mcp-demo`.
+The v0.1 provider must cover all 35 current Context-Fabric catalog entries plus TLHdig-TF. Broad coverage is therefore a release requirement rather than a later expansion goal.
 
-The TF corpus registry should record at least:
+The resource registry should record at least:
 
-- stable marketplace ID;
+- stable resource ID;
 - title;
 - upstream repository;
 - TF application/data location;
 - language(s);
 - discipline/category;
-- license for data;
+- period;
+- data/content license;
 - citation/publication information;
 - available/preferred TF versions;
 - node types;
 - important node/edge features;
 - morphology/syntax availability;
-- install/test status;
-- known incompatibilities;
-- collection membership.
+- collection membership;
+- acquisition status;
+- plugin/runtime verification status;
+- resource/data verification status;
+- known issues.
 
-### 5.2 `perseus`
+The preferred design is to use supported TF-native acquisition/application mechanisms where practical rather than reproducing bespoke clone/path logic from `mcp-demo`.
 
-Wrap/integrate `tonyjurg/Perseus-mcp` rather than vendoring it.
+### 6.2 `perseus`
+
+Integrate `tonyjurg/Perseus-mcp` rather than vendoring it.
 
 The marketplace plugin should add:
 
 - upstream installation/launch metadata;
 - client-compatible MCP configuration;
 - CTS/URN usage guidance;
-- distinction between relevant Perseus and Scaife resources;
+- Perseus/Scaife resource distinctions;
 - smoke tests;
 - upstream version/provenance metadata.
 
-### 5.3 `sefaria`
+### 6.3 `sefaria`
 
 Create Sefaria as an independent Agora plugin.
-
-The existing `mcp-demo` integration can be consulted for tested endpoint and transport behavior, but Agora should own a clean plugin implementation rather than preserve the old integration structure.
 
 The plugin should contain:
 
@@ -182,28 +241,13 @@ The plugin should contain:
 - scholarly instructions for text retrieval, links, dictionaries, commentaries, and related tools;
 - health checks.
 
-### 5.4 `sedra`
+### 6.4 `sedra`
 
 Create an independent Beth Mardutho / SEDRA plugin.
 
-The old repository's integration can be reused selectively. The Agora plugin should document and test the distinction between word and lexeme lookup and expose relevant Syriac lexicographic workflows.
+The Agora plugin should document and test the distinction between word and lexeme lookup and expose relevant Syriac lexicographic workflows.
 
-### 5.5 Future plugins
-
-Candidate families should be evaluated individually rather than forced into a TF model. Examples worth investigating include:
-
-- ORACC/ePSD/CDLI integrations;
-- papyri.info;
-- Trismegistos;
-- Epigraphic Database Heidelberg and related epigraphic databases;
-- IIIF tooling;
-- morphological analyzers such as Morpheus-compatible services;
-- lexicographic services;
-- manuscript catalogues;
-- bibliographic services;
-- prosopographical/entity-linking tools.
-
-## 6. Granularity rules
+## 7. Granularity rules
 
 ### A plugin should usually be created when:
 
@@ -213,16 +257,16 @@ Candidate families should be evaluated individually rather than forced into a TF
 - it benefits from its own domain instructions;
 - users may reasonably want it without other Agora components.
 
-### A corpus should usually remain inside a provider plugin when:
+### A corpus/resource should usually remain inside a provider plugin when:
 
 - many corpora share the same runtime;
-- installation differs only by corpus identifier;
-- the upstream repository contains hundreds/thousands of similar corpus units;
+- installation differs mainly by corpus identifier/upstream metadata;
+- the upstream repository contains many similar corpus units;
 - making each corpus a plugin would swamp discovery.
 
-Convenience/preset plugins may later be added for major workflows, but should depend on shared infrastructure rather than duplicate it.
+Thus BHSA, CUC, TLHdig-TF, and `pthu/greek_literature` are resources of `context-fabric`, not independent marketplace plugins.
 
-## 7. Cross-client strategy
+## 8. Cross-client strategy
 
 Agora should target at least:
 
@@ -230,35 +274,29 @@ Agora should target at least:
 - Claude Code plugin marketplace support;
 - Google Antigravity plugins.
 
-Claude and ChatGPT/Codex currently have closely related marketplace concepts and should share metadata wherever feasible. Antigravity has plugin support but should be treated as an adapter target rather than allowed to dictate the canonical repository structure.
-
 Avoid hand-maintaining equivalent metadata in several formats. Define a canonical internal registry and generate client-specific manifests/configuration when formats cannot be shared directly.
 
-## 8. Proposed repository structure
+## 9. Proposed repository structure
 
 ```text
 Agora/
 ├── README.md
 ├── LICENSE
-├── pyproject.toml
 │
 ├── registry/
 │   ├── plugins.yaml
 │   ├── providers.yaml
-│   └── corpora/
-│       └── ...
+│   ├── resources.yaml
+│   └── schema/
 │
 ├── plugins/
-│   ├── text-fabric/
+│   ├── context-fabric/
 │   ├── perseus/
 │   ├── sefaria/
 │   └── sedra/
 │
 ├── profiles/
-│   ├── classics.yaml
-│   ├── biblical-studies.yaml
-│   ├── assyriology.yaml
-│   └── semitic-languages.yaml
+│   └── ...
 │
 ├── generated/
 │   └── client-specific marketplace artifacts
@@ -276,134 +314,97 @@ Agora/
 │
 └── wiki/
     ├── research.md
-    └── plan.md
+    ├── plan.md
+    └── v0.1-scope.md
 ```
 
 Exact platform-required files such as `.claude-plugin/marketplace.json` or `.agents/...` should be generated or thin projections of the canonical registry.
 
-## 9. Canonical registry
+## 10. Canonical registry
 
 The registry is the core maintainability mechanism.
 
-A plugin record should contain fields along these lines:
+A plugin record should describe runtime/integration concerns. Resource records should describe corpus/data concerns and reference their provider/plugin.
+
+A simplified plugin record might look like:
 
 ```yaml
 id: perseus
 name: Perseus Digital Library
-description: Access Perseus and Scaife textual resources through MCP.
-
-disciplines:
-  - classics
-
-languages:
-  - ancient-greek
-  - latin
-
 upstream:
   repository: tonyjurg/Perseus-mcp
-
 runtime:
   mode: local
   type: python
-
 capabilities:
   - corpus-discovery
   - passage-retrieval
   - full-text-search
   - cts-navigation
-
-data:
-  mode: remote
-  providers:
-    - perseus
-    - scaife
-
-licenses:
-  software: MIT
-  data: upstream-dependent
-
 verification:
-  level: verified
-  smoke_tests:
-    - ...
+  status: verified
 ```
 
-The schema should distinguish:
+A corpus resource record should be separately addressable:
 
-- software license;
-- dataset/content license;
-- redistribution rights;
-- remote-service terms where applicable.
+```yaml
+id: tlhdig-tf
+plugin: context-fabric
+provider: context-fabric
+upstream:
+  repository: alexsosn/TLHdig-TF
+language:
+  - hittite
+resource:
+  type: corpus
+  version: 0.1.0
+verification:
+  status: experimental
+  notes:
+    - upstream marks current conversion as not yet research-ready
+```
 
-That distinction is essential for scholarly datasets.
+The schema should distinguish software license, dataset/content license, redistribution rights, and remote-service terms.
 
-## 10. Verification model
+## 11. Verification model
 
-Marketplace inclusion should communicate trust and maintenance state.
+Marketplace inclusion should communicate both operational trust and scholarly-data trust.
 
-### Verified
+### Plugin/integration status
 
-- installs successfully in CI;
-- MCP handshake succeeds;
-- representative scholarly operation succeeds;
-- upstream/version information is current enough to reproduce the test.
+**Verified** means the integration installs/connects, MCP initialization succeeds, tools are available, and representative operations pass CI.
 
-### Community
+### Resource/data status
 
-- metadata and integration are valid;
-- useful upstream exists;
-- not continuously integration-tested.
+Resource status can independently be:
 
-### Experimental
+- **Verified** — tested to Agora's defined resource standard;
+- **Community** — useful/valid but not continuously tested to Verified standard;
+- **Experimental** — known unresolved correctness, stability, or completeness problems.
 
-- unstable or incomplete upstream;
-- partial functionality;
-- unresolved compatibility/data issues.
-
-Tests should verify actual scholarly behavior rather than only process startup. Examples:
+Tests should verify actual scholarly behavior rather than only process startup. Examples include:
 
 - BHSA morphological query returns results;
 - CUC Ugaritic query returns expected hits;
+- TLHdig-TF loads and exposes expected analysis/damage features while retaining its Experimental warning;
 - Perseus retrieves a known CTS passage;
 - Sefaria retrieves a known reference;
 - SEDRA resolves a known word/lexeme.
 
-Tests should avoid brittle assertions on large result sets unless required.
-
-## 11. Profiles
-
-Profiles may be useful as optional curated bundles, but they are not required for Agora's core design and should not exist merely to preserve `mcp-demo` workflows.
-
-Possible profiles include:
-
-### `classics`
-
-Perseus plus relevant Text-Fabric Greek corpora and future classical lexicographic/epigraphic tools.
-
-### `biblical-studies`
-
-BHSA, LXX, DSS/extrabiblical corpora, Sefaria, Syriac/Peshitta resources, etc.
-
-### `assyriology`
-
-Relevant TF cuneiform corpora plus future ORACC/ePSD/CDLI integrations.
-
-Profiles should be declarative selections, not duplicated plugin implementations.
-
 ## 12. Skills and scholarly guidance
 
-A major advantage over generic MCP registries is that every plugin can teach an agent how to use the resource correctly.
+A major advantage over generic MCP registries is that plugins can teach an agent how to use resources correctly.
 
 Examples:
 
+- Context-Fabric: graph model, query syntax, feature discovery, corpus switching.
 - BHSA: ETCBC feature names and morphological query patterns.
 - CUC: Ugaritic transliteration, tablet/line hierarchy, relevant features.
+- TLHdig-TF: analysis-node morphology, editorial/damage annotations, known conversion limitations.
 - Perseus: CTS URNs, edition discovery, passage addressing.
 - SEDRA: word IDs versus lexeme IDs.
-- ORACC: project IDs, lemmatization conventions, transliteration.
-- IIIF: manifests, canvases, regions, image services.
 
-Skills should be concise, source-grounded, and versioned with the integration. They should not silently claim capabilities that the underlying resource lacks.
+Skills should be concise, source-grounded, and versioned with the integration.
 
 ## 13. Upstream policy
 
@@ -418,51 +419,41 @@ Prefer:
 5. add scholarly skills;
 6. test the integration.
 
-This minimizes fork maintenance and gives upstream authors proper ownership and attribution.
-
 Where an upstream lacks packaging suitable for plugins, add a thin launcher or adapter rather than copying its source.
 
 ## 14. Code reuse policy
 
 Agora should freely reuse suitable code and knowledge from `mcp-demo`, subject to normal licensing and attribution requirements, but reuse should be selective.
 
-Prefer extracting small, well-understood components such as:
-
-- endpoint constants;
-- verified corpus metadata;
-- smoke-test fixtures;
-- launch command construction;
-- transport adapters;
-- schema-discovery helpers.
+Prefer extracting small, well-understood components such as endpoint constants, verified corpus metadata, smoke-test fixtures, launch construction, transport adapters, and schema-discovery helpers.
 
 Avoid importing old architectural coupling simply because working code already exists.
 
-If reused code assumes the old monolithic setup, rewrite it around Agora's plugin boundaries instead of adding compatibility layers.
-
-## 15. Key technical questions to resolve during implementation
+## 15. Key technical questions
 
 1. What exact subset of Claude marketplace metadata is accepted directly by ChatGPT/Codex, and which fields require generated platform-specific variants?
 2. What is the cleanest Antigravity packaging/install path for third-party plugins?
-3. Can `cfabric-mcp` accept TF app/repository identifiers directly, or should that resolver be added?
-4. How should ContextFabric handle dynamically installed corpora: restart, lazy load, or separate process per provider/profile?
-5. How should TF collections such as `pthu/greek_literature` be indexed without enumerating thousands of marketplace plugins?
-6. Which marketplace files must live at fixed paths and therefore cannot be kept only under `generated/`?
-7. How should local caches be shared across Claude, Codex, and Antigravity?
-8. How should upstream updates be detected and tested automatically?
-9. What metadata is mandatory before a plugin can be marked Verified?
-10. Which non-MCP resources merit plugins because a useful MCP adapter already exists, and which require new adapter development?
+3. Can Context-Fabric MCP accept logical TF application/repository identifiers directly, or should Agora add a resolver?
+4. How should Context-Fabric handle dynamically installed corpora: restart, lazy load, or separate process(es)?
+5. How should collection resources such as `pthu/greek_literature` expose individual works without marketplace-entry explosion?
+6. How should Agora test acquisition resolution for all 36 v0.1 Context-Fabric resources without downloading every large corpus on each PR?
+7. Which marketplace files must live at fixed paths and therefore cannot remain only under `generated/`?
+8. How should local corpus caches be shared across Claude, Codex, and Antigravity?
+9. How should upstream corpus-catalog changes be detected after the v0.1 baseline is fixed?
+10. What exact requirements distinguish Verified, Community, and Experimental at both plugin and resource levels?
 
 ## 16. Success criteria
 
-Agora is successful when:
+Agora's first implementation is successful when:
 
 - the repository can be added as a marketplace in supported clients;
-- Perseus, Sefaria, SEDRA, and Text-Fabric are independently installable integrations;
-- Text-Fabric can expose broad corpus coverage without one plugin per individual work;
+- `context-fabric`, `perseus`, `sefaria`, and `sedra` are independently represented as plugins;
+- the Context-Fabric provider includes all 35 current catalog entries plus TLHdig-TF;
+- collection repositories do not explode into one marketplace plugin per text;
+- plugin/runtime verification and resource/data verification are modeled separately;
 - third-party MCP code is referenced rather than unnecessarily forked;
-- plugin metadata is generated from one canonical registry;
+- plugin/resource metadata is generated from one canonical registry;
 - software/data licensing and upstream provenance are visible;
-- CI verifies real MCP functionality;
-- plugins include enough scholarly guidance for agents to use their resources correctly;
-- adding a new external philological MCP server requires a small, documented integration rather than edits throughout the repository;
+- CI verifies real MCP functionality and representative corpus behavior;
+- plugins/resources include enough scholarly guidance for agents to use them correctly;
 - no architectural requirement exists solely to preserve `mcp-demo` behavior.
