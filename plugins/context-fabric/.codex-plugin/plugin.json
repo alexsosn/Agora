@@ -17,6 +17,7 @@
     "feature-inspection",
     "structured-search"
   ],
+  "mcpServers": "./.codex-plugin/mcp.json",
   "interface": {
     "displayName": "Context-Fabric",
     "shortDescription": "Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.",
@@ -24,6 +25,5 @@
     "developerName": "Agora contributors",
     "category": "Education & Research",
     "websiteURL": "https://github.com/alexsosn/Agora"
-  },
-  "mcpServers": "./.codex-plugin/mcp.json"
+  }
 }
