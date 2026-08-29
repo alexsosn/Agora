@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "context-fabric": {
+      "title": "Context-Fabric",
+      "description": "Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.",
+      "cwd": ".",
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        ".",
+        "agora-context-fabric-mcp",
+        "--plugin-root",
+        "."
+      ]
+    }
+  }
+}
