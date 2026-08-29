@@ -1,0 +1,8 @@
+schema_version: 1
+collection_id: translatin-manif
+index_status: pending
+notes:
+  - Runtime member discovery is performed lazily from upstream Git tree metadata.
+  - The live Phase 3 audit found 68 Text-Fabric dataset roots in this repository.
+  - A committed enriched member snapshot may be generated later; it is not required for loading.
+members: []
