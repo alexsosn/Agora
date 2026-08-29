@@ -48,7 +48,7 @@ def claude_plugin_manifest(
     author: dict[str, str] = {"name": publisher["name"]}
     if publisher.get("url"):
         author["url"] = publisher["url"]
-    return {
+    manifest: dict[str, Any] = {
         "name": plugin["id"],
         "version": version,
         "description": plugin["description"],
@@ -58,6 +58,9 @@ def claude_plugin_manifest(
         "license": marketplace["license"],
         "keywords": keyword_list(plugin),
     }
+    if plugin["id"] == "context-fabric":
+        manifest["mcpServers"] = "./.claude-plugin/mcp.json"
+    return manifest
 
 
 def codex_plugin_manifest(
@@ -67,7 +70,7 @@ def codex_plugin_manifest(
     author: dict[str, str] = {"name": publisher["name"]}
     if publisher.get("url"):
         author["url"] = publisher["url"]
-    return {
+    manifest: dict[str, Any] = {
         "name": plugin["id"],
         "version": version,
         "description": plugin["description"],
@@ -85,6 +88,9 @@ def codex_plugin_manifest(
             "websiteURL": marketplace["repository"],
         },
     }
+    if plugin["id"] == "context-fabric":
+        manifest["mcpServers"] = "./.codex-plugin/mcp.json"
+    return manifest
 
 
 def claude_marketplace(
@@ -133,6 +139,43 @@ def codex_marketplace(
     }
 
 
+def context_fabric_claude_mcp() -> dict[str, Any]:
+    return {
+        "context-fabric": {
+            "command": "uv",
+            "args": [
+                "run",
+                "--project",
+                "${CLAUDE_PLUGIN_ROOT}",
+                "agora-context-fabric-mcp",
+                "--plugin-root",
+                "${CLAUDE_PLUGIN_ROOT}",
+            ],
+        }
+    }
+
+
+def context_fabric_codex_mcp(plugin: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "mcpServers": {
+            "context-fabric": {
+                "title": plugin["name"],
+                "description": plugin["description"],
+                "cwd": ".",
+                "command": "uv",
+                "args": [
+                    "run",
+                    "--project",
+                    ".",
+                    "agora-context-fabric-mcp",
+                    "--plugin-root",
+                    ".",
+                ],
+            }
+        }
+    }
+
+
 def render_outputs(root: Path = ROOT) -> dict[Path, str]:
     root = Path(root)
     registry = root / "registry"
@@ -167,6 +210,13 @@ def render_outputs(root: Path = ROOT) -> dict[Path, str]:
         outputs[plugin_root / ".codex-plugin/plugin.json"] = json_text(
             codex_plugin_manifest(plugin, marketplace, version)
         )
+        if plugin["id"] == "context-fabric":
+            outputs[plugin_root / ".claude-plugin/mcp.json"] = json_text(
+                context_fabric_claude_mcp()
+            )
+            outputs[plugin_root / ".codex-plugin/mcp.json"] = json_text(
+                context_fabric_codex_mcp(plugin)
+            )
 
     return outputs
 
