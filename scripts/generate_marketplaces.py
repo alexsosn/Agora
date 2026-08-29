@@ -21,6 +21,7 @@ CODEX_AUTHENTICATION = "ON_INSTALL"
 PERSEUS_PACKAGE = "perseus-mcp==1.0.2"
 SEFARIA_TEXTS_MCP = "https://mcp.sefaria.org/sse"
 MCP_PROXY_PACKAGE = "mcp-proxy==0.12.0"
+MCP_PROXY_MCP_COMPAT = "mcp>=1.17,<2"
 
 
 def load_yaml(path: Path) -> Any:
@@ -196,14 +197,17 @@ def codex_mcp(plugin_id: str) -> dict[str, Any]:
         }
     elif plugin_id == "sefaria":
         # Codex supports stdio and streamable HTTP, not legacy SSE. Bridge the
-        # official Sefaria Texts SSE endpoint to stdio with the same pinned proxy
-        # used by Agora's predecessor workshop configuration.
+        # official Sefaria Texts SSE endpoint to stdio. mcp-proxy 0.12.0 was
+        # published against MCP SDK 1.x and has an unbounded dependency that
+        # otherwise resolves incompatible MCP 2.x, so constrain its environment.
         server = {
             "type": "stdio",
             "command": "uvx",
             "args": [
                 "--from",
                 MCP_PROXY_PACKAGE,
+                "--with",
+                MCP_PROXY_MCP_COMPAT,
                 "mcp-proxy",
                 SEFARIA_TEXTS_MCP,
             ],
