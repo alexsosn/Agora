@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agora-sedra"
+version = "0.1.0"
+description = "Agora MCP adapter for the public SEDRA IV Syriac lexical API"
+requires-python = ">=3.11"
+dependencies = [
+  "fastmcp>=2.12.0,<3",
+]
+
+[project.scripts]
+agora-sedra-mcp = "agora_sedra.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["agora_sedra*"]
