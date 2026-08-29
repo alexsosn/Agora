@@ -11,9 +11,9 @@ providers:
       repository: Context-Fabric/context-fabric
       homepage: https://context-fabric.ai/
     verification:
-      status: experimental
+      status: community
       notes:
-        - Provider runtime has not yet been implemented in Agora.
+        - The Agora provider runtime is implemented; client-specific live evidence is tracked on the plugin record.
 
   - id: perseus
     name: Perseus / Scaife
@@ -25,7 +25,9 @@ providers:
     upstream:
       repository: tonyjurg/Perseus-mcp
     verification:
-      status: experimental
+      status: community
+      notes:
+        - Client-specific live evidence is tracked on the plugin record.
 
   - id: sefaria
     name: Sefaria Library
@@ -38,7 +40,9 @@ providers:
       repository: Sefaria/sefaria-mcp
       endpoint: https://mcp.sefaria.org/sse
     verification:
-      status: experimental
+      status: community
+      notes:
+        - Claude and Codex use different transports; client-specific evidence is tracked on the plugin record.
 
   - id: sedra
     name: Beth Mardutho SEDRA IV
@@ -50,4 +54,6 @@ providers:
     upstream:
       homepage: https://sedra.bethmardutho.org/
     verification:
-      status: experimental
+      status: community
+      notes:
+        - Client-specific live evidence is tracked on the plugin record.
