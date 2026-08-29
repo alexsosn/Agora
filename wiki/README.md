@@ -42,6 +42,7 @@ Release documents encode lifecycle instead of P-level priority:
 
 - [`architecture/ref-marketplace-architecture.md`](architecture/ref-marketplace-architecture.md) — clean-slate architecture, provider/resource model, verification model, and design rationale.
 - [`architecture/ref-context-fabric-collections.md`](architecture/ref-context-fabric-collections.md) — member-aware handling of large Text-Fabric collection repositories.
+- [`architecture/ref-implementation-details.md`](architecture/ref-implementation-details.md) — marketplace generation, integration plumbing, verification details, scholarly skills, repository layout, and phase status moved out of the user-facing README.
 
 ### Releases
 

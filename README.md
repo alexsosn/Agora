@@ -1,150 +1,140 @@
 # Agora
 
-**Agora is a cross-platform plugin marketplace for philology and related disciplines.**
+**Agora is a plugin marketplace that brings scholarly corpora, lexica, textual databases, and research services into AI-assisted philological workflows.**
 
-Agora makes scholarly corpora, textual databases, lexica, search services, and other research tools installable as AI-agent capabilities without forcing them into one corpus format or backend.
+It lets Claude Code and ChatGPT/Codex use research tools for Biblical Studies, Classics, Syriac, Ugaritic, Hittite, and related fields without requiring every resource to use the same backend or corpus format.
 
-The v0.1 implementation combines a large local Text-Fabric/Context-Fabric resource family with independent remote and local MCP integrations. Plugin verification and scholarly-data verification are deliberately separate: a working MCP integration does not imply that every underlying corpus is research-grade.
+Agora currently includes four plugin families:
 
-## v0.1 integrations
+- **Context-Fabric** — structured local querying of registered Text-Fabric corpora, including BHSA, Ugaritic and Hittite corpora, and large Greek collections.
+- **Perseus** — live access to Perseus/Scaife for text discovery, CTS navigation, passage retrieval, and search.
+- **Sefaria** — Jewish texts, translations, links and commentaries, dictionaries, topics, and manuscript resources through the official Sefaria MCP.
+- **SEDRA** — Syriac word-form and lexeme lookup against SEDRA IV.
 
-All four v0.1 integrations have live **Codex-path** evidence, while the current aggregate plugin status remains **Community** until equivalent Claude-path live verification exists:
+Agora plugins can also include **scholarly skills**: source-specific guidance that tells the agent how to interpret corpus features, avoid common mistakes, and produce more reproducible research queries.
 
-- **Context-Fabric** — discovery and lazy acquisition for the fixed **36-resource** Text-Fabric/Context-Fabric baseline, including collection-aware handling for repositories containing many independent corpora.
-- **Perseus** — pinned upstream `tonyjurg/Perseus-mcp` integration for Perseus/Scaife discovery, CTS navigation, passage retrieval, and search.
-- **Sefaria** — the official hosted Sefaria Texts MCP, with client-specific transport adaptation where required.
-- **SEDRA** — a small read-only Agora MCP adapter over Beth Mardutho's public SEDRA IV word and lexeme JSON endpoints.
+## What you can do
 
-The fixed resource scope is documented in [wiki/releases/v0.1-scope-frozen.md](wiki/releases/v0.1-scope-frozen.md).
+With the current v0.1 plugins you can, for example:
 
-### What verification means here
+- query morphology and syntax in the **BHSA Hebrew Bible**;
+- work with **Ugaritic** and **Hittite** Text-Fabric corpora through the same provider interface;
+- discover and load individual works from large **Greek Text-Fabric collections** without installing one plugin per text;
+- retrieve passages and search Classical texts through **Perseus/Scaife**;
+- fetch source texts, translations, linked commentaries, and other resources from **Sefaria**;
+- look up **Syriac** word forms and lexemes in SEDRA;
+- ask the agent to inspect corpus schema and annotation before constructing a query instead of guessing feature names;
+- keep corpus-specific research guidance alongside the tools that use it.
 
-Agora records verification per client/transport rather than treating one plugin label as evidence for every launch path. The current live workflow exercises the generated Codex path for all four v0.1 plugins and checks:
+The current Context-Fabric catalog contains **36 registered upstream resources**. Corpora are acquired lazily, so installing the plugin does not download all of them.
 
-1. generated launch metadata;
-2. MCP server startup or endpoint connection;
-3. MCP initialization;
-4. expected-tool discovery;
-5. at least one representative real operation;
-6. deterministic unit/packaging tests.
+## Installation
 
-Claude launch metadata is tested deterministically but is not currently promoted to live-verified status. Context-Fabric additionally has a scheduled metadata audit over all **36** registered upstream resources; the current audit resolves **36/36** successfully.
+Agora currently targets **Claude Code** and **ChatGPT/Codex**. You only need to install the plugins relevant to your research.
 
-Resource-level status remains independent. A corpus may still be `experimental` even when a client integration is operational. TLHdig-TF, for example, remains resource-level Experimental while its upstream conversion documents unresolved correctness issues.
+### Claude Code
 
-## Scholarly skills
+Inside Claude Code:
 
-Agora plugins now bundle portable `SKILL.md` research guidance in addition to MCP access. The first Phase 5 layer contains **eight tested skills**:
-
-- **Context-Fabric provider workflow** — discover resources and collection members, load lazily, inspect schema before querying, and keep plugin status separate from resource status;
-- **BHSA / ETCBC** — feature semantics including `sp`, `pdp`, `vs`, `vt`, syntax features, counting discipline, and CC BY-NC 4.0 data licensing;
-- **CUC / Ugaritic** — `g_cons`, sign/editorial features such as `emen`, `cert`, and `alt`, corpus-coverage cautions, and treatment of uncertain readings;
-- **TLHdig-TF / Hittite** — explicit prototype warning, morphology on `analysis` nodes, competing analyses, and the `width>1` damage-range invariant;
-- **Greek Text-Fabric collections** — member-first discovery, per-work schema inspection, provenance, and edition identity across the PTHU/Perseus/OpenGreekAndLatin ecosystem;
-- **Perseus** — CTS/Scaife discovery, no invented URNs, form versus lemma search, and live-service limitations;
-- **Sefaria** — canonical references, source versus translation layers, Hebrew/Aramaic versus English search behavior, links, dictionaries, and manuscript evidence;
-- **SEDRA** — word-form versus lexeme semantics, ambiguity preservation, Syriac Unicode input, and limits of lexical evidence.
-
-Skills use the Agent Skills `skills/<name>/SKILL.md` layout and are checked in CI for valid YAML frontmatter, naming/size constraints, references to real plugin tools, source-specific research invariants, and Codex UI metadata.
-
-## Context-Fabric resource model
-
-Agora does not expose every Text-Fabric dataset as a separate marketplace plugin. Context-Fabric is one provider plugin with a resource catalog and lazy resolver.
-
-Large repositories remain collection resources. In particular, `pthu/bible`, `pthu/patristics`, `pthu/greek_literature`, and `HuygensING/translatin-manif` contain many independently loadable TF datasets and are discovered at member level rather than flattened into hundreds or thousands of marketplace entries.
-
-For example, the current source audit finds **1,779** TF dataset roots in `pthu/greek_literature`; using one work does not require registering 1,779 plugins. See [wiki/architecture/ref-context-fabric-collections.md](wiki/architecture/ref-context-fabric-collections.md).
-
-## Marketplace formats
-
-Agora generates native marketplace/plugin metadata for:
-
-- **Claude Code** — `.claude-plugin/marketplace.json`, per-plugin `.claude-plugin/plugin.json`, and MCP declarations;
-- **ChatGPT/Codex** — `.agents/plugins/marketplace.json`, per-plugin `.codex-plugin/plugin.json`, and MCP declarations.
-
-These files are deterministic projections of the canonical registry. Regenerate them with:
-
-```bash
-python scripts/generate_marketplaces.py
+```text
+/plugin marketplace add alexsosn/Agora
+/plugin install context-fabric@agora
+/plugin install perseus@agora
+/plugin install sefaria@agora
+/plugin install sedra@agora
+/reload-plugins
 ```
 
-or verify freshness without modifying files:
+You can install only one or two of these if that is all you need.
+
+### ChatGPT / Codex
+
+If your workspace supports GitHub marketplace import:
+
+1. Open **Workspace settings → Plugins**.
+2. Choose **Add → Import marketplace**.
+3. Use `https://github.com/alexsosn/Agora` as the source.
+4. Leave the path empty; Agora's marketplace file is at the repository root.
+5. Import the marketplace and enable the plugins you need.
+
+For local Codex development/testing:
 
 ```bash
-python scripts/generate_marketplaces.py --check
+git clone https://github.com/alexsosn/Agora.git
+cd Agora
+codex plugin marketplace add /absolute/path/to/Agora
+codex plugin add context-fabric@agora
 ```
 
-The Claude marketplace intentionally uses Claude's strict marketplace schema; Codex-only fields such as `displayName` are emitted only into Codex artifacts.
+Replace `context-fabric` with `perseus`, `sefaria`, or `sedra` as needed.
 
-Antigravity support is intentionally deferred until the core marketplace and scholarly guidance are stable.
+Most local launch paths use [`uv`](https://docs.astral.sh/uv/). Context-Fabric currently requires Python 3.13; the SEDRA adapter requires Python 3.11 or later.
 
-## Integration details
+See the [full installation guide](wiki/guides/installation.md) for platform-specific details, updating, prerequisites, and validation.
 
-### Context-Fabric
+## Example prompts
 
-The Agora runtime exposes resource discovery, collection-member discovery, preparation/acquisition, and loading tools. Corpus data is not bundled into Agora and is materialized lazily from its registered upstream source.
+After installing the relevant plugin, you can ask the agent research questions directly. For example:
 
-The fixed source catalog is generated from canonical registry data and audited against actual upstream Git trees. No machine-specific absolute paths are stored in the registry.
+```text
+Using BHSA, find the distribution of verbal stems for the lexeme MLK and show representative passages. Check the corpus feature names before querying and report the exact features you used.
+```
 
-### Perseus
+```text
+Find Iliad 1.1 in Perseus, retrieve the passage, and show what search or morphological information the current Perseus integration exposes for the first word.
+```
 
-Agora launches the published upstream `perseus-mcp==1.0.2` package directly through `uvx`; it does not vendor or fork Perseus-MCP. The current live Codex-path verification performs a real Homer author-discovery query.
+```text
+Using Sefaria, retrieve Genesis 1:1 in Hebrew and English and show the linked classical commentaries available for that verse.
+```
 
-### Sefaria
+```text
+Look up this Syriac word in SEDRA, distinguish the returned word-form data from lexeme data, and preserve ambiguous analyses rather than choosing one silently: ܡܠܟܐ
+```
 
-Claude can connect directly to the official hosted Sefaria SSE endpoint. Current Codex plugin MCP configuration uses a stdio bridge through `mcp-proxy==0.12.0`. Because that proxy currently resolves an incompatible MCP SDK 2.x unless constrained, Agora explicitly pins the proxy environment to `mcp>=1.17,<2`. The current live Codex-path verification retrieves Genesis 1:1 from Sefaria.
+For corpus research, Agora's bundled skills encourage the agent to inspect the selected resource's schema, annotation conventions, and limitations before interpreting results.
 
-### SEDRA
+## Choosing a plugin
 
-Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mardutho's public SEDRA IV word and lexeme endpoints as read-only MCP tools and preserves the upstream response rather than inventing linguistic interpretation. The current live Codex-path verification executes a real Syriac word lookup.
+| Research task | Plugin |
+|---|---|
+| Hebrew Bible morphology and syntax | **Context-Fabric** |
+| Ugaritic or Hittite corpus analysis | **Context-Fabric** |
+| Structured Greek Text-Fabric corpora | **Context-Fabric** |
+| Perseus/Scaife texts and CTS navigation | **Perseus** |
+| Jewish texts, translations, commentaries, dictionaries | **Sefaria** |
+| Syriac word and lexeme lookup | **SEDRA** |
 
-## Design principles
+Agora is designed to add more providers without forcing them into Text-Fabric or any other single data model.
 
-- **Cross-platform:** keep scholarly identity and metadata client-neutral; generate client adapters from one registry.
-- **Provider-neutral:** support Context-Fabric, hosted MCPs, remote APIs, local databases, and other scholarly backends.
-- **Upstream-first:** integrate third-party projects without unnecessary vendoring or forks.
-- **Research-aware:** plugins should bundle source-specific instructions, conventions, limitations, and useful query patterns rather than exposing raw tools without scholarly context.
-- **License-aware:** software licenses, dataset/content licenses, redistribution status, and service terms are separate metadata.
-- **Resource-aware verification:** plugin integration status and underlying scholarly-data status are separate claims.
-- **Scalable:** corpus families and collection repositories remain resources within provider plugins rather than one marketplace entry per text.
-- **Clean-slate:** Agora has no compatibility obligation to `mcp-demo`; earlier code and research are prior art, not architectural constraints.
+## Research status and trust
 
-## Current status
+Agora distinguishes between two questions:
 
-- **Phase 0 — foundation:** implemented.
-- **Phase 1 — canonical marketplace/resource model:** implemented.
-- **Phase 2 — deterministic Claude + Codex generation:** implemented.
-- **Phase 3 — Context-Fabric runtime and 36-resource baseline:** implemented at the resolver/provider layer; all 36 upstreams currently pass the source audit, with resource-level scholarly verification remaining separate.
-- **Phase 4 — Perseus, Sefaria, and SEDRA:** implemented; Codex paths are live-verified, while aggregate plugin status remains Community pending equivalent Claude-path evidence.
-- **Phase 5 — scholarly skills:** underway; eight provider/corpus-specific skills are implemented and CI-validated, with additional resource-specific guidance still to add.
-- **Phase 6 — verification/trust:** client-specific live verification is implemented for Codex paths; deeper resource/member verification remains ongoing.
-- **Phase 7 — documentation:** underway; current Claude Code, managed ChatGPT/Codex, and local Codex installation flows are documented.
+1. **Does the plugin integration work?**
+2. **How trustworthy and mature is the underlying scholarly resource?**
 
-The next implementation work is tracked in the wiki index and latest independent review, with Context-Fabric snapshot integrity and representative corpus-load evidence now the highest-priority engineering items.
+Those are tracked separately. A working MCP connection does not automatically make every corpus research-grade, and corpus-specific skills may include warnings about experimental data or annotation limitations.
 
-## Repository layout
+The four v0.1 integrations currently have live Codex-path verification. Deeper resource-level verification is ongoing.
 
-- `registry/` — canonical marketplace, plugin, provider, resource, collection, release-scope, licensing, and verification metadata.
-- `plugins/` — client packages, MCP integrations, and scholarly skills.
-- `profiles/` — optional curated bundles.
-- `scripts/` — generators, validators, audits, live-smoke tooling, and repository utilities.
-- `tests/` — deterministic unit, packaging, registry, skill, and integration-contract tests.
-- `generated/` — generated artifacts that do not have client-mandated native paths.
-- `wiki/` — categorized architecture, release, guide, backlog, and review documentation; see [wiki/README.md](wiki/README.md).
+For the detailed verification model and current implementation status, see [implementation details](wiki/architecture/ref-implementation-details.md).
 
 ## Documentation
 
-- [Wiki index and priority convention](wiki/README.md)
-- [Installation](wiki/guides/installation.md)
-- [v0.1 implementation scope](wiki/releases/v0.1-scope-frozen.md)
+- [Installation guide](wiki/guides/installation.md)
+- [Wiki index](wiki/README.md)
+- [v0.1 scope](wiki/releases/v0.1-scope-frozen.md)
+- [Implementation details](wiki/architecture/ref-implementation-details.md)
+- [Marketplace architecture](wiki/architecture/ref-marketplace-architecture.md)
 - [Greek/Context-Fabric collection handling](wiki/architecture/ref-context-fabric-collections.md)
-- [Research and architecture](wiki/architecture/ref-marketplace-architecture.md)
-- [Implementation plan](wiki/releases/v0.1-plan-active.md)
-- [Latest independent review](wiki/reviews/2026-08-29-review-pr1-pr4.md)
+- [Current implementation plan](wiki/releases/v0.1-plan-active.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Contributing
 
-The intended contribution path is lightweight: a straightforward third-party philological MCP should normally require canonical metadata, a client launch adapter, scholarly guidance, and smoke tests—not changes throughout the core marketplace.
+Agora follows an upstream-first model: where a good scholarly MCP or API already exists, the marketplace should normally integrate it rather than fork or vendor it.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for repository conventions and the clean-slate policy.
+A straightforward new philological integration should usually need canonical metadata, launch configuration, scholarly guidance, and smoke tests rather than changes throughout the core.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for repository conventions and contribution guidance.
