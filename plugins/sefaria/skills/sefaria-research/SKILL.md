@@ -1,8 +1,8 @@
 ---
 name: sefaria-research
-description: Use this skill for research with Agora's Sefaria plugin: resolve canonical Jewish-text references, retrieve passages and translations, search the library, follow links/commentaries, use dictionaries, and interpret manuscript metadata without conflating these evidence types.
+description: "Use this skill for research with Agora's Sefaria plugin: resolve canonical Jewish-text references, retrieve passages and translations, search the library, follow links/commentaries, use dictionaries, and interpret manuscript metadata without conflating these evidence types."
 license: MIT
-compatibility: Requires the Agora Sefaria MCP integration and network access to Sefaria's hosted Texts MCP service.
+compatibility: "Requires the Agora Sefaria MCP integration and network access to Sefaria's hosted Texts MCP service."
 metadata:
   provider: sefaria
   version: "0.1.0"
