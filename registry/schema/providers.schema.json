@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/alexsosn/Agora/registry/schema/providers.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "providers"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "plugin", "description", "access", "verification"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+          "name": {"type": "string", "minLength": 1},
+          "plugin": {"type": "string"},
+          "description": {"type": "string", "minLength": 1},
+          "access": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["runtime_mode", "data_mode"],
+            "properties": {
+              "runtime_mode": {"type": "string"},
+              "data_mode": {"type": "string"}
+            }
+          },
+          "upstream": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "repository": {"type": "string"},
+              "homepage": {"type": "string", "format": "uri"},
+              "endpoint": {"type": "string", "format": "uri"}
+            },
+            "minProperties": 1
+          },
+          "verification": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status"],
+            "properties": {
+              "status": {"type": "string"},
+              "notes": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      }
+    }
+  }
+}
