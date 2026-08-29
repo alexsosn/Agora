@@ -1,0 +1,28 @@
+{
+  "name": "context-fabric",
+  "version": "0.1.0",
+  "description": "Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.",
+  "author": {
+    "name": "Agora contributors",
+    "url": "https://github.com/alexsosn/Agora"
+  },
+  "homepage": "https://github.com/alexsosn/Agora",
+  "repository": "https://github.com/alexsosn/Agora",
+  "license": "MIT",
+  "keywords": [
+    "corpus-acquisition",
+    "corpus-discovery",
+    "corpus-loading",
+    "digital-philology",
+    "feature-inspection",
+    "structured-search"
+  ],
+  "interface": {
+    "displayName": "Context-Fabric",
+    "shortDescription": "Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.",
+    "longDescription": "Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.",
+    "developerName": "Agora contributors",
+    "category": "Education & Research",
+    "websiteURL": "https://github.com/alexsosn/Agora"
+  }
+}
