@@ -1,13 +1,20 @@
 # Tests
 
-Agora will test both repository metadata and real scholarly integrations.
+Agora tests both repository metadata and generated client artifacts, with real scholarly integration tests added in later phases.
 
-Future test layers are expected to include:
+Current layers include:
 
-- registry/schema tests;
-- deterministic generation tests;
-- plugin installation/startup tests;
-- MCP initialization and tool-discovery tests;
-- representative scholarly smoke tests.
+- canonical registry/schema validation;
+- duplicate/reference/controlled-vocabulary negative tests;
+- deterministic marketplace generation tests;
+- committed-artifact freshness checks;
+- Claude and Codex marketplace shape/order checks;
+- fixed v0.1 scope checks.
 
-Phase 0 only establishes the test area and foundation CI. Integration verification begins with later phases.
+Later phases add plugin installation/startup, MCP initialization/tool discovery, corpus acquisition/loading, and representative scholarly smoke tests.
+
+Run all current tests with:
+
+```bash
+python -m unittest discover -s tests -v
+```
