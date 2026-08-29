@@ -1,6 +1,6 @@
 # Germanic Philology Backlog: Old Norse, Old Icelandic, and Gothic
 
-This document supplements [`ecosystem-backlog.md`](ecosystem-backlog.md) with language-specific candidates and wanted integrations for Old Norse / Old Icelandic and Gothic. It is part of the post-v0.1 research backlog and does not change Agora's fixed v0.1 scope.
+This document supplements [`P0-research-ecosystem-expansion.md`](P0-research-ecosystem-expansion.md) with language-specific candidates and wanted integrations for Old Norse / Old Icelandic and Gothic. It is part of the post-v0.1 research backlog and does not change Agora's fixed v0.1 scope.
 
 ## Priority legend
 

@@ -4,7 +4,7 @@
 
 This document tracks candidate plugins, providers, resources, skills, and missing integrations for Agora **after the fixed v0.1 scope**.
 
-It is deliberately separate from [`v0.1-scope.md`](v0.1-scope.md) and does not expand the first-release requirement. The v0.1 plugin families remain Context-Fabric, Perseus, Sefaria, and SEDRA.
+It is deliberately separate from [`v0.1-scope-frozen.md`](../releases/v0.1-scope-frozen.md) and does not expand the first-release requirement. The v0.1 plugin families remain Context-Fabric, Perseus, Sefaria, and SEDRA.
 
 The backlog is based on ecosystem research conducted in August 2026 across MCP servers, scholarly corpora, NLP projects, lexica, digital libraries, manuscript infrastructure, and agent skills relevant to philology and adjacent disciplines.
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is a focused companion to [`ecosystem-backlog.md`](ecosystem-backlog.md). It tracks post-v0.1 Agora candidates relevant to Egyptology, Ancient Egyptian and Coptic linguistics, Demotic studies, Egyptian papyrology, hieroglyphic encoding, and HTR/OCR.
+This document is a focused companion to [`P0-research-ecosystem-expansion.md`](P0-research-ecosystem-expansion.md). It tracks post-v0.1 Agora candidates relevant to Egyptology, Ancient Egyptian and Coptic linguistics, Demotic studies, Egyptian papyrology, hieroglyphic encoding, and HTR/OCR.
 
 It does **not** expand the fixed v0.1 scope.
 

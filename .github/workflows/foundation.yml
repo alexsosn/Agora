@@ -25,10 +25,12 @@ jobs:
             README.md
             LICENSE
             CONTRIBUTING.md
-            wiki/research.md
-            wiki/plan.md
-            wiki/v0.1-scope.md
-            wiki/greek-collections.md
+            wiki/README.md
+            wiki/architecture/ref-marketplace-architecture.md
+            wiki/architecture/ref-context-fabric-collections.md
+            wiki/releases/v0.1-plan-active.md
+            wiki/releases/v0.1-scope-frozen.md
+            wiki/guides/installation.md
             registry/README.md
             registry/marketplace.yaml
             plugins/README.md
@@ -45,6 +47,41 @@ jobs:
               exit 1
             fi
           done
+
+      - name: Verify wiki organization convention
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t root_markdown < <(find wiki -maxdepth 1 -type f -name '*.md' -printf '%f\n' | sort)
+          if [[ "${root_markdown[*]}" != "README.md" ]]; then
+            echo "Only wiki/README.md may live directly under wiki/. Found: ${root_markdown[*]}" >&2
+            exit 1
+          fi
+
+          while IFS= read -r path; do
+            name="${path##*/}"
+            if [[ ! "$name" =~ ^P[0-2]-(research|design|implement|verify|blocked)-[a-z0-9][a-z0-9-]*\.md$ ]]; then
+              echo "Backlog filename violates priority/state convention: $path" >&2
+              exit 1
+            fi
+          done < <(find wiki/backlog -maxdepth 1 -type f -name '*.md' | sort)
+
+          while IFS= read -r path; do
+            name="${path##*/}"
+            if [[ ! "$name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}-review-[a-z0-9][a-z0-9-]*\.md$ ]]; then
+              echo "Review filename violates dated review convention: $path" >&2
+              exit 1
+            fi
+          done < <(find wiki/reviews -maxdepth 1 -type f -name '*.md' | sort)
+
+          while IFS= read -r path; do
+            name="${path##*/}"
+            if [[ ! "$name" =~ ^ref-[a-z0-9][a-z0-9-]*\.md$ ]]; then
+              echo "Architecture filename violates ref-* convention: $path" >&2
+              exit 1
+            fi
+          done < <(find wiki/architecture -maxdepth 1 -type f -name '*.md' | sort)
 
       - name: Verify clean-slate policy is documented
         shell: bash
