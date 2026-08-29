@@ -45,7 +45,7 @@ Agora plugins now bundle portable `SKILL.md` research guidance in addition to MC
 - **Sefaria** — canonical references, source versus translation layers, Hebrew/Aramaic versus English search behavior, links, dictionaries, and manuscript evidence;
 - **SEDRA** — word-form versus lexeme semantics, ambiguity preservation, Syriac Unicode input, and limits of lexical evidence.
 
-Skills use the Agent Skills `skills/<name>/SKILL.md` layout and are checked in CI for valid YAML frontmatter, naming/size constraints, references to real plugin tools, and source-specific research invariants.
+Skills use the Agent Skills `skills/<name>/SKILL.md` layout and are checked in CI for valid YAML frontmatter, naming/size constraints, references to real plugin tools, source-specific research invariants, and Codex UI metadata.
 
 ## Context-Fabric resource model
 
@@ -118,8 +118,9 @@ Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mard
 - **Phase 4 — Perseus, Sefaria, and SEDRA:** implemented and live-verified.
 - **Phase 5 — scholarly skills:** underway; eight provider/corpus-specific skills are implemented and CI-validated, with additional resource-specific guidance still to add.
 - **Phase 6 — verification/trust:** plugin-level live verification is implemented; deeper resource/member verification remains ongoing.
+- **Phase 7 — documentation:** underway; current Claude Code, managed ChatGPT/Codex, and local Codex installation flows are documented.
 
-The next Phase 5 work is to broaden source-specific guidance where the 36-resource Context-Fabric catalog has distinctive annotation models, then connect the skills to end-user installation/usage documentation and deeper representative corpus tests.
+The next implementation work is to broaden source-specific guidance across distinctive Context-Fabric resource families, deepen representative corpus materialization/load tests, and add optional disciplinary profiles.
 
 ## Repository layout
 
@@ -133,6 +134,7 @@ The next Phase 5 work is to broaden source-specific guidance where the 36-resour
 
 ## Documentation
 
+- [Installation](wiki/installation.md)
 - [v0.1 implementation scope](wiki/v0.1-scope.md)
 - [Greek collection handling](wiki/greek-collections.md)
 - [Research and architecture](wiki/research.md)
