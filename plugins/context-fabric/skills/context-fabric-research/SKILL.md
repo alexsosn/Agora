@@ -1,8 +1,8 @@
 ---
 name: context-fabric-research
-description: Use this skill when researching with Agora's Context-Fabric plugin: discover a corpus or collection, select the right member, load it deliberately, inspect its schema, and avoid transferring assumptions between heterogeneous Text-Fabric datasets.
+description: "Use this skill when researching with Agora's Context-Fabric plugin: discover a corpus or collection, select the right member, load it deliberately, inspect its schema, and avoid transferring assumptions between heterogeneous Text-Fabric datasets."
 license: MIT
-compatibility: Requires the Agora Context-Fabric MCP plugin and network access when a corpus must be acquired from its registered upstream Git source.
+compatibility: "Requires the Agora Context-Fabric MCP plugin and network access when a corpus must be acquired from its registered upstream Git source."
 metadata:
   provider: context-fabric
   version: "0.1.0"
