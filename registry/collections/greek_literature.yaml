@@ -1,0 +1,8 @@
+schema_version: 1
+collection_id: greek_literature
+index_status: pending
+notes:
+  - Phase 1 establishes the collection contract; member enumeration is Phase 3 implementation work.
+  - Individual works must receive stable member IDs and remain independently loadable TF corpora.
+  - Do not flatten members into top-level marketplace resources or assume a uniform TF schema across them.
+members: []
