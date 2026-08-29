@@ -1,8 +1,8 @@
 ---
 name: perseus-research
-description: Use this skill for research with Agora's Perseus plugin: discover authors, works, and edition URNs before passage retrieval; distinguish Perseus CTS from Scaife search resources; and use form or lemma search without inventing identifiers.
+description: "Use this skill for research with Agora's Perseus plugin: discover authors, works, and edition URNs before passage retrieval; distinguish Perseus CTS from Scaife search resources; and use form or lemma search without inventing identifiers."
 license: MIT
-compatibility: Requires the Agora Perseus MCP plugin and network access to the live Perseus/Scaife services used by upstream Perseus-mcp.
+compatibility: "Requires the Agora Perseus MCP plugin and network access to the live Perseus/Scaife services used by upstream Perseus-mcp."
 metadata:
   provider: perseus
   version: "0.1.0"
