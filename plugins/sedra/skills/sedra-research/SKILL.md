@@ -1,8 +1,8 @@
 ---
 name: sedra-research
-description: Use this skill for Syriac lexical research with Agora's SEDRA plugin: distinguish word-form lookup from lexeme lookup, preserve ambiguous candidate analyses, follow returned lexeme IDs, and avoid inventing morphology or attestation evidence not supplied by SEDRA IV.
+description: "Use this skill for Syriac lexical research with Agora's SEDRA plugin: distinguish word-form lookup from lexeme lookup, preserve ambiguous candidate analyses, follow returned lexeme IDs, and avoid inventing morphology or attestation evidence not supplied by SEDRA IV."
 license: MIT
-compatibility: Requires the Agora SEDRA MCP plugin and network access to Beth Mardutho's public SEDRA IV JSON endpoints.
+compatibility: "Requires the Agora SEDRA MCP plugin and network access to Beth Mardutho's public SEDRA IV JSON endpoints."
 metadata:
   provider: sedra
   version: "0.1.0"
