@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sefaria Research"
+  short_description: "Research Jewish texts with explicit references and evidence-layer distinctions"
+  default_prompt: "Use $sefaria-research to resolve references, choose the right text or search tool, and distinguish source text, translations, links, dictionaries, and manuscripts."
