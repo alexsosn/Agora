@@ -1,0 +1,27 @@
+{
+  "name": "sedra",
+  "version": "0.1.0",
+  "description": "Syriac lexical and morphological lookup against Beth Mardutho's Syriac Electronic Data Research Archive.",
+  "author": {
+    "name": "Agora contributors",
+    "url": "https://github.com/alexsosn/Agora"
+  },
+  "homepage": "https://github.com/alexsosn/Agora",
+  "repository": "https://github.com/alexsosn/Agora",
+  "license": "MIT",
+  "keywords": [
+    "dictionary-lookup",
+    "digital-philology",
+    "lexeme-lookup",
+    "semitic-linguistics",
+    "syriac-studies"
+  ],
+  "interface": {
+    "displayName": "SEDRA",
+    "shortDescription": "Syriac lexical and morphological lookup against Beth Mardutho's Syriac Electronic Data Research Archive.",
+    "longDescription": "Syriac lexical and morphological lookup against Beth Mardutho's Syriac Electronic Data Research Archive.",
+    "developerName": "Agora contributors",
+    "category": "Education & Research",
+    "websiteURL": "https://github.com/alexsosn/Agora"
+  }
+}
