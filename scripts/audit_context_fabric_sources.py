@@ -65,9 +65,11 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
             item["error"] = str(exc)
         resources.append(item)
 
+    checked = len(resources)
     return {
         "ok": failed == 0,
-        "checked": len(resources),
+        "checked": checked,
+        "passed": checked - failed,
         "failed": failed,
         "resources": resources,
     }
