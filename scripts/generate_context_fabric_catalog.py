@@ -18,6 +18,12 @@ def load_yaml(path: Path) -> Any:
 
 
 def _runtime_resource(item: dict[str, Any]) -> dict[str, Any]:
+    upstream_source = item["upstream"]
+    upstream = {"repository": upstream_source["repository"]}
+    for key in ("ref", "tf_path"):
+        if upstream_source.get(key) is not None:
+            upstream[key] = upstream_source[key]
+
     projected: dict[str, Any] = {
         "id": item["id"],
         "name": item["name"],
@@ -26,7 +32,7 @@ def _runtime_resource(item: dict[str, Any]) -> dict[str, Any]:
         "kind": item["kind"],
         "languages": list(item.get("languages", [])),
         "disciplines": list(item.get("disciplines", [])),
-        "upstream": {"repository": item["upstream"]["repository"]},
+        "upstream": upstream,
     }
     if item["kind"] == "collection":
         collection = item.get("collection") or {}
