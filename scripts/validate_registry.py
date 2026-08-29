@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from typing import Any, Iterable
+
+import yaml
+from jsonschema import Draft202012Validator, FormatChecker
+
+ROOT = Path(__file__).resolve().parents[1]
+REGISTRY = ROOT / "registry"
+SCHEMA = REGISTRY / "schema"
+
+
+def load_yaml(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
+
+def load_json(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def schema_errors(instance: Any, schema_path: Path, label: str) -> list[str]:
+    schema = load_json(schema_path)
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    errors: list[str] = []
+    for error in sorted(validator.iter_errors(instance), key=lambda e: list(e.absolute_path)):
+        path = ".".join(str(part) for part in error.absolute_path)
+        where = f"{label}:{path}" if path else label
+        errors.append(f"{where}: {error.message}")
+    return errors
+
+
+def duplicate_errors(items: Iterable[dict[str, Any]], label: str) -> list[str]:
+    seen: set[str] = set()
+    errors: list[str] = []
+    for item in items:
+        item_id = item["id"]
+        if item_id in seen:
+            errors.append(f"{label}: duplicate id {item_id!r}")
+        seen.add(item_id)
+    return errors
+
+
+def ensure_vocab(value: str, allowed: set[str], where: str, errors: list[str]) -> None:
+    if value not in allowed:
+        errors.append(f"{where}: unknown controlled-vocabulary value {value!r}")
+
+
+def ensure_vocab_list(values: Iterable[str], allowed: set[str], where: str, errors: list[str]) -> None:
+    for value in values:
+        ensure_vocab(value, allowed, where, errors)
+
+
+def validate_registry() -> list[str]:
+    errors: list[str] = []
+
+    plugins_doc = load_yaml(REGISTRY / "plugins.yaml")
+    providers_doc = load_yaml(REGISTRY / "providers.yaml")
+    resources_doc = load_yaml(REGISTRY / "resources.yaml")
+    vocab = load_yaml(REGISTRY / "vocabularies.yaml")
+    scope_doc = load_yaml(REGISTRY / "v0.1.yaml")
+
+    errors += schema_errors(plugins_doc, SCHEMA / "plugins.schema.json", "plugins.yaml")
+    errors += schema_errors(providers_doc, SCHEMA / "providers.schema.json", "providers.yaml")
+    errors += schema_errors(resources_doc, SCHEMA / "resources.schema.json", "resources.yaml")
+    errors += schema_errors(scope_doc, SCHEMA / "release-scope.schema.json", "v0.1.yaml")
+
+    plugins = plugins_doc.get("plugins", [])
+    providers = providers_doc.get("providers", [])
+    resources = resources_doc.get("resources", [])
+
+    errors += duplicate_errors(plugins, "plugins.yaml")
+    errors += duplicate_errors(providers, "providers.yaml")
+    errors += duplicate_errors(resources, "resources.yaml")
+
+    plugin_by_id = {item["id"]: item for item in plugins}
+    provider_by_id = {item["id"]: item for item in providers}
+    resource_by_id = {item["id"]: item for item in resources}
+
+    verification = set(vocab["verification_statuses"])
+    runtime_modes = set(vocab["runtime_modes"])
+    data_modes = set(vocab["data_modes"])
+    resource_kinds = set(vocab["resource_kinds"])
+    acquisition = set(vocab["acquisition_strategies"])
+    collection_discovery = set(vocab["collection_discovery_modes"])
+    collection_index_status = set(vocab["collection_index_statuses"])
+    redistribution = set(vocab["redistribution_statuses"])
+    languages = set(vocab["languages"])
+    disciplines = set(vocab["disciplines"])
+    capabilities = set(vocab["capabilities"])
+
+    for plugin in plugins:
+        prefix = f"plugin {plugin['id']}"
+        ensure_vocab_list(plugin["disciplines"], disciplines, f"{prefix}.disciplines", errors)
+        ensure_vocab(plugin["runtime"]["mode"], runtime_modes, f"{prefix}.runtime.mode", errors)
+        if "data_mode" in plugin:
+            ensure_vocab(plugin["data_mode"], data_modes, f"{prefix}.data_mode", errors)
+        ensure_vocab_list(plugin["capabilities"], capabilities, f"{prefix}.capabilities", errors)
+        ensure_vocab(plugin["verification"]["status"], verification, f"{prefix}.verification.status", errors)
+
+    for provider in providers:
+        prefix = f"provider {provider['id']}"
+        if provider["plugin"] not in plugin_by_id:
+            errors.append(f"{prefix}: references missing plugin {provider['plugin']!r}")
+        ensure_vocab(provider["access"]["runtime_mode"], runtime_modes, f"{prefix}.access.runtime_mode", errors)
+        ensure_vocab(provider["access"]["data_mode"], data_modes, f"{prefix}.access.data_mode", errors)
+        ensure_vocab(provider["verification"]["status"], verification, f"{prefix}.verification.status", errors)
+
+    collection_paths: set[Path] = set()
+    for resource in resources:
+        prefix = f"resource {resource['id']}"
+        if resource["plugin"] not in plugin_by_id:
+            errors.append(f"{prefix}: references missing plugin {resource['plugin']!r}")
+        provider = provider_by_id.get(resource["provider"])
+        if provider is None:
+            errors.append(f"{prefix}: references missing provider {resource['provider']!r}")
+        elif provider["plugin"] != resource["plugin"]:
+            errors.append(
+                f"{prefix}: provider {provider['id']!r} belongs to plugin {provider['plugin']!r}, "
+                f"not {resource['plugin']!r}"
+            )
+
+        ensure_vocab(resource["kind"], resource_kinds, f"{prefix}.kind", errors)
+        ensure_vocab_list(resource["languages"], languages, f"{prefix}.languages", errors)
+        ensure_vocab_list(resource["disciplines"], disciplines, f"{prefix}.disciplines", errors)
+        ensure_vocab(resource["acquisition"]["strategy"], acquisition, f"{prefix}.acquisition.strategy", errors)
+        ensure_vocab(resource["licenses"]["redistribution"], redistribution, f"{prefix}.licenses.redistribution", errors)
+        ensure_vocab(resource["verification"]["status"], verification, f"{prefix}.verification.status", errors)
+
+        if resource["kind"] == "collection":
+            if resource["acquisition"]["strategy"] != "collection":
+                errors.append(f"{prefix}: collection resources must use acquisition.strategy='collection'")
+            collection = resource["collection"]
+            ensure_vocab(collection["discovery"], collection_discovery, f"{prefix}.collection.discovery", errors)
+            member_index = ROOT / collection["member_index"]
+            collection_paths.add(member_index)
+            if not member_index.is_file():
+                errors.append(f"{prefix}: missing collection member index {collection['member_index']!r}")
+                continue
+            index_doc = load_yaml(member_index)
+            errors += schema_errors(index_doc, SCHEMA / "collection-index.schema.json", str(member_index.relative_to(ROOT)))
+            if index_doc.get("collection_id") != resource["id"]:
+                errors.append(
+                    f"{prefix}: member index collection_id {index_doc.get('collection_id')!r} does not match resource id"
+                )
+            ensure_vocab(index_doc.get("index_status"), collection_index_status, f"{prefix}.collection.index_status", errors)
+            member_ids: set[str] = set()
+            for member in index_doc.get("members", []):
+                member_id = member["id"]
+                if member_id in member_ids:
+                    errors.append(f"{prefix}: duplicate collection member id {member_id!r}")
+                member_ids.add(member_id)
+                ensure_vocab_list(member["languages"], languages, f"{prefix}.member[{member_id}].languages", errors)
+                ensure_vocab(member["verification"]["status"], verification, f"{prefix}.member[{member_id}].verification.status", errors)
+        elif resource["acquisition"]["strategy"] == "collection":
+            errors.append(f"{prefix}: non-collection resource cannot use acquisition.strategy='collection'")
+
+    required_plugins = set(scope_doc["required_plugins"])
+    required_resources = set(scope_doc["required_resources"])
+    missing_plugins = sorted(required_plugins - set(plugin_by_id))
+    missing_resources = sorted(required_resources - set(resource_by_id))
+    if missing_plugins:
+        errors.append(f"v0.1.yaml: missing required plugin records: {', '.join(missing_plugins)}")
+    if missing_resources:
+        errors.append(f"v0.1.yaml: missing required resource records: {', '.join(missing_resources)}")
+
+    if len(required_plugins) != 4:
+        errors.append(f"v0.1.yaml: expected 4 required plugins, found {len(required_plugins)}")
+    if len(required_resources) != 36:
+        errors.append(f"v0.1.yaml: expected 36 required Context-Fabric resources, found {len(required_resources)}")
+
+    for resource_id in required_resources:
+        resource = resource_by_id.get(resource_id)
+        if resource is not None and resource["plugin"] != "context-fabric":
+            errors.append(f"v0.1.yaml: required resource {resource_id!r} is not owned by context-fabric")
+
+    return errors
+
+
+def main() -> int:
+    errors = validate_registry()
+    if errors:
+        print("Registry validation failed:", file=sys.stderr)
+        for error in errors:
+            print(f"- {error}", file=sys.stderr)
+        return 1
+    print("Registry validation passed: 4 plugins, 4 providers, 36 v0.1 resources.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
