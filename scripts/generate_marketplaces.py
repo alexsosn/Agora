@@ -9,7 +9,11 @@ from typing import Any
 
 import yaml
 
-from scripts.validate_registry import ROOT, validate_registry
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.validate_registry import validate_registry
 
 CODEX_CATEGORY = "Education & Research"
 CODEX_INSTALLATION = "AVAILABLE"
