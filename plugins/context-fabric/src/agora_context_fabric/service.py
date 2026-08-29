@@ -87,6 +87,8 @@ class ContextFabricService:
             raise ValueError("offset must be >= 0")
         if limit < 1:
             raise ValueError("limit must be >= 1")
+        if limit > 100:
+            raise ValueError("limit must be <= 100")
 
         resource = self.catalog.get(resource_id)
         if resource.kind != "collection":
@@ -108,6 +110,29 @@ class ContextFabricService:
             "has_more": offset + len(page) < total,
             "members": [self._member_dict(member) for member in page],
         }
+
+    def list_collection_members(
+        self,
+        resource_id: str,
+        *,
+        query: str = "",
+        offset: int = 0,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Compatibility alias for the earlier service API.
+
+        MCP tools use list_members(). The alias preserves callers/tests from the
+        initial service draft without changing the public MCP response shape.
+        """
+        result = self.list_members(
+            resource_id,
+            query=query,
+            offset=offset,
+            limit=limit,
+        )
+        compatible = dict(result)
+        compatible["items"] = compatible.pop("members")
+        return compatible
 
     def prepare(
         self,
@@ -144,3 +169,20 @@ class ContextFabricService:
         result = self._prepared_dict(prepared)
         result["corpus"] = self._corpus_info(info)
         return result
+
+    def load_resource(
+        self,
+        resource_id: str,
+        *,
+        member_id: str | None = None,
+        features: str | list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Compatibility alias for the earlier service API."""
+        result = self.load(
+            resource_id,
+            member_id=member_id,
+            features=features,
+        )
+        compatible = dict(result)
+        compatible["features"] = features
+        return compatible
