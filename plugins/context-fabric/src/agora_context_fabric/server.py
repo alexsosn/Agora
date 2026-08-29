@@ -13,7 +13,7 @@ from .resolver import ContextFabricResolver
 from .service import ContextFabricService
 
 LOGGER = logging.getLogger("agora_context_fabric")
-PLUGIN_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CACHE_DIR = Path(
     os.environ.get("AGORA_CORPUS_CACHE", "~/.cache/agora/context-fabric")
 ).expanduser()
@@ -22,6 +22,12 @@ DEFAULT_CACHE_DIR = Path(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Agora Context-Fabric MCP server",
+    )
+    parser.add_argument(
+        "--plugin-root",
+        type=Path,
+        default=DEFAULT_PLUGIN_ROOT,
+        help="Installed Context-Fabric plugin root containing resources/catalog.yaml",
     )
     parser.add_argument(
         "--cache-dir",
@@ -64,7 +70,11 @@ def select_transport(args: argparse.Namespace) -> tuple[str, int | None]:
     return "stdio", None
 
 
-def build_runtime(cache_dir: Path = DEFAULT_CACHE_DIR) -> tuple[Any, ContextFabricService, Any]:
+def build_runtime(
+    cache_dir: Path = DEFAULT_CACHE_DIR,
+    *,
+    plugin_root: Path = DEFAULT_PLUGIN_ROOT,
+) -> tuple[Any, ContextFabricService, Any]:
     """Build the Agora-enhanced upstream Context-Fabric MCP runtime.
 
     The upstream dependency is imported lazily so catalog/resolver tests do not
@@ -77,7 +87,7 @@ def build_runtime(cache_dir: Path = DEFAULT_CACHE_DIR) -> tuple[Any, ContextFabr
             "cfabric-mcp is required to run the Context-Fabric plugin; install the plugin runtime dependencies"
         ) from exc
 
-    catalog = Catalog.from_plugin_root(PLUGIN_ROOT)
+    catalog = Catalog.from_plugin_root(Path(plugin_root))
     store = GitStore(Path(cache_dir))
     resolver = ContextFabricResolver(catalog, store)
     service = ContextFabricService(catalog, resolver, corpus_manager)
@@ -92,7 +102,10 @@ def main() -> None:
         LOGGER.setLevel(logging.DEBUG)
 
     transport, port = select_transport(args)
-    mcp, _service, _corpus_manager = build_runtime(args.cache_dir)
+    mcp, _service, _corpus_manager = build_runtime(
+        args.cache_dir,
+        plugin_root=args.plugin_root,
+    )
 
     try:
         from cfabric_mcp import tools as upstream_tools
