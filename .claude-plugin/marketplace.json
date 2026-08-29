@@ -1,0 +1,49 @@
+{
+  "name": "agora",
+  "description": "Cross-platform plugin marketplace for philology and related disciplines.",
+  "owner": {
+    "name": "Agora contributors"
+  },
+  "plugins": [
+    {
+      "name": "context-fabric",
+      "displayName": "Context-Fabric",
+      "source": "./plugins/context-fabric",
+      "description": "Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.",
+      "author": {
+        "name": "Agora contributors"
+      },
+      "homepage": "https://github.com/alexsosn/Agora"
+    },
+    {
+      "name": "perseus",
+      "displayName": "Perseus MCP",
+      "source": "./plugins/perseus",
+      "description": "Access Perseus and Scaife text discovery, CTS passages, and search through tonyjurg/Perseus-mcp.",
+      "author": {
+        "name": "Agora contributors"
+      },
+      "homepage": "https://github.com/alexsosn/Agora"
+    },
+    {
+      "name": "sefaria",
+      "displayName": "Sefaria",
+      "source": "./plugins/sefaria",
+      "description": "Search and retrieve Jewish texts and linked resources through the official Sefaria Texts MCP.",
+      "author": {
+        "name": "Agora contributors"
+      },
+      "homepage": "https://github.com/alexsosn/Agora"
+    },
+    {
+      "name": "sedra",
+      "displayName": "SEDRA",
+      "source": "./plugins/sedra",
+      "description": "Syriac lexical and morphological lookup against Beth Mardutho's Syriac Electronic Data Research Archive.",
+      "author": {
+        "name": "Agora contributors"
+      },
+      "homepage": "https://github.com/alexsosn/Agora"
+    }
+  ]
+}
