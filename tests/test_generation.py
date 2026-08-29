@@ -67,6 +67,12 @@ class MarketplaceGenerationTests(unittest.TestCase):
         for entry in marketplace["plugins"]:
             self.assertEqual(entry["source"], f"./plugins/{entry['name']}")
 
+    def test_claude_marketplace_does_not_leak_codex_display_name(self):
+        with (ROOT / ".claude-plugin/marketplace.json").open("r", encoding="utf-8") as fh:
+            marketplace = json.load(fh)
+        for entry in marketplace["plugins"]:
+            self.assertNotIn("displayName", entry)
+
     def test_context_fabric_manifests_reference_platform_specific_mcp_configs(self):
         with (ROOT / "plugins/context-fabric/.claude-plugin/plugin.json").open(
             "r", encoding="utf-8"
