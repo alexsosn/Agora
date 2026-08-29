@@ -1,5 +1,27 @@
 # Scripts
 
-Repository tooling belongs here: registry validation, marketplace manifest generation, verification helpers, and maintenance scripts.
+Repository tooling lives here: registry validation, deterministic marketplace generation, verification helpers, and maintenance scripts.
 
-Phase 0 intentionally contains no generator implementation. Phase 1 defines the canonical data model; Phase 2 adds deterministic manifest generators and freshness checks.
+## Registry validation
+
+```bash
+python scripts/validate_registry.py
+```
+
+Validates Agora's canonical marketplace, plugin, provider, resource, collection, vocabulary, and v0.1 scope documents.
+
+## Marketplace generation
+
+```bash
+python scripts/generate_marketplaces.py
+```
+
+Generates the native Claude Code and ChatGPT/Codex marketplace/plugin metadata from the canonical registry.
+
+Use the freshness-only mode in CI or before committing registry changes:
+
+```bash
+python scripts/generate_marketplaces.py --check
+```
+
+Phase 2 intentionally does not generate Antigravity artifacts.
