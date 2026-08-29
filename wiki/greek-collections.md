@@ -1,0 +1,119 @@
+# Greek Text-Fabric Collection Handling
+
+Several Greek Text-Fabric repositories do not behave like ordinary single-corpus repositories. In particular, repositories such as `pthu/greek_literature` contain many independent Text-Fabric corpora, typically one work/text per corpus directory.
+
+Agora must treat this as a first-class collection model rather than flattening every internal work into a marketplace plugin.
+
+## Design rule
+
+**Marketplace granularity and Text-Fabric runtime granularity are different.**
+
+At the marketplace level:
+
+- `pthu/greek_literature` is one Context-Fabric resource of type `collection`;
+- the collection is installed/discovered through the single `context-fabric` plugin;
+- individual works are not top-level Agora plugins and should not appear as thousands of marketplace entries.
+
+At the runtime level:
+
+- each individual Greek work remains a separately loadable Text-Fabric corpus;
+- Agora must discover, address, acquire, cache, and load collection members independently;
+- Context-Fabric MCP should be pointed at the selected member corpus, not at an artificial merged corpus unless an upstream collection explicitly supports that.
+
+## Registry model
+
+Collection resources need metadata distinct from ordinary corpus resources.
+
+Conceptually:
+
+```yaml
+id: greek_literature
+plugin: context-fabric
+provider: context-fabric
+resource:
+  type: collection
+upstream:
+  repository: pthu/greek_literature
+members:
+  discovery: indexed
+  id_scheme: stable-relative-id
+```
+
+Individual members should have stable internal identifiers without becoming marketplace plugins. A member index should record, where available:
+
+- stable member ID;
+- repository-relative corpus path;
+- author;
+- work title;
+- language;
+- edition/source identifier;
+- CTS URN or other canonical identifier when available;
+- TF version/data directory;
+- node types and salient features where useful;
+- load/test status;
+- known issues.
+
+The member ID should be independent of the local checkout path. If a stable upstream identifier such as a CTS URN exists, prefer or preserve it. Otherwise derive a deterministic Agora ID from stable repository metadata.
+
+## Discovery
+
+Agents should be able to search collection members before loading one. The Context-Fabric integration therefore needs collection-aware discovery operations such as:
+
+- list collections;
+- search members by author/title/identifier;
+- inspect member metadata;
+- resolve a member ID to its upstream TF location;
+- list locally cached members.
+
+A user asking for Homer should not require Agora to load or enumerate every Greek corpus into an MCP process first.
+
+## Acquisition and loading
+
+Collection members should be lazy by default:
+
+```text
+select collection member
+→ resolve stable member ID
+→ acquire/cache only the required TF corpus where practical
+→ compile/load that member with Context-Fabric
+→ expose it through Context-Fabric MCP
+```
+
+Do not require cloning, compiling, or loading an entire large Greek collection merely to use one work if the upstream layout allows narrower acquisition.
+
+If Git sparse checkout or another repository-level mechanism is the only practical acquisition method, the collection adapter may use it internally. That is an implementation detail and must not leak into canonical resource IDs.
+
+## MCP process model
+
+The collection model must not assume that all member corpora share one uniform TF schema. Individual Greek corpora may have different node types, section models, feature sets, or malformed/problematic features.
+
+Accordingly:
+
+- member metadata should be inspected independently;
+- loading should occur per selected member or compatible group;
+- Agora should not promise one global query schema across all Greek works;
+- feature discovery must happen after loading the selected corpus;
+- known-bad members may carry their own resource/member status without degrading the whole collection.
+
+The exact process strategy — restart a Context-Fabric MCP process when switching members, maintain a bounded pool, or support dynamic loading in one process — can be chosen during implementation, but the public model must remain member-oriented.
+
+## Verification
+
+Verification should operate at three levels:
+
+1. **Context-Fabric plugin** — MCP/runtime integration works.
+2. **Collection resource** — discovery/indexing and member resolution work.
+3. **Collection member** — a specific TF corpus loads and supports representative access.
+
+It is neither necessary nor desirable to run full end-to-end tests for every member on every pull request. CI can combine:
+
+- schema/index validation for all members;
+- representative member smoke tests on normal PRs;
+- batched/scheduled tests across the wider collection;
+- explicit per-member known-issue/status metadata.
+
+## v0.1 requirement
+
+Agora v0.1 must support this collection/member distinction for the Greek collection resources in the fixed Context-Fabric baseline. `pthu/greek_literature` is the primary case and should drive the design.
+
+The implementation is not complete if `greek_literature` merely appears as one registry row but Agora cannot discover and load its individual TF works. Conversely, it is also not acceptable to represent every individual work as a separate marketplace plugin.
