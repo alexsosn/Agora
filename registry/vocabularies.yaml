@@ -1,0 +1,80 @@
+schema_version: 1
+
+verification_statuses:
+  - experimental
+  - community
+  - verified
+
+runtime_modes:
+  - local
+  - hosted
+
+data_modes:
+  - local
+  - remote
+  - hybrid
+
+resource_kinds:
+  - corpus
+  - collection
+
+acquisition_strategies:
+  - repository
+  - tf-app
+  - collection
+
+collection_discovery_modes:
+  - indexed
+
+redistribution_statuses:
+  - unknown
+  - permitted
+  - restricted
+
+languages:
+  - akkadian
+  - aramaic
+  - arabic
+  - dutch
+  - english
+  - french
+  - greek
+  - hebrew
+  - hittite
+  - italian
+  - latin
+  - pali
+  - proto-cuneiform
+  - syriac
+  - ugaritic
+
+# Intentionally broad and extensible; values should describe scholarly use,
+# not simply repeat a corpus provider's website category labels.
+disciplines:
+  - assyriology
+  - biblical-studies
+  - buddhist-studies
+  - classics
+  - digital-philology
+  - historical-linguistics
+  - history
+  - hittitology
+  - islamic-studies
+  - judaica
+  - literary-studies
+  - semitic-linguistics
+  - syriac-studies
+
+capabilities:
+  - corpus-discovery
+  - corpus-acquisition
+  - corpus-loading
+  - structured-search
+  - feature-inspection
+  - passage-retrieval
+  - full-text-search
+  - cts-navigation
+  - reference-resolution
+  - linked-text-navigation
+  - dictionary-lookup
+  - lexeme-lookup
