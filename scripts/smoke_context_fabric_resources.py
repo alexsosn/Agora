@@ -3,11 +3,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
+PLUGIN_SRC = ROOT / "plugins" / "context-fabric" / "src"
+if str(PLUGIN_SRC) not in sys.path:
+    sys.path.insert(0, str(PLUGIN_SRC))
 
 
 @dataclass(frozen=True)
@@ -55,10 +59,10 @@ def summarize_loaded_corpus(case_name: str, result: dict[str, Any]) -> dict[str,
 
 
 def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
-    from plugins.context_fabric.src.agora_context_fabric.catalog import Catalog
-    from plugins.context_fabric.src.agora_context_fabric.gitstore import GitStore
-    from plugins.context_fabric.src.agora_context_fabric.resolver import ContextFabricResolver
-    from plugins.context_fabric.src.agora_context_fabric.service import ContextFabricService
+    from agora_context_fabric.catalog import Catalog
+    from agora_context_fabric.gitstore import GitStore
+    from agora_context_fabric.resolver import ContextFabricResolver
+    from agora_context_fabric.service import ContextFabricService
     from cfabric_mcp import corpus_manager
 
     case = LOAD_CASES[case_name]
