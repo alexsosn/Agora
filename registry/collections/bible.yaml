@@ -1,0 +1,7 @@
+schema_version: 1
+collection_id: bible
+index_status: pending
+notes:
+  - Phase 1 establishes the collection contract; member enumeration is Phase 3 implementation work.
+  - Upstream is organized into old_testament, new_testament, and extra_biblical trees containing separately loadable TF corpora.
+members: []
