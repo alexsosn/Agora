@@ -1,0 +1,57 @@
+name: External MCP live smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 5 * * 3"
+  push:
+    paths:
+      - "plugins/perseus/**"
+      - "plugins/sefaria/**"
+      - "plugins/sedra/**"
+      - "scripts/generate_marketplaces.py"
+      - "scripts/smoke_mcp_plugin.py"
+      - "tests/test_generation.py"
+      - "tests/test_mcp_smoke.py"
+      - ".github/workflows/external-mcp-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  live-mcp:
+    name: Live MCP — ${{ matrix.plugin }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: [perseus, sefaria, sedra]
+
+    steps:
+      - name: Check out Agora
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Initialize MCP and execute one live scholarly lookup
+        shell: bash
+        run: |
+          set -o pipefail
+          uv run --with "mcp>=2,<3" \
+            python scripts/smoke_mcp_plugin.py "${{ matrix.plugin }}" --timeout 180 \
+            | tee "mcp-smoke-${{ matrix.plugin }}.json"
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-smoke-${{ matrix.plugin }}
+          path: mcp-smoke-${{ matrix.plugin }}.json
+          if-no-files-found: warn
