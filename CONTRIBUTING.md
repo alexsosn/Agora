@@ -8,18 +8,35 @@ Agora is a clean-slate marketplace for philology and related disciplines.
 
 ## Repository areas
 
-- `registry/` — canonical marketplace metadata and schemas.
-- `plugins/` — Agora plugin integrations and scholarly skills.
+- `registry/` — canonical marketplace, plugin, provider, resource, and release metadata and schemas.
+- `plugins/` — Agora plugin integrations, generated native manifests, and scholarly skills.
 - `profiles/` — optional curated plugin/resource bundles.
 - `scripts/` — repository tooling, generators, and validators.
 - `tests/` — unit and integration tests.
-- `generated/` — generated marketplace artifacts that are intentionally committed.
+- `generated/` — reserved for generated artifacts without client-mandated native paths.
 - `wiki/` — design and research notes.
 
 The detailed architecture and implementation sequence are documented in `wiki/research.md` and `wiki/plan.md`.
 
 ## Generated files
 
-Generated marketplace artifacts are committed only when a target client requires a file at a stable repository path or when committing the artifact materially improves installation/discovery. Other derived output should be produced in CI or locally and remain untracked.
+Claude Code and ChatGPT/Codex marketplace/plugin metadata is generated from the canonical registry:
 
-Every committed generated artifact must eventually have a deterministic generator and a CI freshness check. Phase 0 establishes this policy; the generators themselves are Phase 2 work.
+```bash
+python scripts/generate_marketplaces.py
+```
+
+Do not hand-edit:
+
+- `.claude-plugin/marketplace.json`;
+- `.agents/plugins/marketplace.json`;
+- `plugins/*/.claude-plugin/plugin.json`;
+- `plugins/*/.codex-plugin/plugin.json`.
+
+Change the canonical registry or generator and regenerate instead. CI enforces freshness with:
+
+```bash
+python scripts/generate_marketplaces.py --check
+```
+
+Antigravity artifacts are not part of the current v0.1 generation target.
