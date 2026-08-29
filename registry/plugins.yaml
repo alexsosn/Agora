@@ -10,6 +10,7 @@ plugins:
     runtime:
       mode: local
       type: python
+      notes: Agora bundles resource discovery and lazy acquisition around cfabric-mcp 0.1.7; corpora remain external and are materialized only when selected.
     data_mode: local
     capabilities:
       - corpus-discovery
@@ -23,7 +24,8 @@ plugins:
     verification:
       status: experimental
       notes:
-        - Phase 1 registry definition only; Agora runtime integration is not yet implemented.
+        - Agora runtime, lazy resource resolver, collection discovery, and Claude/Codex launch metadata are implemented and covered by deterministic tests.
+        - Upstream repository structure is checked separately by the Context-Fabric network audit before this integration can be promoted to verified.
 
   - id: perseus
     name: Perseus MCP
@@ -34,6 +36,7 @@ plugins:
     runtime:
       mode: local
       type: python
+      notes: Claude and Codex launch the upstream perseus-mcp 1.0.2 package directly through uvx; Agora does not vendor or fork the server.
     data_mode: remote
     capabilities:
       - corpus-discovery
@@ -46,7 +49,8 @@ plugins:
     verification:
       status: experimental
       notes:
-        - Upstream integration is in the fixed v0.1 scope but is not yet verified by Agora CI.
+        - Cross-client MCP packaging is implemented against upstream perseus-mcp 1.0.2.
+        - Promotion requires a live MCP handshake and representative Perseus/Scaife scholarly smoke tests.
 
   - id: sefaria
     name: Sefaria
@@ -58,6 +62,7 @@ plugins:
       endpoint: https://mcp.sefaria.org/sse
     runtime:
       mode: hosted
+      notes: Claude connects directly to Sefaria's hosted Texts MCP over SSE; Codex bridges the same legacy SSE endpoint to stdio with mcp-proxy 0.12.0 because current Codex plugin MCP support does not accept legacy SSE directly.
     data_mode: remote
     capabilities:
       - passage-retrieval
@@ -72,7 +77,8 @@ plugins:
     verification:
       status: experimental
       notes:
-        - Official hosted Texts MCP endpoint recorded; Agora client integration is not yet verified.
+        - Cross-client launch metadata is implemented against Sefaria's official hosted Texts MCP endpoint.
+        - Promotion requires live tool discovery and representative text/search/link smoke tests.
 
   - id: sedra
     name: SEDRA
@@ -82,17 +88,18 @@ plugins:
       homepage: https://sedra.bethmardutho.org/
     runtime:
       mode: local
-      type: node
-      notes: Agora will package the SEDRA MCP adapter independently; the scholarly data service remains Beth Mardutho SEDRA IV.
+      type: python
+      notes: Agora ships a small read-only FastMCP adapter over Beth Mardutho's public SEDRA IV JSON word and lexeme endpoints; no SEDRA data is vendored.
     data_mode: remote
     capabilities:
       - dictionary-lookup
       - lexeme-lookup
     licenses:
-      software: to-be-determined
+      software: MIT
       data: upstream-dependent
       service_terms: upstream-dependent
     verification:
       status: experimental
       notes:
-        - Adapter packaging and exact software provenance will be resolved during the SEDRA implementation phase.
+        - The Agora adapter has deterministic tests for Syriac URL encoding, JSON/error handling, and tool delegation.
+        - Promotion requires a live SEDRA API smoke test and MCP handshake.
