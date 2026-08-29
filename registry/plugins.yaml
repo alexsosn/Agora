@@ -1,0 +1,98 @@
+schema_version: 1
+plugins:
+  - id: context-fabric
+    name: Context-Fabric
+    description: Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.
+    disciplines: [digital-philology]
+    upstream:
+      repository: Context-Fabric/context-fabric
+      homepage: https://context-fabric.ai/
+    runtime:
+      mode: local
+      type: python
+    data_mode: local
+    capabilities:
+      - corpus-discovery
+      - corpus-acquisition
+      - corpus-loading
+      - structured-search
+      - feature-inspection
+    licenses:
+      software: upstream
+      data: resource-specific
+    verification:
+      status: experimental
+      notes:
+        - Phase 1 registry definition only; Agora runtime integration is not yet implemented.
+
+  - id: perseus
+    name: Perseus MCP
+    description: Access Perseus and Scaife text discovery, CTS passages, and search through tonyjurg/Perseus-mcp.
+    disciplines: [classics, digital-philology]
+    upstream:
+      repository: tonyjurg/Perseus-mcp
+    runtime:
+      mode: local
+      type: python
+    data_mode: remote
+    capabilities:
+      - corpus-discovery
+      - passage-retrieval
+      - full-text-search
+      - cts-navigation
+    licenses:
+      software: MIT
+      data: upstream-dependent
+    verification:
+      status: experimental
+      notes:
+        - Upstream integration is in the fixed v0.1 scope but is not yet verified by Agora CI.
+
+  - id: sefaria
+    name: Sefaria
+    description: Search and retrieve Jewish texts and linked resources through the official Sefaria Texts MCP.
+    disciplines: [judaica, biblical-studies, digital-philology]
+    upstream:
+      repository: Sefaria/sefaria-mcp
+      homepage: https://developers.sefaria.org/docs/the-sefaria-mcp
+      endpoint: https://mcp.sefaria.org/sse
+    runtime:
+      mode: hosted
+    data_mode: remote
+    capabilities:
+      - passage-retrieval
+      - full-text-search
+      - reference-resolution
+      - linked-text-navigation
+      - dictionary-lookup
+    licenses:
+      software: MIT
+      data: upstream-dependent
+      service_terms: upstream-dependent
+    verification:
+      status: experimental
+      notes:
+        - Official hosted Texts MCP endpoint recorded; Agora client integration is not yet verified.
+
+  - id: sedra
+    name: SEDRA
+    description: Syriac lexical and morphological lookup against Beth Mardutho's Syriac Electronic Data Research Archive.
+    disciplines: [syriac-studies, semitic-linguistics, digital-philology]
+    upstream:
+      homepage: https://sedra.bethmardutho.org/
+    runtime:
+      mode: local
+      type: node
+      notes: Agora will package the SEDRA MCP adapter independently; the scholarly data service remains Beth Mardutho SEDRA IV.
+    data_mode: remote
+    capabilities:
+      - dictionary-lookup
+      - lexeme-lookup
+    licenses:
+      software: to-be-determined
+      data: upstream-dependent
+      service_terms: upstream-dependent
+    verification:
+      status: experimental
+      notes:
+        - Adapter packaging and exact software provenance will be resolved during the SEDRA implementation phase.
