@@ -1,0 +1,56 @@
+{
+  "name": "agora",
+  "interface": {
+    "displayName": "Agora"
+  },
+  "plugins": [
+    {
+      "name": "context-fabric",
+      "source": {
+        "source": "local",
+        "path": "./plugins/context-fabric"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Education & Research"
+    },
+    {
+      "name": "perseus",
+      "source": {
+        "source": "local",
+        "path": "./plugins/perseus"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Education & Research"
+    },
+    {
+      "name": "sefaria",
+      "source": {
+        "source": "local",
+        "path": "./plugins/sefaria"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Education & Research"
+    },
+    {
+      "name": "sedra",
+      "source": {
+        "source": "local",
+        "path": "./plugins/sedra"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Education & Research"
+    }
+  ]
+}
