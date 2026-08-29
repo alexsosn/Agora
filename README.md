@@ -10,14 +10,16 @@ Agora is not tied to a single corpus format or backend. The first implementation
 
 Agora v0.1 has a fixed initial resource scope:
 
-- **Context-Fabric** — the complete current Context-Fabric corpus catalog (**35 listed corpora**) plus **`alexsosn/TLHdig-TF`**, for **36 Context-Fabric corpus resources** in total.
+- **Context-Fabric** — the complete current Context-Fabric corpus catalog (**35 listed corpora**) plus **`alexsosn/TLHdig-TF`**, for **36 Context-Fabric resources** in total.
 - **Perseus** — `tonyjurg/Perseus-mcp`, providing access to Perseus/Scaife resources.
 - **Sefaria** — independent Sefaria MCP integration.
 - **SEDRA** — independent Beth Mardutho / SEDRA integration.
 
 The detailed corpus list is maintained in [wiki/v0.1-scope.md](wiki/v0.1-scope.md).
 
-Inclusion in the first implementation does not imply that every underlying dataset is already Verified. Agora distinguishes plugin/runtime verification from resource-level data status. For example, TLHdig-TF is included from the start but currently remains **Experimental** because its upstream `0.1.0` conversion is explicitly described as an integration prototype rather than research-ready data.
+Inclusion in the first implementation does not imply that every underlying dataset is already Verified. Agora distinguishes plugin/runtime verification from resource-level data status. TLHdig-TF, for example, is included from the start but remains **Experimental** while its upstream conversion still documents unresolved correctness issues.
+
+Large Greek repositories require collection-aware handling. `pthu/bible`, `pthu/patristics`, and `pthu/greek_literature` are registered as collection resources whose individual TF corpora are discovered and loaded separately rather than exposed as thousands of marketplace entries. See [wiki/greek-collections.md](wiki/greek-collections.md).
 
 The long-term goal is a curated marketplace where each plugin can bundle not only MCP access, but also the scholarly instructions needed to use the underlying resource correctly.
 
@@ -34,15 +36,27 @@ The long-term goal is a curated marketplace where each plugin can bundle not onl
 
 ## Status
 
-**Phase 0 — project foundation — is implemented.** Agora has an intentional marketplace-first repository layout, project licensing and contribution rules, a policy for generated artifacts, and a minimal CI foundation check.
+**Phase 0 — project foundation — is implemented.**
 
-The next milestone is **Phase 1: define the canonical marketplace and resource data model** for the fixed v0.1 scope: the Context-Fabric provider with all 36 initial corpus resources, plus Perseus, Sefaria, and SEDRA.
+**Phase 1 — canonical marketplace and resource data model — is implemented.** Agora now has:
 
-No plugin integrations are considered implemented or verified yet.
+- canonical plugin, provider, resource, collection-index, and release-scope schemas;
+- registries for the four v0.1 plugin/provider families;
+- all 36 fixed Context-Fabric resources in `registry/resources.yaml`;
+- explicit collection modeling for the PTHU Greek collection repositories;
+- controlled vocabularies and separate integration/resource verification states;
+- an enforceable `registry/v0.1.yaml` release contract;
+- registry validation and negative tests in CI.
+
+Collection member indexes currently establish the schema/contract but remain intentionally unpopulated until the Context-Fabric implementation phase.
+
+The next milestone is **Phase 2: generate client marketplace manifests deterministically from the canonical registry**.
+
+No plugin runtime integration is considered implemented or Verified yet.
 
 ## Repository layout
 
-- `registry/` — canonical marketplace, plugin, provider, and resource metadata and schemas.
+- `registry/` — canonical marketplace, plugin, provider, resource, collection, and release-scope metadata and schemas.
 - `plugins/` — plugin integrations and scholarly skills.
 - `profiles/` — optional curated bundles.
 - `scripts/` — generators, validators, and repository tooling.
@@ -53,6 +67,7 @@ No plugin integrations are considered implemented or verified yet.
 ## Documentation
 
 - [v0.1 implementation scope](wiki/v0.1-scope.md)
+- [Greek collection handling](wiki/greek-collections.md)
 - [Research and architecture](wiki/research.md)
 - [Implementation plan](wiki/plan.md)
 - [Contributing](CONTRIBUTING.md)
