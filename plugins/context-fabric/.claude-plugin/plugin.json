@@ -16,5 +16,6 @@
     "digital-philology",
     "feature-inspection",
     "structured-search"
-  ]
+  ],
+  "mcpServers": "./.claude-plugin/mcp.json"
 }
