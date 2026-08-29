@@ -32,6 +32,21 @@ The scheduled **Agora MCP live smoke** workflow applies that contract to all fou
 
 Resource-level status remains independent. A corpus may still be `experimental` even when the Context-Fabric plugin itself is `verified`. TLHdig-TF, for example, remains resource-level Experimental while its upstream conversion documents unresolved correctness issues.
 
+## Scholarly skills
+
+Agora plugins now bundle portable `SKILL.md` research guidance in addition to MCP access. The first Phase 5 layer contains **eight tested skills**:
+
+- **Context-Fabric provider workflow** — discover resources and collection members, load lazily, inspect schema before querying, and keep plugin status separate from resource status;
+- **BHSA / ETCBC** — feature semantics including `sp`, `pdp`, `vs`, `vt`, syntax features, counting discipline, and CC BY-NC 4.0 data licensing;
+- **CUC / Ugaritic** — `g_cons`, sign/editorial features such as `emen`, `cert`, and `alt`, corpus-coverage cautions, and treatment of uncertain readings;
+- **TLHdig-TF / Hittite** — explicit prototype warning, morphology on `analysis` nodes, competing analyses, and the `width>1` damage-range invariant;
+- **Greek Text-Fabric collections** — member-first discovery, per-work schema inspection, provenance, and edition identity across the PTHU/Perseus/OpenGreekAndLatin ecosystem;
+- **Perseus** — CTS/Scaife discovery, no invented URNs, form versus lemma search, and live-service limitations;
+- **Sefaria** — canonical references, source versus translation layers, Hebrew/Aramaic versus English search behavior, links, dictionaries, and manuscript evidence;
+- **SEDRA** — word-form versus lexeme semantics, ambiguity preservation, Syriac Unicode input, and limits of lexical evidence.
+
+Skills use the Agent Skills `skills/<name>/SKILL.md` layout and are checked in CI for valid YAML frontmatter, naming/size constraints, references to real plugin tools, and source-specific research invariants.
+
 ## Context-Fabric resource model
 
 Agora does not expose every Text-Fabric dataset as a separate marketplace plugin. Context-Fabric is one provider plugin with a resource catalog and lazy resolver.
@@ -101,9 +116,10 @@ Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mard
 - **Phase 2 — deterministic Claude + Codex generation:** implemented.
 - **Phase 3 — Context-Fabric runtime and 36-resource baseline:** implemented at the resolver/provider layer; all 36 upstreams currently pass the source audit, with resource-level scholarly verification remaining separate.
 - **Phase 4 — Perseus, Sefaria, and SEDRA:** implemented and live-verified.
+- **Phase 5 — scholarly skills:** underway; eight provider/corpus-specific skills are implemented and CI-validated, with additional resource-specific guidance still to add.
 - **Phase 6 — verification/trust:** plugin-level live verification is implemented; deeper resource/member verification remains ongoing.
 
-The next major implementation milestone is **Phase 5: scholarly skills and source-specific instructions**—the layer that teaches an agent how to use each verified integration correctly rather than merely proving that the tools respond.
+The next Phase 5 work is to broaden source-specific guidance where the 36-resource Context-Fabric catalog has distinctive annotation models, then connect the skills to end-user installation/usage documentation and deeper representative corpus tests.
 
 ## Repository layout
 
@@ -111,7 +127,7 @@ The next major implementation milestone is **Phase 5: scholarly skills and sourc
 - `plugins/` — client packages, MCP integrations, and scholarly skills.
 - `profiles/` — optional curated bundles.
 - `scripts/` — generators, validators, audits, live-smoke tooling, and repository utilities.
-- `tests/` — deterministic unit, packaging, registry, and integration-contract tests.
+- `tests/` — deterministic unit, packaging, registry, skill, and integration-contract tests.
 - `generated/` — generated artifacts that do not have client-mandated native paths.
 - `wiki/` — architecture, implementation plans, and resource documentation.
 
