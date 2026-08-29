@@ -17,6 +17,28 @@ def load_yaml(path: Path) -> Any:
         return yaml.safe_load(fh)
 
 
+def _runtime_resource(item: dict[str, Any]) -> dict[str, Any]:
+    projected: dict[str, Any] = {
+        "id": item["id"],
+        "name": item["name"],
+        "plugin": item["plugin"],
+        "provider": item["provider"],
+        "kind": item["kind"],
+        "languages": list(item.get("languages", [])),
+        "disciplines": list(item.get("disciplines", [])),
+        "upstream": {"repository": item["upstream"]["repository"]},
+    }
+    if item["kind"] == "collection":
+        collection = item.get("collection") or {}
+        projected["collection"] = {
+            "discovery": collection.get("discovery", "indexed"),
+            "member_id_scheme": collection.get("member_id_scheme", "stable-relative-id"),
+            "lazy_members": bool(collection.get("lazy_members", True)),
+            "member_index": collection.get("member_index"),
+        }
+    return projected
+
+
 def build_catalog_document(root: Path = ROOT) -> dict[str, Any]:
     root = Path(root)
     resources_doc = load_yaml(root / "registry" / "resources.yaml")
@@ -35,7 +57,7 @@ def build_catalog_document(root: Path = ROOT) -> dict[str, Any]:
             raise ValueError(
                 f"v0.1 Context-Fabric resource {resource_id!r} is missing from registry/resources.yaml"
             ) from exc
-        ordered.append(item)
+        ordered.append(_runtime_resource(item))
 
     return {
         "schema_version": 1,
