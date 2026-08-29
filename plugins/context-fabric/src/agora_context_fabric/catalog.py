@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Any, Iterable, Iterator
 
 import yaml
 
@@ -27,12 +27,8 @@ class Catalog:
         if len(self._by_id) != len(self._resources):
             raise ValueError("duplicate Context-Fabric resource IDs")
 
-    @classmethod
-    def from_registry(cls, root: Path) -> "Catalog":
-        root = Path(root)
-        with (root / "registry" / "resources.yaml").open("r", encoding="utf-8") as fh:
-            doc = yaml.safe_load(fh)
-
+    @staticmethod
+    def _resources_from_document(doc: dict[str, Any]) -> list[ResourceSpec]:
         resources: list[ResourceSpec] = []
         for item in doc.get("resources", []):
             if item.get("plugin") != "context-fabric":
@@ -55,7 +51,21 @@ class Catalog:
                     member_index=collection.get("member_index"),
                 )
             )
-        return cls(resources)
+        return resources
+
+    @classmethod
+    def from_registry(cls, root: Path) -> "Catalog":
+        root = Path(root)
+        with (root / "registry" / "resources.yaml").open("r", encoding="utf-8") as fh:
+            doc = yaml.safe_load(fh)
+        return cls(cls._resources_from_document(doc))
+
+    @classmethod
+    def from_plugin_root(cls, plugin_root: Path) -> "Catalog":
+        plugin_root = Path(plugin_root)
+        with (plugin_root / "resources" / "catalog.yaml").open("r", encoding="utf-8") as fh:
+            doc = yaml.safe_load(fh)
+        return cls(cls._resources_from_document(doc))
 
     def ids(self) -> list[str]:
         return [resource.id for resource in self._resources]
@@ -87,7 +97,13 @@ class Catalog:
             if kind and kind != resource.kind:
                 continue
             haystack = " ".join(
-                [resource.id, resource.name, resource.repository, *resource.languages, *resource.disciplines]
+                [
+                    resource.id,
+                    resource.name,
+                    resource.repository,
+                    *resource.languages,
+                    *resource.disciplines,
+                ]
             ).casefold()
             if needle and needle not in haystack:
                 continue
