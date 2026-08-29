@@ -10,7 +10,7 @@ Agora is not tied to a single corpus format or backend. The first implementation
 
 Agora v0.1 has a fixed initial resource scope:
 
-- **Context-Fabric** — the complete current Context-Fabric corpus catalog (**35 listed corpora**) plus **`alexsosn/TLHdig-TF`**, for **36 Context-Fabric resources** in total.
+- **Context-Fabric** — the complete current Context-Fabric corpus catalog (**35 listed resources**) plus **`alexsosn/TLHdig-TF`**, for **36 Context-Fabric resources** in total.
 - **Perseus** — `tonyjurg/Perseus-mcp`, providing access to Perseus/Scaife resources.
 - **Sefaria** — independent Sefaria MCP integration.
 - **SEDRA** — independent Beth Mardutho / SEDRA integration.
@@ -23,9 +23,30 @@ Large Greek repositories require collection-aware handling. `pthu/bible`, `pthu/
 
 The long-term goal is a curated marketplace where each plugin can bundle not only MCP access, but also the scholarly instructions needed to use the underlying resource correctly.
 
+## Marketplace formats
+
+Agora currently generates native marketplace/plugin metadata for:
+
+- **Claude Code** — `.claude-plugin/marketplace.json` and per-plugin `.claude-plugin/plugin.json`;
+- **ChatGPT/Codex** — `.agents/plugins/marketplace.json` and per-plugin `.codex-plugin/plugin.json`.
+
+These files are deterministic projections of the canonical registry. Regenerate them with:
+
+```bash
+python scripts/generate_marketplaces.py
+```
+
+or verify freshness without changing files:
+
+```bash
+python scripts/generate_marketplaces.py --check
+```
+
+Antigravity support is intentionally deferred for now.
+
 ## Design principles
 
-- **Cross-platform:** target ChatGPT/Codex, Claude Code, and Google Antigravity where practical.
+- **Cross-platform:** the current native targets are Claude Code and ChatGPT/Codex; additional clients can be added through adapters later.
 - **Provider-neutral:** support Context-Fabric, remote APIs, hosted MCPs, local databases, and other scholarly backends.
 - **Upstream-first:** integrate third-party projects without unnecessarily vendoring or forking them.
 - **Research-aware:** plugins should include corpus/service-specific guidance, conventions, limitations, and useful query patterns.
@@ -38,30 +59,32 @@ The long-term goal is a curated marketplace where each plugin can bundle not onl
 
 **Phase 0 — project foundation — is implemented.**
 
-**Phase 1 — canonical marketplace and resource data model — is implemented.** Agora now has:
+**Phase 1 — canonical marketplace and resource data model — is implemented.** Agora has canonical marketplace/plugin/provider/resource metadata, all 36 fixed Context-Fabric resources, collection modeling, controlled vocabularies, release-scope enforcement, and registry validation in CI.
 
-- canonical plugin, provider, resource, collection-index, and release-scope schemas;
-- registries for the four v0.1 plugin/provider families;
-- all 36 fixed Context-Fabric resources in `registry/resources.yaml`;
-- explicit collection modeling for the PTHU Greek collection repositories;
-- controlled vocabularies and separate integration/resource verification states;
-- an enforceable `registry/v0.1.yaml` release contract;
-- registry validation and negative tests in CI.
+**Phase 2 — deterministic Claude and ChatGPT/Codex marketplace generation — is implemented.** Agora now has:
 
-Collection member indexes currently establish the schema/contract but remain intentionally unpopulated until the Context-Fabric implementation phase.
+- platform-neutral `registry/marketplace.yaml` publisher metadata;
+- native Claude and Codex marketplace catalogs;
+- native per-plugin manifests for all four v0.1 plugin families;
+- deterministic serialization and release-derived `0.1.0` plugin versions;
+- `scripts/generate_marketplaces.py` with write and `--check` modes;
+- generation/order/policy/freshness unit tests;
+- CI enforcement that generated artifacts match the canonical registry.
 
-The next milestone is **Phase 2: generate client marketplace manifests deterministically from the canonical registry**.
+The generated plugin manifests are deliberately metadata-only at this stage. MCP server declarations and scholarly skills are added when their actual integrations are implemented rather than advertised prematurely.
 
-No plugin runtime integration is considered implemented or Verified yet.
+The next milestone is **Phase 3: implement the Context-Fabric provider, corpus resolver/acquisition layer, collection-member handling, and the complete 36-resource baseline**.
+
+No plugin runtime integration is considered Verified yet.
 
 ## Repository layout
 
 - `registry/` — canonical marketplace, plugin, provider, resource, collection, and release-scope metadata and schemas.
-- `plugins/` — plugin integrations and scholarly skills.
+- `plugins/` — plugin integrations, native client manifests, and scholarly skills.
 - `profiles/` — optional curated bundles.
 - `scripts/` — generators, validators, and repository tooling.
 - `tests/` — unit and integration tests.
-- `generated/` — generated artifacts intentionally committed to the repository.
+- `generated/` — reserved for generated artifacts without client-mandated native paths.
 - `wiki/` — design research and implementation plans.
 
 ## Documentation
