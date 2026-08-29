@@ -1,0 +1,4 @@
+interface:
+  display_name: "BHSA Research"
+  short_description: "Query BHSA morphology and syntax with ETCBC feature semantics"
+  default_prompt: "Use $bhsa-research to design a BHSA query with the correct ETCBC morphology and syntax features and reproducible counting rules."
