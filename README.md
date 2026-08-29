@@ -8,29 +8,29 @@ The v0.1 implementation combines a large local Text-Fabric/Context-Fabric resour
 
 ## v0.1 integrations
 
-All four v0.1 plugin integrations are currently **Verified** by CI:
+All four v0.1 integrations have live **Codex-path** evidence, while the current aggregate plugin status remains **Community** until equivalent Claude-path live verification exists:
 
 - **Context-Fabric** — discovery and lazy acquisition for the fixed **36-resource** Text-Fabric/Context-Fabric baseline, including collection-aware handling for repositories containing many independent corpora.
 - **Perseus** — pinned upstream `tonyjurg/Perseus-mcp` integration for Perseus/Scaife discovery, CTS navigation, passage retrieval, and search.
 - **Sefaria** — the official hosted Sefaria Texts MCP, with client-specific transport adaptation where required.
 - **SEDRA** — a small read-only Agora MCP adapter over Beth Mardutho's public SEDRA IV word and lexeme JSON endpoints.
 
-The fixed resource scope is documented in [wiki/v0.1-scope.md](wiki/v0.1-scope.md).
+The fixed resource scope is documented in [wiki/releases/v0.1-scope-frozen.md](wiki/releases/v0.1-scope-frozen.md).
 
-### What “Verified” means here
+### What verification means here
 
-For a plugin integration, Agora's verification bar includes:
+Agora records verification per client/transport rather than treating one plugin label as evidence for every launch path. The current live workflow exercises the generated Codex path for all four v0.1 plugins and checks:
 
-1. generated client launch metadata;
+1. generated launch metadata;
 2. MCP server startup or endpoint connection;
 3. MCP initialization;
 4. expected-tool discovery;
 5. at least one representative real operation;
 6. deterministic unit/packaging tests.
 
-The scheduled **Agora MCP live smoke** workflow applies that contract to all four v0.1 plugins. Context-Fabric additionally has a scheduled metadata audit over all **36** registered upstream resources; the current audit resolves **36/36** successfully.
+Claude launch metadata is tested deterministically but is not currently promoted to live-verified status. Context-Fabric additionally has a scheduled metadata audit over all **36** registered upstream resources; the current audit resolves **36/36** successfully.
 
-Resource-level status remains independent. A corpus may still be `experimental` even when the Context-Fabric plugin itself is `verified`. TLHdig-TF, for example, remains resource-level Experimental while its upstream conversion documents unresolved correctness issues.
+Resource-level status remains independent. A corpus may still be `experimental` even when a client integration is operational. TLHdig-TF, for example, remains resource-level Experimental while its upstream conversion documents unresolved correctness issues.
 
 ## Scholarly skills
 
@@ -53,7 +53,7 @@ Agora does not expose every Text-Fabric dataset as a separate marketplace plugin
 
 Large repositories remain collection resources. In particular, `pthu/bible`, `pthu/patristics`, `pthu/greek_literature`, and `HuygensING/translatin-manif` contain many independently loadable TF datasets and are discovered at member level rather than flattened into hundreds or thousands of marketplace entries.
 
-For example, the current source audit finds **1,779** TF dataset roots in `pthu/greek_literature`; using one work does not require registering 1,779 plugins. See [wiki/greek-collections.md](wiki/greek-collections.md).
+For example, the current source audit finds **1,779** TF dataset roots in `pthu/greek_literature`; using one work does not require registering 1,779 plugins. See [wiki/architecture/ref-context-fabric-collections.md](wiki/architecture/ref-context-fabric-collections.md).
 
 ## Marketplace formats
 
@@ -88,15 +88,15 @@ The fixed source catalog is generated from canonical registry data and audited a
 
 ### Perseus
 
-Agora launches the published upstream `perseus-mcp==1.0.2` package directly through `uvx`; it does not vendor or fork Perseus-MCP. The live verification performs a real Homer author-discovery query.
+Agora launches the published upstream `perseus-mcp==1.0.2` package directly through `uvx`; it does not vendor or fork Perseus-MCP. The current live Codex-path verification performs a real Homer author-discovery query.
 
 ### Sefaria
 
-Claude can connect directly to the official hosted Sefaria SSE endpoint. Current Codex plugin MCP configuration uses a stdio bridge through `mcp-proxy==0.12.0`. Because that proxy currently resolves an incompatible MCP SDK 2.x unless constrained, Agora explicitly pins the proxy environment to `mcp>=1.17,<2`. The live verification retrieves Genesis 1:1 from Sefaria.
+Claude can connect directly to the official hosted Sefaria SSE endpoint. Current Codex plugin MCP configuration uses a stdio bridge through `mcp-proxy==0.12.0`. Because that proxy currently resolves an incompatible MCP SDK 2.x unless constrained, Agora explicitly pins the proxy environment to `mcp>=1.17,<2`. The current live Codex-path verification retrieves Genesis 1:1 from Sefaria.
 
 ### SEDRA
 
-Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mardutho's public SEDRA IV word and lexeme endpoints as read-only MCP tools and preserves the upstream response rather than inventing linguistic interpretation. The live verification executes a real Syriac word lookup.
+Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mardutho's public SEDRA IV word and lexeme endpoints as read-only MCP tools and preserves the upstream response rather than inventing linguistic interpretation. The current live Codex-path verification executes a real Syriac word lookup.
 
 ## Design principles
 
@@ -115,12 +115,12 @@ Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mard
 - **Phase 1 — canonical marketplace/resource model:** implemented.
 - **Phase 2 — deterministic Claude + Codex generation:** implemented.
 - **Phase 3 — Context-Fabric runtime and 36-resource baseline:** implemented at the resolver/provider layer; all 36 upstreams currently pass the source audit, with resource-level scholarly verification remaining separate.
-- **Phase 4 — Perseus, Sefaria, and SEDRA:** implemented and live-verified.
+- **Phase 4 — Perseus, Sefaria, and SEDRA:** implemented; Codex paths are live-verified, while aggregate plugin status remains Community pending equivalent Claude-path evidence.
 - **Phase 5 — scholarly skills:** underway; eight provider/corpus-specific skills are implemented and CI-validated, with additional resource-specific guidance still to add.
-- **Phase 6 — verification/trust:** plugin-level live verification is implemented; deeper resource/member verification remains ongoing.
+- **Phase 6 — verification/trust:** client-specific live verification is implemented for Codex paths; deeper resource/member verification remains ongoing.
 - **Phase 7 — documentation:** underway; current Claude Code, managed ChatGPT/Codex, and local Codex installation flows are documented.
 
-The next implementation work is to broaden source-specific guidance across distinctive Context-Fabric resource families, deepen representative corpus materialization/load tests, and add optional disciplinary profiles.
+The next implementation work is tracked in the wiki index and latest independent review, with Context-Fabric snapshot integrity and representative corpus-load evidence now the highest-priority engineering items.
 
 ## Repository layout
 
@@ -130,15 +130,17 @@ The next implementation work is to broaden source-specific guidance across disti
 - `scripts/` — generators, validators, audits, live-smoke tooling, and repository utilities.
 - `tests/` — deterministic unit, packaging, registry, skill, and integration-contract tests.
 - `generated/` — generated artifacts that do not have client-mandated native paths.
-- `wiki/` — architecture, implementation plans, and resource documentation.
+- `wiki/` — categorized architecture, release, guide, backlog, and review documentation; see [wiki/README.md](wiki/README.md).
 
 ## Documentation
 
-- [Installation](wiki/installation.md)
-- [v0.1 implementation scope](wiki/v0.1-scope.md)
-- [Greek collection handling](wiki/greek-collections.md)
-- [Research and architecture](wiki/research.md)
-- [Implementation plan](wiki/plan.md)
+- [Wiki index and priority convention](wiki/README.md)
+- [Installation](wiki/guides/installation.md)
+- [v0.1 implementation scope](wiki/releases/v0.1-scope-frozen.md)
+- [Greek/Context-Fabric collection handling](wiki/architecture/ref-context-fabric-collections.md)
+- [Research and architecture](wiki/architecture/ref-marketplace-architecture.md)
+- [Implementation plan](wiki/releases/v0.1-plan-active.md)
+- [Latest independent review](wiki/reviews/2026-08-29-review-pr1-pr4.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Contributing
