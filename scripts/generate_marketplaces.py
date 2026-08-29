@@ -104,7 +104,6 @@ def claude_marketplace(
         "plugins": [
             {
                 "name": plugin["id"],
-                "displayName": plugin["name"],
                 "source": f"./plugins/{plugin['id']}",
                 "description": plugin["description"],
                 "author": {"name": publisher["name"]},
