@@ -116,7 +116,13 @@ class MarketplaceGenerationTests(unittest.TestCase):
         self.assertEqual(server["command"], "uvx")
         self.assertEqual(
             server["args"],
-            ["--from", "perseus-mcp==1.0.2", "perseus-mcp"],
+            [
+                "--from",
+                "perseus-mcp==1.0.2",
+                "--with",
+                'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"',
+                "perseus-mcp",
+            ],
         )
 
     def test_sefaria_claude_mcp_uses_official_hosted_texts_endpoint(self):
@@ -185,7 +191,13 @@ class MarketplaceGenerationTests(unittest.TestCase):
         self.assertEqual(server["command"], "uvx")
         self.assertEqual(
             server["args"],
-            ["--from", "perseus-mcp==1.0.2", "perseus-mcp"],
+            [
+                "--from",
+                "perseus-mcp==1.0.2",
+                "--with",
+                'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"',
+                "perseus-mcp",
+            ],
         )
 
     def test_sefaria_codex_mcp_bridges_legacy_sse_over_stdio(self):

@@ -54,7 +54,13 @@ class MCPSmokeHarnessTests(unittest.TestCase):
         self.assertEqual(perseus.command, "uvx")
         self.assertEqual(
             perseus.args,
-            ("--from", "perseus-mcp==1.0.2", "perseus-mcp"),
+            (
+                "--from",
+                "perseus-mcp==1.0.2",
+                "--with",
+                'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"',
+                "perseus-mcp",
+            ),
         )
         self.assertEqual(perseus.cwd, ROOT / "plugins/perseus")
 

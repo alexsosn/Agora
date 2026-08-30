@@ -58,16 +58,26 @@ plugins:
     runtime:
       mode: local
       type: python
-      notes: Claude and Codex launch the upstream perseus-mcp 1.0.2 package directly through uvx; Agora does not vendor or fork the server.
+      notes: Claude and Codex launch the upstream perseus-mcp 1.0.2 package directly through uvx; Agora does not vendor or fork the server. Intel macOS additionally constrains cryptography below 43 because no CPython macOS x86_64 wheel is published after 42.x.
       launch:
         claude:
           command: uvx
-          args: [--from, perseus-mcp==1.0.2, perseus-mcp]
+          args:
+            - --from
+            - perseus-mcp==1.0.2
+            - --with
+            - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
+            - perseus-mcp
         codex:
           type: stdio
           cwd: "."
           command: uvx
-          args: [--from, perseus-mcp==1.0.2, perseus-mcp]
+          args:
+            - --from
+            - perseus-mcp==1.0.2
+            - --with
+            - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
+            - perseus-mcp
     data_mode: remote
     capabilities:
       - corpus-discovery

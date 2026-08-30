@@ -9,6 +9,9 @@ description = "Agora MCP adapter for the public SEDRA IV Syriac lexical API"
 requires-python = ">=3.11"
 dependencies = [
   "fastmcp>=2.12.0,<3",
+  # cryptography ships no CPython macOS x86_64 wheel after 42.x, so Intel Macs
+  # would otherwise source-build it (and need a Rust toolchain) at MCP launch.
+  'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"',
 ]
 
 [project.scripts]
