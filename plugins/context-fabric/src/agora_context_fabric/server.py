@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .catalog import Catalog
+from .compat import install_exact_count_compat
 from .gitstore import GitStore
 from .mcp_tools import register_tools
 from .resolver import ContextFabricResolver
@@ -77,10 +78,13 @@ def build_runtime(
 ) -> tuple[Any, ContextFabricService, Any]:
     try:
         from cfabric_mcp import corpus_manager, mcp
+        from cfabric_mcp import tools as upstream_tools
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError(
             "cfabric-mcp is required to run the Context-Fabric plugin; install the plugin runtime dependencies"
         ) from exc
+
+    install_exact_count_compat(upstream_tools)
 
     catalog = Catalog.from_plugin_root(Path(plugin_root))
     store = GitStore(Path(cache_dir))
