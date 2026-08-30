@@ -1,8 +1,10 @@
 {
   "name": "agora",
-  "description": "Cross-platform plugin marketplace for philology and related disciplines.",
   "owner": {
     "name": "Agora contributors"
+  },
+  "metadata": {
+    "description": "Cross-platform plugin marketplace for philology and related disciplines."
   },
   "plugins": [
     {
@@ -12,7 +14,8 @@
       "author": {
         "name": "Agora contributors"
       },
-      "homepage": "https://github.com/alexsosn/Agora"
+      "homepage": "https://github.com/alexsosn/Agora",
+      "category": "Education & Research"
     },
     {
       "name": "perseus",
@@ -21,7 +24,8 @@
       "author": {
         "name": "Agora contributors"
       },
-      "homepage": "https://github.com/alexsosn/Agora"
+      "homepage": "https://github.com/alexsosn/Agora",
+      "category": "Education & Research"
     },
     {
       "name": "sefaria",
@@ -30,7 +34,8 @@
       "author": {
         "name": "Agora contributors"
       },
-      "homepage": "https://github.com/alexsosn/Agora"
+      "homepage": "https://github.com/alexsosn/Agora",
+      "category": "Education & Research"
     },
     {
       "name": "sedra",
@@ -39,7 +44,8 @@
       "author": {
         "name": "Agora contributors"
       },
-      "homepage": "https://github.com/alexsosn/Agora"
+      "homepage": "https://github.com/alexsosn/Agora",
+      "category": "Education & Research"
     }
   ]
 }
