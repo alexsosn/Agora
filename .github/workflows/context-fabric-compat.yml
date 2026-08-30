@@ -1,0 +1,39 @@
+name: Context-Fabric compatibility
+
+on:
+  pull_request:
+    paths:
+      - "plugins/context-fabric/**"
+      - "tests/test_context_fabric_count_compat.py"
+      - "tests/test_context_fabric_upstream_compat.py"
+      - ".github/workflows/context-fabric-compat.yml"
+  push:
+    branches: [main]
+    paths:
+      - "plugins/context-fabric/**"
+      - "tests/test_context_fabric_count_compat.py"
+      - "tests/test_context_fabric_upstream_compat.py"
+      - ".github/workflows/context-fabric-compat.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    name: Pinned upstream API compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out Agora
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Context-Fabric plugin runtime
+        run: python -m pip install -e plugins/context-fabric
+
+      - name: Run upstream compatibility regressions
+        run: python -m unittest discover -s tests -p 'test_context_fabric_upstream_compat.py' -v
