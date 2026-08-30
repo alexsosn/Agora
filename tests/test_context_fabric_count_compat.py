@@ -15,12 +15,29 @@ from agora_context_fabric.compat import install_exact_count_compat
 
 
 class FakeSearchApi:
-    def __init__(self, results=None, *, error: Exception | None = None):
+    def __init__(
+        self,
+        results=None,
+        *,
+        search_results=None,
+        error: Exception | None = None,
+    ):
         self._results = results
+        self._search_results = results if search_results is None else search_results
         self._error = error
-        self.exe = SimpleNamespace(good=True, badSyntax=[], badSemantics=[])
+        self.exe = SimpleNamespace(
+            good=True,
+            badSyntax=[],
+            badSemantics=[],
+            results=self._iter_results,
+        )
         self.study_calls: list[str] = []
         self.search_calls: list[str] = []
+
+    def _iter_results(self):
+        if self._error is not None:
+            raise self._error
+        return iter(self._results or [])
 
     def study(self, template: str) -> None:
         self.study_calls.append(template)
@@ -29,7 +46,7 @@ class FakeSearchApi:
         self.search_calls.append(template)
         if self._error is not None:
             raise self._error
-        return self._results
+        return self._search_results
 
 
 class ExactCountCompatTests(unittest.TestCase):
@@ -54,7 +71,7 @@ class ExactCountCompatTests(unittest.TestCase):
         )
         return tools, delegated_calls
 
-    def test_count_returns_cuc_word_total_above_cache_cap(self):
+    def test_count_returns_cuc_word_total_above_cache_cap_without_replanning(self):
         search_api = FakeSearchApi([(node,) for node in range(27_770)])
         tools, delegated_calls = self.make_tools(search_api)
         install_exact_count_compat(tools)
@@ -63,8 +80,19 @@ class ExactCountCompatTests(unittest.TestCase):
 
         self.assertEqual(result, {"total_count": 27_770, "template": "word"})
         self.assertEqual(search_api.study_calls, ["word"])
-        self.assertEqual(search_api.search_calls, ["word"])
+        self.assertEqual(search_api.search_calls, [])
         self.assertEqual(delegated_calls, [])
+
+    def test_count_uses_uncapped_studied_results_instead_of_public_search_results(self):
+        full_results = [(node,) for node in range(25)]
+        search_api = FakeSearchApi(full_results, search_results=full_results[:20])
+        tools, _delegated_calls = self.make_tools(search_api)
+        install_exact_count_compat(tools)
+
+        result = tools.search("word\nword", return_type="count")
+
+        self.assertEqual(result["total_count"], 25)
+        self.assertEqual(search_api.search_calls, [])
 
     def test_non_count_searches_keep_upstream_cache_and_pagination_path(self):
         search_api = FakeSearchApi([(node,) for node in range(27_770)])
@@ -76,7 +104,7 @@ class ExactCountCompatTests(unittest.TestCase):
         self.assertEqual(result["total_count"], 10_000)
         self.assertEqual(
             delegated_calls,
-            [(('word',), {"return_type": "results", "limit": 25})],
+            [(("word",), {"return_type": "results", "limit": 25})],
         )
         self.assertEqual(search_api.search_calls, [])
 
