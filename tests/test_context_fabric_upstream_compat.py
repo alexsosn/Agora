@@ -56,7 +56,7 @@ def make_real_search_exe(*, total_results: int, max_node: int) -> SearchExe:
 class UpstreamCompatibilityTests(unittest.TestCase):
     def test_runtime_dependency_versions_are_the_reviewed_compatibility_boundary(self):
         self.assertEqual(version("cfabric-mcp"), "0.1.7")
-        self.assertEqual(version("context-fabric"), "0.5.0")
+        self.assertEqual(version("context-fabric"), "0.5.7")
         self.assertEqual(SEARCH_FAIL_FACTOR, 4)
 
     def test_exact_count_bypasses_real_searchexe_fetch_fail_cutoff(self):
