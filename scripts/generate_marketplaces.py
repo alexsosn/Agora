@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
 
 from scripts.validate_registry import validate_registry
 
-CODEX_CATEGORY = "Education & Research"
+PLUGIN_CATEGORY = "Education & Research"
 CODEX_INSTALLATION = "AVAILABLE"
 CODEX_AUTHENTICATION = "ON_INSTALL"
 
@@ -84,7 +84,7 @@ def codex_plugin_manifest(
             "shortDescription": plugin["description"],
             "longDescription": plugin["description"],
             "developerName": publisher["name"],
-            "category": CODEX_CATEGORY,
+            "category": PLUGIN_CATEGORY,
             "websiteURL": marketplace["repository"],
         },
     }
@@ -96,8 +96,10 @@ def claude_marketplace(
     publisher = marketplace["publisher"]
     return {
         "name": marketplace["id"],
-        "description": marketplace["description"],
         "owner": {"name": publisher["name"]},
+        # Claude Code reads the marketplace blurb from metadata.description; a
+        # top-level "description" key is ignored.
+        "metadata": {"description": marketplace["description"]},
         "plugins": [
             {
                 "name": plugin["id"],
@@ -105,6 +107,7 @@ def claude_marketplace(
                 "description": plugin["description"],
                 "author": {"name": publisher["name"]},
                 "homepage": marketplace["repository"],
+                "category": PLUGIN_CATEGORY,
             }
             for plugin in plugins
         ],
@@ -128,7 +131,7 @@ def codex_marketplace(
                     "installation": CODEX_INSTALLATION,
                     "authentication": CODEX_AUTHENTICATION,
                 },
-                "category": CODEX_CATEGORY,
+                "category": PLUGIN_CATEGORY,
             }
             for plugin in plugins
         ],

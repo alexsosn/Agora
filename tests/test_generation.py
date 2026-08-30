@@ -69,11 +69,23 @@ class MarketplaceGenerationTests(unittest.TestCase):
         for entry in marketplace["plugins"]:
             self.assertEqual(entry["source"], f"./plugins/{entry['name']}")
 
-    def test_claude_marketplace_does_not_leak_codex_display_name(self):
+    def test_claude_entries_omit_display_name_and_carry_category(self):
+        # `claude plugin validate` (CLI 2.1.59) rejects "displayName" on a
+        # marketplace plugin entry as an unrecognized key, even though the
+        # published schema documents it. "category" is accepted.
         with (ROOT / ".claude-plugin/marketplace.json").open("r", encoding="utf-8") as fh:
             marketplace = json.load(fh)
         for entry in marketplace["plugins"]:
             self.assertNotIn("displayName", entry)
+            self.assertEqual(entry["category"], "Education & Research")
+
+    def test_claude_marketplace_description_lives_under_metadata(self):
+        with (ROOT / "registry/marketplace.yaml").open("r", encoding="utf-8") as fh:
+            expected = yaml.safe_load(fh)["description"]
+        with (ROOT / ".claude-plugin/marketplace.json").open("r", encoding="utf-8") as fh:
+            marketplace = json.load(fh)
+        self.assertEqual(marketplace["metadata"]["description"], expected)
+        self.assertNotIn("description", marketplace)
 
     def test_all_manifests_reference_platform_specific_mcp_configs(self):
         for plugin_id in PLUGIN_IDS:
