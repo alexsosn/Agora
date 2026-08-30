@@ -11,7 +11,7 @@ FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 
 REQUIRED_REPO_SKILLS = {
     "agora-plugin-integration": (
-        "If the same bug or missing capability",
+        "Would the bug or missing capability still exist",
         "Do not create a silent compatibility shim",
     ),
     "agora-plugin-review": (
