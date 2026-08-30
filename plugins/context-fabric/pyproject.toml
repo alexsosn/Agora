@@ -9,6 +9,7 @@ description = "Agora resource discovery and lazy loading for Context-Fabric MCP"
 requires-python = ">=3.13"
 dependencies = [
   "cfabric-mcp==0.1.7",
+  "context-fabric==0.5.7",
   "PyYAML>=6.0,<7",
 ]
 
