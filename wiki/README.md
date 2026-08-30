@@ -40,9 +40,12 @@ Release documents encode lifecycle instead of P-level priority:
 
 ### Architecture
 
+- [`architecture/ref-plugin-boundary.md`](architecture/ref-plugin-boundary.md) — **normative ownership boundary** for a thin marketplace: what Agora may implement, what must remain upstream, permitted adapters, skills, tests, and review rules.
 - [`architecture/ref-marketplace-architecture.md`](architecture/ref-marketplace-architecture.md) — clean-slate architecture, provider/resource model, verification model, and design rationale.
 - [`architecture/ref-context-fabric-collections.md`](architecture/ref-context-fabric-collections.md) — member-aware handling of large Text-Fabric collection repositories.
 - [`architecture/ref-implementation-details.md`](architecture/ref-implementation-details.md) — marketplace generation, integration plumbing, verification details, scholarly skills, repository layout, and phase status moved out of the user-facing README.
+
+When older planning/research language is broader than the plugin boundary, `ref-plugin-boundary.md` controls. In particular, a backlog item or review finding about a third-party plugin does not authorize Agora to fix the plugin's own semantics.
 
 ### Releases
 
@@ -76,6 +79,8 @@ The latest review identifies these as the immediate engineering priorities:
 4. reconcile user-facing README verification claims with canonical per-client registry status;
 5. require CI/branch protection before merge;
 6. make verification evidence executable/traceable rather than descriptive strings.
+
+These priorities remain subject to the plugin ownership boundary. Work on Agora-owned acquisition, provenance, registry, launch, and verification plumbing is in scope; fixing third-party algorithms or adding missing upstream capabilities is not.
 
 See [`reviews/2026-08-29-review-pr1-pr4.md`](reviews/2026-08-29-review-pr1-pr4.md) for evidence and lower-priority findings.
 
