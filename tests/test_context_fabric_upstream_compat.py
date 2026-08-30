@@ -15,9 +15,14 @@ PLUGIN_SRC = PLUGIN_ROOT / "src"
 if str(PLUGIN_SRC) not in sys.path:
     sys.path.insert(0, str(PLUGIN_SRC))
 
-from cfabric.core.config import SEARCH_FAIL_FACTOR
-from cfabric.search.searchexe import SearchExe
-from cfabric_mcp import tools as upstream_tools
+try:
+    from cfabric.core.config import SEARCH_FAIL_FACTOR
+    from cfabric.search.searchexe import SearchExe
+    from cfabric_mcp import tools as upstream_tools
+except ImportError:  # Lightweight unit-test job intentionally omits plugin runtime deps.
+    SEARCH_FAIL_FACTOR = None
+    SearchExe = None
+    upstream_tools = None
 
 from agora_context_fabric.compat import install_exact_count_compat
 from agora_context_fabric.server import build_runtime
@@ -26,7 +31,7 @@ from agora_context_fabric.server import build_runtime
 class StudiedSearchApi:
     """Search facade whose public search path reproduces SearchExe.fetch()."""
 
-    def __init__(self, exe: SearchExe):
+    def __init__(self, exe):
         self._prepared_exe = exe
         self.exe = None
         self.study_calls: list[str] = []
@@ -41,7 +46,7 @@ class StudiedSearchApi:
         return self._prepared_exe.fetch()
 
 
-def make_real_search_exe(*, total_results: int, max_node: int) -> SearchExe:
+def make_real_search_exe(*, total_results: int, max_node: int):
     """Build the minimal state needed to exercise the real SearchExe.fetch()."""
     exe = object.__new__(SearchExe)
     exe.api = SimpleNamespace(
@@ -53,6 +58,7 @@ def make_real_search_exe(*, total_results: int, max_node: int) -> SearchExe:
     return exe
 
 
+@unittest.skipUnless(SearchExe is not None, "requires installed Context-Fabric runtime")
 class UpstreamCompatibilityTests(unittest.TestCase):
     def test_runtime_dependency_versions_are_the_reviewed_compatibility_boundary(self):
         self.assertEqual(version("cfabric-mcp"), "0.1.7")
