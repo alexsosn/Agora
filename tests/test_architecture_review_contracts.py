@@ -37,9 +37,9 @@ class TrustMetadataTests(unittest.TestCase):
         self.assertEqual(resource.verification_status, "experimental")
         self.assertEqual(resource.licenses["data"], "upstream-dependent")
         self.assertEqual(resource.licenses["redistribution"], "unknown")
-        self.assertTrue(any("predates later converter fixes" in issue for issue in resource.known_issues))
+        self.assertTrue(any("KNOWN-ISSUES.md" in issue for issue in resource.known_issues))
         self.assertEqual(resource.source_snapshot["source"], "alexsosn/TLHdig-TF")
-        self.assertEqual(resource.ref, "5d5e9af248566222738f8ac65ab8f9bb1b6aed3c")
+        self.assertIsNone(resource.ref)
         self.assertEqual(resource.tf_path, "tf/0.1.0")
 
     def test_service_exposes_trust_and_source_configuration(self):
@@ -49,9 +49,9 @@ class TrustMetadataTests(unittest.TestCase):
         self.assertEqual(item["period"], "2nd millennium BCE")
         self.assertEqual(item["verification"]["status"], "experimental")
         self.assertEqual(item["licenses"]["data"], "upstream-dependent")
-        self.assertTrue(any("predates later converter fixes" in issue for issue in item["known_issues"]))
+        self.assertTrue(any("KNOWN-ISSUES.md" in issue for issue in item["known_issues"]))
         self.assertEqual(item["source_snapshot"]["source"], "alexsosn/TLHdig-TF")
-        self.assertEqual(item["source"]["configured_ref"], "5d5e9af248566222738f8ac65ab8f9bb1b6aed3c")
+        self.assertIsNone(item["source"]["configured_ref"])
         self.assertEqual(item["source"]["tf_path"], "tf/0.1.0")
 
 
