@@ -2,6 +2,8 @@
 
 Agora is a **thin plugin marketplace**. Before implementing or reviewing plugin-related work, read [`wiki/architecture/ref-plugin-boundary.md`](wiki/architecture/ref-plugin-boundary.md).
 
+For any pull-request review, read [`CONTRIBUTING.md`](CONTRIBUTING.md) and use [`.agents/skills/agora-pr-review/SKILL.md`](.agents/skills/agora-pr-review/SKILL.md) as the default review entry point.
+
 ## Non-negotiable boundary
 
 Agora owns discovery, description, installation, launch, transport/configuration adaptation, resource selection, compatibility metadata, and marketplace UX. Third-party plugins own their domain behavior, bugs, missing features, and substantive scholarly capabilities.
@@ -16,10 +18,11 @@ When an upstream limitation matters to Agora users, link/report it upstream, doc
 
 ## Repository-maintenance skills
 
-Use these skills for plugin-related development:
+Use these skills for repository development and review:
 
+- [`.agents/skills/agora-pr-review/SKILL.md`](.agents/skills/agora-pr-review/SKILL.md) — reviewing any PR against `CONTRIBUTING.md`, agent instructions, applicable architecture policy, tests, generated artifacts, and documentation requirements;
 - [`.agents/skills/agora-plugin-integration/SKILL.md`](.agents/skills/agora-plugin-integration/SKILL.md) — deciding ownership and implementing thin integrations;
-- [`.agents/skills/agora-plugin-review/SKILL.md`](.agents/skills/agora-plugin-review/SKILL.md) — reviewing issues/PRs for scope creep and misplaced upstream fixes.
+- [`.agents/skills/agora-plugin-review/SKILL.md`](.agents/skills/agora-plugin-review/SKILL.md) — specialized review of plugin-related issues/PRs for scope creep and misplaced upstream fixes; apply it as a subreview of `agora-pr-review` when relevant.
 
 ## Skill placement
 
