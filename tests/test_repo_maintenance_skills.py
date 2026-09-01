@@ -18,6 +18,11 @@ REQUIRED_REPO_SKILLS = {
         "first review question is architectural ownership",
         "Do not let implementation effort already invested",
     ),
+    "agora-pr-review": (
+        "CONTRIBUTING.md",
+        "Do not invent contribution requirements",
+        "agora-plugin-review",
+    ),
 }
 
 
@@ -51,6 +56,11 @@ class RepositoryMaintenanceSkillTests(unittest.TestCase):
 
             for phrase in required_phrases:
                 self.assertIn(phrase, text)
+
+    def test_pr_review_skill_is_linked_from_agent_instructions(self):
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("agora-pr-review", agents)
+        self.assertIn("CONTRIBUTING.md", agents)
 
     def test_pr_template_requires_scope_ownership_check(self):
         path = ROOT / ".github" / "pull_request_template.md"
