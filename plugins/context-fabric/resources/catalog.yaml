@@ -557,19 +557,16 @@ resources:
     description: Text-Fabric conversion of the Thesaurus Linguarum Hethaeorum digitalis Hittite corpus.
     upstream:
       repository: alexsosn/TLHdig-TF
-      ref: 5d5e9af248566222738f8ac65ab8f9bb1b6aed3c
       tf_path: tf/0.1.0
     acquisition:
       strategy: repository
       lazy: true
-      notes: Pin the last published Text-Fabric build. Current main contains newer converter work but no committed tf/ dataset.
+      notes: Follow the upstream default branch so rebuilt tf/0.1.0 datasets are picked up without changing the version label.
     licenses: {data: upstream-dependent, redistribution: unknown}
     verification:
       status: experimental
       notes:
-        - The pinned 0.1.0 build is an integration prototype and must not be treated as research-ready.
-        - Current upstream main has newer converter fixes but no committed Text-Fabric dataset; update the pin only when a newer complete dataset is published.
+        - The 0.1.0 dataset remains experimental; consult upstream documentation and KNOWN-ISSUES.md before research use.
     known_issues:
       - Preserve upstream KNOWN-ISSUES.md warnings in Agora metadata and user-facing guidance.
-      - The pinned data commit predates later converter fixes on upstream main.
-    source_snapshot: {source: alexsosn/TLHdig-TF, checked_at: "2026-08-29"}
+    source_snapshot: {source: alexsosn/TLHdig-TF, checked_at: "2026-09-01"}
