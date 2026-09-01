@@ -62,13 +62,10 @@ class PinnedGitStoreTests(unittest.TestCase):
 
 
 class PinnedCatalogTests(unittest.TestCase):
-    def test_catalog_preserves_upstream_ref_and_tf_path(self):
+    def test_tlhdig_follows_upstream_default_branch_and_preserves_tf_path(self):
         catalog = Catalog.from_registry(ROOT)
         tlhdig = catalog.get("TLHdig-TF")
-        self.assertEqual(
-            tlhdig.ref,
-            "5d5e9af248566222738f8ac65ab8f9bb1b6aed3c",
-        )
+        self.assertIsNone(tlhdig.ref)
         self.assertEqual(tlhdig.tf_path, "tf/0.1.0")
 
     def test_translatin_is_a_collection(self):
