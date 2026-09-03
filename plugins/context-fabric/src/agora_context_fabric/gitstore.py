@@ -560,8 +560,8 @@ class GitStore:
 
     @staticmethod
     def _validate_corpus_snapshot(path: Path) -> None:
-        if not (path / "otype.tf").is_file() or not (path / "oslots.tf").is_file():
-            raise FileNotFoundError(f"materialized path is not a complete Text-Fabric dataset: {path}")
+        if not (path / "otype.tf").is_file():
+            raise FileNotFoundError(f"materialized path is not a Text-Fabric dataset: {path}")
 
     @classmethod
     def _validate_module_snapshot(cls, path: Path, files: tuple[str, ...]) -> None:
