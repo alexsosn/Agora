@@ -61,6 +61,17 @@ class Catalog:
             repository = upstream.get("repository")
             if not repository:
                 raise ValueError(f"resource {item.get('id')!r} has no upstream repository")
+            if item.get("kind") == "feature-module":
+                missing = [
+                    key
+                    for key in ("module", "tf_path")
+                    if not upstream.get(key)
+                ]
+                if missing:
+                    rendered = ", ".join(f"upstream.{key}" for key in missing)
+                    raise ValueError(
+                        f"Context-Fabric feature module {item.get('id')!r} requires {rendered}"
+                    )
             collection = item.get("collection") or {}
             compatibility = item.get("compatibility") or {}
             module = item.get("module") or {}
