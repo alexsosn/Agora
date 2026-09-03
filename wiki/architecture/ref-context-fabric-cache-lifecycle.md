@@ -14,11 +14,11 @@ Cache eviction changes **local residency**, not source identity. A removed revis
 
 1. A successfully loaded corpus remains usable until unload, replacement, or process exit, even when another Agora process sharing the cache is pruning.
 2. Process death must release cache/repository ownership automatically; users must not repair stale lock sentinels manually.
-3. Ordinary prepare/load calls must not perform unconditional full-cache pruning or turn housekeeping contention into unrelated load failures.
+3. Ordinary prepare/load calls must not perform unconditional full-cache pruning. Housekeeping may serialize only short cache-transition operations; recursive deletion I/O must not hold the global load-blocking transition lock.
 4. Status must make cache pressure understandable: object kind, bytes, recency, active use, configured soft target, free-space reserve, and current free space.
 5. Prune/remove must never force-delete an active object. Partial reclamation is a normal, explicit result.
 6. Module-enabled loads must participate in the same lifecycle without treating feature modules as corpora or requiring `otype.tf` in module snapshots.
-7. Failure states must be finite and actionable: lock timeout, partial reclamation, target not met, and insufficient free space are distinguishable outcomes.
+7. Failure states must be finite and actionable: live-object skips, transition contention, target not met, and insufficient free space are distinguishable outcomes.
 
 The executable acceptance criteria live in issue #30.
 
@@ -75,7 +75,7 @@ locks/cache-transition.lock
 A short-lived reader/writer coordination point:
 
 - prepare/materialize/module composition and final lease acquisition use it shared;
-- prune/remove use it exclusive.
+- eviction uses it exclusive only long enough to prove an object unused and atomically detach its served pathname.
 
 For `load_corpus`, Agora keeps this transition protected from the start of resolution/materialization through acquisition of the final cache-object lease. This closes both races that matter:
 
@@ -100,6 +100,28 @@ The leased object is always the **final path passed to Context-Fabric**:
 - module-enabled load -> composed overlay.
 
 Once an overlay has been completed and leased, its parent/module source snapshots can be evicted independently. The overlay uses hard links where possible and copies where necessary, so removing a source directory does not invalidate the completed overlay.
+
+## Eviction transaction
+
+Recursive deletion of a multi-gigabyte corpus must not hold the global transition lock. For each unused object, eviction therefore has two phases.
+
+### Phase 1 — atomic detach
+
+Under the exclusive cache-transition lock and the object's exclusive lock:
+
+1. re-check that the object still exists and is not leased;
+2. create a unique `tmp/evict-*` quarantine directory;
+3. atomically rename the managed object to `tmp/evict-*/data` on the same cache filesystem;
+4. remove external access/object sidecars and empty managed parent directories;
+5. release the object and transition locks.
+
+After the rename the original served pathname is gone atomically. A subsequent prepare/load can immediately enter the transition lock and either use another object or re-materialize the same source identity.
+
+### Phase 2 — recursive delete
+
+Only after all cache-transition/object locks have been released does Agora measure and recursively delete the detached quarantine tree. Slow filesystem deletion therefore does not block normal prepare/load operations.
+
+If a process dies after detaching but before deletion finishes, the detached tree is not a served cache object and cannot be loaded accidentally. Later `GitStore` instances best-effort remove `tmp/evict-*` directories older than a grace period, avoiding both permanent disk leakage and races with a live process that has only just detached an object.
 
 ## Load/reload transaction
 
@@ -137,7 +159,7 @@ object-meta/<object-id>.json
 locks/cache-objects/<object-id>.lock
 ```
 
-Access timestamps drive LRU ordering. Sidecar object metadata is advisory/rebuildable; physical cache discovery remains capable of finding existing objects after an upgrade or sidecar loss.
+Access timestamps drive LRU ordering. Concurrent touches use unique temporary sidecar files followed by atomic replacement, so readers cannot collide on one shared `.tmp` pathname. Sidecar loss never alters source bytes and accessed objects recreate their sidecars.
 
 Persistent lock files are not deleted during eviction. Removing a lock pathname while another process still owns the old inode/handle can create split-brain locking if a replacement file is created at the same name.
 
@@ -147,13 +169,14 @@ Persistent lock files are not deleted during eviction. Removing a lock pathname 
 
 `AGORA_CORPUS_MIN_FREE_GB` is a materialization/free-space guardrail (default 6 GiB).
 
-Prune walks managed objects in least-recently-used order and attempts deletion only after obtaining the global exclusive transition lock and each object's exclusive lock. Active objects are skipped.
+Prune walks managed objects in least-recently-used order. Each candidate is independently detached under the short exclusive transition/object-lock section described above; recursive deletion occurs after those locks are released. Active objects are skipped.
 
 The result reports:
 
 - bytes before/after;
 - removed entry/byte counts;
 - active entries skipped;
+- candidates blocked by transition contention;
 - whether the requested target was actually met;
 - whether the free-space guardrail is currently met.
 
@@ -167,12 +190,15 @@ For a parent corpus, resource/revision matching also includes its unused compose
 
 For a feature-module resource, explicit removal targets that module's source snapshots. Existing parent overlays are independent derived objects and remain valid after source-module eviction.
 
+Removal is best-effort over the matching set. The result distinguishes `skipped_in_use` from `blocked_by_transition`; `complete` is true only when neither condition prevented a matching object from being reclaimed.
+
 ## UX and failure semantics
 
 - Lock acquisition uses finite timeouts; contention never means an unbounded hang.
 - An active object's exclusive lock failure during prune/remove is a skip, not an exception and not forced deletion.
-- Failure to acquire the global transition lock within the operation timeout is an explicit `TimeoutError`, indicating cache housekeeping is currently blocked by an active prepare/composition transition.
-- Prune can succeed partially; callers must inspect `target_met`, `free_space_met`, and `skipped_in_use` rather than infer success from a non-error return.
+- User-facing batch prune/remove returns transition contention as `blocked_by_transition` and can succeed partially instead of discarding already-completed reclamation behind a late timeout exception.
+- Prune callers inspect `target_met`, `free_space_met`, `skipped_in_use`, and `blocked_by_transition` rather than infer success from a non-error return.
+- Insufficient materialization space explicitly points callers to `corpus_cache_status` and `prune_corpus_cache`.
 - Ordinary prepare/load does not automatically run a full LRU sweep.
 
 ## Platform boundary
@@ -189,6 +215,7 @@ The contract requires process-level tests for:
 - active overlay protection;
 - reclamation after lease release;
 - transition protection during composition;
+- recursive eviction I/O outside the global transition lock;
 - module-aware cache discovery/pruning.
 
-Service tests additionally cover failed-reload lease preservation, module/version logical names, idempotent unload, and cache-status/prune/remove result UX.
+Service/MCP tests additionally cover failed-reload lease preservation, module/version logical names, idempotent unload, and cache-status/prune/remove result UX.
