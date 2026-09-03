@@ -38,16 +38,24 @@ class ContextFabricService:
         registered_modules: list[dict[str, Any]] | None = None
         available_modules: list[dict[str, Any]] | None = None
         if resolve_modules and resource.kind == "corpus":
-            default_version = self.resolver.default_corpus_version(resource.id)
+            resolver_default = getattr(self.resolver, "default_corpus_version", None)
+            if callable(resolver_default):
+                default_version = resolver_default(resource.id)
             registered_modules = [
                 self._module_dict(module, default_version)
                 for module in self.catalog.modules_for(resource.id)
             ]
-            available_modules = [
-                module
-                for module in registered_modules
-                if module["compatible_with_default"]
-            ]
+            if default_version is None:
+                # Lightweight test doubles and alternate resolver adapters may not
+                # expose version resolution. Preserve metadata without claiming a
+                # concrete compatibility result.
+                available_modules = list(registered_modules)
+            else:
+                available_modules = [
+                    module
+                    for module in registered_modules
+                    if module["compatible_with_default"]
+                ]
 
         return {
             "id": resource.id,
@@ -212,12 +220,10 @@ class ContextFabricService:
         version: str | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        prepared = self.resolver.prepare_with_modules(
-            resource_id,
-            member_id=member_id,
-            version=version,
-            modules=modules,
-        )
+        kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
+        if version is not None:
+            kwargs["version"] = version
+        prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
         return self._prepared_dict(prepared)
 
     @staticmethod
@@ -250,12 +256,10 @@ class ContextFabricService:
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        prepared = self.resolver.prepare_with_modules(
-            resource_id,
-            member_id=member_id,
-            version=version,
-            modules=modules,
-        )
+        kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
+        if version is not None:
+            kwargs["version"] = version
+        prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
         info = self.loader.load(
             str(prepared.path),
             name=prepared.logical_name,
@@ -274,13 +278,14 @@ class ContextFabricService:
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        result = self.load(
-            resource_id,
-            member_id=member_id,
-            version=version,
-            features=features,
-            modules=modules,
-        )
+        kwargs: dict[str, Any] = {
+            "member_id": member_id,
+            "features": features,
+            "modules": modules,
+        }
+        if version is not None:
+            kwargs["version"] = version
+        result = self.load(resource_id, **kwargs)
         compatible = dict(result)
         compatible["features"] = features
         return compatible
