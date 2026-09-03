@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import subprocess
 import time
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
-from typing import Iterator
+from typing import Any, Iterator
+
+
+_NODE_SPEC_RE = re.compile(r"^\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*$")
 
 
 class GitStore:
@@ -201,6 +205,177 @@ class GitStore:
         if path.is_absolute() or ".." in path.parts:
             raise ValueError(f"unsafe repository-relative path: {relative_path!r}")
         return relative
+
+    @staticmethod
+    def _node_spec_max(value: str) -> int | None:
+        value = value.strip()
+        if not _NODE_SPEC_RE.fullmatch(value):
+            return None
+        maximum = 0
+        for part in value.split(","):
+            if "-" in part:
+                start, end = part.split("-", 1)
+                maximum = max(maximum, int(start), int(end))
+            else:
+                maximum = max(maximum, int(part))
+        return maximum
+
+    def _git_show_lines(
+        self,
+        repo: Path,
+        relative_path: str,
+        revision: str | None = None,
+    ) -> Iterator[str]:
+        relative = self._safe_relative_path(relative_path)
+        treeish = self._treeish(repo, revision)
+        spec = f"{treeish}:{relative}"
+        process = subprocess.Popen(
+            ["git", "-C", str(repo), "show", spec],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        assert process.stdout is not None
+        try:
+            for line in process.stdout:
+                yield line.rstrip("\r\n")
+        finally:
+            process.stdout.close()
+            stderr = process.stderr.read() if process.stderr is not None else ""
+            returncode = process.wait()
+            if process.stderr is not None:
+                process.stderr.close()
+            if returncode:
+                raise subprocess.CalledProcessError(
+                    returncode,
+                    ["git", "show", spec],
+                    stderr=stderr,
+                )
+
+    def tf_feature_summary(
+        self,
+        repo: Path,
+        relative_path: str,
+        revision: str | None = None,
+    ) -> dict[str, Any]:
+        """Stream a TF file and summarize compatibility-relevant metadata and node bounds."""
+        kind: str | None = None
+        metadata: dict[str, Any] = {}
+        in_header = True
+        implicit_node: int | None = None
+        max_node = 0
+
+        for line in self._git_show_lines(repo, relative_path, revision):
+            if in_header:
+                if not line:
+                    in_header = False
+                    continue
+                if line == "@node":
+                    kind = "node"
+                elif line == "@edge":
+                    kind = "edge"
+                elif line == "@config":
+                    kind = "config"
+                elif line == "@edgeValues":
+                    metadata["edgeValues"] = True
+                elif line.startswith("@") and "=" in line:
+                    key, value = line[1:].split("=", 1)
+                    metadata[key] = value
+                continue
+
+            if not line or kind == "config":
+                continue
+
+            fields = line.split("\t")
+            if kind == "node":
+                explicit = self._node_spec_max(fields[0]) if len(fields) > 1 else None
+                if explicit is None:
+                    implicit_node = 1 if implicit_node is None else implicit_node + 1
+                    max_node = max(max_node, implicit_node)
+                else:
+                    implicit_node = explicit
+                    max_node = max(max_node, explicit)
+                continue
+
+            if kind == "edge":
+                edge_values = bool(metadata.get("edgeValues"))
+                source_spec: str | None
+                target_spec: str
+                if edge_values:
+                    if len(fields) >= 3:
+                        source_spec, target_spec = fields[0], fields[1]
+                    else:
+                        source_spec, target_spec = None, fields[0]
+                else:
+                    if len(fields) >= 2:
+                        source_spec, target_spec = fields[0], fields[1]
+                    else:
+                        source_spec, target_spec = None, fields[0]
+
+                source_max = self._node_spec_max(source_spec) if source_spec else None
+                if source_max is None:
+                    implicit_node = 1 if implicit_node is None else implicit_node + 1
+                    source_max = implicit_node
+                else:
+                    implicit_node = source_max
+                target_max = self._node_spec_max(target_spec)
+                if target_max is None:
+                    raise ValueError(
+                        f"invalid Text-Fabric edge target node spec in {relative_path!r}: {target_spec!r}"
+                    )
+                max_node = max(max_node, source_max, target_max)
+
+        if kind is None:
+            raise ValueError(f"Text-Fabric file {relative_path!r} has no @node, @edge, or @config header")
+        return {
+            "kind": kind,
+            "metadata": metadata,
+            "max_node": max_node,
+        }
+
+    def _blob_sha(
+        self,
+        repo: Path,
+        relative_path: str,
+        revision: str | None = None,
+    ) -> str | None:
+        relative = self._safe_relative_path(relative_path)
+        output = self._run(
+            "ls-tree",
+            self._treeish(repo, revision),
+            "--",
+            relative,
+            cwd=repo,
+        )
+        if not output:
+            return None
+        first = output.splitlines()[0]
+        metadata, _, returned_path = first.partition("\t")
+        parts = metadata.split()
+        if len(parts) < 3 or returned_path != relative:
+            return None
+        return parts[2]
+
+    def dataset_warp_fingerprint(
+        self,
+        repo: Path,
+        relative_path: str,
+        revision: str | None = None,
+    ) -> str:
+        """Fingerprint parent-owned warp blobs without materializing the dataset."""
+        relative = self._safe_relative_path(relative_path)
+        prefix = "" if relative == "." else f"{relative}/"
+        entries: list[str] = []
+        for filename in ("otype.tf", "oslots.tf", "otext.tf"):
+            path = f"{prefix}{filename}"
+            sha = self._blob_sha(repo, path, revision)
+            if sha is not None:
+                entries.append(f"{filename}:{sha}")
+        required = {entry.split(":", 1)[0] for entry in entries}
+        if not {"otype.tf", "oslots.tf"}.issubset(required):
+            raise ValueError(f"Text-Fabric dataset {relative_path!r} has incomplete warp files")
+        digest = hashlib.sha256("\n".join(entries).encode("ascii")).hexdigest()
+        return f"sha256:{digest}"
 
     def _checkout_path(
         self,
