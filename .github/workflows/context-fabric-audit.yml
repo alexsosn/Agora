@@ -10,13 +10,14 @@ on:
       - '.github/workflows/context-fabric-audit.yml'
       - 'scripts/audit_context_fabric_sources.py'
       - 'plugins/context-fabric/resources/catalog.yaml'
+      - 'plugins/context-fabric/resources/feature-modules.yaml'
 
 permissions:
   contents: read
 
 jobs:
   audit:
-    name: Audit 36 Context-Fabric upstreams
+    name: Audit registered Context-Fabric upstreams
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
