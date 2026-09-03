@@ -24,7 +24,10 @@ class ContextFabricService:
         self.catalog = catalog
         self.resolver = resolver
         self.loader = loader
-        self.store = resolver.store
+        # Discovery/description tests and alternate embedding code may provide a
+        # resolver without a cache store. Production ContextFabricResolver always
+        # has one; cache-management operations explicitly require it.
+        self.store = getattr(resolver, "store", None)
         self._loaded_leases: dict[str, Any] = {}
         self._loaded_names_lock = threading.RLock()
         self._lifecycle_locks = tuple(
@@ -142,6 +145,11 @@ class ContextFabricService:
             return as_dict()
         return str(value)
 
+    def _require_store(self) -> Any:
+        if self.store is None:
+            raise RuntimeError("Context-Fabric cache store is not configured")
+        return self.store
+
     def _lifecycle_lock(self, logical_name: str) -> threading.RLock:
         return self._lifecycle_locks[hash(logical_name) % len(self._lifecycle_locks)]
 
@@ -225,7 +233,10 @@ class ContextFabricService:
         if version is not None:
             kwargs["version"] = version
         prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
-        return self._prepared_dict(prepared, cache_residency="evictable")
+        return self._prepared_dict(
+            prepared,
+            cache_residency="evictable" if self.store is not None else "unmanaged",
+        )
 
     @staticmethod
     def _prepared_dict(
@@ -266,10 +277,17 @@ class ContextFabricService:
         if version is not None:
             kwargs["version"] = version
 
-        # Keep deletion out from under the complete prepare/composition -> final
-        # path lease transition. The transition lock is released before the
-        # potentially expensive Context-Fabric load; the object lease then owns
-        # the lifetime guarantee.
+        if self.store is None:
+            prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
+            info = self.loader.load(
+                str(prepared.path),
+                name=prepared.logical_name,
+                features=features,
+            )
+            result = self._prepared_dict(prepared, cache_residency="unmanaged")
+            result["corpus"] = self._corpus_info(info)
+            return result
+
         with self.store.cache_transition():
             prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
             new_lease = self.store.acquire_cache_lease(
@@ -292,9 +310,6 @@ class ContextFabricService:
                 new_lease.release()
                 raise
 
-            # cfabric-mcp replaces a same-name corpus only after the new load has
-            # succeeded. Mirror that transaction for leases: publish the new
-            # lease first, then release the old path.
             with self._loaded_names_lock:
                 self._loaded_leases[logical_name] = new_lease
             if previous_lease is not None:
@@ -319,8 +334,6 @@ class ContextFabricService:
                     "loaded": False,
                 }
 
-            # If upstream unload ever raises, keep the lease and bookkeeping: the
-            # corpus may still be live and must remain protected.
             self.loader.unload(logical_name)
             with self._loaded_names_lock:
                 current = self._loaded_leases.get(logical_name)
@@ -335,7 +348,8 @@ class ContextFabricService:
             }
 
     def cache_status(self) -> dict[str, Any]:
-        result = dict(self.store.cache_status())
+        store = self._require_store()
+        result = dict(store.cache_status())
         with self._loaded_names_lock:
             loaded = dict(self._loaded_leases)
         result["loaded_corpora"] = [
@@ -345,7 +359,8 @@ class ContextFabricService:
         return result
 
     def prune_cache(self, *, target_bytes: int | None = None) -> dict[str, Any]:
-        result = dict(self.store.prune(target_bytes=target_bytes))
+        store = self._require_store()
+        result = dict(store.prune(target_bytes=target_bytes))
         result["cache"] = self.cache_status()
         return result
 
@@ -356,12 +371,13 @@ class ContextFabricService:
         member_id: str | None = None,
         source_revision: str | None = None,
     ) -> dict[str, Any]:
+        store = self._require_store()
         resource = self.catalog.get(resource_id)
         if resource.kind != "collection" and member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
 
         matched: list[dict[str, Any]] = []
-        for entry in self.store.cache_entries(resource_id):
+        for entry in store.cache_entries(resource_id):
             if source_revision is not None and entry["revision"] != source_revision:
                 continue
             if member_id is not None:
@@ -372,7 +388,7 @@ class ContextFabricService:
                     continue
             matched.append(entry)
 
-        result = self.store.remove_cache_objects(
+        result = store.remove_cache_objects(
             [Path(str(entry["path"])) for entry in matched]
         )
         return {
