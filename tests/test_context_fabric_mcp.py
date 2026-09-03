@@ -55,21 +55,41 @@ class FakeService:
         )
         return {"members": [{"id": "member"}]}
 
-    def prepare(self, resource_id, *, member_id=None, modules=None):
-        self.calls.append(
-            ("prepare", (resource_id,), {"member_id": member_id, "modules": modules})
-        )
+    def prepare(self, resource_id, *, member_id=None, version=None, modules=None):
+        kwargs = {"member_id": member_id, "modules": modules}
+        if version is not None:
+            kwargs["version"] = version
+        self.calls.append(("prepare", (resource_id,), kwargs))
         return {"logical_name": resource_id}
 
-    def load(self, resource_id, *, member_id=None, features=None, modules=None):
+    def load(self, resource_id, *, member_id=None, version=None, features=None, modules=None):
+        kwargs = {"member_id": member_id, "features": features, "modules": modules}
+        if version is not None:
+            kwargs["version"] = version
+        self.calls.append(("load", (resource_id,), kwargs))
+        return {"logical_name": resource_id}
+
+    def unload(self, logical_name):
+        self.calls.append(("unload", (logical_name,), {}))
+        return {"logical_name": logical_name, "was_loaded": True}
+
+    def cache_status(self):
+        self.calls.append(("cache_status", (), {}))
+        return {"cache_bytes": 1024}
+
+    def prune_cache(self, *, target_bytes=None):
+        self.calls.append(("prune_cache", (), {"target_bytes": target_bytes}))
+        return {"target_bytes": target_bytes, "target_met": True}
+
+    def remove_cached(self, resource_id, *, member_id=None, source_revision=None):
         self.calls.append(
             (
-                "load",
+                "remove_cached",
                 (resource_id,),
-                {"member_id": member_id, "features": features, "modules": modules},
+                {"member_id": member_id, "source_revision": source_revision},
             )
         )
-        return {"logical_name": resource_id}
+        return {"resource_id": resource_id, "complete": True}
 
 
 class ToolRegistrationTests(unittest.TestCase):
@@ -87,6 +107,10 @@ class ToolRegistrationTests(unittest.TestCase):
                 "list_collection_members",
                 "prepare_corpus",
                 "load_corpus",
+                "unload_corpus",
+                "corpus_cache_status",
+                "prune_corpus_cache",
+                "remove_cached_corpus",
             },
         )
 
@@ -150,6 +174,43 @@ class ToolRegistrationTests(unittest.TestCase):
                     "features": ["otype", "word"],
                     "modules": ["example-module"],
                 },
+            ),
+        )
+
+    def test_unload_uses_exact_logical_name_returned_by_load(self):
+        result = self.mcp.tools["unload_corpus"]("bhsa@2021+bhsa-cantillation-trees")
+        self.assertTrue(result["was_loaded"])
+        self.assertEqual(
+            self.service.calls[-1],
+            ("unload", ("bhsa@2021+bhsa-cantillation-trees",), {}),
+        )
+
+    def test_cache_status_is_direct_and_side_effect_free(self):
+        result = self.mcp.tools["corpus_cache_status"]()
+        self.assertEqual(result, {"cache_bytes": 1024})
+        self.assertEqual(self.service.calls[-1], ("cache_status", (), {}))
+
+    def test_prune_accepts_human_friendly_gb_and_rejects_negative_target(self):
+        result = self.mcp.tools["prune_corpus_cache"](target_gb=1.5)
+        self.assertEqual(result["target_bytes"], int(1.5 * 1024**3))
+        self.assertEqual(
+            self.service.calls[-1],
+            ("prune_cache", (), {"target_bytes": int(1.5 * 1024**3)}),
+        )
+        with self.assertRaises(ValueError):
+            self.mcp.tools["prune_corpus_cache"](target_gb=-1)
+
+    def test_remove_cached_corpus_delegates_safe_selectors(self):
+        result = self.mcp.tools["remove_cached_corpus"](
+            "bhsa", source_revision="abc123"
+        )
+        self.assertTrue(result["complete"])
+        self.assertEqual(
+            self.service.calls[-1],
+            (
+                "remove_cached",
+                ("bhsa",),
+                {"member_id": None, "source_revision": "abc123"},
             ),
         )
 
