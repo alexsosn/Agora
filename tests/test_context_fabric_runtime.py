@@ -219,6 +219,7 @@ class ResolverTests(unittest.TestCase):
             self.assertTrue((prepared.path / "otype.tf").is_file())
             self.assertTrue((prepared.path / "word.tf").is_file())
             self.assertTrue((prepared.path / "addon.tf").is_file())
+            self.assertEqual(prepared.logical_name, "fixture+fixture-addon")
             self.assertEqual([module.resource_id for module in prepared.modules], ["fixture-addon"])
 
     def test_feature_module_parent_version_is_enforced_before_materialization(self):
@@ -402,10 +403,12 @@ class ServiceTests(unittest.TestCase):
         dead = service.list_resources(query="dead sea", kind="corpus")
         self.assertEqual([item["id"] for item in dead], ["dss"])
 
-    def test_parent_description_surfaces_available_modules(self):
+    def test_parent_description_surfaces_registered_modules_without_resolution(self):
         service = ContextFabricService(Catalog.from_registry(ROOT), FakeResolver(), FakeLoader())
         bhsa = service.describe_resource("bhsa")
-        ids = {module["id"] for module in bhsa["available_modules"]}
+        self.assertIsNone(bhsa["default_version"])
+        self.assertIsNone(bhsa["available_modules"])
+        ids = {module["id"] for module in bhsa["registered_modules"]}
         self.assertIn("bhsa-cantillation-trees", ids)
         module = service.describe_resource("bhsa-cantillation-trees")
         self.assertEqual(module["parent"], "bhsa")
