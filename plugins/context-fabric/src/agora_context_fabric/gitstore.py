@@ -3,32 +3,72 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import subprocess
+import tarfile
+import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 
 _NODE_SPEC_RE = re.compile(r"^\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*$")
+GIB = 1024**3
+DEFAULT_MIN_FREE_BYTES = 6 * GIB
 
 
 class GitStore:
-    """Metadata-first Git cache for Text-Fabric repositories.
+    """Metadata-first Git cache with immutable revision-addressed TF snapshots.
 
-    Floating resources refresh from the remote default branch on every metadata
-    resolution. Pinned resources fetch their configured ref. The selected commit
-    is recorded under ``refs/agora/selected`` and can be surfaced to callers as
-    provenance. Repository mutations are serialized with a filesystem lock.
+    Persistent repositories contain Git metadata only. Corpus and feature-module
+    bytes are exported from an exact resolved commit into immutable snapshot
+    directories. Snapshot reclamation is intentionally deferred to the separate
+    cross-process eviction work.
     """
 
     SELECTED_REF = "refs/agora/selected"
     FORBIDDEN_FEATURE_MODULE_FILES = frozenset({"otype.tf", "oslots.tf", "otext.tf"})
 
-    def __init__(self, cache_dir: Path):
-        self.cache_dir = Path(cache_dir).expanduser()
+    def __init__(
+        self,
+        cache_dir: Path,
+        *,
+        min_free_bytes: int | None = None,
+    ) -> None:
+        self.cache_dir = Path(cache_dir).expanduser().resolve()
         self.repositories_dir = self.cache_dir / "repositories"
+        self.snapshots_dir = self.cache_dir / "snapshots"
+        self.tmp_dir = self.cache_dir / "tmp"
         self.locks_dir = self.cache_dir / "locks"
+        self.min_free_bytes = (
+            min_free_bytes
+            if min_free_bytes is not None
+            else self._env_gib("AGORA_CORPUS_MIN_FREE_GB", DEFAULT_MIN_FREE_BYTES)
+        )
+        if self.min_free_bytes < 0:
+            raise ValueError("min_free_bytes must be >= 0")
+        self._ensure_layout()
+
+    @staticmethod
+    def _env_gib(name: str, default_bytes: int) -> int:
+        raw = os.environ.get(name)
+        if raw is None:
+            return default_bytes
+        try:
+            value = float(raw)
+        except ValueError as exc:
+            raise ValueError(f"{name} must be a number of GiB") from exc
+        if value < 0:
+            raise ValueError(f"{name} must be >= 0")
+        return int(value * GIB)
+
+    def _ensure_layout(self) -> None:
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.repositories_dir.mkdir(parents=True, exist_ok=True)
+        self.snapshots_dir.mkdir(parents=True, exist_ok=True)
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.locks_dir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def repository_url(repository: str) -> str:
@@ -62,7 +102,6 @@ class GitStore:
 
     @contextmanager
     def _repository_lock(self, key: str, timeout: float = 30.0) -> Iterator[None]:
-        self.locks_dir.mkdir(parents=True, exist_ok=True)
         lock_path = self.locks_dir / f"{self.safe_cache_key(key)}.lock"
         deadline = time.monotonic() + timeout
         fd: int | None = None
@@ -119,7 +158,6 @@ class GitStore:
         cache_key: str | None = None,
         ref: str | None = None,
     ) -> Path:
-        self.repositories_dir.mkdir(parents=True, exist_ok=True)
         key = self.safe_cache_key(cache_key or repository)
         destination = self.repositories_dir / key
         with self._repository_lock(key):
@@ -149,6 +187,14 @@ class GitStore:
             return self.SELECTED_REF
         except subprocess.CalledProcessError:
             return "HEAD"
+
+    def _resolved_revision(self, repo: Path, revision: str | None = None) -> str:
+        return self._run(
+            "rev-parse",
+            "--verify",
+            f"{self._treeish(repo, revision)}^{{commit}}",
+            cwd=repo,
+        )
 
     def _tree_names(self, repo: Path, revision: str | None = None) -> list[str]:
         names = self._run(
@@ -201,7 +247,7 @@ class GitStore:
         relative = relative_path.replace("\\", "/").strip("/")
         if not relative or relative == ".":
             relative = "."
-        path = Path(relative)
+        path = PurePosixPath(relative)
         if path.is_absolute() or ".." in path.parts:
             raise ValueError(f"unsafe repository-relative path: {relative_path!r}")
         return relative
@@ -377,25 +423,193 @@ class GitStore:
         digest = hashlib.sha256("\n".join(entries).encode("ascii")).hexdigest()
         return f"sha256:{digest}"
 
-    def _checkout_path(
+    def _free_bytes(self) -> int:
+        return shutil.disk_usage(self.cache_dir).free
+
+    def _ensure_free_reserve(self, required_bytes: int = 0) -> None:
+        if required_bytes < 0:
+            raise ValueError("required_bytes must be >= 0")
+        free_bytes = self._free_bytes()
+        if free_bytes < self.min_free_bytes + required_bytes:
+            raise OSError(
+                "insufficient disk space for corpus materialization: "
+                f"{free_bytes} bytes free, need {required_bytes} writable bytes while preserving "
+                f"the configured reserve of {self.min_free_bytes} bytes"
+            )
+
+    @staticmethod
+    def _validate_archive_member(member: tarfile.TarInfo) -> None:
+        path = PurePosixPath(member.name)
+        if path.is_absolute() or ".." in path.parts:
+            raise ValueError(f"unsafe path in Git archive: {member.name!r}")
+        if not (member.isdir() or member.isfile()):
+            raise ValueError(f"unsupported entry in Git archive: {member.name!r}")
+
+    @staticmethod
+    def _disable_archive_transformations(export_repo: Path) -> None:
+        """Make `git archive` preserve tracked bytes despite export attributes."""
+        info_dir = export_repo / ".git" / "info"
+        info_dir.mkdir(parents=True, exist_ok=True)
+        (info_dir / "attributes").write_text(
+            "* -export-ignore -export-subst\n",
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    def _raise_archive_process_error(
+        process: subprocess.Popen[bytes],
+        command: list[str],
+        stderr_path: Path,
+        cause: BaseException | None = None,
+    ) -> None:
+        if process.stdout is not None and not process.stdout.closed:
+            process.stdout.close()
+        return_code = process.wait()
+        if return_code:
+            stderr = stderr_path.read_bytes()
+            error = subprocess.CalledProcessError(return_code, command, stderr=stderr)
+            if cause is None:
+                raise error
+            raise error from cause
+        if cause is not None:
+            raise cause
+
+    def _snapshot_destination(
+        self,
+        repo: Path,
+        revision: str,
+        relative: str,
+        *,
+        kind: str,
+    ) -> Path:
+        root = self.snapshots_dir / repo.name / revision / kind
+        return root / ("__root__" if relative == "." else Path(relative))
+
+    def _export_snapshot(
+        self,
+        repo: Path,
+        revision: str,
+        relative: str,
+        destination: Path,
+        validate: Callable[[Path], None],
+    ) -> None:
+        self._ensure_free_reserve()
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temp_root = Path(tempfile.mkdtemp(prefix="snapshot-", dir=self.tmp_dir))
+        export_repo = temp_root / "export"
+        extracted = temp_root / "data"
+        stderr_path = temp_root / "archive.stderr"
+        extracted.mkdir()
+        process: subprocess.Popen[bytes] | None = None
+        try:
+            source = self._run("remote", "get-url", "origin", cwd=repo)
+            self._run("init", "-q", str(export_repo))
+            self._disable_archive_transformations(export_repo)
+            self._run("remote", "add", "origin", source, cwd=export_repo)
+            self._ensure_free_reserve()
+            self._run(
+                "fetch",
+                "--quiet",
+                "--no-tags",
+                "--filter=blob:none",
+                "--depth",
+                "1",
+                "origin",
+                revision,
+                cwd=export_repo,
+            )
+            self._ensure_free_reserve()
+            export_revision = self._run("rev-parse", "FETCH_HEAD", cwd=export_repo)
+
+            command = ["git", "-C", str(export_repo), "archive", "--format=tar", export_revision]
+            if relative != ".":
+                command += ["--", relative]
+            with stderr_path.open("wb") as stderr_file:
+                process = subprocess.Popen(
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=stderr_file,
+                )
+                assert process.stdout is not None
+                try:
+                    with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
+                        for member in archive:
+                            self._validate_archive_member(member)
+                            required_bytes = member.size if member.isfile() else 0
+                            self._ensure_free_reserve(required_bytes)
+                            archive.extract(member, extracted, filter="fully_trusted")
+                            self._ensure_free_reserve()
+                except tarfile.ReadError as exc:
+                    self._raise_archive_process_error(process, command, stderr_path, exc)
+                self._raise_archive_process_error(process, command, stderr_path)
+
+            exported = extracted if relative == "." else extracted / Path(relative)
+            validate(exported)
+            try:
+                os.replace(exported, destination)
+            except FileExistsError:
+                validate(destination)
+        finally:
+            if process is not None:
+                if process.stdout is not None and not process.stdout.closed:
+                    process.stdout.close()
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+            shutil.rmtree(temp_root, ignore_errors=True)
+
+    @staticmethod
+    def _validate_corpus_snapshot(path: Path) -> None:
+        if not (path / "otype.tf").is_file():
+            raise FileNotFoundError(f"materialized path is not a Text-Fabric dataset: {path}")
+
+    @classmethod
+    def _validate_module_snapshot(cls, path: Path, files: tuple[str, ...]) -> None:
+        present = sorted(candidate.name for candidate in path.glob("*.tf"))
+        cls._validate_feature_module_files(present, str(path))
+        missing = [name for name in files if not (path / name).is_file()]
+        if missing:
+            raise FileNotFoundError(
+                f"materialized Text-Fabric feature module is missing: {', '.join(missing)}"
+            )
+
+    def _materialize_snapshot(
         self,
         repo: Path,
         relative_path: str,
-        revision: str | None = None,
+        revision: str | None,
+        *,
+        kind: str,
+        validate: Callable[[Path], None],
     ) -> Path:
         relative = self._safe_relative_path(relative_path)
-        key = repo.name
-        with self._repository_lock(key):
-            self._run(
-                "checkout",
-                "--quiet",
-                "--force",
-                self._treeish(repo, revision),
-                "--",
-                relative,
-                cwd=repo,
-            )
-        return repo if relative == "." else repo / relative
+        resolved_revision = self._resolved_revision(repo, revision)
+        destination = self._snapshot_destination(
+            repo,
+            resolved_revision,
+            relative,
+            kind=kind,
+        )
+        try:
+            validate(destination)
+            return destination
+        except FileNotFoundError:
+            pass
+
+        with self._repository_lock(repo.name):
+            try:
+                validate(destination)
+            except FileNotFoundError:
+                self._export_snapshot(
+                    repo,
+                    resolved_revision,
+                    relative,
+                    destination,
+                    validate,
+                )
+
+        validate(destination)
+        return destination
 
     def materialize(
         self,
@@ -403,10 +617,13 @@ class GitStore:
         relative_path: str,
         revision: str | None = None,
     ) -> Path:
-        local = self._checkout_path(repo, relative_path, revision)
-        if not (local / "otype.tf").is_file():
-            raise FileNotFoundError(f"materialized path is not a Text-Fabric dataset: {relative_path}")
-        return local
+        return self._materialize_snapshot(
+            repo,
+            relative_path,
+            revision,
+            kind="corpora",
+            validate=self._validate_corpus_snapshot,
+        )
 
     def materialize_feature_module(
         self,
@@ -414,11 +631,16 @@ class GitStore:
         relative_path: str,
         revision: str | None = None,
     ) -> Path:
-        """Materialize a module directory containing non-warp TF feature files."""
-        files = self.feature_files(repo, relative_path, revision)
+        """Materialize an immutable module snapshot containing non-warp TF features."""
+        files = tuple(self.feature_files(repo, relative_path, revision))
         if not files:
             raise FileNotFoundError(
                 f"materialized path is not a Text-Fabric feature module: {relative_path}"
             )
-        local = self._checkout_path(repo, relative_path, revision)
-        return local
+        return self._materialize_snapshot(
+            repo,
+            relative_path,
+            revision,
+            kind="feature-modules",
+            validate=lambda path: self._validate_module_snapshot(path, files),
+        )
