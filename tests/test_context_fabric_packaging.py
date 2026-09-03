@@ -21,7 +21,7 @@ class ContextFabricPackagingTests(unittest.TestCase):
         with (ROOT / "registry" / "v0.1.yaml").open("r", encoding="utf-8") as fh:
             scope = yaml.safe_load(fh)
         self.assertEqual(catalog.ids(), scope["required_resources"])
-        self.assertEqual(len(catalog.ids()), 36)
+        self.assertEqual(len(catalog.ids()), 37)
 
     def test_bundled_catalog_is_a_lossless_projection_of_registry(self):
         expected = build_catalog_document(ROOT)

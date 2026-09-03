@@ -23,12 +23,12 @@ The first implementation is not merely a four-plugin architectural proof of conc
 
 It contains four plugin families:
 
-1. **Context-Fabric** — the complete current Context-Fabric corpus catalog plus TLHdig-TF;
+1. **Context-Fabric** — the complete current Context-Fabric corpus catalog plus TLHdig-TF and the ETCBC Targum Corpus;
 2. **Perseus** — `tonyjurg/Perseus-mcp`;
 3. **Sefaria**;
 4. **Beth Mardutho / SEDRA**.
 
-The current Context-Fabric documentation page says it catalogs "40+" known corpora, while the current `CorporaTable.tsx` source contains 35 concrete entries. Agora v0.1 should use the concrete source-table entries as the baseline and record the snapshot provenance. Adding `alexsosn/TLHdig-TF` gives **36 initial Context-Fabric corpus resources**.
+The current Context-Fabric documentation page says it catalogs "40+" known corpora, while the current `CorporaTable.tsx` source contains 35 concrete entries. Agora v0.1 uses the concrete source-table entries as the baseline and records the snapshot provenance. Adding `alexsosn/TLHdig-TF` and `ETCBC/targum` gives **37 Context-Fabric corpus resources**.
 
 The 35 Context-Fabric catalog entries are:
 
@@ -141,7 +141,7 @@ Several resources may use the same backend, and one plugin may integrate several
 
 A scholarly dataset available through a plugin. Corpora should not automatically become top-level marketplace plugins.
 
-This distinction is essential for Agora v0.1 because the Context-Fabric plugin must expose 36 corpus resources while remaining one plugin family. Repositories such as `pthu/greek_literature` can contain many separately loadable works; treating every work as a marketplace plugin would make discovery unusable.
+This distinction is essential for Agora v0.1 because the Context-Fabric plugin must expose 37 corpus resources while remaining one plugin family. Repositories such as `pthu/greek_literature` can contain many separately loadable works; treating every work as a marketplace plugin would make discovery unusable.
 
 ## 5. Marketplace scope
 
@@ -429,7 +429,7 @@ Avoid importing old architectural coupling simply because working code already e
 3. Can Context-Fabric MCP accept logical TF application/repository identifiers directly, or should Agora add a resolver?
 4. How should Context-Fabric handle dynamically installed corpora: restart, lazy load, or separate process(es)?
 5. How should collection resources such as `pthu/greek_literature` expose individual works without marketplace-entry explosion?
-6. How should Agora test acquisition resolution for all 36 v0.1 Context-Fabric resources without downloading every large corpus on each PR?
+6. How should Agora test acquisition resolution for all 37 v0.1 Context-Fabric resources without downloading every large corpus on each PR?
 7. Which marketplace files must live at fixed paths and therefore cannot remain only under `generated/`?
 8. How should local corpus caches be shared across Claude, Codex, and Antigravity?
 9. How should upstream corpus-catalog changes be detected after the v0.1 baseline is fixed?

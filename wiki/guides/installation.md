@@ -136,11 +136,11 @@ You do not need all four plugins for every project.
 - Install **Sefaria** for Jewish texts, translations, links/commentaries, dictionaries, topics, and manuscript resources exposed by the official Sefaria MCP.
 - Install **SEDRA** for Syriac word-form and lexeme lookup against SEDRA IV.
 
-Installing Context-Fabric does not download all 36 registered resources. Corpus acquisition is lazy.
+Installing Context-Fabric does not download all 37 registered resources. Corpus acquisition is lazy.
 
 ## Verification after installation
 
-Agora CI verifies all four v0.1 plugin integrations by starting/connecting through their generated Codex MCP configuration, initializing MCP, enumerating expected tools, and executing a representative operation. The Context-Fabric source audit separately verifies that all 36 registered v0.1 upstream resources currently resolve to Text-Fabric dataset roots.
+Agora CI verifies all four v0.1 plugin integrations by starting/connecting through their generated Codex MCP configuration, initializing MCP, enumerating expected tools, and executing a representative operation. The Context-Fabric source audit separately verifies that all 37 registered v0.1 upstream resources currently resolve to Text-Fabric dataset roots.
 
 These integration checks do **not** mean that every underlying scholarly resource has Verified data quality. Consult resource status and the plugin's scholarly skills before using a corpus for research conclusions.
 

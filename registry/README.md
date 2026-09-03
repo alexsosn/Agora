@@ -8,6 +8,7 @@ Phase 1 is implemented around the fixed v0.1 scope:
 - four provider records;
 - 35 resources from the Context-Fabric corpus catalog snapshot;
 - `alexsosn/TLHdig-TF` as the 36th Context-Fabric resource;
+- `ETCBC/targum` as the 37th Context-Fabric resource;
 - explicit collection handling for `pthu/bible`, `pthu/patristics`, and `pthu/greek_literature`.
 
 ## Canonical files
@@ -21,7 +22,7 @@ Phase 1 is implemented around the fixed v0.1 scope:
 - `schema/` — JSON Schemas for the canonical registry documents.
 - `collections/` — member indexes for collection resources.
 
-The collection indexes are intentionally `pending`: their schema and references are stable, while actual member enumeration/discovery belongs to the Context-Fabric implementation phase.
+The collection indexes are intentionally dynamic: their schema and references are stable, while current members are discovered lazily from upstream Git tree metadata.
 
 ## Validation
 
@@ -34,7 +35,7 @@ python scripts/generate_marketplaces.py --check
 python -m unittest discover -s tests -v
 ```
 
-Validation checks schema conformance, duplicate IDs, cross-file references, controlled-vocabulary values, collection/index consistency, the exact four-plugin / 36-resource v0.1 contract, and freshness of committed Claude/Codex marketplace artifacts. CI runs the same checks.
+Validation checks schema conformance, duplicate IDs, cross-file references, controlled-vocabulary values, collection/index consistency, the exact four-plugin / 37-resource v0.1 contract, and freshness of committed Claude/Codex marketplace artifacts. CI runs the same checks.
 
 Plugin and resource verification describe distinct Agora-owned integration paths. They do not assess upstream scholarly suitability or data quality. Client-specific marketplace manifests are generated projections, not parallel sources of truth.
 

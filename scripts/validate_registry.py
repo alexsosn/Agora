@@ -206,8 +206,8 @@ def validate_registry(root: Path = ROOT) -> list[str]:
 
     if len(required_plugins) != 4:
         errors.append(f"v0.1.yaml: expected 4 required plugins, found {len(required_plugins)}")
-    if len(required_resources) != 36:
-        errors.append(f"v0.1.yaml: expected 36 required Context-Fabric resources, found {len(required_resources)}")
+    if len(required_resources) != 37:
+        errors.append(f"v0.1.yaml: expected 37 required Context-Fabric resources, found {len(required_resources)}")
 
     for resource_id in required_resources:
         resource = resource_by_id.get(resource_id)
@@ -224,7 +224,7 @@ def main() -> int:
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print("Registry validation passed: marketplace metadata, 4 plugins, 4 providers, 36 v0.1 resources.")
+    print("Registry validation passed: marketplace metadata, 4 plugins, 4 providers, 37 v0.1 resources.")
     return 0
 
 

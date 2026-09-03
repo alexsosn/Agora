@@ -10,6 +10,7 @@ required_resources:
   - dss
   - sp
   - extrabiblical
+  - targum
   - lxx
   - n1904
   - SBLGNT

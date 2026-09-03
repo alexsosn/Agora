@@ -60,6 +60,20 @@ resources:
     verification: {status: community}
     source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
 
+  - id: targum
+    name: ETCBC Targum Corpus
+    plugin: context-fabric
+    provider: context-fabric
+    kind: corpus
+    languages: [aramaic]
+    disciplines: [biblical-studies, judaica, semitic-linguistics]
+    description: Text-Fabric representations of Jewish Aramaic translations of the Hebrew Bible.
+    upstream: {repository: ETCBC/targum}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: ETCBC/targum, checked_at: "2026-09-03"}
+
   - id: lxx
     name: Septuagint
     plugin: context-fabric

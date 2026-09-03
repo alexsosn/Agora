@@ -66,7 +66,7 @@ class RegistryValidationTests(unittest.TestCase):
         with (ROOT / "registry/v0.1.yaml").open("r", encoding="utf-8") as fh:
             scope = yaml.safe_load(fh)
         self.assertEqual(set(scope["required_plugins"]), {"context-fabric", "perseus", "sefaria", "sedra"})
-        self.assertEqual(len(scope["required_resources"]), 36)
+        self.assertEqual(len(scope["required_resources"]), 37)
 
     def test_every_v01_resource_has_integration_coverage_metadata(self):
         with (ROOT / "registry/v0.1.yaml").open("r", encoding="utf-8") as fh:
