@@ -6,7 +6,7 @@ This document collects technical and release-engineering information that is use
 
 The v0.1 marketplace contains four integrations:
 
-- **Context-Fabric** — discovery and lazy acquisition for the fixed 36-resource Text-Fabric/Context-Fabric baseline, including collection-aware handling for repositories containing many independent corpora.
+- **Context-Fabric** — discovery and lazy acquisition for the fixed 37-resource Text-Fabric/Context-Fabric baseline, including collection-aware handling for repositories containing many independent corpora.
 - **Perseus** — pinned upstream `tonyjurg/Perseus-mcp` integration for Perseus/Scaife discovery, CTS navigation, passage retrieval, and search.
 - **Sefaria** — the official hosted Sefaria Texts MCP, with client-specific transport adaptation where required.
 - **SEDRA** — a small read-only Agora MCP adapter over Beth Mardutho's public SEDRA IV word and lexeme JSON endpoints.
@@ -26,7 +26,7 @@ The current live workflow exercises the generated Codex path for all four v0.1 p
 5. at least one representative real operation;
 6. deterministic unit and packaging tests.
 
-Claude launch metadata is tested deterministically but is not currently promoted to live-verified status. Context-Fabric additionally has a scheduled metadata audit over all 36 registered upstream resources; the latest workflow result is the authority for current resolution status.
+Claude launch metadata is tested deterministically but is not currently promoted to live-verified status. Context-Fabric additionally has a scheduled metadata audit over all 37 registered upstream resources; the latest workflow result is the authority for current resolution status.
 
 Plugin-level and resource-level verification are separate integration claims. A working integration does not imply that an underlying corpus is suitable for any particular research use; users must consult the upstream corpus documentation matching the resolved source revision.
 
@@ -112,7 +112,7 @@ Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mard
 - **Phase 0 — foundation:** implemented.
 - **Phase 1 — canonical marketplace/resource model:** implemented.
 - **Phase 2 — deterministic Claude + Codex generation:** implemented.
-- **Phase 3 — Context-Fabric runtime and 36-resource baseline:** implemented at the resolver/provider layer; all 36 upstreams currently pass the source audit.
+- **Phase 3 — Context-Fabric runtime and 37-resource baseline:** implemented at the resolver/provider layer; all 37 upstreams currently pass the source audit.
 - **Phase 4 — Perseus, Sefaria, and SEDRA:** implemented; Codex paths are live-verified, while aggregate plugin status remains Community pending equivalent Claude-path evidence.
 - **Phase 5 — scholarly skills:** underway; eight provider/corpus-specific skills are implemented and CI-validated, with additional resource-specific guidance still to add.
 - **Phase 6 — verification/trust:** client-specific live verification is implemented for Codex paths; deeper resource/member integration verification remains ongoing.

@@ -26,7 +26,7 @@ With the current v0.1 plugins you can, for example:
 - ask the agent to inspect corpus schema and annotation before constructing a query instead of guessing feature names;
 - keep corpus-specific research guidance alongside the tools that use it.
 
-The current Context-Fabric catalog contains **36 registered upstream resources**. Corpora are acquired lazily, so installing the plugin does not download all of them.
+The current Context-Fabric catalog contains **37 registered upstream resources**. Corpora are acquired lazily, so installing the plugin does not download all of them.
 
 ## Installation
 
