@@ -4,7 +4,7 @@ from dataclasses import asdict, is_dataclass
 from typing import Any, Mapping
 
 from .catalog import Catalog, ResourceSpec
-from .resolver import CollectionMember, ContextFabricResolver, PreparedCorpus
+from .resolver import CollectionMember, ContextFabricResolver, PreparedCorpus, dataset_version
 
 
 class ContextFabricService:
@@ -38,19 +38,17 @@ class ContextFabricService:
         registered_modules: list[dict[str, Any]] | None = None
         available_modules: list[dict[str, Any]] | None = None
         if resolve_modules and resource.kind == "corpus":
-            resolver_default = getattr(self.resolver, "default_corpus_version", None)
-            if callable(resolver_default):
-                default_version = resolver_default(resource.id)
+            # Describing a catalog entry must stay deterministic and offline. A
+            # configured TF path is packaged metadata and can therefore expose a
+            # known default version without resolving upstream HEAD. Floating
+            # corpora leave default/availability unknown until prepare/load.
+            if resource.tf_path is not None:
+                default_version = dataset_version(resource.tf_path)
             registered_modules = [
                 self._module_dict(module, default_version)
                 for module in self.catalog.modules_for(resource.id)
             ]
-            if default_version is None:
-                # Lightweight test doubles and alternate resolver adapters may not
-                # expose version resolution. Preserve metadata without claiming a
-                # concrete compatibility result.
-                available_modules = list(registered_modules)
-            else:
+            if default_version is not None:
                 available_modules = [
                     module
                     for module in registered_modules
