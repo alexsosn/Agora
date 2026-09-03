@@ -23,6 +23,12 @@ class ResourceSpec:
     lazy_members: bool = False
     ref: str | None = None
     tf_path: str | None = None
+    parent: str | None = None
+    parent_versions: tuple[str, ...] = ()
+    module_path: str | None = None
+    module_status: str | None = None
+    module_coverage: str | None = None
+    dependencies: tuple[dict[str, Any], ...] = ()
     description: str | None = None
     period: str | None = None
     verification_status: str = "community"
@@ -38,6 +44,12 @@ class Catalog:
         self._by_id = {resource.id: resource for resource in self._resources}
         if len(self._by_id) != len(self._resources):
             raise ValueError("duplicate Context-Fabric resource IDs")
+        self._modules_by_parent: dict[str, list[ResourceSpec]] = {}
+        for resource in self._resources:
+            if resource.kind == "feature-module" and resource.parent:
+                self._modules_by_parent.setdefault(resource.parent, []).append(resource)
+        for modules in self._modules_by_parent.values():
+            modules.sort(key=lambda item: item.id.casefold())
 
     @staticmethod
     def _resources_from_document(doc: dict[str, Any]) -> list[ResourceSpec]:
@@ -49,7 +61,20 @@ class Catalog:
             repository = upstream.get("repository")
             if not repository:
                 raise ValueError(f"resource {item.get('id')!r} has no upstream repository")
+            if item.get("kind") == "feature-module":
+                missing = [
+                    key
+                    for key in ("module", "tf_path")
+                    if not upstream.get(key)
+                ]
+                if missing:
+                    rendered = ", ".join(f"upstream.{key}" for key in missing)
+                    raise ValueError(
+                        f"Context-Fabric feature module {item.get('id')!r} requires {rendered}"
+                    )
             collection = item.get("collection") or {}
+            compatibility = item.get("compatibility") or {}
+            module = item.get("module") or {}
             verification = item.get("verification") or {}
             notes = verification.get("notes") or []
             if isinstance(notes, str):
@@ -70,6 +95,12 @@ class Catalog:
                     lazy_members=bool(collection.get("lazy_members", False)),
                     ref=upstream.get("ref"),
                     tf_path=upstream.get("tf_path"),
+                    parent=item.get("parent"),
+                    parent_versions=tuple(str(value) for value in compatibility.get("parent_versions", [])),
+                    module_path=upstream.get("module"),
+                    module_status=module.get("status"),
+                    module_coverage=module.get("coverage"),
+                    dependencies=tuple(dict(value) for value in upstream.get("dependencies", [])),
                     description=item.get("description"),
                     period=item.get("period"),
                     verification_status=verification.get("status", "community"),
@@ -82,24 +113,44 @@ class Catalog:
         return resources
 
     @classmethod
+    def _from_documents(cls, paths: Iterable[Path]) -> "Catalog":
+        resources: list[ResourceSpec] = []
+        for path in paths:
+            if not path.is_file():
+                continue
+            with path.open("r", encoding="utf-8") as fh:
+                doc = yaml.safe_load(fh)
+            resources.extend(cls._resources_from_document(doc))
+        return cls(resources)
+
+    @classmethod
     def from_registry(cls, root: Path) -> "Catalog":
         root = Path(root)
-        with (root / "registry" / "resources.yaml").open("r", encoding="utf-8") as fh:
-            doc = yaml.safe_load(fh)
-        return cls(cls._resources_from_document(doc))
+        return cls._from_documents(
+            (
+                root / "registry" / "resources.yaml",
+                root / "registry" / "feature-modules.yaml",
+            )
+        )
 
     @classmethod
     def from_plugin_root(cls, plugin_root: Path) -> "Catalog":
         plugin_root = Path(plugin_root)
-        with (plugin_root / "resources" / "catalog.yaml").open("r", encoding="utf-8") as fh:
-            doc = yaml.safe_load(fh)
-        return cls(cls._resources_from_document(doc))
+        return cls._from_documents(
+            (
+                plugin_root / "resources" / "catalog.yaml",
+                plugin_root / "resources" / "feature-modules.yaml",
+            )
+        )
 
     def ids(self) -> list[str]:
         return [resource.id for resource in self._resources]
 
     def resources(self) -> list[ResourceSpec]:
         return list(self._resources)
+
+    def modules_for(self, parent_id: str) -> list[ResourceSpec]:
+        return list(self._modules_by_parent.get(parent_id, ()))
 
     def get(self, resource_id: str) -> ResourceSpec:
         try:
@@ -131,6 +182,10 @@ class Catalog:
                     resource.description or "",
                     resource.period or "",
                     resource.repository,
+                    resource.parent or "",
+                    resource.module_path or "",
+                    resource.module_status or "",
+                    resource.module_coverage or "",
                     *resource.languages,
                     *resource.disciplines,
                     *resource.integration_issues,

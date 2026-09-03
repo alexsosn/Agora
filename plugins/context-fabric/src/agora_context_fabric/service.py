@@ -4,7 +4,7 @@ from dataclasses import asdict, is_dataclass
 from typing import Any, Mapping
 
 from .catalog import Catalog, ResourceSpec
-from .resolver import CollectionMember, ContextFabricResolver, PreparedCorpus
+from .resolver import CollectionMember, ContextFabricResolver, PreparedCorpus, dataset_version
 
 
 class ContextFabricService:
@@ -16,7 +16,45 @@ class ContextFabricService:
         self.loader = loader
 
     @staticmethod
-    def _resource_dict(resource: ResourceSpec) -> dict[str, Any]:
+    def _module_dict(module: ResourceSpec, default_version: str | None = None) -> dict[str, Any]:
+        return {
+            "id": module.id,
+            "name": module.name,
+            "status": module.module_status,
+            "coverage": module.module_coverage,
+            "compatible_parent_versions": list(module.parent_versions),
+            "compatible_with_default": (
+                default_version in module.parent_versions if default_version is not None else None
+            ),
+        }
+
+    def _resource_dict(
+        self,
+        resource: ResourceSpec,
+        *,
+        resolve_modules: bool = False,
+    ) -> dict[str, Any]:
+        default_version: str | None = None
+        registered_modules: list[dict[str, Any]] | None = None
+        available_modules: list[dict[str, Any]] | None = None
+        if resolve_modules and resource.kind == "corpus":
+            # Describing a catalog entry must stay deterministic and offline. A
+            # configured TF path is packaged metadata and can therefore expose a
+            # known default version without resolving upstream HEAD. Floating
+            # corpora leave default/availability unknown until prepare/load.
+            if resource.tf_path is not None:
+                default_version = dataset_version(resource.tf_path)
+            registered_modules = [
+                self._module_dict(module, default_version)
+                for module in self.catalog.modules_for(resource.id)
+            ]
+            if default_version is not None:
+                available_modules = [
+                    module
+                    for module in registered_modules
+                    if module["compatible_with_default"]
+                ]
+
         return {
             "id": resource.id,
             "name": resource.name,
@@ -26,6 +64,23 @@ class ContextFabricService:
             "repository": resource.repository,
             "languages": list(resource.languages),
             "disciplines": list(resource.disciplines),
+            "parent": resource.parent,
+            "compatibility": (
+                {"parent_versions": list(resource.parent_versions)}
+                if resource.kind == "feature-module"
+                else None
+            ),
+            "module": (
+                {
+                    "status": resource.module_status,
+                    "coverage": resource.module_coverage,
+                }
+                if resource.kind == "feature-module"
+                else None
+            ),
+            "default_version": default_version,
+            "available_modules": available_modules,
+            "registered_modules": registered_modules,
             "member_index": resource.member_index,
             "collection": (
                 {
@@ -48,6 +103,8 @@ class ContextFabricService:
                 "repository": resource.repository,
                 "configured_ref": resource.ref,
                 "tf_path": resource.tf_path,
+                "module": resource.module_path,
+                "dependencies": [dict(value) for value in resource.dependencies],
             },
         }
 
@@ -86,18 +143,18 @@ class ContextFabricService:
         discipline: str | None = None,
         kind: str | None = None,
     ) -> list[dict[str, Any]]:
-        return [
-            self._resource_dict(resource)
-            for resource in self.catalog.search(
-                query,
-                language=language,
-                discipline=discipline,
-                kind=kind,
-            )
-        ]
+        matches = self.catalog.search(
+            query,
+            language=language,
+            discipline=discipline,
+            kind=kind,
+        )
+        if kind is None:
+            matches = [resource for resource in matches if resource.kind != "feature-module"]
+        return [self._resource_dict(resource) for resource in matches]
 
     def describe_resource(self, resource_id: str) -> dict[str, Any]:
-        return self._resource_dict(self.catalog.get(resource_id))
+        return self._resource_dict(self.catalog.get(resource_id), resolve_modules=True)
 
     def list_members(
         self,
@@ -158,8 +215,13 @@ class ContextFabricService:
         resource_id: str,
         *,
         member_id: str | None = None,
+        version: str | None = None,
+        modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        prepared = self.resolver.prepare(resource_id, member_id=member_id)
+        kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
+        if version is not None:
+            kwargs["version"] = version
+        prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
         return self._prepared_dict(prepared)
 
     @staticmethod
@@ -169,8 +231,18 @@ class ContextFabricService:
             "member_id": prepared.member_id,
             "logical_name": prepared.logical_name,
             "relative_path": prepared.relative_path,
+            "version": prepared.version,
             "path": str(prepared.path),
             "source_revision": prepared.source_revision,
+            "modules": [
+                {
+                    "id": module.resource_id,
+                    "module": module.module_path,
+                    "relative_path": module.relative_path,
+                    "source_revision": module.source_revision,
+                }
+                for module in prepared.modules
+            ],
         }
 
     def load(
@@ -178,9 +250,14 @@ class ContextFabricService:
         resource_id: str,
         *,
         member_id: str | None = None,
+        version: str | None = None,
         features: str | list[str] | None = None,
+        modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        prepared = self.resolver.prepare(resource_id, member_id=member_id)
+        kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
+        if version is not None:
+            kwargs["version"] = version
+        prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
         info = self.loader.load(
             str(prepared.path),
             name=prepared.logical_name,
@@ -195,13 +272,18 @@ class ContextFabricService:
         resource_id: str,
         *,
         member_id: str | None = None,
+        version: str | None = None,
         features: str | list[str] | None = None,
+        modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        result = self.load(
-            resource_id,
-            member_id=member_id,
-            features=features,
-        )
+        kwargs: dict[str, Any] = {
+            "member_id": member_id,
+            "features": features,
+            "modules": modules,
+        }
+        if version is not None:
+            kwargs["version"] = version
+        result = self.load(resource_id, **kwargs)
         compatible = dict(result)
         compatible["features"] = features
         return compatible

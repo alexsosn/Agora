@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
-from dataclasses import dataclass
+import shutil
+import tempfile
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Iterable
 
@@ -21,13 +24,25 @@ class CollectionMember:
 
 
 @dataclass(frozen=True)
+class PreparedFeatureModule:
+    resource_id: str
+    parent_resource_id: str
+    module_path: str
+    relative_path: str
+    path: Path
+    source_revision: str | None = None
+
+
+@dataclass(frozen=True)
 class PreparedCorpus:
     resource_id: str
     member_id: str | None
     logical_name: str
     relative_path: str
     path: Path
+    version: str | None = None
     source_revision: str | None = None
+    modules: tuple[PreparedFeatureModule, ...] = ()
 
 
 def _member_identity_path(path: str) -> str:
@@ -85,6 +100,24 @@ def select_dataset_root(roots: Iterable[str]) -> str:
     return max(candidates, key=_dataset_rank)
 
 
+def dataset_version(path: str) -> str:
+    normalized = path.replace("\\", "/").strip("/")
+    if not normalized or normalized == ".":
+        return "."
+    return PurePosixPath(normalized).name
+
+
+def select_dataset_version(roots: Iterable[str], version: str) -> str:
+    candidates = [root for root in roots if dataset_version(root) == version]
+    if not candidates:
+        available = sorted({dataset_version(root) for root in roots}, key=_natural_tokens)
+        rendered = ", ".join(available) if available else "none"
+        raise ValueError(
+            f"Text-Fabric dataset version {version!r} was not found; available versions: {rendered}"
+        )
+    return select_dataset_root(candidates)
+
+
 class ContextFabricResolver:
     def __init__(self, catalog: Catalog, store: GitStore):
         self.catalog = catalog
@@ -98,16 +131,51 @@ class ContextFabricResolver:
         return repo, self.store.selected_revision(repo)
 
     @staticmethod
-    def _select_resource_root(resource: ResourceSpec, roots: Iterable[str]) -> str:
+    def _select_resource_root(
+        resource: ResourceSpec,
+        roots: Iterable[str],
+        version: str | None = None,
+    ) -> str:
         candidates = list(roots)
         if resource.tf_path is None:
-            return select_dataset_root(candidates)
+            if version is None:
+                return select_dataset_root(candidates)
+            return select_dataset_version(candidates, version)
+
         normalized = resource.tf_path.replace("\\", "/").strip("/") or "."
+        configured_version = dataset_version(normalized)
+        if version is not None and version != configured_version:
+            raise ValueError(
+                f"resource {resource.id!r} is pinned to Text-Fabric version {configured_version!r}, "
+                f"not requested version {version!r}"
+            )
         if normalized not in candidates:
             raise ValueError(
                 f"configured Text-Fabric path {resource.tf_path!r} was not found for resource {resource.id!r}"
             )
         return normalized
+
+    def corpus_versions(self, resource_id: str) -> tuple[str, ...]:
+        resource = self.catalog.get(resource_id)
+        if resource.kind != "corpus":
+            raise ValueError(f"resource {resource_id!r} is not a corpus")
+        repo, revision = self._repo(resource)
+        roots = self.store.dataset_roots(repo, revision)
+        if resource.tf_path is not None:
+            relative = self._select_resource_root(resource, roots)
+            return (dataset_version(relative),)
+        return tuple(sorted({dataset_version(root) for root in roots}, key=_natural_tokens))
+
+    def default_corpus_version(self, resource_id: str) -> str:
+        resource = self.catalog.get(resource_id)
+        if resource.kind != "corpus":
+            raise ValueError(f"resource {resource_id!r} is not a corpus")
+        repo, revision = self._repo(resource)
+        relative = self._select_resource_root(
+            resource,
+            self.store.dataset_roots(repo, revision),
+        )
+        return dataset_version(relative)
 
     def _collection_members_from_roots(
         self, resource: ResourceSpec, roots: Iterable[str]
@@ -121,10 +189,6 @@ class ContextFabricResolver:
         for identity, versions in grouped.items():
             selected = select_dataset_root(versions)
             parts = PurePosixPath(identity).parts
-            # Only preserve the old convenience labels for the simple
-            # author/work layout used by some repositories. Deeper repository
-            # layouts (CTS IDs, edition/version segments, etc.) are identifiers,
-            # not scholarly author/title metadata.
             author = parts[0] if len(parts) == 2 else None
             title = parts[1] if len(parts) == 2 else None
             members.append(
@@ -169,10 +233,23 @@ class ContextFabricResolver:
                 matches.append(member)
         return matches
 
-    def prepare(self, resource_id: str, *, member_id: str | None = None) -> PreparedCorpus:
+    def prepare(
+        self,
+        resource_id: str,
+        *,
+        member_id: str | None = None,
+        version: str | None = None,
+    ) -> PreparedCorpus:
         resource = self.catalog.get(resource_id)
 
+        if resource.kind == "feature-module":
+            raise ValueError(
+                f"feature module {resource_id!r} must be selected while preparing its parent corpus {resource.parent!r}"
+            )
+
         if resource.kind == "collection":
+            if version is not None:
+                raise ValueError("version selection is supported only for corpus resources")
             if not member_id:
                 raise ValueError(f"member_id is required for collection resource {resource_id!r}")
             repo, revision = self._repo(resource)
@@ -189,12 +266,14 @@ class ContextFabricResolver:
                     f"unknown member {member_id!r} in collection {resource_id!r}"
                 ) from exc
             local = self.store.materialize(repo, member.relative_path, revision)
+            resolved_version = dataset_version(member.relative_path)
             return PreparedCorpus(
                 resource_id=resource.id,
                 member_id=member.id,
                 logical_name=f"{resource.id}:{member.id}",
                 relative_path=member.relative_path,
                 path=local,
+                version=resolved_version,
                 source_revision=revision,
             )
 
@@ -202,14 +281,138 @@ class ContextFabricResolver:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
         repo, revision = self._repo(resource)
         relative = self._select_resource_root(
-            resource, self.store.dataset_roots(repo, revision)
+            resource,
+            self.store.dataset_roots(repo, revision),
+            version,
         )
+        resolved_version = dataset_version(relative)
         local = self.store.materialize(repo, relative, revision)
+        logical_name = resource.id if version is None else f"{resource.id}@{resolved_version}"
         return PreparedCorpus(
             resource_id=resource.id,
             member_id=None,
-            logical_name=resource.id,
+            logical_name=logical_name,
             relative_path=relative,
             path=local,
+            version=resolved_version,
             source_revision=revision,
+        )
+
+    def _prepare_feature_modules(
+        self,
+        prepared: PreparedCorpus,
+        module_ids: Iterable[str],
+    ) -> tuple[PreparedFeatureModule, ...]:
+        parent = self.catalog.get(prepared.resource_id)
+        if parent.kind != "corpus":
+            raise ValueError("feature modules can currently be selected only for corpus resources")
+
+        version = prepared.version or dataset_version(prepared.relative_path)
+        seen: set[str] = set()
+        selected: list[PreparedFeatureModule] = []
+        for module_id in module_ids:
+            if module_id in seen:
+                raise ValueError(f"feature module {module_id!r} was selected more than once")
+            seen.add(module_id)
+            module = self.catalog.get(module_id)
+            if module.kind != "feature-module":
+                raise ValueError(f"resource {module_id!r} is not a feature module")
+            if module.parent != parent.id:
+                raise ValueError(
+                    f"feature module {module_id!r} belongs to {module.parent!r}, not {parent.id!r}"
+                )
+            if version not in module.parent_versions:
+                compatible = ", ".join(module.parent_versions)
+                raise ValueError(
+                    f"feature module {module_id!r} is not compatible with {parent.id!r} version {version!r}; "
+                    f"compatible versions: {compatible}"
+                )
+            if not module.tf_path or not module.module_path:
+                raise ValueError(f"feature module {module_id!r} has incomplete upstream path metadata")
+            repo, revision = self._repo(module)
+            local = self.store.materialize_feature_module(repo, module.tf_path, revision)
+            selected.append(
+                PreparedFeatureModule(
+                    resource_id=module.id,
+                    parent_resource_id=parent.id,
+                    module_path=module.module_path,
+                    relative_path=module.tf_path,
+                    path=local,
+                    source_revision=revision,
+                )
+            )
+        return tuple(selected)
+
+    @staticmethod
+    def _link_features(source: Path, target: Path, *, allow_warp: bool) -> None:
+        for source_file in sorted(source.glob("*.tf")):
+            if not allow_warp and source_file.name in GitStore.FORBIDDEN_FEATURE_MODULE_FILES:
+                raise ValueError(
+                    f"feature module cannot replace parent warp file {source_file.name!r}"
+                )
+            destination = target / source_file.name
+            if destination.exists():
+                destination.unlink()
+            try:
+                os.link(source_file, destination)
+            except OSError:
+                shutil.copy2(source_file, destination)
+
+    def _overlay(self, prepared: PreparedCorpus, modules: tuple[PreparedFeatureModule, ...]) -> Path:
+        digest_input = "\n".join(
+            [
+                prepared.resource_id,
+                prepared.relative_path,
+                prepared.source_revision or "",
+                *(
+                    f"{module.resource_id}:{module.relative_path}:{module.source_revision or ''}"
+                    for module in modules
+                ),
+            ]
+        )
+        digest = hashlib.sha256(digest_input.encode("utf-8")).hexdigest()[:16]
+        overlays = self.store.cache_dir / "overlays"
+        overlays.mkdir(parents=True, exist_ok=True)
+        destination = overlays / f"{self.store.safe_cache_key(prepared.logical_name)}-{digest}"
+        if destination.is_dir():
+            return destination
+
+        temporary = Path(tempfile.mkdtemp(prefix=f".{destination.name}-", dir=overlays))
+        try:
+            self._link_features(prepared.path, temporary, allow_warp=True)
+            for module in modules:
+                self._link_features(module.path, temporary, allow_warp=False)
+            if not (temporary / "otype.tf").is_file():
+                raise FileNotFoundError("composed Text-Fabric corpus has no otype.tf")
+            try:
+                temporary.rename(destination)
+            except FileExistsError:
+                pass
+        finally:
+            if temporary.exists():
+                shutil.rmtree(temporary)
+        return destination
+
+    def prepare_with_modules(
+        self,
+        resource_id: str,
+        *,
+        member_id: str | None = None,
+        version: str | None = None,
+        modules: Iterable[str] | None = None,
+    ) -> PreparedCorpus:
+        prepared = self.prepare(resource_id, member_id=member_id, version=version)
+        module_ids = tuple(modules or ())
+        if not module_ids:
+            return prepared
+        selected = self._prepare_feature_modules(prepared, module_ids)
+        overlay = self._overlay(prepared, selected)
+        logical_name = "+".join(
+            [prepared.logical_name, *(module.resource_id for module in selected)]
+        )
+        return replace(
+            prepared,
+            logical_name=logical_name,
+            path=overlay,
+            modules=selected,
         )

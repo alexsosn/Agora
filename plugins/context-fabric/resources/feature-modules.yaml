@@ -1,0 +1,372 @@
+schema_version: 1
+resources:
+  - id: bhsa-phono
+    name: BHSA phonetic features
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: standard}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: ETCBC phonetic features for BHSA.
+    upstream: {repository: ETCBC/phono, module: ETCBC/phono/tf, tf_path: tf/2021}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-parallels
+    name: BHSA similar passages
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: standard}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: ETCBC similar-passage features for BHSA.
+    upstream: {repository: ETCBC/parallels, module: ETCBC/parallels/tf, tf_path: tf/2021}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-trees
+    name: BHSA sentence trees
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: optional}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: ETCBC tree-structure features for BHSA.
+    upstream: {repository: ETCBC/trees, module: ETCBC/trees/tf, tf_path: tf/2021}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-valence
+    name: BHSA valence features
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: optional}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: ETCBC valence annotations for BHSA.
+    upstream: {repository: ETCBC/valence, module: ETCBC/valence/tf, tf_path: tf/2021}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-bridging
+    name: BHSA bridging morphology
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: optional}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: ETCBC module aligning additional Open Scriptures morphology with BHSA.
+    upstream:
+      repository: ETCBC/bridging
+      module: ETCBC/bridging/tf
+      tf_path: tf/2021
+      dependencies:
+        - {repository: openscriptures/morphhb, role: source-data}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: upstream-dependent, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-heads
+    name: BHSA head features
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: optional}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: ETCBC head annotations from the canonical standalone heads repository.
+    upstream: {repository: ETCBC/heads, module: ETCBC/heads/tf, tf_path: tf/2021}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-genre-synvar
+    name: BHSA genre and syntactic-variation features
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: optional}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: ETCBC genre and syntactic-variation annotations for BHSA.
+    upstream: {repository: ETCBC/genre_synvar, module: ETCBC/genre_synvar/tf, tf_path: tf/2021}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: experimental}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-bhsaddons
+    name: BHS add-on features
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: community}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: CenterBLC add-on feature bundle for BHSA/BHS.
+    upstream: {repository: CenterBLC/BHSaddons, module: CenterBLC/BHSaddons/tf, tf_path: tf/2021}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-ud-tf
+    name: BHSA Universal Dependencies features
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: community}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: Community Universal Dependencies-derived features aligned to BHSA.
+    upstream: {repository: mr-martian/bhsa-ud-tf, module: mr-martian/bhsa-ud-tf/tf, tf_path: tf/2021}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: upstream-dependent, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-cantillation-trees
+    name: BHSA cantillation trees
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: community}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: Cantillation-derived tree representations and structural features aligned to BHSA 2021.
+    upstream:
+      repository: alexsosn/BHSA-cantillation-trees
+      module: alexsosn/BHSA-cantillation-trees/tf
+      tf_path: tf/2021
+      dependencies:
+        - repository: openscriptures/morphhb
+          ref: 3d15126fb1ef74867fc1434be1942e837932691f
+          role: source-data
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: upstream-dependent, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: alexsosn/BHSA-cantillation-trees:sources.json, checked_at: "2026-09-03"}
+
+  - id: n1904-bolcomplement
+    name: N1904 BOL complement
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: n1904
+    compatibility: {parent_versions: ["1.0.0"]}
+    module: {status: optional}
+    languages: [greek]
+    disciplines: [biblical-studies, classics]
+    description: BOL complement feature bundle distributed inside CenterBLC/N1904.
+    upstream: {repository: CenterBLC/N1904, module: CenterBLC/N1904/BOLcomplement/tf, tf_path: BOLcomplement/tf/1.0.0}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: dss-parallels
+    name: DSS similar passages
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: dss
+    compatibility: {parent_versions: ["2.0"]}
+    module: {status: standard}
+    languages: [hebrew]
+    disciplines: [biblical-studies, judaica]
+    description: Similar-passage features distributed with the ETCBC Dead Sea Scrolls corpus.
+    upstream: {repository: ETCBC/dss, module: ETCBC/dss/parallels/tf, tf_path: parallels/tf/2.0}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: community}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-participants-actor
+    name: BHSA participant actor annotations
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["c"]}
+    module:
+      status: narrow-scope
+      coverage: Leviticus 17-26 only.
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: Actor and coreference annotations for a limited BHSA passage range.
+    upstream: {repository: ch-jensen/participants, module: ch-jensen/participants/actor/tf, tf_path: actor/tf/c}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: CC-BY-NC-4.0, redistribution: restricted}
+    verification: {status: experimental}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-strongs
+    name: BHSA Strong's identifiers
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: community}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: Community Strong's identifier feature aligned to BHSA 2021.
+    upstream: {repository: cbop-dev/tf-bhsa-strongs, module: cbop-dev/tf-bhsa-strongs/tf, tf_path: tf/2021}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: experimental}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: bhsa-bdb
+    name: BHSA BDB links
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: bhsa
+    compatibility: {parent_versions: ["2021"]}
+    module: {status: community}
+    languages: [hebrew]
+    disciplines: [biblical-studies, semitic-linguistics]
+    description: Community BDB-entry linkage features aligned to BHSA 2021.
+    upstream: {repository: cbop-dev/bhsa-bdb, module: cbop-dev/bhsa-bdb/tf, tf_path: tf/2021}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: experimental}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: descartes-parallels
+    name: Descartes correspondence parallels
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: descartes-tf
+    compatibility: {parent_versions: ["1.1"]}
+    module: {status: legacy}
+    languages: [french, latin, dutch]
+    disciplines: [history]
+    description: Archived similar-passage module for the Descartes correspondence corpus.
+    upstream: {repository: CLARIAH/descartes-tf, module: CLARIAH/descartes-tf/parallels/tf, tf_path: parallels/tf/1.1}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: experimental}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: oldassyrian-parallels
+    name: Old Assyrian parallels
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: oldassyrian
+    compatibility: {parent_versions: ["0.1"]}
+    module: {status: legacy}
+    languages: [akkadian]
+    disciplines: [assyriology, semitic-linguistics]
+    description: Archived similar-passage features for the Old Assyrian corpus.
+    upstream: {repository: Nino-cunei/oldassyrian, module: Nino-cunei/oldassyrian/parallels/tf, tf_path: parallels/tf/0.1}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: experimental}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: oldbabylonian-parallels
+    name: Old Babylonian parallels
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: oldbabylonian
+    compatibility: {parent_versions: ["1.0.6"]}
+    module: {status: legacy}
+    languages: [akkadian]
+    disciplines: [assyriology, semitic-linguistics]
+    description: Archived similar-passage features for the Old Babylonian letters corpus.
+    upstream: {repository: Nino-cunei/oldbabylonian, module: Nino-cunei/oldbabylonian/parallels/tf, tf_path: parallels/tf/1.0.6}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: experimental}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: ninmed-parallels
+    name: Nineveh medical parallels
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: ninmed
+    compatibility: {parent_versions: ["0.3"]}
+    module: {status: legacy}
+    languages: [akkadian]
+    disciplines: [assyriology]
+    description: Archived similar-passage features for the Nineveh medical corpus.
+    upstream: {repository: Nino-cunei/ninmed, module: Nino-cunei/ninmed/parallels/tf, tf_path: parallels/tf/0.3}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: experimental}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: quran-parallels
+    name: Quran parallels
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: quran
+    compatibility: {parent_versions: ["0.4"]}
+    module: {status: legacy}
+    languages: [arabic]
+    disciplines: [islamic-studies, semitic-linguistics]
+    description: Archived similar-passage features for the Quranic Arabic Corpus.
+    upstream: {repository: q-ran/quran, module: q-ran/quran/parallels/tf, tf_path: parallels/tf/0.4}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: experimental}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: banks-sim
+    name: Consider Phlebas similarity features
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: banks
+    compatibility: {parent_versions: ["0.2"]}
+    module: {status: demo}
+    languages: [english]
+    disciplines: [literary-studies]
+    description: Text-Fabric documentation/demo similarity module for the Consider Phlebas corpus.
+    upstream: {repository: annotation/banks, module: annotation/banks/sim/tf, tf_path: sim/tf/0.2}
+    acquisition: {strategy: repository, lazy: true}
+    licenses: {data: unknown, redistribution: unknown}
+    verification: {status: experimental}
+    source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}

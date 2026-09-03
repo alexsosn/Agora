@@ -65,6 +65,12 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     plugins_doc = load_yaml(registry / "plugins.yaml")
     providers_doc = load_yaml(registry / "providers.yaml")
     resources_doc = load_yaml(registry / "resources.yaml")
+    feature_modules_path = registry / "feature-modules.yaml"
+    feature_modules_doc = (
+        load_yaml(feature_modules_path)
+        if feature_modules_path.is_file()
+        else {"schema_version": resources_doc["schema_version"], "resources": []}
+    )
     vocab = load_yaml(registry / "vocabularies.yaml")
     scope_doc = load_yaml(registry / "v0.1.yaml")
 
@@ -72,15 +78,24 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     errors += schema_errors(plugins_doc, schema / "plugins.schema.json", "plugins.yaml")
     errors += schema_errors(providers_doc, schema / "providers.schema.json", "providers.yaml")
     errors += schema_errors(resources_doc, schema / "resources.schema.json", "resources.yaml")
+    if feature_modules_path.is_file():
+        errors += schema_errors(
+            feature_modules_doc,
+            schema / "resources.schema.json",
+            "feature-modules.yaml",
+        )
     errors += schema_errors(scope_doc, schema / "release-scope.schema.json", "v0.1.yaml")
 
     plugins = plugins_doc.get("plugins", [])
     providers = providers_doc.get("providers", [])
-    resources = resources_doc.get("resources", [])
+    resources = [
+        *resources_doc.get("resources", []),
+        *feature_modules_doc.get("resources", []),
+    ]
 
     errors += duplicate_errors(plugins, "plugins.yaml")
     errors += duplicate_errors(providers, "providers.yaml")
-    errors += duplicate_errors(resources, "resources.yaml")
+    errors += duplicate_errors(resources, "resource registry")
 
     plugin_by_id = {item["id"]: item for item in plugins}
     provider_by_id = {item["id"]: item for item in providers}
@@ -90,6 +105,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     runtime_modes = set(vocab["runtime_modes"])
     data_modes = set(vocab["data_modes"])
     resource_kinds = set(vocab["resource_kinds"])
+    feature_module_statuses = set(vocab.get("feature_module_statuses", []))
     acquisition = set(vocab["acquisition_strategies"])
     collection_discovery = set(vocab["collection_discovery_modes"])
     collection_index_status = set(vocab["collection_index_statuses"])
@@ -159,6 +175,21 @@ def validate_registry(root: Path = ROOT) -> list[str]:
         ensure_vocab(resource["licenses"]["redistribution"], redistribution, f"{prefix}.licenses.redistribution", errors)
         ensure_vocab(resource["verification"]["status"], verification, f"{prefix}.verification.status", errors)
 
+        if resource["kind"] == "feature-module":
+            parent = resource_by_id.get(resource["parent"])
+            if parent is None:
+                errors.append(f"{prefix}: references missing parent resource {resource['parent']!r}")
+            elif parent["kind"] != "corpus":
+                errors.append(f"{prefix}: parent {resource['parent']!r} must be a corpus resource")
+            elif parent["plugin"] != resource["plugin"] or parent["provider"] != resource["provider"]:
+                errors.append(f"{prefix}: parent must use the same plugin and provider")
+            ensure_vocab(
+                resource["module"]["status"],
+                feature_module_statuses,
+                f"{prefix}.module.status",
+                errors,
+            )
+
         if resource["kind"] == "collection":
             if resource["acquisition"]["strategy"] != "collection":
                 errors.append(f"{prefix}: collection resources must use acquisition.strategy='collection'")
@@ -224,7 +255,7 @@ def main() -> int:
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print("Registry validation passed: marketplace metadata, 4 plugins, 4 providers, 37 v0.1 resources.")
+    print("Registry validation passed: marketplace metadata, resources, and feature modules.")
     return 0
 
 

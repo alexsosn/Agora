@@ -15,10 +15,13 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         discipline: str | None = None,
         kind: str | None = None,
     ) -> list[dict[str, Any]]:
-        """List Agora's available Context-Fabric corpora and collections.
+        """List Agora's directly loadable Context-Fabric corpora and collections.
 
-        Filters are optional. Use kind='collection' to discover collection
-        resources whose member corpora are loaded independently.
+        By default feature modules are excluded so every returned item can be
+        passed to prepare_corpus/load_corpus. Use kind='feature-module' to
+        discover optional modules explicitly. Parent corpus descriptions expose
+        modules compatible with the default selected version and all registered
+        modules with their compatible parent versions.
         """
         return service.list_resources(
             query,
@@ -29,7 +32,7 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
 
     @mcp.tool()
     def describe_available_corpus(resource_id: str) -> dict[str, Any]:
-        """Describe one available Agora corpus or collection resource."""
+        """Describe one available Agora corpus, collection, or feature module."""
         return service.describe_resource(resource_id)
 
     @mcp.tool()
@@ -51,19 +54,36 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
     def prepare_corpus(
         resource_id: str,
         member_id: str | None = None,
+        version: str | None = None,
+        modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Acquire/cache a corpus without loading it into Context-Fabric yet."""
-        return service.prepare(resource_id, member_id=member_id)
+        """Acquire/cache a corpus version and optional registered feature modules.
+
+        For ordinary corpora, version selects a Text-Fabric dataset version such
+        as '2021' or 'c'. Module values are Agora feature-module resource IDs
+        associated with this corpus. The order is significant: when modules
+        contain the same non-warp TF feature name, later selected modules take
+        precedence, matching Text-Fabric module ordering.
+        """
+        kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
+        if version is not None:
+            kwargs["version"] = version
+        return service.prepare(resource_id, **kwargs)
 
     @mcp.tool()
     def load_corpus(
         resource_id: str,
         member_id: str | None = None,
+        version: str | None = None,
         features: str | list[str] | None = None,
+        modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Acquire and load a corpus into the running Context-Fabric MCP server."""
-        return service.load(
-            resource_id,
-            member_id=member_id,
-            features=features,
-        )
+        """Acquire and load a corpus version with optional registered feature modules."""
+        kwargs: dict[str, Any] = {
+            "member_id": member_id,
+            "features": features,
+            "modules": modules,
+        }
+        if version is not None:
+            kwargs["version"] = version
+        return service.load(resource_id, **kwargs)

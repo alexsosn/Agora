@@ -55,16 +55,18 @@ class FakeService:
         )
         return {"members": [{"id": "member"}]}
 
-    def prepare(self, resource_id, *, member_id=None):
-        self.calls.append(("prepare", (resource_id,), {"member_id": member_id}))
+    def prepare(self, resource_id, *, member_id=None, modules=None):
+        self.calls.append(
+            ("prepare", (resource_id,), {"member_id": member_id, "modules": modules})
+        )
         return {"logical_name": resource_id}
 
-    def load(self, resource_id, *, member_id=None, features=None):
+    def load(self, resource_id, *, member_id=None, features=None, modules=None):
         self.calls.append(
             (
                 "load",
                 (resource_id,),
-                {"member_id": member_id, "features": features},
+                {"member_id": member_id, "features": features, "modules": modules},
             )
         )
         return {"logical_name": resource_id}
@@ -119,11 +121,23 @@ class ToolRegistrationTests(unittest.TestCase):
             ),
         )
 
-    def test_load_tool_delegates_member_and_features(self):
+    def test_prepare_tool_delegates_selected_modules(self):
+        self.mcp.tools["prepare_corpus"]("bhsa", modules=["bhsa-trees"])
+        self.assertEqual(
+            self.service.calls[-1],
+            (
+                "prepare",
+                ("bhsa",),
+                {"member_id": None, "modules": ["bhsa-trees"]},
+            ),
+        )
+
+    def test_load_tool_delegates_member_features_and_modules(self):
         result = self.mcp.tools["load_corpus"](
             "greek_literature",
             member_id="homer-iliad-a1b2c3d4",
             features=["otype", "word"],
+            modules=["example-module"],
         )
         self.assertEqual(result, {"logical_name": "greek_literature"})
         self.assertEqual(
@@ -134,6 +148,7 @@ class ToolRegistrationTests(unittest.TestCase):
                 {
                     "member_id": "homer-iliad-a1b2c3d4",
                     "features": ["otype", "word"],
+                    "modules": ["example-module"],
                 },
             ),
         )

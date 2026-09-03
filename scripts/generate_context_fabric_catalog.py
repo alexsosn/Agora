@@ -10,6 +10,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = Path("plugins/context-fabric/resources/catalog.yaml")
+MODULE_OUTPUT = Path("plugins/context-fabric/resources/feature-modules.yaml")
 
 
 def load_yaml(path: Path) -> Any:
@@ -36,14 +37,34 @@ def build_catalog_document(root: Path = ROOT) -> dict[str, Any]:
             raise ValueError(
                 f"v0.1 Context-Fabric resource {resource_id!r} is missing from registry/resources.yaml"
             ) from exc
-        # Keep the full canonical record. Runtime parsing can ignore fields it
-        # does not yet consume, but generation must never discard descriptive,
-        # licensing, integration-verification, provenance, or integration-issue metadata.
         ordered.append(item)
 
     return {
         "schema_version": resources_doc["schema_version"],
         "resources": ordered,
+    }
+
+
+def build_feature_modules_document(root: Path = ROOT) -> dict[str, Any]:
+    """Build the installed feature-module catalog losslessly from the registry shard."""
+    root = Path(root)
+    document = load_yaml(root / "registry" / "feature-modules.yaml")
+    resources: list[dict[str, Any]] = []
+    for item in document.get("resources", []):
+        if item.get("plugin") != "context-fabric":
+            continue
+        if item.get("kind") == "feature-module":
+            upstream = item.get("upstream") or {}
+            missing = [key for key in ("module", "tf_path") if not upstream.get(key)]
+            if missing:
+                rendered = ", ".join(f"upstream.{key}" for key in missing)
+                raise ValueError(
+                    f"Context-Fabric feature module {item.get('id')!r} requires {rendered}"
+                )
+        resources.append(item)
+    return {
+        "schema_version": document["schema_version"],
+        "resources": resources,
     }
 
 
@@ -60,26 +81,36 @@ def generate(root: Path = ROOT) -> str:
     return catalog_text(build_catalog_document(root))
 
 
+def generate_feature_modules(root: Path = ROOT) -> str:
+    return catalog_text(build_feature_modules_document(root))
+
+
 def check(root: Path = ROOT) -> list[str]:
     root = Path(root)
-    expected = build_catalog_document(root)
-    path = root / OUTPUT
-    if not path.is_file():
-        return [f"missing generated runtime catalog: {OUTPUT}"]
-    actual = load_yaml(path)
-    if actual != expected:
-        return [f"stale generated runtime catalog: {OUTPUT}"]
-    return []
+    expected_documents = (
+        (OUTPUT, build_catalog_document(root)),
+        (MODULE_OUTPUT, build_feature_modules_document(root)),
+    )
+    errors: list[str] = []
+    for relative_path, expected in expected_documents:
+        path = root / relative_path
+        if not path.is_file():
+            errors.append(f"missing generated runtime catalog: {relative_path}")
+            continue
+        actual = load_yaml(path)
+        if actual != expected:
+            errors.append(f"stale generated runtime catalog: {relative_path}")
+    return errors
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Generate the self-contained Context-Fabric plugin resource catalog."
+        description="Generate the self-contained Context-Fabric plugin resource catalogs."
     )
     parser.add_argument(
         "--check",
         action="store_true",
-        help="Fail if the committed runtime catalog is missing or stale.",
+        help="Fail if the committed runtime catalogs are missing or stale.",
     )
     args = parser.parse_args()
 
@@ -89,13 +120,18 @@ def main() -> int:
             for error in errors:
                 print(error, file=sys.stderr)
             return 1
-        print("Context-Fabric runtime catalog is fresh and lossless.")
+        print("Context-Fabric runtime catalogs are fresh and lossless.")
         return 0
 
-    path = ROOT / OUTPUT
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(generate(ROOT), encoding="utf-8")
-    print(f"Wrote {OUTPUT}")
+    outputs = (
+        (OUTPUT, generate(ROOT)),
+        (MODULE_OUTPUT, generate_feature_modules(ROOT)),
+    )
+    for relative_path, text in outputs:
+        path = ROOT / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        print(f"Wrote {relative_path}")
     return 0
 
 
