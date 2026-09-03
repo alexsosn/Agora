@@ -15,11 +15,13 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         discipline: str | None = None,
         kind: str | None = None,
     ) -> list[dict[str, Any]]:
-        """List Agora's available Context-Fabric resources.
+        """List Agora's directly loadable Context-Fabric corpora and collections.
 
-        Filters are optional. Use kind='collection' for collection resources or
-        kind='feature-module' to discover optional modules. Corpus descriptions
-        also include their available module IDs.
+        By default feature modules are excluded so every returned item can be
+        passed to prepare_corpus/load_corpus. Use kind='feature-module' to
+        discover optional modules explicitly. Parent corpus descriptions expose
+        modules compatible with the default selected version and all registered
+        modules with their compatible parent versions.
         """
         return service.list_resources(
             query,
@@ -52,28 +54,37 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
     def prepare_corpus(
         resource_id: str,
         member_id: str | None = None,
+        version: str | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Acquire/cache a corpus and optional registered feature modules.
+        """Acquire/cache a corpus version and optional registered feature modules.
 
-        Module values are Agora feature-module resource IDs associated with this
-        corpus. The order is significant: when modules contain the same TF
-        feature name, later selected modules take precedence, matching
-        Text-Fabric module ordering.
+        For ordinary corpora, version selects a Text-Fabric dataset version such
+        as '2021' or 'c'. Module values are Agora feature-module resource IDs
+        associated with this corpus. The order is significant: when modules
+        contain the same non-warp TF feature name, later selected modules take
+        precedence, matching Text-Fabric module ordering.
         """
-        return service.prepare(resource_id, member_id=member_id, modules=modules)
+        return service.prepare(
+            resource_id,
+            member_id=member_id,
+            version=version,
+            modules=modules,
+        )
 
     @mcp.tool()
     def load_corpus(
         resource_id: str,
         member_id: str | None = None,
+        version: str | None = None,
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Acquire and load a corpus with optional registered feature modules."""
+        """Acquire and load a corpus version with optional registered feature modules."""
         return service.load(
             resource_id,
             member_id=member_id,
+            version=version,
             features=features,
             modules=modules,
         )
