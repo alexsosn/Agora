@@ -40,6 +40,7 @@ class PreparedCorpus:
     logical_name: str
     relative_path: str
     path: Path
+    version: str | None = None
     source_revision: str | None = None
     modules: tuple[PreparedFeatureModule, ...] = ()
 
@@ -106,6 +107,17 @@ def dataset_version(path: str) -> str:
     return PurePosixPath(normalized).name
 
 
+def select_dataset_version(roots: Iterable[str], version: str) -> str:
+    candidates = [root for root in roots if dataset_version(root) == version]
+    if not candidates:
+        available = sorted({dataset_version(root) for root in roots}, key=_natural_tokens)
+        rendered = ", ".join(available) if available else "none"
+        raise ValueError(
+            f"Text-Fabric dataset version {version!r} was not found; available versions: {rendered}"
+        )
+    return select_dataset_root(candidates)
+
+
 class ContextFabricResolver:
     def __init__(self, catalog: Catalog, store: GitStore):
         self.catalog = catalog
@@ -119,16 +131,51 @@ class ContextFabricResolver:
         return repo, self.store.selected_revision(repo)
 
     @staticmethod
-    def _select_resource_root(resource: ResourceSpec, roots: Iterable[str]) -> str:
+    def _select_resource_root(
+        resource: ResourceSpec,
+        roots: Iterable[str],
+        version: str | None = None,
+    ) -> str:
         candidates = list(roots)
         if resource.tf_path is None:
-            return select_dataset_root(candidates)
+            if version is None:
+                return select_dataset_root(candidates)
+            return select_dataset_version(candidates, version)
+
         normalized = resource.tf_path.replace("\\", "/").strip("/") or "."
+        configured_version = dataset_version(normalized)
+        if version is not None and version != configured_version:
+            raise ValueError(
+                f"resource {resource.id!r} is pinned to Text-Fabric version {configured_version!r}, "
+                f"not requested version {version!r}"
+            )
         if normalized not in candidates:
             raise ValueError(
                 f"configured Text-Fabric path {resource.tf_path!r} was not found for resource {resource.id!r}"
             )
         return normalized
+
+    def corpus_versions(self, resource_id: str) -> tuple[str, ...]:
+        resource = self.catalog.get(resource_id)
+        if resource.kind != "corpus":
+            raise ValueError(f"resource {resource_id!r} is not a corpus")
+        repo, revision = self._repo(resource)
+        roots = self.store.dataset_roots(repo, revision)
+        if resource.tf_path is not None:
+            relative = self._select_resource_root(resource, roots)
+            return (dataset_version(relative),)
+        return tuple(sorted({dataset_version(root) for root in roots}, key=_natural_tokens))
+
+    def default_corpus_version(self, resource_id: str) -> str:
+        resource = self.catalog.get(resource_id)
+        if resource.kind != "corpus":
+            raise ValueError(f"resource {resource_id!r} is not a corpus")
+        repo, revision = self._repo(resource)
+        relative = self._select_resource_root(
+            resource,
+            self.store.dataset_roots(repo, revision),
+        )
+        return dataset_version(relative)
 
     def _collection_members_from_roots(
         self, resource: ResourceSpec, roots: Iterable[str]
@@ -186,7 +233,13 @@ class ContextFabricResolver:
                 matches.append(member)
         return matches
 
-    def prepare(self, resource_id: str, *, member_id: str | None = None) -> PreparedCorpus:
+    def prepare(
+        self,
+        resource_id: str,
+        *,
+        member_id: str | None = None,
+        version: str | None = None,
+    ) -> PreparedCorpus:
         resource = self.catalog.get(resource_id)
 
         if resource.kind == "feature-module":
@@ -195,6 +248,8 @@ class ContextFabricResolver:
             )
 
         if resource.kind == "collection":
+            if version is not None:
+                raise ValueError("version selection is supported only for corpus resources")
             if not member_id:
                 raise ValueError(f"member_id is required for collection resource {resource_id!r}")
             repo, revision = self._repo(resource)
@@ -211,12 +266,14 @@ class ContextFabricResolver:
                     f"unknown member {member_id!r} in collection {resource_id!r}"
                 ) from exc
             local = self.store.materialize(repo, member.relative_path, revision)
+            resolved_version = dataset_version(member.relative_path)
             return PreparedCorpus(
                 resource_id=resource.id,
                 member_id=member.id,
                 logical_name=f"{resource.id}:{member.id}",
                 relative_path=member.relative_path,
                 path=local,
+                version=resolved_version,
                 source_revision=revision,
             )
 
@@ -224,15 +281,20 @@ class ContextFabricResolver:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
         repo, revision = self._repo(resource)
         relative = self._select_resource_root(
-            resource, self.store.dataset_roots(repo, revision)
+            resource,
+            self.store.dataset_roots(repo, revision),
+            version,
         )
+        resolved_version = dataset_version(relative)
         local = self.store.materialize(repo, relative, revision)
+        logical_name = resource.id if version is None else f"{resource.id}@{resolved_version}"
         return PreparedCorpus(
             resource_id=resource.id,
             member_id=None,
-            logical_name=resource.id,
+            logical_name=logical_name,
             relative_path=relative,
             path=local,
+            version=resolved_version,
             source_revision=revision,
         )
 
@@ -245,7 +307,7 @@ class ContextFabricResolver:
         if parent.kind != "corpus":
             raise ValueError("feature modules can currently be selected only for corpus resources")
 
-        version = dataset_version(prepared.relative_path)
+        version = prepared.version or dataset_version(prepared.relative_path)
         seen: set[str] = set()
         selected: list[PreparedFeatureModule] = []
         for module_id in module_ids:
@@ -282,8 +344,12 @@ class ContextFabricResolver:
         return tuple(selected)
 
     @staticmethod
-    def _link_features(source: Path, target: Path) -> None:
+    def _link_features(source: Path, target: Path, *, allow_warp: bool) -> None:
         for source_file in sorted(source.glob("*.tf")):
+            if not allow_warp and source_file.name in GitStore.FORBIDDEN_FEATURE_MODULE_FILES:
+                raise ValueError(
+                    f"feature module cannot replace parent warp file {source_file.name!r}"
+                )
             destination = target / source_file.name
             if destination.exists():
                 destination.unlink()
@@ -313,9 +379,9 @@ class ContextFabricResolver:
 
         temporary = Path(tempfile.mkdtemp(prefix=f".{destination.name}-", dir=overlays))
         try:
-            self._link_features(prepared.path, temporary)
+            self._link_features(prepared.path, temporary, allow_warp=True)
             for module in modules:
-                self._link_features(module.path, temporary)
+                self._link_features(module.path, temporary, allow_warp=False)
             if not (temporary / "otype.tf").is_file():
                 raise FileNotFoundError("composed Text-Fabric corpus has no otype.tf")
             try:
@@ -332,9 +398,10 @@ class ContextFabricResolver:
         resource_id: str,
         *,
         member_id: str | None = None,
+        version: str | None = None,
         modules: Iterable[str] | None = None,
     ) -> PreparedCorpus:
-        prepared = self.prepare(resource_id, member_id=member_id)
+        prepared = self.prepare(resource_id, member_id=member_id, version=version)
         module_ids = tuple(modules or ())
         if not module_ids:
             return prepared
