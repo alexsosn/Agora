@@ -15,7 +15,7 @@ if str(PLUGIN_SRC) not in sys.path:
 
 from agora_context_fabric.catalog import Catalog
 from agora_context_fabric.gitstore import GitStore
-from agora_context_fabric.resolver import select_dataset_root
+from agora_context_fabric.resolver import dataset_version, select_dataset_root
 
 
 def _selected_root(resource, roots: list[str]) -> str:
@@ -32,6 +32,33 @@ def _selected_root(resource, roots: list[str]) -> str:
 def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
     resources: list[dict[str, Any]] = []
     failed = 0
+    parent_states: dict[str, dict[str, Any]] = {}
+
+    def parent_state(parent_id: str) -> dict[str, Any]:
+        cached = parent_states.get(parent_id)
+        if cached is not None:
+            return cached
+        parent = catalog.get(parent_id)
+        if parent.kind != "corpus":
+            raise ValueError(f"feature-module parent {parent_id!r} is not a corpus")
+        kwargs = {"cache_key": parent.id}
+        if parent.ref is not None:
+            kwargs["ref"] = parent.ref
+        repo = store.ensure_metadata(parent.repository, **kwargs)
+        revision = store.selected_revision(repo)
+        roots = store.dataset_roots(repo)
+        if not roots:
+            raise ValueError(f"parent corpus {parent_id!r} has no Text-Fabric dataset roots")
+        selected = _selected_root(parent, roots)
+        state = {
+            "source_revision": revision,
+            "roots": roots,
+            "versions": sorted({dataset_version(root) for root in roots}),
+            "default_root": selected,
+            "default_version": dataset_version(selected),
+        }
+        parent_states[parent_id] = state
+        return state
 
     for resource in catalog:
         item: dict[str, Any] = {
@@ -52,7 +79,8 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
             if resource.ref is not None:
                 kwargs["ref"] = resource.ref
             repo = store.ensure_metadata(resource.repository, **kwargs)
-            item["source_revision"] = store.selected_revision(repo)
+            revision = store.selected_revision(repo)
+            item["source_revision"] = revision
 
             if resource.kind == "feature-module":
                 if not resource.tf_path:
@@ -62,10 +90,24 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
                     raise ValueError(
                         f"no direct .tf feature files found under {resource.tf_path!r}"
                     )
+                if not resource.parent_versions:
+                    raise ValueError("feature module declares no compatible parent versions")
+                state = parent_state(resource.parent or "")
+                missing_versions = sorted(set(resource.parent_versions) - set(state["versions"]))
+                if missing_versions:
+                    raise ValueError(
+                        f"parent corpus {resource.parent!r} does not expose declared compatible version(s): "
+                        f"{', '.join(missing_versions)}"
+                    )
                 item["status"] = "ok"
                 item["module"] = resource.module_path
                 item["feature_file_count"] = len(feature_files)
                 item["sample_features"] = feature_files[:10]
+                item["parent_source_revision"] = state["source_revision"]
+                item["parent_available_versions"] = state["versions"]
+                item["parent_default_version"] = state["default_version"]
+                item["compatible_with_default"] = state["default_version"] in resource.parent_versions
+                item["verified_parent_versions"] = list(resource.parent_versions)
             else:
                 roots = store.dataset_roots(repo)
                 if not roots:
@@ -75,7 +117,15 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
                 if resource.kind == "collection":
                     item["sample_roots"] = roots[:10]
                 else:
-                    item["selected_root"] = _selected_root(resource, roots)
+                    selected = _selected_root(resource, roots)
+                    item["selected_root"] = selected
+                    parent_states[resource.id] = {
+                        "source_revision": revision,
+                        "roots": roots,
+                        "versions": sorted({dataset_version(root) for root in roots}),
+                        "default_root": selected,
+                        "default_version": dataset_version(selected),
+                    }
         except Exception as exc:  # audit must report all upstream failures
             failed += 1
             item["status"] = "error"
@@ -120,7 +170,14 @@ def main() -> int:
 
     catalog = Catalog.from_plugin_root(PLUGIN_ROOT)
     if args.resource_ids:
-        catalog = Catalog([catalog.get(resource_id) for resource_id in args.resource_ids])
+        selected = [catalog.get(resource_id) for resource_id in args.resource_ids]
+        parents = [
+            catalog.get(resource.parent)
+            for resource in selected
+            if resource.kind == "feature-module" and resource.parent
+        ]
+        by_id = {resource.id: resource for resource in [*parents, *selected]}
+        catalog = Catalog(by_id.values())
 
     report = audit_catalog(catalog, GitStore(args.cache_dir))
     text = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
