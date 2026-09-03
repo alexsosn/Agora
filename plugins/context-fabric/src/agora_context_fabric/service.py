@@ -24,9 +24,6 @@ class ContextFabricService:
         self.catalog = catalog
         self.resolver = resolver
         self.loader = loader
-        # Discovery/description tests and alternate embedding code may provide a
-        # resolver without a cache store. Production ContextFabricResolver always
-        # has one; cache-management operations explicitly require it.
         self.store = getattr(resolver, "store", None)
         self._loaded_leases: dict[str, Any] = {}
         self._loaded_names_lock = threading.RLock()
@@ -391,6 +388,7 @@ class ContextFabricService:
         result = store.remove_cache_objects(
             [Path(str(entry["path"])) for entry in matched]
         )
+        blocked = int(result.get("blocked_by_transition", 0))
         return {
             "resource_id": resource_id,
             "member_id": member_id,
@@ -398,7 +396,7 @@ class ContextFabricService:
             "matched_entries": len(matched),
             "matched_bytes": sum(int(entry["size_bytes"]) for entry in matched),
             **result,
-            "complete": result["skipped_in_use"] == 0,
+            "complete": result["skipped_in_use"] == 0 and blocked == 0,
         }
 
     def load_resource(
