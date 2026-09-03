@@ -52,13 +52,12 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
             if resource.ref is not None:
                 kwargs["ref"] = resource.ref
             repo = store.ensure_metadata(resource.repository, **kwargs)
-            revision = store.selected_revision(repo)
-            item["source_revision"] = revision
+            item["source_revision"] = store.selected_revision(repo)
 
             if resource.kind == "feature-module":
                 if not resource.tf_path:
                     raise ValueError("feature module has no configured TF path")
-                feature_files = store.feature_files(repo, resource.tf_path, revision)
+                feature_files = store.feature_files(repo, resource.tf_path)
                 if not feature_files:
                     raise ValueError(
                         f"no direct .tf feature files found under {resource.tf_path!r}"
@@ -68,7 +67,7 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
                 item["feature_file_count"] = len(feature_files)
                 item["sample_features"] = feature_files[:10]
             else:
-                roots = store.dataset_roots(repo, revision)
+                roots = store.dataset_roots(repo)
                 if not roots:
                     raise ValueError("no Text-Fabric dataset roots were discovered")
                 item["status"] = "ok"
