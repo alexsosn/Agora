@@ -17,6 +17,7 @@ from agora_context_fabric.resolver import (
     CollectionMember,
     ContextFabricResolver,
     PreparedCorpus,
+    PreparedFeatureModule,
     member_id_from_path,
     select_dataset_root,
 )
@@ -24,13 +25,17 @@ from agora_context_fabric.service import ContextFabricService
 
 
 class CatalogTests(unittest.TestCase):
-    def test_catalog_contains_exact_v01_context_fabric_scope(self):
+    def test_catalog_contains_v01_scope_and_registered_feature_modules(self):
         catalog = Catalog.from_registry(ROOT)
         with (ROOT / "registry/v0.1.yaml").open("r", encoding="utf-8") as fh:
             import yaml
 
             scope = yaml.safe_load(fh)
-        self.assertEqual(catalog.ids(), scope["required_resources"])
+        self.assertTrue(set(scope["required_resources"]).issubset(catalog.ids()))
+        modules = catalog.search(kind="feature-module")
+        self.assertEqual(len(modules), 21)
+        self.assertEqual(catalog.get("bhsa-cantillation-trees").parent, "bhsa")
+        self.assertEqual(catalog.get("bhsa-cantillation-trees").parent_versions, ("2021",))
 
     def test_catalog_preserves_collection_semantics(self):
         catalog = Catalog.from_registry(ROOT)
@@ -61,14 +66,25 @@ class SelectionTests(unittest.TestCase):
 
 
 class GitStoreTests(unittest.TestCase):
-    def _make_repository(self, root: Path) -> Path:
-        source = root / "source"
-        source.mkdir()
+    @staticmethod
+    def _init_repo(source: Path) -> None:
         import subprocess
 
         subprocess.run(["git", "init", "-q", "-b", "main"], cwd=source, check=True)
         subprocess.run(["git", "config", "user.email", "tests@example.invalid"], cwd=source, check=True)
         subprocess.run(["git", "config", "user.name", "Agora Tests"], cwd=source, check=True)
+
+    @staticmethod
+    def _commit(source: Path, message: str = "fixture") -> None:
+        import subprocess
+
+        subprocess.run(["git", "add", "."], cwd=source, check=True)
+        subprocess.run(["git", "commit", "-qm", message], cwd=source, check=True)
+
+    def _make_repository(self, root: Path) -> Path:
+        source = root / "source"
+        source.mkdir()
+        self._init_repo(source)
         for version in ("1.0", "2.0"):
             tf = source / "tf" / version
             tf.mkdir(parents=True)
@@ -76,8 +92,17 @@ class GitStoreTests(unittest.TestCase):
             (tf / "word.tf").write_text(f"version-{version}\n", encoding="utf-8")
         large = source / "unrelated-large-file.bin"
         large.write_bytes(b"x" * 1024)
-        subprocess.run(["git", "add", "."], cwd=source, check=True)
-        subprocess.run(["git", "commit", "-qm", "fixture"], cwd=source, check=True)
+        self._commit(source)
+        return source
+
+    def _make_module_repository(self, root: Path, feature_text: str = "module\n") -> Path:
+        source = root / "module-source"
+        source.mkdir()
+        self._init_repo(source)
+        tf = source / "tf" / "2.0"
+        tf.mkdir(parents=True)
+        (tf / "addon.tf").write_text(feature_text, encoding="utf-8")
+        self._commit(source)
         return source
 
     def test_metadata_clone_discovers_dataset_roots_without_full_checkout(self):
@@ -101,16 +126,22 @@ class GitStoreTests(unittest.TestCase):
             self.assertFalse((repo / "tf/1.0/otype.tf").exists())
             self.assertFalse((repo / "unrelated-large-file.bin").exists())
 
+    def test_materialize_feature_module_does_not_require_otype(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            source = self._make_module_repository(tmp_path)
+            store = GitStore(tmp_path / "cache")
+            repo = store.ensure_metadata(str(source), cache_key="module")
+            selected = store.materialize_feature_module(repo, "tf/2.0")
+            self.assertTrue((selected / "addon.tf").is_file())
+            self.assertFalse((selected / "otype.tf").exists())
+
 
 class ResolverTests(unittest.TestCase):
     def _make_collection_repository(self, root: Path) -> Path:
         source = root / "collection-source"
         source.mkdir()
-        import subprocess
-
-        subprocess.run(["git", "init", "-q", "-b", "main"], cwd=source, check=True)
-        subprocess.run(["git", "config", "user.email", "tests@example.invalid"], cwd=source, check=True)
-        subprocess.run(["git", "config", "user.name", "Agora Tests"], cwd=source, check=True)
+        GitStoreTests._init_repo(source)
         datasets = [
             "Homer/Iliad/tf/1.0",
             "Homer/Iliad/tf/2.0",
@@ -122,8 +153,7 @@ class ResolverTests(unittest.TestCase):
             (tf / "otype.tf").write_text("@node\n", encoding="utf-8")
             (tf / "text.tf").write_text(dataset, encoding="utf-8")
         (source / "huge-source.xml").write_bytes(b"z" * 2048)
-        subprocess.run(["git", "add", "."], cwd=source, check=True)
-        subprocess.run(["git", "commit", "-qm", "fixture"], cwd=source, check=True)
+        GitStoreTests._commit(source)
         return source
 
     def test_prepare_ordinary_resource_selects_latest_tf_dataset(self):
@@ -149,6 +179,85 @@ class ResolverTests(unittest.TestCase):
             self.assertEqual(prepared.relative_path, "tf/2.0")
             self.assertEqual(prepared.logical_name, "fixture")
             self.assertTrue((prepared.path / "otype.tf").is_file())
+
+    def test_selected_feature_module_is_composed_with_parent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            parent_source = GitStoreTests()._make_repository(tmp_path)
+            module_source = GitStoreTests()._make_module_repository(tmp_path)
+            catalog = Catalog(
+                [
+                    ResourceSpec(
+                        id="fixture",
+                        name="Fixture corpus",
+                        plugin="context-fabric",
+                        provider="context-fabric",
+                        kind="corpus",
+                        repository=str(parent_source),
+                        languages=("test",),
+                        disciplines=("testing",),
+                    ),
+                    ResourceSpec(
+                        id="fixture-addon",
+                        name="Fixture add-on",
+                        plugin="context-fabric",
+                        provider="context-fabric",
+                        kind="feature-module",
+                        repository=str(module_source),
+                        languages=("test",),
+                        disciplines=("testing",),
+                        tf_path="tf/2.0",
+                        parent="fixture",
+                        parent_versions=("2.0",),
+                        module_path="example/fixture-addon/tf",
+                        module_status="optional",
+                    ),
+                ]
+            )
+            resolver = ContextFabricResolver(catalog, GitStore(tmp_path / "cache"))
+            prepared = resolver.prepare_with_modules("fixture", modules=["fixture-addon"])
+            self.assertTrue((prepared.path / "otype.tf").is_file())
+            self.assertTrue((prepared.path / "word.tf").is_file())
+            self.assertTrue((prepared.path / "addon.tf").is_file())
+            self.assertEqual([module.resource_id for module in prepared.modules], ["fixture-addon"])
+
+    def test_feature_module_parent_version_is_enforced_before_materialization(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            parent_source = GitStoreTests()._make_repository(tmp_path)
+            module_source = GitStoreTests()._make_module_repository(tmp_path)
+            catalog = Catalog(
+                [
+                    ResourceSpec(
+                        id="fixture",
+                        name="Fixture corpus",
+                        plugin="context-fabric",
+                        provider="context-fabric",
+                        kind="corpus",
+                        repository=str(parent_source),
+                        languages=("test",),
+                        disciplines=("testing",),
+                    ),
+                    ResourceSpec(
+                        id="legacy-addon",
+                        name="Legacy add-on",
+                        plugin="context-fabric",
+                        provider="context-fabric",
+                        kind="feature-module",
+                        repository=str(module_source),
+                        languages=("test",),
+                        disciplines=("testing",),
+                        tf_path="tf/2.0",
+                        parent="fixture",
+                        parent_versions=("1.0",),
+                        module_path="example/legacy-addon/tf",
+                        module_status="legacy",
+                    ),
+                ]
+            )
+            resolver = ContextFabricResolver(catalog, GitStore(tmp_path / "cache"))
+            with self.assertRaisesRegex(ValueError, "not compatible"):
+                resolver.prepare_with_modules("fixture", modules=["legacy-addon"])
 
     def test_collection_members_are_discovered_and_loaded_individually(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -237,6 +346,29 @@ class FakeResolver:
             path=Path("/tmp/agora-fixture/tf/1.0"),
         )
 
+    def prepare_with_modules(self, resource_id: str, *, member_id=None, modules=None):
+        prepared = self.prepare(resource_id, member_id=member_id)
+        if not modules:
+            return prepared
+        selected = tuple(
+            PreparedFeatureModule(
+                resource_id=module_id,
+                parent_resource_id=resource_id,
+                module_path=f"example/{module_id}/tf",
+                relative_path="tf/1.0",
+                path=Path(f"/tmp/{module_id}"),
+            )
+            for module_id in modules
+        )
+        return PreparedCorpus(
+            resource_id=prepared.resource_id,
+            member_id=prepared.member_id,
+            logical_name=prepared.logical_name,
+            relative_path=prepared.relative_path,
+            path=Path("/tmp/agora-fixture/overlay"),
+            modules=selected,
+        )
+
 
 class FakeLoader:
     def __init__(self):
@@ -264,8 +396,30 @@ class ServiceTests(unittest.TestCase):
             {"bible", "patristics", "greek_literature", "translatin-manif"},
         )
 
-        dead = service.list_resources(query="dead sea")
+        modules = service.list_resources(kind="feature-module")
+        self.assertEqual(len(modules), 21)
+
+        dead = service.list_resources(query="dead sea", kind="corpus")
         self.assertEqual([item["id"] for item in dead], ["dss"])
+
+    def test_parent_description_surfaces_available_modules(self):
+        service = ContextFabricService(Catalog.from_registry(ROOT), FakeResolver(), FakeLoader())
+        bhsa = service.describe_resource("bhsa")
+        ids = {module["id"] for module in bhsa["available_modules"]}
+        self.assertIn("bhsa-cantillation-trees", ids)
+        module = service.describe_resource("bhsa-cantillation-trees")
+        self.assertEqual(module["parent"], "bhsa")
+        self.assertEqual(module["compatibility"]["parent_versions"], ["2021"])
+        self.assertEqual(
+            module["source"]["dependencies"],
+            [
+                {
+                    "repository": "openscriptures/morphhb",
+                    "ref": "3d15126fb1ef74867fc1434be1942e837932691f",
+                    "role": "source-data",
+                }
+            ],
+        )
 
     def test_collection_member_search_is_paginated(self):
         greek = ResourceSpec(
@@ -333,6 +487,37 @@ class ServiceTests(unittest.TestCase):
             loader.calls,
             [("/tmp/agora-fixture/tf/1.0", "fixture", ["lex", "sp"])],
         )
+
+    def test_loading_passes_selected_modules_through_resolver_overlay(self):
+        corpus = ResourceSpec(
+            id="fixture",
+            name="Fixture",
+            plugin="context-fabric",
+            provider="context-fabric",
+            kind="corpus",
+            repository="unused/repository",
+            languages=("test",),
+            disciplines=("testing",),
+        )
+        module = ResourceSpec(
+            id="addon",
+            name="Add-on",
+            plugin="context-fabric",
+            provider="context-fabric",
+            kind="feature-module",
+            repository="unused/module",
+            languages=("test",),
+            disciplines=("testing",),
+            parent="fixture",
+            parent_versions=("1.0",),
+            module_path="example/addon/tf",
+            module_status="optional",
+        )
+        loader = FakeLoader()
+        service = ContextFabricService(Catalog([corpus, module]), FakeResolver(), loader)
+        result = service.load("fixture", modules=["addon"])
+        self.assertEqual([item["id"] for item in result["modules"]], ["addon"])
+        self.assertEqual(loader.calls[0][0], "/tmp/agora-fixture/overlay")
 
 
 if __name__ == "__main__":
