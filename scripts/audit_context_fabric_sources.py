@@ -44,22 +44,39 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
             item["ref"] = resource.ref
         if resource.tf_path is not None:
             item["configured_tf_path"] = resource.tf_path
+        if resource.parent is not None:
+            item["parent"] = resource.parent
+            item["compatible_parent_versions"] = list(resource.parent_versions)
         try:
             kwargs = {"cache_key": resource.id}
             if resource.ref is not None:
                 kwargs["ref"] = resource.ref
             repo = store.ensure_metadata(resource.repository, **kwargs)
-            item["source_revision"] = store.selected_revision(repo)
-            roots = store.dataset_roots(repo)
-            if not roots:
-                raise ValueError("no Text-Fabric dataset roots were discovered")
+            revision = store.selected_revision(repo)
+            item["source_revision"] = revision
 
-            item["status"] = "ok"
-            item["dataset_root_count"] = len(roots)
-            if resource.kind == "collection":
-                item["sample_roots"] = roots[:10]
+            if resource.kind == "feature-module":
+                if not resource.tf_path:
+                    raise ValueError("feature module has no configured TF path")
+                feature_files = store.feature_files(repo, resource.tf_path, revision)
+                if not feature_files:
+                    raise ValueError(
+                        f"no direct .tf feature files found under {resource.tf_path!r}"
+                    )
+                item["status"] = "ok"
+                item["module"] = resource.module_path
+                item["feature_file_count"] = len(feature_files)
+                item["sample_features"] = feature_files[:10]
             else:
-                item["selected_root"] = _selected_root(resource, roots)
+                roots = store.dataset_roots(repo, revision)
+                if not roots:
+                    raise ValueError("no Text-Fabric dataset roots were discovered")
+                item["status"] = "ok"
+                item["dataset_root_count"] = len(roots)
+                if resource.kind == "collection":
+                    item["sample_roots"] = roots[:10]
+                else:
+                    item["selected_root"] = _selected_root(resource, roots)
         except Exception as exc:  # audit must report all upstream failures
             failed += 1
             item["status"] = "error"
@@ -79,7 +96,7 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Audit the v0.1 Context-Fabric upstream repositories using Git tree metadata only. "
+            "Audit registered Context-Fabric corpora, collections, and feature modules using Git tree metadata only. "
             "Corpus blobs are not materialized."
         )
     )
