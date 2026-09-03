@@ -12,6 +12,7 @@ on:
       - 'scripts/audit_context_fabric_sources.py'
       - 'plugins/context-fabric/resources/catalog.yaml'
       - 'plugins/context-fabric/resources/feature-modules.yaml'
+      - 'plugins/context-fabric/src/agora_context_fabric/catalog.py'
       - 'plugins/context-fabric/src/agora_context_fabric/gitstore.py'
       - 'plugins/context-fabric/src/agora_context_fabric/resolver.py'
   push:
@@ -23,6 +24,7 @@ on:
       - 'scripts/audit_context_fabric_sources.py'
       - 'plugins/context-fabric/resources/catalog.yaml'
       - 'plugins/context-fabric/resources/feature-modules.yaml'
+      - 'plugins/context-fabric/src/agora_context_fabric/catalog.py'
       - 'plugins/context-fabric/src/agora_context_fabric/gitstore.py'
       - 'plugins/context-fabric/src/agora_context_fabric/resolver.py'
 
