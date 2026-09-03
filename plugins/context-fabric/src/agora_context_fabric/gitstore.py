@@ -19,6 +19,7 @@ class GitStore:
     """
 
     SELECTED_REF = "refs/agora/selected"
+    FORBIDDEN_FEATURE_MODULE_FILES = frozenset({"otype.tf", "oslots.tf", "otext.tf"})
 
     def __init__(self, cache_dir: Path):
         self.cache_dir = Path(cache_dir).expanduser()
@@ -160,13 +161,26 @@ class GitStore:
                 roots.add(normalized[: -len("/otype.tf")])
         return sorted(roots)
 
+    @classmethod
+    def _validate_feature_module_files(
+        cls,
+        files: list[str],
+        relative_path: str,
+    ) -> None:
+        forbidden = sorted(set(files) & cls.FORBIDDEN_FEATURE_MODULE_FILES)
+        if forbidden:
+            raise ValueError(
+                f"Text-Fabric feature module {relative_path!r} contains parent warp file(s): "
+                f"{', '.join(forbidden)}"
+            )
+
     def feature_files(
         self,
         repo: Path,
         relative_path: str,
         revision: str | None = None,
     ) -> list[str]:
-        """Return direct `.tf` files under a repository path using Git metadata only."""
+        """Return direct non-warp `.tf` files under a feature-module path."""
         relative = self._safe_relative_path(relative_path)
         parent = PurePosixPath("" if relative == "." else relative)
         result: list[str] = []
@@ -174,7 +188,9 @@ class GitStore:
             path = PurePosixPath(name)
             if path.suffix == ".tf" and path.parent == parent:
                 result.append(path.name)
-        return sorted(result)
+        result = sorted(result)
+        self._validate_feature_module_files(result, relative_path)
+        return result
 
     @staticmethod
     def _safe_relative_path(relative_path: str) -> str:
@@ -223,10 +239,11 @@ class GitStore:
         relative_path: str,
         revision: str | None = None,
     ) -> Path:
-        """Materialize a module directory containing one or more TF feature files."""
-        local = self._checkout_path(repo, relative_path, revision)
-        if not local.is_dir() or not any(local.glob("*.tf")):
+        """Materialize a module directory containing non-warp TF feature files."""
+        files = self.feature_files(repo, relative_path, revision)
+        if not files:
             raise FileNotFoundError(
                 f"materialized path is not a Text-Fabric feature module: {relative_path}"
             )
+        local = self._checkout_path(repo, relative_path, revision)
         return local
