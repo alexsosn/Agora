@@ -131,9 +131,10 @@ class SourceAuditTests(unittest.TestCase):
         self.assertEqual(item["configured_tf_path"], "tf/0.1.0")
         self.assertEqual(item["selected_root"], "tf/0.1.0")
 
-    def test_feature_module_audit_uses_feature_files_without_otype(self):
+    def test_feature_module_audit_uses_feature_files_and_parent_versions(self):
         catalog = Catalog(
             [
+                resource("bhsa"),
                 resource(
                     "addon",
                     kind="feature-module",
@@ -141,20 +142,23 @@ class SourceAuditTests(unittest.TestCase):
                     parent="bhsa",
                     parent_versions=("2021",),
                     module_path="example/addon/tf",
-                )
+                ),
             ]
         )
         store = FakeStore(
-            {"addon": []},
+            {"bhsa": ["tf/c", "tf/2021"], "addon": []},
             feature_files={("addon", "tf/2021"): ["accent.tf", "tree.tf"]},
         )
 
         report = audit_catalog(catalog, store)
 
         self.assertTrue(report["ok"])
-        item = report["resources"][0]
+        item = report["resources"][1]
         self.assertEqual(item["parent"], "bhsa")
         self.assertEqual(item["compatible_parent_versions"], ["2021"])
+        self.assertEqual(item["verified_parent_versions"], ["2021"])
+        self.assertEqual(item["parent_default_version"], "2021")
+        self.assertTrue(item["compatible_with_default"])
         self.assertEqual(item["module"], "example/addon/tf")
         self.assertEqual(item["feature_file_count"], 2)
         self.assertEqual(item["sample_features"], ["accent.tf", "tree.tf"])
