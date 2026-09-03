@@ -49,13 +49,22 @@ def build_feature_modules_document(root: Path = ROOT) -> dict[str, Any]:
     """Build the installed feature-module catalog losslessly from the registry shard."""
     root = Path(root)
     document = load_yaml(root / "registry" / "feature-modules.yaml")
+    resources: list[dict[str, Any]] = []
+    for item in document.get("resources", []):
+        if item.get("plugin") != "context-fabric":
+            continue
+        if item.get("kind") == "feature-module":
+            upstream = item.get("upstream") or {}
+            missing = [key for key in ("module", "tf_path") if not upstream.get(key)]
+            if missing:
+                rendered = ", ".join(f"upstream.{key}" for key in missing)
+                raise ValueError(
+                    f"Context-Fabric feature module {item.get('id')!r} requires {rendered}"
+                )
+        resources.append(item)
     return {
         "schema_version": document["schema_version"],
-        "resources": [
-            item
-            for item in document.get("resources", [])
-            if item.get("plugin") == "context-fabric"
-        ],
+        "resources": resources,
     }
 
 
