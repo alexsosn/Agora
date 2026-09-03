@@ -2,7 +2,7 @@
 name: tlhdig-hittite-research
 description: "Use this skill when inspecting or experimentally querying TLHdig-TF through Agora Context-Fabric: preserve its explicit prototype warning, query morphology on analysis nodes, distinguish zero-width damage points from damaged ranges, and keep ambiguous competing analyses visible."
 license: MIT
-compatibility: "Requires the Agora Context-Fabric MCP plugin and the registered alexsosn/TLHdig-TF resource. The pinned v0.1 dataset is explicitly unsuitable for dependable research conclusions."
+compatibility: "Requires the Agora Context-Fabric MCP plugin and the registered alexsosn/TLHdig-TF resource. The published v0.1 dataset is explicitly unsuitable for dependable research conclusions."
 metadata:
   provider: context-fabric
   resource: TLHdig-TF
@@ -19,7 +19,7 @@ Use this skill for testing the representation, developing queries, validating th
 
 Use `load_corpus` with the registered `TLHdig-TF` resource.
 
-Agora pins a known upstream commit and `tf/0.1.0` for reproducibility. That pin means "same prototype build," not "validated edition."
+Agora tracks upstream main and selects `tf/0.1.0` explicitly. Record the `source_revision` returned by a load: it identifies the exact commit the data came from, and it will change as upstream republishes. Tracking main means "current prototype build," not "validated edition."
 
 Before interpreting any result, consult the upstream `KNOWN-ISSUES.md`, validation reports, and the current repository status.
 
@@ -125,7 +125,7 @@ TLHdig-TF also does not become a critical edition merely by converting the corpu
 For any reported experiment, record:
 
 - Agora resource ID `TLHdig-TF`;
-- pinned TF version `0.1.0` and source commit when exposed;
+- TF version `0.1.0` and the resolved source commit when exposed;
 - current upstream prototype/known-issue status;
 - node types/features queried;
 - treatment of competing `analysis` nodes;
