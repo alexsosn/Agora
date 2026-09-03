@@ -721,6 +721,9 @@ class GitStore:
                     continue
         return total
 
+    def _cache_tree_bytes(self) -> int:
+        return self._directory_size(self.snapshots_dir) + self._directory_size(self.overlays_dir)
+
     def _managed_path(self, path: Path) -> Path:
         candidate = Path(path).expanduser().resolve()
         if candidate.is_relative_to(self.snapshots_dir) or candidate.is_relative_to(self.overlays_dir):
@@ -877,29 +880,35 @@ class GitStore:
         return False
 
     def _discover_cache_paths(self) -> set[Path]:
+        """Return only cache objects with an exact external identity sidecar.
+
+        Directory-tree heuristics are intentionally not used as a migration
+        fallback. A nested directory inside a source snapshot may itself contain
+        `.tf`/`otype.tf` files, and guessing that it is a separately evictable
+        object could mutate the parent source snapshot. Pre-index cache objects
+        therefore remain conservatively resident until a normal prepare/load
+        touches their exact root and writes its deterministic sidecar.
+        """
         paths: set[Path] = set()
         for meta_path in self.object_meta_dir.glob("*.json"):
             try:
                 data = json.loads(meta_path.read_text(encoding="utf-8"))
                 candidate = (self.cache_dir / str(data["path"])).resolve()
-                if candidate.exists():
-                    self._managed_path(candidate)
-                    paths.add(candidate)
+                if not candidate.exists():
+                    continue
+                identity = self._cache_identity(candidate)
+                if identity is None:
+                    continue
+                if self._meta_path(candidate).resolve() != meta_path.resolve():
+                    continue
+                if any(
+                    data.get(key) != identity.get(key)
+                    for key in ("kind", "resource_id", "revision", "relative_path")
+                ):
+                    continue
+                paths.add(candidate)
             except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
                 continue
-
-        if self.snapshots_dir.exists():
-            for otype in self.snapshots_dir.glob("*/*/corpora/**/otype.tf"):
-                paths.add(otype.parent.resolve())
-            for feature in self.snapshots_dir.glob("*/*/feature-modules/**/*.tf"):
-                paths.add(feature.parent.resolve())
-
-        if self.overlays_dir.exists():
-            for otype in self.overlays_dir.glob("*/*/*/otype.tf"):
-                paths.add(otype.parent.resolve())
-            for child in self.overlays_dir.iterdir():
-                if child.is_dir() and (child / "otype.tf").is_file():
-                    paths.add(child.resolve())
         return paths
 
     def cache_entries(self, resource_id: str | None = None) -> list[dict[str, Any]]:
@@ -952,6 +961,11 @@ class GitStore:
         candidate = self._managed_path(path)
         if not candidate.exists():
             return {"removed_entries": 0, "removed_bytes": 0, "skipped_in_use": 0}, None
+        if not self._meta_path(candidate).is_file():
+            raise ValueError(
+                f"cache object is not indexed and cannot be safely evicted: {candidate}; "
+                "prepare or load it first so Agora records its exact object root"
+            )
         lock = self._try_object_exclusive_lock(candidate)
         if lock is None:
             return {"removed_entries": 0, "removed_bytes": 0, "skipped_in_use": 1}, None
@@ -1025,35 +1039,38 @@ class GitStore:
         if target < 0:
             raise ValueError("target_bytes must be >= 0")
         entries = self.cache_entries()
-        before_bytes = sum(int(entry["size_bytes"]) for entry in entries)
-        remaining = before_bytes
+        before_bytes = self._cache_tree_bytes()
         removed_entries = 0
         removed_bytes = 0
         skipped_in_use = 0
         blocked_by_transition = 0
         for entry in entries:
-            if remaining <= target and self._free_bytes() >= self.min_free_bytes:
+            if before_bytes - removed_bytes <= target and self._free_bytes() >= self.min_free_bytes:
                 break
             try:
                 result = self.remove_cache_object(Path(str(entry["path"])), timeout=timeout)
             except TimeoutError:
                 blocked_by_transition += 1
                 break
-            if result["removed_entries"]:
-                remaining -= result["removed_bytes"]
             removed_entries += result["removed_entries"]
             removed_bytes += result["removed_bytes"]
             skipped_in_use += result["skipped_in_use"]
+
+        after_bytes = self._cache_tree_bytes()
+        remaining_entries = self.cache_entries()
+        indexed_after = sum(int(entry["size_bytes"]) for entry in remaining_entries)
+        unindexed_after = max(0, after_bytes - indexed_after)
         free_after = self._free_bytes()
         return {
             "target_bytes": target,
             "before_bytes": before_bytes,
-            "after_bytes": remaining,
+            "after_bytes": after_bytes,
             "removed_entries": removed_entries,
             "removed_bytes": removed_bytes,
             "skipped_in_use": skipped_in_use,
             "blocked_by_transition": blocked_by_transition,
-            "target_met": remaining <= target,
+            "unindexed_cache_bytes": unindexed_after,
+            "target_met": after_bytes <= target,
             "free_space_met": free_after >= self.min_free_bytes,
             "free_bytes": free_after,
             "min_free_bytes": self.min_free_bytes,
@@ -1072,11 +1089,17 @@ class GitStore:
             bucket["entries"] += 1
             bucket["bytes"] += int(entry["size_bytes"])
             bucket["in_use"] += int(bool(entry["in_use"]))
-        total_bytes = sum(int(entry["size_bytes"]) for entry in entries)
+        indexed_bytes = sum(int(entry["size_bytes"]) for entry in entries)
+        total_bytes = self._cache_tree_bytes()
+        unindexed_bytes = max(0, total_bytes - indexed_bytes)
         free_bytes = self._free_bytes()
         return {
             "cache_bytes": total_bytes,
             "cache_gb": self._gib(total_bytes),
+            "indexed_cache_bytes": indexed_bytes,
+            "indexed_cache_gb": self._gib(indexed_bytes),
+            "unindexed_cache_bytes": unindexed_bytes,
+            "unindexed_cache_gb": self._gib(unindexed_bytes),
             "snapshot_soft_limit_bytes": self.snapshot_soft_limit_bytes,
             "snapshot_soft_limit_gb": self._gib(self.snapshot_soft_limit_bytes),
             "min_free_bytes": self.min_free_bytes,
