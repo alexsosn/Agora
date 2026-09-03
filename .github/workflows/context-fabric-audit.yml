@@ -4,13 +4,27 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '17 4 * * 1'
+  pull_request:
+    paths:
+      - '.github/workflows/context-fabric-audit.yml'
+      - 'registry/resources.yaml'
+      - 'registry/feature-modules.yaml'
+      - 'scripts/audit_context_fabric_sources.py'
+      - 'plugins/context-fabric/resources/catalog.yaml'
+      - 'plugins/context-fabric/resources/feature-modules.yaml'
+      - 'plugins/context-fabric/src/agora_context_fabric/gitstore.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/resolver.py'
   push:
     branches: [main]
     paths:
       - '.github/workflows/context-fabric-audit.yml'
+      - 'registry/resources.yaml'
+      - 'registry/feature-modules.yaml'
       - 'scripts/audit_context_fabric_sources.py'
       - 'plugins/context-fabric/resources/catalog.yaml'
       - 'plugins/context-fabric/resources/feature-modules.yaml'
+      - 'plugins/context-fabric/src/agora_context_fabric/gitstore.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/resolver.py'
 
 permissions:
   contents: read
@@ -32,7 +46,7 @@ jobs:
       - name: Install audit dependencies
         run: python -m pip install -r requirements-dev.txt
 
-      - name: Audit repository metadata
+      - name: Audit repository metadata and module compatibility
         run: |
           python scripts/audit_context_fabric_sources.py \
             --cache-dir "${RUNNER_TEMP}/agora-context-fabric-audit" \
