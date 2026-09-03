@@ -168,7 +168,7 @@ resources:
     module: {status: community}
     languages: [hebrew]
     disciplines: [biblical-studies, semitic-linguistics]
-    description: Cantillation-derived tree nodes, edges, and structural features aligned to BHSA 2021.
+    description: Cantillation-derived tree representations and structural features aligned to BHSA 2021.
     upstream:
       repository: alexsosn/BHSA-cantillation-trees
       module: alexsosn/BHSA-cantillation-trees/tf
