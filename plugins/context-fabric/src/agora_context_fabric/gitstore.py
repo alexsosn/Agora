@@ -41,6 +41,15 @@ class CacheLease:
     def __exit__(self, _exc_type, _exc, _tb) -> None:
         self.release()
 
+    def __del__(self) -> None:
+        # Process exit already releases OS locks, but deterministic descriptor
+        # cleanup avoids leaking open lock handles when an embedding discards a
+        # service without explicitly unloading every corpus first.
+        try:
+            self.release()
+        except Exception:
+            pass
+
 
 class GitStore:
     """Metadata-first Git cache with revision-addressed TF source snapshots.
@@ -165,6 +174,13 @@ class GitStore:
         try:
             lock.acquire()
         except portalocker.exceptions.LockException as exc:
+            # Portalocker may already have opened the lock file before timing
+            # out. Release closes any such handle even when ownership was never
+            # obtained.
+            try:
+                lock.release()
+            except Exception:
+                pass
             raise TimeoutError(f"timed out waiting for {description}: {path}") from exc
         return lock
 
@@ -765,9 +781,26 @@ class GitStore:
             **identity,
         }
         meta_path = self._meta_path(candidate)
-        temp = meta_path.with_suffix(".tmp")
-        temp.write_text(json.dumps(metadata, sort_keys=True), encoding="utf-8")
-        os.replace(temp, meta_path)
+        temp_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=self.object_meta_dir,
+                prefix=f".{meta_path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                json.dump(metadata, handle, sort_keys=True)
+                temp_path = Path(handle.name)
+            os.replace(temp_path, meta_path)
+            temp_path = None
+        finally:
+            if temp_path is not None:
+                try:
+                    temp_path.unlink()
+                except FileNotFoundError:
+                    pass
 
     def _validate_cache_object(self, path: Path) -> None:
         identity = self._cache_identity(path)
@@ -816,6 +849,10 @@ class GitStore:
         try:
             lock.acquire()
         except portalocker.exceptions.LockException:
+            try:
+                lock.release()
+            except Exception:
+                pass
             return None
         return lock
 
