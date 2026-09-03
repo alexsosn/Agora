@@ -93,8 +93,6 @@ class GitStore:
             )
             selected = self._run("rev-parse", "FETCH_HEAD", cwd=repo)
         else:
-            # Resolve the current remote default branch instead of reusing the
-            # commit that happened to be HEAD when this cache was first cloned.
             self._run(
                 "fetch",
                 "--quiet",
@@ -160,19 +158,23 @@ class GitStore:
                 roots.add(normalized[: -len("/otype.tf")])
         return sorted(roots)
 
-    def materialize(
-        self,
-        repo: Path,
-        relative_path: str,
-        revision: str | None = None,
-    ) -> Path:
+    @staticmethod
+    def _safe_relative_path(relative_path: str) -> str:
         relative = relative_path.replace("\\", "/").strip("/")
         if not relative or relative == ".":
             relative = "."
         path = Path(relative)
         if path.is_absolute() or ".." in path.parts:
             raise ValueError(f"unsafe repository-relative path: {relative_path!r}")
+        return relative
 
+    def _checkout_path(
+        self,
+        repo: Path,
+        relative_path: str,
+        revision: str | None = None,
+    ) -> Path:
+        relative = self._safe_relative_path(relative_path)
         key = repo.name
         with self._repository_lock(key):
             self._run(
@@ -184,7 +186,29 @@ class GitStore:
                 relative,
                 cwd=repo,
             )
-        local = repo if relative == "." else repo / relative
+        return repo if relative == "." else repo / relative
+
+    def materialize(
+        self,
+        repo: Path,
+        relative_path: str,
+        revision: str | None = None,
+    ) -> Path:
+        local = self._checkout_path(repo, relative_path, revision)
         if not (local / "otype.tf").is_file():
             raise FileNotFoundError(f"materialized path is not a Text-Fabric dataset: {relative_path}")
+        return local
+
+    def materialize_feature_module(
+        self,
+        repo: Path,
+        relative_path: str,
+        revision: str | None = None,
+    ) -> Path:
+        """Materialize a module directory containing one or more TF feature files."""
+        local = self._checkout_path(repo, relative_path, revision)
+        if not local.is_dir() or not any(local.glob("*.tf")):
+            raise FileNotFoundError(
+                f"materialized path is not a Text-Fabric feature module: {relative_path}"
+            )
         return local
