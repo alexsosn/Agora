@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,7 +15,11 @@ if str(PLUGIN_SRC) not in sys.path:
 
 from agora_context_fabric.catalog import Catalog
 from agora_context_fabric.gitstore import GitStore
-from agora_context_fabric.resolver import dataset_version, select_dataset_root
+from agora_context_fabric.resolver import (
+    dataset_version,
+    select_dataset_root,
+    select_dataset_version,
+)
 
 
 def _selected_root(resource, roots: list[str]) -> str:
@@ -29,10 +33,17 @@ def _selected_root(resource, roots: list[str]) -> str:
     return normalized
 
 
+def _child_path(root: str, filename: str) -> str:
+    if root == ".":
+        return filename
+    return str(PurePosixPath(root) / filename)
+
+
 def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
     resources: list[dict[str, Any]] = []
     failed = 0
     parent_states: dict[str, dict[str, Any]] = {}
+    parent_version_states: dict[tuple[str, str], dict[str, Any]] = {}
 
     def parent_state(parent_id: str) -> dict[str, Any]:
         cached = parent_states.get(parent_id)
@@ -46,11 +57,12 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
             kwargs["ref"] = parent.ref
         repo = store.ensure_metadata(parent.repository, **kwargs)
         revision = store.selected_revision(repo)
-        roots = store.dataset_roots(repo)
+        roots = store.dataset_roots(repo, revision)
         if not roots:
             raise ValueError(f"parent corpus {parent_id!r} has no Text-Fabric dataset roots")
         selected = _selected_root(parent, roots)
         state = {
+            "repo": repo,
             "source_revision": revision,
             "roots": roots,
             "versions": sorted({dataset_version(root) for root in roots}),
@@ -58,6 +70,37 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
             "default_version": dataset_version(selected),
         }
         parent_states[parent_id] = state
+        return state
+
+    def parent_version_state(parent_id: str, version: str) -> dict[str, Any]:
+        key = (parent_id, version)
+        cached = parent_version_states.get(key)
+        if cached is not None:
+            return cached
+        base = parent_state(parent_id)
+        root = select_dataset_version(base["roots"], version)
+        summary = store.tf_feature_summary(
+            base["repo"],
+            _child_path(root, "otype.tf"),
+            base["source_revision"],
+        )
+        metadata = summary["metadata"]
+        parent_version = metadata.get("version")
+        if parent_version is not None and str(parent_version) != version:
+            raise ValueError(
+                f"parent corpus {parent_id!r} root {root!r} declares @version={parent_version!r}, "
+                f"not {version!r}"
+            )
+        state = {
+            "root": root,
+            "dataset": metadata.get("dataset"),
+            "version": version,
+            "max_node": int(summary["max_node"]),
+            "warp_fingerprint": store.dataset_warp_fingerprint(
+                base["repo"], root, base["source_revision"]
+            ),
+        }
+        parent_version_states[key] = state
         return state
 
     for resource in catalog:
@@ -85,7 +128,7 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
             if resource.kind == "feature-module":
                 if not resource.tf_path:
                     raise ValueError("feature module has no configured TF path")
-                feature_files = store.feature_files(repo, resource.tf_path)
+                feature_files = store.feature_files(repo, resource.tf_path, revision)
                 if not feature_files:
                     raise ValueError(
                         f"no direct .tf feature files found under {resource.tf_path!r}"
@@ -99,6 +142,84 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
                         f"parent corpus {resource.parent!r} does not expose declared compatible version(s): "
                         f"{', '.join(missing_versions)}"
                     )
+
+                core_data: set[str] = set()
+                core_versions: set[str] = set()
+                fallback_versions: set[str] = set()
+                max_referenced_node = 0
+                for filename in feature_files:
+                    summary = store.tf_feature_summary(
+                        repo,
+                        _child_path(resource.tf_path, filename),
+                        revision,
+                    )
+                    metadata = summary["metadata"]
+                    if metadata.get("coreData"):
+                        core_data.add(str(metadata["coreData"]))
+                        if metadata.get("version"):
+                            fallback_versions.add(str(metadata["version"]))
+                    if metadata.get("coreVersion"):
+                        core_versions.add(str(metadata["coreVersion"]))
+                    max_referenced_node = max(
+                        max_referenced_node,
+                        int(summary["max_node"]),
+                    )
+
+                if not core_data:
+                    raise ValueError(
+                        "feature module supplies no @coreData metadata; parent identity cannot be verified"
+                    )
+                if len(core_data) != 1:
+                    raise ValueError(
+                        f"feature module supplies conflicting @coreData values: {', '.join(sorted(core_data))}"
+                    )
+
+                version_evidence = core_versions or fallback_versions
+                if not version_evidence:
+                    raise ValueError(
+                        "feature module supplies no @coreVersion or core-associated @version metadata; "
+                        "parent version cannot be verified"
+                    )
+                undeclared = sorted(version_evidence - set(resource.parent_versions))
+                if undeclared:
+                    raise ValueError(
+                        "feature module core-version metadata conflicts with declared parent compatibility: "
+                        f"{', '.join(undeclared)}"
+                    )
+                unverified = sorted(set(resource.parent_versions) - version_evidence)
+                if unverified:
+                    raise ValueError(
+                        "declared parent version(s) lack module core-version evidence: "
+                        f"{', '.join(unverified)}"
+                    )
+
+                parent_evidence: dict[str, dict[str, Any]] = {}
+                module_core = next(iter(core_data))
+                for version in resource.parent_versions:
+                    version_state = parent_version_state(resource.parent or "", version)
+                    parent_dataset = version_state["dataset"]
+                    if parent_dataset is None:
+                        raise ValueError(
+                            f"parent corpus {resource.parent!r} version {version!r} has no @dataset metadata"
+                        )
+                    if module_core != str(parent_dataset):
+                        raise ValueError(
+                            f"feature module @coreData={module_core!r} does not match parent "
+                            f"@dataset={parent_dataset!r} for {resource.parent!r}@{version}"
+                        )
+                    parent_max = int(version_state["max_node"])
+                    if max_referenced_node > parent_max:
+                        raise ValueError(
+                            f"feature module references node {max_referenced_node}, beyond parent "
+                            f"{resource.parent!r}@{version} maximum node {parent_max}"
+                        )
+                    parent_evidence[version] = {
+                        "dataset": parent_dataset,
+                        "dataset_root": version_state["root"],
+                        "max_node": parent_max,
+                        "warp_fingerprint": version_state["warp_fingerprint"],
+                    }
+
                 item["status"] = "ok"
                 item["module"] = resource.module_path
                 item["feature_file_count"] = len(feature_files)
@@ -108,8 +229,12 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
                 item["parent_default_version"] = state["default_version"]
                 item["compatible_with_default"] = state["default_version"] in resource.parent_versions
                 item["verified_parent_versions"] = list(resource.parent_versions)
+                item["core_data"] = module_core
+                item["core_version_evidence"] = sorted(version_evidence)
+                item["max_referenced_node"] = max_referenced_node
+                item["parent_compatibility_evidence"] = parent_evidence
             else:
-                roots = store.dataset_roots(repo)
+                roots = store.dataset_roots(repo, revision)
                 if not roots:
                     raise ValueError("no Text-Fabric dataset roots were discovered")
                 item["status"] = "ok"
@@ -120,6 +245,7 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
                     selected = _selected_root(resource, roots)
                     item["selected_root"] = selected
                     parent_states[resource.id] = {
+                        "repo": repo,
                         "source_revision": revision,
                         "roots": roots,
                         "versions": sorted({dataset_version(root) for root in roots}),
@@ -145,8 +271,9 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Audit registered Context-Fabric corpora, collections, and feature modules using Git tree metadata only. "
-            "Corpus blobs are not materialized."
+            "Audit registered Context-Fabric corpora, collections, and feature modules. "
+            "The audit resolves Git metadata and streams TF feature content needed for core/version "
+            "and node-bound compatibility checks; full parent corpora are not materialized."
         )
     )
     parser.add_argument(
