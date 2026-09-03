@@ -10,6 +10,7 @@ on:
       - 'registry/resources.yaml'
       - 'registry/feature-modules.yaml'
       - 'scripts/audit_context_fabric_sources.py'
+      - 'scripts/smoke_context_fabric_feature_modules.py'
       - 'plugins/context-fabric/resources/catalog.yaml'
       - 'plugins/context-fabric/resources/feature-modules.yaml'
       - 'plugins/context-fabric/src/agora_context_fabric/catalog.py'
@@ -22,6 +23,7 @@ on:
       - 'registry/resources.yaml'
       - 'registry/feature-modules.yaml'
       - 'scripts/audit_context_fabric_sources.py'
+      - 'scripts/smoke_context_fabric_feature_modules.py'
       - 'plugins/context-fabric/resources/catalog.yaml'
       - 'plugins/context-fabric/resources/feature-modules.yaml'
       - 'plugins/context-fabric/src/agora_context_fabric/catalog.py'
@@ -54,10 +56,22 @@ jobs:
             --cache-dir "${RUNNER_TEMP}/agora-context-fabric-audit" \
             --output context-fabric-audit.json
 
-      - name: Upload audit report
+      - name: Install Context-Fabric runtime for required load smokes
+        run: python -m pip install -e plugins/context-fabric
+
+      - name: Real-load standalone modules lacking core metadata
+        run: |
+          python scripts/smoke_context_fabric_feature_modules.py \
+            --audit-report context-fabric-audit.json \
+            --cache-dir "${RUNNER_TEMP}/agora-context-fabric-audit" \
+            --output context-fabric-feature-module-smoke.json
+
+      - name: Upload audit reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: context-fabric-audit
-          path: context-fabric-audit.json
+          path: |
+            context-fabric-audit.json
+            context-fabric-feature-module-smoke.json
           if-no-files-found: warn
