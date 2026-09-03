@@ -162,7 +162,7 @@ resources:
     upstream: {repository: pthu/bible}
     acquisition: {strategy: collection, lazy: true}
     collection:
-      discovery: indexed
+      discovery: git-tree
       member_id_scheme: stable-relative-id
       lazy_members: true
       member_index: registry/collections/bible.yaml
@@ -182,7 +182,7 @@ resources:
     upstream: {repository: pthu/patristics}
     acquisition: {strategy: collection, lazy: true}
     collection:
-      discovery: indexed
+      discovery: git-tree
       member_id_scheme: stable-relative-id
       lazy_members: true
       member_index: registry/collections/patristics.yaml
@@ -202,7 +202,7 @@ resources:
     upstream: {repository: pthu/greek_literature}
     acquisition: {strategy: collection, lazy: true}
     collection:
-      discovery: indexed
+      discovery: git-tree
       member_id_scheme: stable-relative-id
       lazy_members: true
       member_index: registry/collections/greek_literature.yaml
@@ -417,7 +417,7 @@ resources:
     upstream: {repository: HuygensING/translatin-manif}
     acquisition: {strategy: collection, lazy: true}
     collection:
-      discovery: indexed
+      discovery: git-tree
       member_id_scheme: stable-relative-id
       lazy_members: true
       member_index: registry/collections/translatin-manif.yaml
@@ -563,10 +563,5 @@ resources:
       lazy: true
       notes: Follow the upstream default branch so rebuilt tf/0.1.0 datasets are picked up without changing the version label.
     licenses: {data: upstream-dependent, redistribution: unknown}
-    verification:
-      status: experimental
-      notes:
-        - The 0.1.0 dataset remains experimental; consult upstream documentation and KNOWN-ISSUES.md before research use.
-    known_issues:
-      - Preserve upstream KNOWN-ISSUES.md warnings in Agora metadata and user-facing guidance.
+    verification: {status: community}
     source_snapshot: {source: alexsosn/TLHdig-TF, checked_at: "2026-09-01"}

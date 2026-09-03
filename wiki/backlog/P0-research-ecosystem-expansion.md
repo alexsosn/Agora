@@ -17,7 +17,7 @@ Candidates should be evaluated on more than whether an MCP endpoint starts succe
 For every candidate, Agora should record separately:
 
 - **integration/runtime status** — installability, MCP initialization, tool health, transport, versioning;
-- **scholarly/data status** — provenance, editorial authority, corpus quality, annotation quality, reproducibility;
+- **upstream-documentation provenance** — where users can find the publisher's current semantics, quality, suitability, and reproducibility guidance;
 - **software license**;
 - **content/data license**;
 - **redistribution rights**;
@@ -25,7 +25,6 @@ For every candidate, Agora should record separately:
 - **citation/publication information**;
 - **maintenance/activity**;
 - **scope and overlap with existing Agora plugins**;
-- **epistemic profile**, where relevant: critical scholarly resource, institutionally curated resource, community resource, confessional/devotional resource, generated/experimental layer, or mixed.
 
 Star counts are useful only as weak evidence. Several of the most relevant projects are new and technically substantial despite having very little GitHub adoption.
 
@@ -802,11 +801,11 @@ Minimum promotion workflow:
 3. enumerate MCP tools/resources/prompts/skills;
 4. install or connect using the documented supported path;
 5. run initialization and tool-list smoke tests;
-6. run representative scholarly queries against known expected answers;
+6. run representative published operations and validate integration-level response structure;
 7. test error behavior and citation/provenance output;
 8. verify whether data are local, remotely fetched, generated, cached, or bundled;
 9. document authentication, paid-service, redistribution and rate-limit constraints;
-10. assign separate plugin/runtime and resource/data statuses;
+10. assign separate plugin/runtime and resource integration statuses;
 11. only then add canonical registry entries.
 
 For projects with very large tool surfaces, use a stratified test set rather than assuming one successful call validates the whole server.

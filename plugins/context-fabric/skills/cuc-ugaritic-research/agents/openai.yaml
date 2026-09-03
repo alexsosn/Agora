@@ -1,4 +1,4 @@
 interface:
   display_name: "CUC Ugaritic Research"
-  short_description: "Research Ugaritic while preserving CUC editorial and uncertainty layers"
-  default_prompt: "Use $cuc-ugaritic-research to query CUC with explicit transliteration, coverage, editorial, and uncertainty handling."
+  short_description: "Load and query CUC with revision-aware upstream documentation"
+  default_prompt: "Use $cuc-ugaritic-research to load CUC, record its source revision, and follow the matching upstream schema and editorial conventions."

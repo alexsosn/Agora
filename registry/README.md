@@ -36,6 +36,6 @@ python -m unittest discover -s tests -v
 
 Validation checks schema conformance, duplicate IDs, cross-file references, controlled-vocabulary values, collection/index consistency, the exact four-plugin / 36-resource v0.1 contract, and freshness of committed Claude/Codex marketplace artifacts. CI runs the same checks.
 
-Plugin/integration verification is distinct from resource/data verification. Client-specific marketplace manifests are generated projections, not parallel sources of truth.
+Plugin and resource verification describe distinct Agora-owned integration paths. They do not assess upstream scholarly suitability or data quality. Client-specific marketplace manifests are generated projections, not parallel sources of truth.
 
 The human-readable baseline is documented in [`wiki/v0.1-scope.md`](../wiki/v0.1-scope.md).

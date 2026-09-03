@@ -35,11 +35,11 @@ resource:
 upstream:
   repository: pthu/greek_literature
 members:
-  discovery: indexed
+  discovery: git-tree
   id_scheme: stable-relative-id
 ```
 
-Individual members should have stable internal identifiers without becoming marketplace plugins. A member index should record, where available:
+Individual members should have stable internal identifiers without becoming marketplace plugins. For `git-tree` discovery, the committed collection descriptor intentionally has no member snapshot; the resolver derives current members and stable IDs from upstream dataset paths. A future curated/indexed mode may record, where available:
 
 - stable member ID;
 - repository-relative corpus path;
@@ -51,7 +51,7 @@ Individual members should have stable internal identifiers without becoming mark
 - TF version/data directory;
 - node types and salient features where useful;
 - load/test status;
-- known issues.
+- Agora-owned integration issues.
 
 The member ID should be independent of the local checkout path. If a stable upstream identifier such as a CTS URN exists, prefer or preserve it. Otherwise derive a deterministic Agora ID from stable repository metadata.
 
@@ -93,7 +93,7 @@ Accordingly:
 - loading should occur per selected member or compatible group;
 - Agora should not promise one global query schema across all Greek works;
 - feature discovery must happen after loading the selected corpus;
-- known-bad members may carry their own resource/member status without degrading the whole collection.
+- members with broken Agora acquisition or loading paths may carry their own integration status without degrading the whole collection.
 
 The exact process strategy — restart a Context-Fabric MCP process when switching members, maintain a bounded pool, or support dynamic loading in one process — can be chosen during implementation, but the public model must remain member-oriented.
 
@@ -110,7 +110,7 @@ It is neither necessary nor desirable to run full end-to-end tests for every mem
 - schema/index validation for all members;
 - representative member smoke tests on normal PRs;
 - batched/scheduled tests across the wider collection;
-- explicit per-member known-issue/status metadata.
+- explicit per-member integration-issue/status metadata.
 
 ## v0.1 requirement
 

@@ -18,6 +18,9 @@ class ResourceSpec:
     languages: tuple[str, ...]
     disciplines: tuple[str, ...]
     member_index: str | None = None
+    collection_discovery: str | None = None
+    member_id_scheme: str | None = None
+    lazy_members: bool = False
     ref: str | None = None
     tf_path: str | None = None
     description: str | None = None
@@ -25,7 +28,7 @@ class ResourceSpec:
     verification_status: str = "community"
     verification_notes: tuple[str, ...] = ()
     licenses: dict[str, str] = field(default_factory=dict)
-    known_issues: tuple[str, ...] = ()
+    integration_issues: tuple[str, ...] = ()
     source_snapshot: dict[str, Any] = field(default_factory=dict)
 
 
@@ -62,6 +65,9 @@ class Catalog:
                     languages=tuple(item.get("languages", [])),
                     disciplines=tuple(item.get("disciplines", [])),
                     member_index=collection.get("member_index"),
+                    collection_discovery=collection.get("discovery"),
+                    member_id_scheme=collection.get("member_id_scheme"),
+                    lazy_members=bool(collection.get("lazy_members", False)),
                     ref=upstream.get("ref"),
                     tf_path=upstream.get("tf_path"),
                     description=item.get("description"),
@@ -69,7 +75,7 @@ class Catalog:
                     verification_status=verification.get("status", "community"),
                     verification_notes=tuple(notes),
                     licenses=dict(item.get("licenses") or {}),
-                    known_issues=tuple(item.get("known_issues") or ()),
+                    integration_issues=tuple(item.get("integration_issues") or ()),
                     source_snapshot=dict(item.get("source_snapshot") or {}),
                 )
             )
@@ -127,7 +133,7 @@ class Catalog:
                     resource.repository,
                     *resource.languages,
                     *resource.disciplines,
-                    *resource.known_issues,
+                    *resource.integration_issues,
                 ]
             ).casefold()
             if needle and needle not in haystack:

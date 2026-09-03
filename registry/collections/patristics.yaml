@@ -1,7 +1,7 @@
 schema_version: 1
 collection_id: patristics
-index_status: pending
+index_status: dynamic
 notes:
-  - Phase 1 establishes the collection contract; member enumeration is Phase 3 implementation work.
-  - Upstream is organized across many author/work directories and must be indexed without creating marketplace entries per work.
+  - Members are discovered lazily from current upstream Git tree metadata.
+  - The empty committed member list is intentional; stable member IDs are derived from discovered dataset paths at runtime.
 members: []

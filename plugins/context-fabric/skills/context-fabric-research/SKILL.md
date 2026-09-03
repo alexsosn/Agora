@@ -102,22 +102,21 @@ Avoid workflows that assume every Greek work has the same section levels, node t
 
 ### TLHdig-TF
 
-The Context-Fabric plugin may be Verified while TLHdig-TF remains an Experimental **resource**. Preserve resource-level warnings about conversion correctness, ambiguous markup, damaged text, and undocumented source fields in any research conclusion.
+Load the registered resource, record its resolved source revision, and use the documentation and schema at that upstream revision for corpus semantics, data-quality information, and research-suitability guidance. Agora does not maintain a parallel assessment of those upstream-owned concerns.
 
 ## Verification and provenance
 
-Plugin status and resource status are different claims.
+Plugin status and resource status describe different Agora-owned integration paths; neither is a scholarly-quality assessment.
 
 When reporting a result, record enough context for reproducibility:
 
 - `resource_id`;
 - `member_id` when applicable;
 - selected TF dataset/version or source path if exposed;
+- resolved upstream source revision;
 - important features used;
 - query logic;
-- resource status and relevant known issues.
-
-If a resource is Experimental, say so when the uncertainty could affect the result.
+- upstream documentation consulted for corpus interpretation.
 
 ## Query-design principles
 

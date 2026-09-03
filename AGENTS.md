@@ -14,7 +14,7 @@ Use this test:
 
 Do not add monkey-patches, private-internal shims, replacement algorithms, new query modes, or local semantic fixes to third-party plugins merely because Agora exposes them.
 
-When an upstream limitation matters to Agora users, link/report it upstream, document it, constrain a version when appropriate, and adjust verification metadata rather than silently repairing it locally.
+When an upstream limitation matters to Agora users, link/report it upstream, direct users to the authoritative upstream documentation, constrain a version when required for integration compatibility, and adjust Agora's integration verification metadata rather than silently repairing it locally. Do not copy mutable upstream suitability or data-quality assessments into Agora.
 
 ## Repository-maintenance skills
 

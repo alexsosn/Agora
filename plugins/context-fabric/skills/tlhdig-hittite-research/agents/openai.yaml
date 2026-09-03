@@ -1,4 +1,4 @@
 interface:
-  display_name: "TLHdig-TF Hittite Research"
-  short_description: "Explore TLHdig-TF while preserving prototype and damage-layer cautions"
-  default_prompt: "Use $tlhdig-hittite-research to inspect TLHdig-TF morphology, ambiguity, and damage while keeping the 0.1.0 prototype warning explicit."
+  display_name: "TLHdig-TF Integration"
+  short_description: "Load TLHdig-TF with revision-aware upstream documentation"
+  default_prompt: "Use $tlhdig-hittite-research to load TLHdig-TF, record the resolved source revision, and follow the matching upstream corpus documentation."

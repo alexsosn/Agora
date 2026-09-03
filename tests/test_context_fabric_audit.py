@@ -37,6 +37,9 @@ class FakeStore:
     def dataset_roots(self, repo: Path) -> list[str]:
         return list(self.roots[repo.name])
 
+    def selected_revision(self, repo: Path) -> str:
+        return (repo.name.encode("utf-8").hex() + "0" * 40)[:40]
+
 
 def resource(
     resource_id: str,
@@ -73,6 +76,7 @@ class SourceAuditTests(unittest.TestCase):
         self.assertEqual(report["failed"], 0)
         item = report["resources"][0]
         self.assertEqual(item["status"], "ok")
+        self.assertRegex(item["source_revision"], r"^[0-9a-f]{40}$")
         self.assertEqual(item["selected_root"], "tf/1.0")
         self.assertEqual(item["dataset_root_count"], 2)
 

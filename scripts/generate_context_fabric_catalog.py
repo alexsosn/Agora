@@ -37,8 +37,8 @@ def build_catalog_document(root: Path = ROOT) -> dict[str, Any]:
                 f"v0.1 Context-Fabric resource {resource_id!r} is missing from registry/resources.yaml"
             ) from exc
         # Keep the full canonical record. Runtime parsing can ignore fields it
-        # does not yet consume, but generation must never discard scholarly,
-        # licensing, verification, provenance, or known-issue metadata.
+        # does not yet consume, but generation must never discard descriptive,
+        # licensing, integration-verification, provenance, or integration-issue metadata.
         ordered.append(item)
 
     return {

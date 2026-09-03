@@ -26,9 +26,9 @@ The current live workflow exercises the generated Codex path for all four v0.1 p
 5. at least one representative real operation;
 6. deterministic unit and packaging tests.
 
-Claude launch metadata is tested deterministically but is not currently promoted to live-verified status. Context-Fabric additionally has a scheduled metadata audit over all 36 registered upstream resources; the current audit resolves 36/36 successfully.
+Claude launch metadata is tested deterministically but is not currently promoted to live-verified status. Context-Fabric additionally has a scheduled metadata audit over all 36 registered upstream resources; the latest workflow result is the authority for current resolution status.
 
-Plugin-level verification and scholarly-data verification are deliberately separate. A working integration does not imply that every underlying corpus is research-grade. TLHdig-TF, for example, remains resource-level Experimental while its upstream conversion documents unresolved correctness issues.
+Plugin-level and resource-level verification are separate integration claims. A working integration does not imply that an underlying corpus is suitable for any particular research use; users must consult the upstream corpus documentation matching the resolved source revision.
 
 ## Scholarly skills
 
@@ -51,7 +51,7 @@ Agora does not expose every Text-Fabric dataset as a separate marketplace plugin
 
 Large repositories remain collection resources. In particular, `pthu/bible`, `pthu/patristics`, `pthu/greek_literature`, and `HuygensING/translatin-manif` contain many independently loadable TF datasets and are discovered at member level rather than flattened into hundreds or thousands of marketplace entries.
 
-For example, the current source audit finds 1,779 TF dataset roots in `pthu/greek_literature`; using one work does not require registering 1,779 plugins. See [`ref-context-fabric-collections.md`](ref-context-fabric-collections.md).
+For example, `pthu/greek_literature` contains a large and changing set of TF dataset roots; using one work does not require registering every member as a plugin. See [`ref-context-fabric-collections.md`](ref-context-fabric-collections.md).
 
 ## Generated marketplace formats
 
@@ -101,9 +101,9 @@ Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mard
 - **Cross-platform:** keep scholarly identity and metadata client-neutral; generate client adapters from one registry.
 - **Provider-neutral:** support Context-Fabric, hosted MCPs, remote APIs, local databases, and other scholarly backends.
 - **Upstream-first:** integrate third-party projects without unnecessary vendoring or forks.
-- **Research-aware:** plugins should bundle source-specific instructions, conventions, limitations, and useful query patterns rather than exposing raw tools without scholarly context.
+- **Upstream-grounded:** plugins should expose source identity and revision clearly and direct users to authoritative upstream instructions rather than duplicating mutable corpus semantics or suitability guidance.
 - **License-aware:** software licenses, dataset/content licenses, redistribution status, and service terms are separate metadata.
-- **Resource-aware verification:** plugin integration status and underlying scholarly-data status are separate claims.
+- **Resource-aware verification:** plugin and resource statuses describe distinct Agora-owned integration paths, not scholarly-data quality.
 - **Scalable:** corpus families and collection repositories remain resources within provider plugins rather than one marketplace entry per text.
 - **Clean-slate:** Agora has no compatibility obligation to `mcp-demo`; earlier code and research are prior art, not architectural constraints.
 
@@ -112,10 +112,10 @@ Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mard
 - **Phase 0 — foundation:** implemented.
 - **Phase 1 — canonical marketplace/resource model:** implemented.
 - **Phase 2 — deterministic Claude + Codex generation:** implemented.
-- **Phase 3 — Context-Fabric runtime and 36-resource baseline:** implemented at the resolver/provider layer; all 36 upstreams currently pass the source audit, with resource-level scholarly verification remaining separate.
+- **Phase 3 — Context-Fabric runtime and 36-resource baseline:** implemented at the resolver/provider layer; all 36 upstreams currently pass the source audit.
 - **Phase 4 — Perseus, Sefaria, and SEDRA:** implemented; Codex paths are live-verified, while aggregate plugin status remains Community pending equivalent Claude-path evidence.
 - **Phase 5 — scholarly skills:** underway; eight provider/corpus-specific skills are implemented and CI-validated, with additional resource-specific guidance still to add.
-- **Phase 6 — verification/trust:** client-specific live verification is implemented for Codex paths; deeper resource/member verification remains ongoing.
+- **Phase 6 — verification/trust:** client-specific live verification is implemented for Codex paths; deeper resource/member integration verification remains ongoing.
 - **Phase 7 — documentation:** underway; current Claude Code, managed ChatGPT/Codex, and local Codex installation flows are documented.
 
 The next implementation work is tracked in the wiki index and latest independent review, with Context-Fabric snapshot integrity and representative corpus-load evidence among the highest-priority engineering items.

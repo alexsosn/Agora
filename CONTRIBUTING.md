@@ -20,7 +20,7 @@ Accordingly, do not use Agora to:
 - depend on private upstream internals merely to repair or extend upstream behavior;
 - duplicate upstream behavioral test suites in Agora.
 
-When an upstream plugin is buggy, prefer to report/link the upstream issue, record the limitation in Agora metadata/documentation, constrain or pin a known-good upstream version when one exists, and remove or downgrade verification claims that the bug invalidates.
+When an upstream plugin is buggy, prefer to report/link the upstream issue and direct users to authoritative upstream documentation. Constrain or pin a known-good upstream version when required for integration compatibility, and remove or downgrade Agora integration claims that the bug invalidates. Do not copy mutable upstream suitability or data-quality assessments into Agora metadata or documentation.
 
 Thin adaptation is allowed when it is necessary for Agora-owned integration concerns such as installation, process launch, transport bridging, client configuration, resource discovery, or mapping canonical registry metadata into a plugin's supported public interface. Such adapters must preserve upstream semantics and responses rather than silently redefining them.
 
@@ -31,10 +31,10 @@ Skills that implement or teach the substantive capabilities of a third-party plu
 Agora may contain skills only when they are one of these:
 
 1. **generic marketplace skills** that work across plugins, such as discovery, selection, installation, or orchestration guidance;
-2. **plugin-facilitation skills** packaged with an Agora plugin integration that help an agent use capabilities the upstream plugin already exposes, such as identifier discovery, tool-selection guidance, configuration, limitations, or reproducibility conventions;
+2. **plugin-facilitation skills** packaged with an Agora plugin integration that help an agent use capabilities the upstream plugin already exposes, such as identifier discovery, tool-selection guidance, configuration, Agora-owned integration limitations, upstream-documentation discovery, or reproducibility conventions;
 3. **repository-maintenance skills** under `.agents/skills/`, which guide contributors and coding agents working on Agora itself and are not scholarly capabilities shipped by a third-party plugin.
 
-An Agora skill must not compensate for a missing upstream tool, repair an upstream result, synthesize a new domain capability, or turn an unsupported workflow into an apparently supported one.
+An Agora skill must not compensate for a missing upstream tool, repair an upstream result, synthesize a new domain capability, turn an unsupported workflow into an apparently supported one, or restate mutable upstream suitability and data-quality guidance. Link to the authoritative upstream documentation instead.
 
 ## Project rule
 

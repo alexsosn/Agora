@@ -27,12 +27,22 @@ class ContextFabricService:
             "languages": list(resource.languages),
             "disciplines": list(resource.disciplines),
             "member_index": resource.member_index,
+            "collection": (
+                {
+                    "discovery": resource.collection_discovery,
+                    "member_id_scheme": resource.member_id_scheme,
+                    "lazy_members": resource.lazy_members,
+                    "member_index": resource.member_index,
+                }
+                if resource.kind == "collection"
+                else None
+            ),
             "verification": {
                 "status": resource.verification_status,
                 "notes": list(resource.verification_notes),
             },
             "licenses": dict(resource.licenses),
-            "known_issues": list(resource.known_issues),
+            "integration_issues": list(resource.integration_issues),
             "source_snapshot": dict(resource.source_snapshot),
             "source": {
                 "repository": resource.repository,

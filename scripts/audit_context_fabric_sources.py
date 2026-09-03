@@ -49,6 +49,7 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
             if resource.ref is not None:
                 kwargs["ref"] = resource.ref
             repo = store.ensure_metadata(resource.repository, **kwargs)
+            item["source_revision"] = store.selected_revision(repo)
             roots = store.dataset_roots(repo)
             if not roots:
                 raise ValueError("no Text-Fabric dataset roots were discovered")

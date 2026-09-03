@@ -29,27 +29,27 @@ class _NoopLoader:
     pass
 
 
-class TrustMetadataTests(unittest.TestCase):
-    def test_tlhdig_trust_metadata_survives_catalog_projection(self):
+class ResourceIntegrationMetadataTests(unittest.TestCase):
+    def test_tlhdig_integration_metadata_survives_catalog_projection(self):
         resource = Catalog.from_registry(ROOT).get("TLHdig-TF")
         self.assertEqual(resource.description, "Text-Fabric conversion of the Thesaurus Linguarum Hethaeorum digitalis Hittite corpus.")
         self.assertEqual(resource.period, "2nd millennium BCE")
-        self.assertEqual(resource.verification_status, "experimental")
+        self.assertEqual(resource.verification_status, "community")
         self.assertEqual(resource.licenses["data"], "upstream-dependent")
         self.assertEqual(resource.licenses["redistribution"], "unknown")
-        self.assertTrue(any("KNOWN-ISSUES.md" in issue for issue in resource.known_issues))
+        self.assertEqual(resource.integration_issues, ())
         self.assertEqual(resource.source_snapshot["source"], "alexsosn/TLHdig-TF")
         self.assertIsNone(resource.ref)
         self.assertEqual(resource.tf_path, "tf/0.1.0")
 
-    def test_service_exposes_trust_and_source_configuration(self):
+    def test_service_exposes_integration_and_source_configuration(self):
         service = ContextFabricService(Catalog.from_registry(ROOT), _NoopResolver(), _NoopLoader())
         item = service.describe_resource("TLHdig-TF")
         self.assertEqual(item["description"], "Text-Fabric conversion of the Thesaurus Linguarum Hethaeorum digitalis Hittite corpus.")
         self.assertEqual(item["period"], "2nd millennium BCE")
-        self.assertEqual(item["verification"]["status"], "experimental")
+        self.assertEqual(item["verification"]["status"], "community")
         self.assertEqual(item["licenses"]["data"], "upstream-dependent")
-        self.assertTrue(any("KNOWN-ISSUES.md" in issue for issue in item["known_issues"]))
+        self.assertEqual(item["integration_issues"], [])
         self.assertEqual(item["source_snapshot"]["source"], "alexsosn/TLHdig-TF")
         self.assertIsNone(item["source"]["configured_ref"])
         self.assertEqual(item["source"]["tf_path"], "tf/0.1.0")
@@ -123,6 +123,19 @@ class GitRefreshAndProvenanceTests(unittest.TestCase):
 
 
 class CollectionMetadataTests(unittest.TestCase):
+    def test_service_exposes_dynamic_collection_discovery_contract(self):
+        service = ContextFabricService(Catalog.from_registry(ROOT), _NoopResolver(), _NoopLoader())
+        item = service.describe_resource("greek_literature")
+        self.assertEqual(
+            item["collection"],
+            {
+                "discovery": "git-tree",
+                "member_id_scheme": "stable-relative-id",
+                "lazy_members": True,
+                "member_index": "registry/collections/greek_literature.yaml",
+            },
+        )
+
     def test_arbitrary_repository_path_segments_are_not_mislabeled_author_and_title(self):
         resource = ResourceSpec(
             id="greek_literature",

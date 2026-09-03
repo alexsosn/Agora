@@ -175,6 +175,15 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                     f"{prefix}: member index collection_id {index_doc.get('collection_id')!r} does not match resource id"
                 )
             ensure_vocab(index_doc.get("index_status"), collection_index_status, f"{prefix}.collection.index_status", errors)
+            if collection["discovery"] == "git-tree":
+                if index_doc.get("index_status") != "dynamic":
+                    errors.append(
+                        f"{prefix}: git-tree discovery requires collection index_status='dynamic'"
+                    )
+                if index_doc.get("members"):
+                    errors.append(
+                        f"{prefix}: git-tree discovery must not carry a stale committed member list"
+                    )
             member_ids: set[str] = set()
             for member in index_doc.get("members", []):
                 member_id = member["id"]

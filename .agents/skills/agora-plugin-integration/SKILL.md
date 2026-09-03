@@ -38,7 +38,7 @@ Agora changes may include:
 - transport bridges;
 - Agora-owned resource discovery/resolution;
 - health checks and smoke tests;
-- known limitations and verification/status metadata;
+- Agora-owned integration limitations and verification/status metadata;
 - thin facilitation skills for capabilities the upstream plugin already exposes.
 
 Keep adapters small, semantics-preserving, public-API-first, visible, and removable.
@@ -59,9 +59,9 @@ Instead:
 
 1. confirm Agora itself is not causing the defect;
 2. find or open the upstream issue/PR when possible;
-3. record the limitation in Agora if users need to know;
-4. pin/constrain a fixed or known-good upstream release if appropriate;
-5. adjust Agora verification claims if necessary.
+3. direct users to the authoritative upstream issue or documentation without copying mutable suitability or data-quality claims into Agora;
+4. pin/constrain a fixed or known-good upstream release when required for integration compatibility;
+5. adjust Agora integration verification claims if necessary.
 
 Do not create a silent compatibility shim as a substitute for an upstream fix.
 
@@ -69,7 +69,7 @@ Do not create a silent compatibility shim as a substitute for an upstream fix.
 
 A third-party plugin's substantive domain skills belong upstream whenever practical.
 
-An Agora plugin-specific skill is acceptable only when it facilitates an existing published capability: for example, discovering identifiers before calling a tool, selecting among existing tools, explaining configuration, preserving provenance, or warning about documented limitations.
+An Agora plugin-specific skill is acceptable only when it facilitates an existing published capability: for example, discovering identifiers before calling a tool, selecting among existing tools, explaining configuration, preserving provenance, or directing users to authoritative upstream documentation.
 
 Do not use a skill to emulate a missing upstream tool or silently compensate for incorrect upstream behavior.
 

@@ -1,6 +1,6 @@
 ---
 name: cuc-ugaritic-research
-description: "Use this skill for Ugaritic research with the Copenhagen Ugaritic Corpus through Agora Context-Fabric: load CUC, distinguish transliteration and sign/editorial features, preserve alternative and uncertain readings, and avoid treating a work-in-progress corpus as exhaustive or fully normalized."
+description: "Use this skill for Ugaritic research with the Copenhagen Ugaritic Corpus through Agora Context-Fabric: load CUC, record its resolved source revision, distinguish transliteration and sign/editorial features, and consult the matching upstream documentation."
 license: MIT
 compatibility: "Requires the Agora Context-Fabric MCP plugin and access to the registered DT-UCPH/cuc source when the corpus is not already cached."
 metadata:
@@ -11,13 +11,13 @@ metadata:
 
 # CUC / Ugaritic research workflow
 
-The Copenhagen Ugaritic Corpus (CUC) is a Text-Fabric corpus developed by the CACCHT project. The upstream README explicitly describes it as **work in progress**. Treat corpus coverage and annotation coverage as properties to check, not as assumptions.
+The Copenhagen Ugaritic Corpus (CUC) is a Text-Fabric corpus developed by the CACCHT project. Agora owns discovery, acquisition, and loading; the [upstream CUC repository](https://github.com/DT-UCPH/cuc) owns corpus semantics, coverage, data-quality statements, and suitability guidance.
 
 ## Load the registered corpus
 
 Use `load_corpus` with Agora's `cuc` resource.
 
-After loading, inspect node types and feature metadata before building linguistic queries. Do not import BHSA feature expectations merely because both corpora are Text-Fabric datasets developed in an ancient-Semitic research context.
+Record the returned `source_revision`, then consult the upstream documentation at that revision. After loading, inspect node types and feature metadata before building linguistic queries. Do not import BHSA feature expectations merely because both corpora are Text-Fabric datasets developed in an ancient-Semitic research context.
 
 ## Text and sign representation
 
@@ -60,17 +60,6 @@ For orthographic work, distinguish word-level `g_cons` from individual `sign` se
 
 For line-based questions, use the explicit tablet/column/line structure rather than reconstructing line boundaries from punctuation or spacing strings.
 
-## Coverage is not the same as absence
-
-The upstream corpus lists a defined set of KTU tablets and continues to grow. Therefore a no-hit in CUC does not establish absence from the entire Ugaritic textual corpus.
-
-Before making a negative claim:
-
-- check whether the relevant KTU text is included in the current CUC release;
-- consider alternative readings and spelling variants;
-- distinguish unannotated material from true absence;
-- use another edition/database when comprehensive corpus coverage is required.
-
 ## Transliteration cautions
 
 Do not normalize Ugaritic transliteration ad hoc inside a query without recording the transformation. Distinctions in scholarly transliteration can affect matching.
@@ -83,11 +72,11 @@ For a substantive result, record:
 
 - Agora resource ID `cuc`;
 - selected TF version;
+- resolved source revision and matching upstream documentation;
 - node type(s) counted;
 - whether `g_cons`, `sign`, or another representation supplied the match;
 - treatment of `emen`, `cert`, `alt`, and damaged/uncertain material;
-- tablet/line references for spot-checked examples;
-- whether the relevant source texts fall inside current CUC coverage.
+- tablet/line references for spot-checked examples.
 
 ## License
 

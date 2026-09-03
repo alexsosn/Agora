@@ -107,16 +107,11 @@ For corpus research, Agora's bundled skills encourage the agent to inspect the s
 
 Agora is designed to add more providers without forcing them into Text-Fabric or any other single data model.
 
-## Research status and trust
+## Verification scope
 
-Agora distinguishes between two questions:
+Agora verification covers installation, launch, transport, resource resolution, and representative integration operations. It does not assess whether an upstream corpus is suitable for a particular research use or maintain a parallel account of upstream data quality.
 
-1. **Does the plugin integration work?**
-2. **How trustworthy and mature is the underlying scholarly resource?**
-
-Those are tracked separately. A working MCP connection does not automatically make every corpus research-grade, and corpus-specific skills may include warnings about experimental data or annotation limitations.
-
-The four v0.1 integrations currently have live Codex-path verification. Deeper resource-level verification is ongoing.
+Use the resolved source revision to consult the original repository or corpus publisher's current documentation for semantics, limitations, and suitability. The four v0.1 integrations currently have live Codex-path verification; deeper resource-level integration verification is ongoing.
 
 For the detailed verification model and current implementation status, see [implementation details](wiki/architecture/ref-implementation-details.md).
 

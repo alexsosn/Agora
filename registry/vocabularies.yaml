@@ -25,11 +25,13 @@ acquisition_strategies:
 
 collection_discovery_modes:
   - indexed
+  - git-tree
 
 collection_index_statuses:
   - pending
   - partial
   - complete
+  - dynamic
 
 redistribution_statuses:
   - unknown

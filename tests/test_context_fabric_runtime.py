@@ -38,6 +38,9 @@ class CatalogTests(unittest.TestCase):
             resource = catalog.get(resource_id)
             self.assertEqual(resource.kind, "collection")
             self.assertIsNotNone(resource.member_index)
+            self.assertEqual(resource.collection_discovery, "git-tree")
+            self.assertEqual(resource.member_id_scheme, "stable-relative-id")
+            self.assertTrue(resource.lazy_members)
 
 
 class SelectionTests(unittest.TestCase):

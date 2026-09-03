@@ -122,7 +122,7 @@ class ScholarlySkillTests(unittest.TestCase):
             "context-fabric", "context-fabric-research"
         ).read_text(encoding="utf-8")
         self.assertIn("Do not assume", context_fabric)
-        self.assertIn("resource status", context_fabric.lower())
+        self.assertIn("resolved upstream source revision", context_fabric.lower())
 
         perseus = skill_path("perseus", "perseus-research").read_text(
             encoding="utf-8"
@@ -153,20 +153,20 @@ class ScholarlySkillTests(unittest.TestCase):
         )
         for feature in ("`g_cons`", "`emen`", "`cert`", "`alt`"):
             self.assertIn(feature, cuc)
-        self.assertIn("work in progress", cuc.lower())
+        self.assertIn("`source_revision`", cuc)
+        self.assertIn("upstream documentation", cuc.lower())
 
         tlhdig = skill_path("context-fabric", "tlhdig-hittite-research").read_text(
             encoding="utf-8"
         )
-        self.assertIn("not a trustworthy conversion yet", tlhdig.lower())
-        self.assertIn("`analysis`", tlhdig)
-        self.assertIn("`width>1`", tlhdig)
+        self.assertIn("`source_revision`", tlhdig)
+        self.assertIn("upstream documentation", tlhdig.lower())
         self.assertIn("0.1.0", tlhdig)
 
         greek = skill_path("context-fabric", "greek-collections-research").read_text(
             encoding="utf-8"
         )
-        self.assertIn("1,779", greek)
+        self.assertIn("resolved upstream source revision", greek)
         self.assertIn("Perseus", greek)
         self.assertIn("Open Greek and Latin", greek)
 

@@ -18,7 +18,7 @@ The inverse is also useful:
 
 > If the failure is caused by Agora's registry, generated metadata, installer, launcher, transport bridge, resource resolver, or other Agora-owned integration glue, it belongs in Agora.
 
-When ownership is ambiguous, prefer the thinner interpretation and document the upstream limitation rather than silently taking ownership of third-party behavior.
+When ownership is ambiguous, prefer the thinner interpretation and link to the authoritative upstream issue or documentation rather than restating the limitation or silently taking ownership of third-party behavior.
 
 ## Agora owns
 
@@ -32,7 +32,7 @@ Agora may implement and maintain:
 - transport adaptation required to connect a supported client to an upstream endpoint;
 - resource discovery/resolution that is part of Agora's marketplace model rather than an upstream domain algorithm;
 - health checks and integration smoke tests;
-- compatibility declarations and known-limitations metadata;
+- compatibility declarations and Agora-owned integration-limitations metadata;
 - generic cross-plugin workflows;
 - thin usage guidance that helps an agent call an individual plugin's **existing published capabilities** correctly.
 
@@ -79,10 +79,9 @@ When Agora discovers an upstream defect:
 
 1. reproduce enough to determine whether Agora itself caused it;
 2. if not, report or link the issue upstream;
-3. record the limitation in Agora metadata/documentation when it affects users;
-4. constrain or pin a known-good upstream version if that is sufficient and appropriate;
-5. adjust Agora verification/status claims if the limitation invalidates them;
-6. remove the limitation note when a supported upstream release fixes it.
+3. direct users to the authoritative upstream issue and documentation rather than copying mutable suitability or data-quality claims into Agora;
+4. constrain or pin a known-good upstream version when required for integration compatibility;
+5. adjust Agora's integration verification/status claims if the limitation invalidates them.
 
 Do **not** insert a monkey-patch, private-API shim, alternative algorithm, or replacement tool into Agora simply because an upstream release is currently wrong.
 
@@ -101,7 +100,7 @@ Substantive skills for a third-party plugin should live with that plugin upstrea
 Agora may ship:
 
 - **generic marketplace skills** — discovery, comparison, installation, selection, orchestration, provenance, or other workflows that apply across plugins;
-- **plugin-facilitation skills** inside an Agora plugin package — guidance for using existing upstream tools, identifiers, configuration, discovery flows, limitations, output interpretation, and reproducibility conventions;
+- **plugin-facilitation skills** inside an Agora plugin package — guidance for using existing upstream tools, identifiers, configuration, discovery flows, integration limitations, upstream-documentation discovery, and reproducibility conventions;
 - **repository-maintenance skills** under `.agents/skills/` — workflows for contributors/coding agents maintaining Agora itself. These are development guardrails, not scholarly plugin capabilities.
 
 ### Skills not allowed in Agora
@@ -114,7 +113,7 @@ An Agora skill must not:
 - conceal an upstream limitation by teaching the agent a silent workaround;
 - duplicate an upstream plugin's own substantive skill when Agora can package/reference the upstream skill instead.
 
-A facilitation skill may explain a limitation and suggest an explicitly identified external/manual workflow. It may not make Agora the maintainer of the missing capability.
+A facilitation skill may identify an Agora-owned integration limitation or direct users to upstream documentation. It must not duplicate mutable upstream suitability or data-quality guidance or make Agora the maintainer of a missing capability.
 
 ## Testing boundary
 
@@ -139,9 +138,9 @@ If a failing Agora test can only be fixed by changing how the third-party plugin
 | Generated MCP command points at the wrong executable | Agora | Fix generator/metadata and test it |
 | Client supports stdio but upstream exposes only SSE | Agora integration | Use a thin transport bridge if needed |
 | Agora resolves the wrong corpus repository/version | Agora | Fix resolver/registry logic |
-| Upstream `count` silently truncates results | Upstream | Report/link; document limitation; pin a fixed release when available |
+| Upstream `count` silently truncates results | Upstream | Report/link upstream; direct users to the authoritative upstream documentation; pin a fixed release only when integration compatibility requires it |
 | Upstream lacks morphology search | Upstream feature request | Do not implement morphology search in Agora |
-| Upstream tool returns malformed domain data | Upstream | Report/link and adjust verification/limitations |
+| Upstream tool returns malformed domain data | Upstream | Report/link upstream and adjust Agora's integration verification if the advertised operation is no longer usable |
 | Agent routinely invents valid-looking identifiers although upstream has discovery tools | Agora plugin-facilitation skill | Teach the agent to discover identifiers first |
 | A workflow chooses among Perseus, Sefaria, and Context-Fabric based on research need | Agora generic skill | Appropriate cross-plugin guidance |
 | A new philological analysis algorithm would be useful for one plugin | Upstream/plugin project | Contribute it there, not to marketplace core |

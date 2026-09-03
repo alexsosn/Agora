@@ -73,7 +73,7 @@ For each new or changed skill, classify it as:
 
 Only the first three belong in Agora. The fourth belongs upstream whenever practical.
 
-A skill is not thin merely because it contains no executable code. If it emulates a missing tool or systematically repairs incorrect upstream results, it has crossed the boundary.
+A skill is not thin merely because it contains no executable code. If it emulates a missing tool, systematically repairs incorrect upstream results, or duplicates mutable upstream suitability and data-quality guidance, it has crossed the boundary.
 
 ## Review outcomes
 
@@ -89,7 +89,7 @@ Request changes when a mixed PR contains both legitimate integration work and up
 
 Recommend closing or replacing the PR when its central purpose is to fix an upstream bug, add an upstream feature, or create an Agora-specific semantic fork.
 
-The appropriate Agora follow-up may still be useful: link the upstream issue, document the limitation, constrain a version, or downgrade verification status.
+The appropriate Agora follow-up may still be useful: link the upstream issue and documentation, constrain a version for integration compatibility, or downgrade Agora's integration verification status. Do not restate mutable upstream suitability or data-quality claims.
 
 ## Fast ownership heuristic
 

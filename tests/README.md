@@ -11,7 +11,7 @@ Current layers include:
 - Claude and Codex marketplace shape/order checks;
 - fixed v0.1 scope checks.
 
-Later phases add plugin installation/startup, MCP initialization/tool discovery, corpus acquisition/loading, and representative scholarly smoke tests.
+Later phases add plugin installation/startup, MCP initialization/tool discovery, corpus acquisition/loading, and representative integration smoke tests.
 
 Run all current tests with:
 

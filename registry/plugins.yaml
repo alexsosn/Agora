@@ -47,7 +47,7 @@ plugins:
         - Deterministic tests cover the Agora runtime, resolver, collection discovery, MCP tool registration, and generated client launch metadata.
         - The scheduled Context-Fabric source audit resolves all 36 v0.1 upstream resources from Git metadata without materializing corpus blobs.
         - The live MCP smoke workflow currently exercises the Codex stdio path; Claude is not promoted to live-verified until an equivalent client-path check exists.
-        - Plugin verification does not promote individual corpora; resource-level verification and known issues remain separate.
+        - Plugin verification does not promote individual resource integrations; each acquisition and loading path is verified separately.
 
   - id: perseus
     name: Perseus MCP

@@ -13,7 +13,7 @@ metadata:
 
 Agora models large PTHU repositories as **collections of independent Text-Fabric corpora**, not as one giant Greek dataset and not as one marketplace plugin per work.
 
-The upstream `pthu/greek_literature` repository says it contains Text-Fabric packages of Greek texts available from the **Perseus Digital Library** and the **Open Greek and Latin Project**. Agora's current source audit finds **1,779** TF dataset roots in that repository alone.
+The upstream `pthu/greek_literature` repository says it contains Text-Fabric packages of Greek texts available from the **Perseus Digital Library** and the **Open Greek and Latin Project**. Agora discovers the current dataset roots dynamically from upstream Git metadata.
 
 That scale makes discovery and schema inspection mandatory.
 
@@ -121,6 +121,7 @@ Record:
 - member ID returned by `list_collection_members`;
 - author/title and repository-relative member path;
 - selected TF version/path if exposed;
+- resolved upstream source revision;
 - underlying edition/source when identifiable;
 - node types/features used;
 - whether the same work was compared against the separate Perseus plugin.

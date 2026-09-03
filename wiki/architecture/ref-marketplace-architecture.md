@@ -70,16 +70,11 @@ The 35 Context-Fabric catalog entries are:
 
 TLHdig-TF is an explicit additional resource, not part of the current Context-Fabric catalog snapshot. It should be exposed through Context-Fabric MCP.
 
-### Inclusion is not verification
+### Inclusion is not upstream endorsement
 
-Agora needs two separate trust dimensions:
+Agora verification answers an integration question: does the plugin or resource configuration install, initialize, resolve, and perform representative operations correctly? It does not assess whether an upstream corpus is suitable for a particular research use.
 
-- **plugin/integration verification** — does the MCP/provider integration install, initialize, and perform representative operations correctly?
-- **resource/data verification** — what confidence should a researcher place in the underlying corpus/data conversion?
-
-This distinction is necessary immediately because TLHdig-TF currently labels its `0.1.0` corpus as an integration prototype with known defects and warns that it should not yet be relied on for research. Agora should include it from v0.1 but mark the resource **Experimental** until upstream status improves.
-
-The same model scales to other corpora whose upstream quality, licensing, or testing status differs from the provider runtime.
+Suitability, data quality, corpus semantics, and upstream limitations remain owned by the original repository or corpus publisher. Agora should identify and resolve the upstream source precisely so users can consult the documentation matching the loaded revision; it should not duplicate mutable upstream assessments.
 
 ## 3. Relationship to `mcp-demo`
 
@@ -212,8 +207,8 @@ The resource registry should record at least:
 - collection membership;
 - acquisition status;
 - plugin/runtime verification status;
-- resource/data verification status;
-- known issues.
+- resource integration-verification status;
+- Agora-owned integration issues.
 
 The preferred design is to use supported TF-native acquisition/application mechanisms where practical rather than reproducing bespoke clone/path logic from `mcp-demo`.
 
@@ -362,37 +357,32 @@ resource:
   type: corpus
   version: 0.1.0
 verification:
-  status: experimental
-  notes:
-    - upstream marks current conversion as not yet research-ready
+  status: community
 ```
 
 The schema should distinguish software license, dataset/content license, redistribution rights, and remote-service terms.
 
 ## 11. Verification model
 
-Marketplace inclusion should communicate both operational trust and scholarly-data trust.
+Marketplace verification communicates operational integration trust only. Upstream publishers remain authoritative for scholarly suitability and data quality.
 
 ### Plugin/integration status
 
 **Verified** means the integration installs/connects, MCP initialization succeeds, tools are available, and representative operations pass CI.
 
-### Resource/data status
+### Resource integration status
 
-Resource status can independently be:
+Resource status describes Agora's confidence in acquisition, resolution, and loading:
 
-- **Verified** — tested to Agora's defined resource standard;
-- **Community** — useful/valid but not continuously tested to Verified standard;
-- **Experimental** — known unresolved correctness, stability, or completeness problems.
+- **Verified** — the advertised integration path is continuously tested to Agora's defined standard;
+- **Community** — the integration is registered and usable but not continuously tested to the Verified standard;
+- **Experimental** — the Agora-owned integration path is incomplete or unstable.
 
-Tests should verify actual scholarly behavior rather than only process startup. Examples include:
+Tests should verify integration behavior without becoming upstream semantic tests. Examples include:
 
-- BHSA morphological query returns results;
-- CUC Ugaritic query returns expected hits;
-- TLHdig-TF loads and exposes expected analysis/damage features while retaining its Experimental warning;
-- Perseus retrieves a known CTS passage;
-- Sefaria retrieves a known reference;
-- SEDRA resolves a known word/lexeme.
+- a registered Context-Fabric resource resolves and loads from its configured source;
+- Perseus reaches a published CTS retrieval operation and returns a structurally valid response;
+- Sefaria and SEDRA endpoints initialize and expose their advertised tools.
 
 ## 12. Skills and scholarly guidance
 
@@ -403,11 +393,11 @@ Examples:
 - Context-Fabric: graph model, query syntax, feature discovery, corpus switching.
 - BHSA: ETCBC feature names and morphological query patterns.
 - CUC: Ugaritic transliteration, tablet/line hierarchy, relevant features.
-- TLHdig-TF: analysis-node morphology, editorial/damage annotations, known conversion limitations.
+- TLHdig-TF: registered-resource loading, resolved-source provenance, and discovery of the matching upstream documentation.
 - Perseus: CTS URNs, edition discovery, passage addressing.
 - SEDRA: word IDs versus lexeme IDs.
 
-Skills should be concise, source-grounded, and versioned with the integration.
+Skills should be concise, source-grounded, and versioned with the integration. Mutable corpus semantics, suitability, and data-quality guidance should remain upstream and be consulted at the resolved source revision.
 
 ## 13. Upstream policy
 
@@ -443,7 +433,7 @@ Avoid importing old architectural coupling simply because working code already e
 7. Which marketplace files must live at fixed paths and therefore cannot remain only under `generated/`?
 8. How should local corpus caches be shared across Claude, Codex, and Antigravity?
 9. How should upstream corpus-catalog changes be detected after the v0.1 baseline is fixed?
-10. What exact requirements distinguish Verified, Community, and Experimental at both plugin and resource levels?
+10. What exact integration checks distinguish Verified, Community, and Experimental at both plugin and resource levels?
 
 ## 16. Success criteria
 
@@ -453,10 +443,10 @@ Agora's first implementation is successful when:
 - `context-fabric`, `perseus`, `sefaria`, and `sedra` are independently represented as plugins;
 - the Context-Fabric provider includes all 35 current catalog entries plus TLHdig-TF;
 - collection repositories do not explode into one marketplace plugin per text;
-- plugin/runtime verification and resource/data verification are modeled separately;
+- plugin/runtime and resource integration verification are modeled separately;
 - third-party MCP code is referenced rather than unnecessarily forked;
 - plugin/resource metadata is generated from one canonical registry;
 - software/data licensing and upstream provenance are visible;
-- CI verifies real MCP functionality and representative corpus behavior;
-- plugins/resources include enough scholarly guidance for agents to use them correctly;
+- CI verifies real MCP functionality and representative integration behavior;
+- plugins/resources direct agents to authoritative upstream documentation for corpus semantics and suitability;
 - no architectural requirement exists solely to preserve `mcp-demo` behavior.
