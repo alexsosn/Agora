@@ -407,4 +407,12 @@ class ContextFabricResolver:
             return prepared
         selected = self._prepare_feature_modules(prepared, module_ids)
         overlay = self._overlay(prepared, selected)
-        return replace(prepared, path=overlay, modules=selected)
+        logical_name = "+".join(
+            [prepared.logical_name, *(module.resource_id for module in selected)]
+        )
+        return replace(
+            prepared,
+            logical_name=logical_name,
+            path=overlay,
+            modules=selected,
+        )
