@@ -65,12 +65,10 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         contain the same non-warp TF feature name, later selected modules take
         precedence, matching Text-Fabric module ordering.
         """
-        return service.prepare(
-            resource_id,
-            member_id=member_id,
-            version=version,
-            modules=modules,
-        )
+        kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
+        if version is not None:
+            kwargs["version"] = version
+        return service.prepare(resource_id, **kwargs)
 
     @mcp.tool()
     def load_corpus(
@@ -81,10 +79,11 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
         """Acquire and load a corpus version with optional registered feature modules."""
-        return service.load(
-            resource_id,
-            member_id=member_id,
-            version=version,
-            features=features,
-            modules=modules,
-        )
+        kwargs: dict[str, Any] = {
+            "member_id": member_id,
+            "features": features,
+            "modules": modules,
+        }
+        if version is not None:
+            kwargs["version"] = version
+        return service.load(resource_id, **kwargs)
