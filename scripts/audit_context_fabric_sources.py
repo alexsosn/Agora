@@ -42,6 +42,7 @@ def _child_path(root: str, filename: str) -> str:
 def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
     resources: list[dict[str, Any]] = []
     failed = 0
+    load_smoke_required: list[str] = []
     parent_states: dict[str, dict[str, Any]] = {}
     parent_version_states: dict[tuple[str, str], dict[str, Any]] = {}
 
@@ -63,6 +64,7 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
         selected = _selected_root(parent, roots)
         state = {
             "repo": repo,
+            "repository": parent.repository,
             "source_revision": revision,
             "roots": roots,
             "versions": sorted({dataset_version(root) for root in roots}),
@@ -165,48 +167,34 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
                         int(summary["max_node"]),
                     )
 
-                if not core_data:
-                    raise ValueError(
-                        "feature module supplies no @coreData metadata; parent identity cannot be verified"
-                    )
-                if len(core_data) != 1:
+                if len(core_data) > 1:
                     raise ValueError(
                         f"feature module supplies conflicting @coreData values: {', '.join(sorted(core_data))}"
                     )
 
                 version_evidence = core_versions or fallback_versions
-                if not version_evidence:
-                    raise ValueError(
-                        "feature module supplies no @coreVersion or core-associated @version metadata; "
-                        "parent version cannot be verified"
-                    )
                 undeclared = sorted(version_evidence - set(resource.parent_versions))
                 if undeclared:
                     raise ValueError(
                         "feature module core-version metadata conflicts with declared parent compatibility: "
                         f"{', '.join(undeclared)}"
                     )
-                unverified = sorted(set(resource.parent_versions) - version_evidence)
-                if unverified:
-                    raise ValueError(
-                        "declared parent version(s) lack module core-version evidence: "
-                        f"{', '.join(unverified)}"
-                    )
 
                 parent_evidence: dict[str, dict[str, Any]] = {}
-                module_core = next(iter(core_data))
                 for version in resource.parent_versions:
                     version_state = parent_version_state(resource.parent or "", version)
                     parent_dataset = version_state["dataset"]
-                    if parent_dataset is None:
-                        raise ValueError(
-                            f"parent corpus {resource.parent!r} version {version!r} has no @dataset metadata"
-                        )
-                    if module_core != str(parent_dataset):
-                        raise ValueError(
-                            f"feature module @coreData={module_core!r} does not match parent "
-                            f"@dataset={parent_dataset!r} for {resource.parent!r}@{version}"
-                        )
+                    if core_data:
+                        if parent_dataset is None:
+                            raise ValueError(
+                                f"parent corpus {resource.parent!r} version {version!r} has no @dataset metadata"
+                            )
+                        module_core = next(iter(core_data))
+                        if module_core != str(parent_dataset):
+                            raise ValueError(
+                                f"feature module @coreData={module_core!r} does not match parent "
+                                f"@dataset={parent_dataset!r} for {resource.parent!r}@{version}"
+                            )
                     parent_max = int(version_state["max_node"])
                     if max_referenced_node > parent_max:
                         raise ValueError(
@@ -220,19 +208,42 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
                         "warp_fingerprint": version_state["warp_fingerprint"],
                     }
 
+                same_parent_commit = (
+                    resource.repository == state["repository"]
+                    and revision == state["source_revision"]
+                )
+                metadata_covers_versions = (
+                    bool(core_data)
+                    and bool(version_evidence)
+                    and set(resource.parent_versions).issubset(version_evidence)
+                )
+
                 item["status"] = "ok"
                 item["module"] = resource.module_path
                 item["feature_file_count"] = len(feature_files)
+                item["feature_files"] = feature_files
                 item["sample_features"] = feature_files[:10]
                 item["parent_source_revision"] = state["source_revision"]
                 item["parent_available_versions"] = state["versions"]
                 item["parent_default_version"] = state["default_version"]
                 item["compatible_with_default"] = state["default_version"] in resource.parent_versions
-                item["verified_parent_versions"] = list(resource.parent_versions)
-                item["core_data"] = module_core
+                item["core_data"] = next(iter(core_data)) if core_data else None
                 item["core_version_evidence"] = sorted(version_evidence)
                 item["max_referenced_node"] = max_referenced_node
                 item["parent_compatibility_evidence"] = parent_evidence
+
+                if metadata_covers_versions:
+                    item["compatibility_evidence"] = "core-metadata+node-bounds"
+                    item["verified_parent_versions"] = list(resource.parent_versions)
+                elif same_parent_commit:
+                    item["compatibility_evidence"] = "co-located-parent-commit+node-bounds"
+                    item["verified_parent_versions"] = list(resource.parent_versions)
+                else:
+                    item["compatibility_evidence"] = "load-smoke-required"
+                    item["verified_parent_versions"] = []
+                    item["structurally_compatible_parent_versions"] = list(resource.parent_versions)
+                    item["load_smoke_required"] = True
+                    load_smoke_required.append(resource.id)
             else:
                 roots = store.dataset_roots(repo, revision)
                 if not roots:
@@ -246,6 +257,7 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
                     item["selected_root"] = selected
                     parent_states[resource.id] = {
                         "repo": repo,
+                        "repository": resource.repository,
                         "source_revision": revision,
                         "roots": roots,
                         "versions": sorted({dataset_version(root) for root in roots}),
@@ -264,6 +276,7 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
         "checked": checked,
         "passed": checked - failed,
         "failed": failed,
+        "load_smoke_required": sorted(load_smoke_required),
         "resources": resources,
     }
 
@@ -273,7 +286,8 @@ def main() -> int:
         description=(
             "Audit registered Context-Fabric corpora, collections, and feature modules. "
             "The audit resolves Git metadata and streams TF feature content needed for core/version "
-            "and node-bound compatibility checks; full parent corpora are not materialized."
+            "and node-bound compatibility checks; full parent corpora are not materialized. "
+            "Standalone modules without core metadata are marked for a real load smoke."
         )
     )
     parser.add_argument(
