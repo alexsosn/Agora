@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import multiprocessing
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_SRC = ROOT / "plugins" / "context-fabric" / "src"
@@ -207,6 +209,32 @@ class CacheObjectContractTests(CacheFixture):
                     other.remove_cache_object(corpus, timeout=0.05)
             removed = store.remove_cache_object(corpus)
             self.assertEqual(removed["removed_entries"], 1)
+
+    def test_recursive_eviction_io_happens_after_transition_is_released(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store, repo = self.make_store(Path(tmp))
+            corpus = store.materialize(repo, "tf/2.0")
+            other = GitStore(store.cache_dir, snapshot_soft_limit_bytes=10_000, min_free_bytes=0)
+            real_rmtree = shutil.rmtree
+            observed_detached_delete = False
+
+            def checked_rmtree(path, *args, **kwargs):
+                nonlocal observed_detached_delete
+                candidate = Path(path)
+                if candidate.name.startswith("evict-"):
+                    # Recursive deletion of a detached tree must not hold the
+                    # global exclusive transition lock. A normal prepare/load
+                    # can therefore enter while deletion IO continues.
+                    with other.cache_transition(timeout=0.1):
+                        observed_detached_delete = True
+                return real_rmtree(path, *args, **kwargs)
+
+            with patch("agora_context_fabric.gitstore.shutil.rmtree", side_effect=checked_rmtree):
+                result = store.remove_cache_object(corpus)
+
+            self.assertEqual(result["removed_entries"], 1)
+            self.assertTrue(observed_detached_delete)
+            self.assertFalse(corpus.exists())
 
 
 class ServiceLifecycleContractTests(CacheFixture):
