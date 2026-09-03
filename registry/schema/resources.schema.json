@@ -131,12 +131,7 @@
           },
           {
             "if": {"properties": {"kind": {"const": "feature-module"}}},
-            "then": {
-              "required": ["parent", "compatibility", "module"],
-              "properties": {
-                "upstream": {"required": ["repository", "module", "tf_path"]}
-              }
-            },
+            "then": {"required": ["parent", "compatibility", "module"]},
             "else": {
               "allOf": [
                 {"not": {"required": ["parent"]}},
