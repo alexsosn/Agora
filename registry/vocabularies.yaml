@@ -8,7 +8,6 @@ verification_statuses:
 runtime_modes:
   - local
   - hosted
-
 data_modes:
   - local
   - remote
@@ -17,6 +16,15 @@ data_modes:
 resource_kinds:
   - corpus
   - collection
+  - feature-module
+
+feature_module_statuses:
+  - standard
+  - optional
+  - community
+  - narrow-scope
+  - legacy
+  - demo
 
 acquisition_strategies:
   - repository
