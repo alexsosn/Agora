@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import time
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Iterator
@@ -19,6 +20,7 @@ _NODE_SPEC_RE = re.compile(r"^\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*$")
 GIB = 1024**3
 DEFAULT_SNAPSHOT_SOFT_LIMIT_BYTES = 3 * GIB
 DEFAULT_MIN_FREE_BYTES = 6 * GIB
+_ABANDONED_EVICTION_GRACE_SECONDS = 300
 
 
 class CacheLease:
@@ -42,9 +44,6 @@ class CacheLease:
         self.release()
 
     def __del__(self) -> None:
-        # Process exit already releases OS locks, but deterministic descriptor
-        # cleanup avoids leaking open lock handles when an embedding discards a
-        # service without explicitly unloading every corpus first.
         try:
             self.release()
         except Exception:
@@ -95,6 +94,7 @@ class GitStore:
         if self.min_free_bytes < 0:
             raise ValueError("min_free_bytes must be >= 0")
         self._ensure_layout()
+        self._cleanup_abandoned_evictions()
 
     @staticmethod
     def _env_gib(name: str, default_bytes: int) -> int:
@@ -122,6 +122,21 @@ class GitStore:
             self.object_meta_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)
+
+    def _cleanup_abandoned_evictions(self) -> None:
+        """Best-effort cleanup for detached trees left behind by process death.
+
+        A grace period keeps a newly created GitStore from racing a live process
+        that has just detached a tree and is deleting it outside the transition
+        lock. Detached trees are never served, so cleanup needs no cache lease.
+        """
+        cutoff = time.time() - _ABANDONED_EVICTION_GRACE_SECONDS
+        for candidate in self.tmp_dir.glob("evict-*"):
+            try:
+                if candidate.stat().st_mtime <= cutoff:
+                    shutil.rmtree(candidate, ignore_errors=True)
+            except FileNotFoundError:
+                continue
 
     @staticmethod
     def repository_url(repository: str) -> str:
@@ -174,9 +189,6 @@ class GitStore:
         try:
             lock.acquire()
         except portalocker.exceptions.LockException as exc:
-            # Portalocker may already have opened the lock file before timing
-            # out. Release closes any such handle even when ownership was never
-            # obtained.
             try:
                 lock.release()
             except Exception:
@@ -220,7 +232,7 @@ class GitStore:
         exclusive: bool = False,
         timeout: float = 30.0,
     ) -> Iterator[None]:
-        """Coordinate prepare/composition->lease transitions with deletion."""
+        """Coordinate prepare/composition->lease transitions with cache detachment."""
         lock = self._acquire_file_lock(
             self.cache_transition_lock,
             shared=not exclusive,
@@ -527,7 +539,8 @@ class GitStore:
             raise OSError(
                 "insufficient disk space for corpus materialization: "
                 f"{free_bytes} bytes free, need {required_bytes} writable bytes while preserving "
-                f"the configured reserve of {self.min_free_bytes} bytes"
+                f"the configured reserve of {self.min_free_bytes} bytes; inspect corpus_cache_status "
+                "and run prune_corpus_cache to reclaim unused cache objects"
             )
 
     @staticmethod
@@ -935,31 +948,51 @@ class GitStore:
                 break
             parent = parent.parent
 
-    def _remove_cache_object_locked(self, path: Path) -> dict[str, int]:
+    def _detach_cache_object_locked(self, path: Path) -> tuple[dict[str, int], Path | None]:
         candidate = self._managed_path(path)
         if not candidate.exists():
-            return {"removed_entries": 0, "removed_bytes": 0, "skipped_in_use": 0}
+            return {"removed_entries": 0, "removed_bytes": 0, "skipped_in_use": 0}, None
         lock = self._try_object_exclusive_lock(candidate)
         if lock is None:
-            return {"removed_entries": 0, "removed_bytes": 0, "skipped_in_use": 1}
+            return {"removed_entries": 0, "removed_bytes": 0, "skipped_in_use": 1}, None
+        quarantine_root: Path | None = None
         try:
             if not candidate.exists():
-                return {"removed_entries": 0, "removed_bytes": 0, "skipped_in_use": 0}
-            size = self._directory_size(candidate)
-            shutil.rmtree(candidate)
+                return {"removed_entries": 0, "removed_bytes": 0, "skipped_in_use": 0}, None
+            quarantine_root = Path(tempfile.mkdtemp(prefix="evict-", dir=self.tmp_dir))
+            detached = quarantine_root / "data"
+            try:
+                os.replace(candidate, detached)
+            except Exception:
+                try:
+                    quarantine_root.rmdir()
+                except OSError:
+                    pass
+                quarantine_root = None
+                raise
             self._cleanup_empty_parents(candidate)
             for sidecar in (self._access_path(candidate), self._meta_path(candidate)):
                 try:
                     sidecar.unlink()
                 except FileNotFoundError:
                     pass
-            return {"removed_entries": 1, "removed_bytes": size, "skipped_in_use": 0}
+            return {"removed_entries": 1, "removed_bytes": 0, "skipped_in_use": 0}, quarantine_root
         finally:
             lock.release()
 
+    def _delete_detached_cache_object(self, quarantine_root: Path) -> int:
+        detached = quarantine_root / "data"
+        size = self._directory_size(detached)
+        shutil.rmtree(quarantine_root, ignore_errors=True)
+        return size
+
     def remove_cache_object(self, path: Path, *, timeout: float = 30.0) -> dict[str, int]:
+        quarantine_root: Path | None
         with self.cache_transition(exclusive=True, timeout=timeout):
-            return self._remove_cache_object_locked(path)
+            result, quarantine_root = self._detach_cache_object_locked(path)
+        if quarantine_root is not None:
+            result["removed_bytes"] = self._delete_detached_cache_object(quarantine_root)
+        return result
 
     def remove_cache_objects(
         self,
@@ -970,39 +1003,48 @@ class GitStore:
         removed_entries = 0
         removed_bytes = 0
         skipped_in_use = 0
-        with self.cache_transition(exclusive=True, timeout=timeout):
-            for path in paths:
-                result = self._remove_cache_object_locked(path)
-                removed_entries += result["removed_entries"]
-                removed_bytes += result["removed_bytes"]
-                skipped_in_use += result["skipped_in_use"]
+        blocked_by_transition = 0
+        for path in paths:
+            try:
+                result = self.remove_cache_object(path, timeout=timeout)
+            except TimeoutError:
+                blocked_by_transition += 1
+                continue
+            removed_entries += result["removed_entries"]
+            removed_bytes += result["removed_bytes"]
+            skipped_in_use += result["skipped_in_use"]
         return {
             "removed_entries": removed_entries,
             "removed_bytes": removed_bytes,
             "skipped_in_use": skipped_in_use,
+            "blocked_by_transition": blocked_by_transition,
         }
 
     def prune(self, *, target_bytes: int | None = None, timeout: float = 30.0) -> dict[str, Any]:
         target = self.snapshot_soft_limit_bytes if target_bytes is None else target_bytes
         if target < 0:
             raise ValueError("target_bytes must be >= 0")
+        entries = self.cache_entries()
+        before_bytes = sum(int(entry["size_bytes"]) for entry in entries)
+        remaining = before_bytes
         removed_entries = 0
         removed_bytes = 0
         skipped_in_use = 0
-        with self.cache_transition(exclusive=True, timeout=timeout):
-            entries = self.cache_entries()
-            before_bytes = sum(int(entry["size_bytes"]) for entry in entries)
-            remaining = before_bytes
-            for entry in entries:
-                if remaining <= target and self._free_bytes() >= self.min_free_bytes:
-                    break
-                result = self._remove_cache_object_locked(Path(str(entry["path"])))
-                if result["removed_entries"]:
-                    remaining -= result["removed_bytes"]
-                removed_entries += result["removed_entries"]
-                removed_bytes += result["removed_bytes"]
-                skipped_in_use += result["skipped_in_use"]
-            free_after = self._free_bytes()
+        blocked_by_transition = 0
+        for entry in entries:
+            if remaining <= target and self._free_bytes() >= self.min_free_bytes:
+                break
+            try:
+                result = self.remove_cache_object(Path(str(entry["path"])), timeout=timeout)
+            except TimeoutError:
+                blocked_by_transition += 1
+                break
+            if result["removed_entries"]:
+                remaining -= result["removed_bytes"]
+            removed_entries += result["removed_entries"]
+            removed_bytes += result["removed_bytes"]
+            skipped_in_use += result["skipped_in_use"]
+        free_after = self._free_bytes()
         return {
             "target_bytes": target,
             "before_bytes": before_bytes,
@@ -1010,6 +1052,7 @@ class GitStore:
             "removed_entries": removed_entries,
             "removed_bytes": removed_bytes,
             "skipped_in_use": skipped_in_use,
+            "blocked_by_transition": blocked_by_transition,
             "target_met": remaining <= target,
             "free_space_met": free_after >= self.min_free_bytes,
             "free_bytes": free_after,
