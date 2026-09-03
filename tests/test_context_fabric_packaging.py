@@ -19,11 +19,17 @@ from scripts.generate_context_fabric_catalog import (
 
 
 class ContextFabricPackagingTests(unittest.TestCase):
-    def test_installed_plugin_catalog_contains_v01_scope_and_modules(self):
+    def test_installed_plugin_catalog_contains_exact_v01_scope_and_modules(self):
         catalog = Catalog.from_plugin_root(PLUGIN_ROOT)
         with (ROOT / "registry" / "v0.1.yaml").open("r", encoding="utf-8") as fh:
             scope = yaml.safe_load(fh)
-        self.assertTrue(set(scope["required_resources"]).issubset(catalog.ids()))
+        core_ids = [
+            resource.id
+            for resource in catalog.resources()
+            if resource.kind in {"corpus", "collection"}
+        ]
+        self.assertEqual(core_ids, scope["required_resources"])
+        self.assertEqual(len(core_ids), 37)
         self.assertEqual(len(catalog.search(kind="feature-module")), 21)
 
     def test_bundled_catalog_is_a_lossless_projection_of_registry(self):
