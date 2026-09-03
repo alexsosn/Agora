@@ -5,7 +5,7 @@ import re
 import subprocess
 import time
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Iterator
 
 
@@ -145,18 +145,36 @@ class GitStore:
         except subprocess.CalledProcessError:
             return "HEAD"
 
-    def dataset_roots(self, repo: Path, revision: str | None = None) -> list[str]:
+    def _tree_names(self, repo: Path, revision: str | None = None) -> list[str]:
         names = self._run(
             "ls-tree", "-r", "--name-only", self._treeish(repo, revision), cwd=repo
         )
+        return [name.strip().replace("\\", "/") for name in names.splitlines() if name.strip()]
+
+    def dataset_roots(self, repo: Path, revision: str | None = None) -> list[str]:
         roots: set[str] = set()
-        for name in names.splitlines():
-            normalized = name.strip().replace("\\", "/")
+        for normalized in self._tree_names(repo, revision):
             if normalized == "otype.tf":
                 roots.add(".")
             elif normalized.endswith("/otype.tf"):
                 roots.add(normalized[: -len("/otype.tf")])
         return sorted(roots)
+
+    def feature_files(
+        self,
+        repo: Path,
+        relative_path: str,
+        revision: str | None = None,
+    ) -> list[str]:
+        """Return direct `.tf` files under a repository path using Git metadata only."""
+        relative = self._safe_relative_path(relative_path)
+        parent = PurePosixPath("" if relative == "." else relative)
+        result: list[str] = []
+        for name in self._tree_names(repo, revision):
+            path = PurePosixPath(name)
+            if path.suffix == ".tf" and path.parent == parent:
+                result.append(path.name)
+        return sorted(result)
 
     @staticmethod
     def _safe_relative_path(relative_path: str) -> str:
