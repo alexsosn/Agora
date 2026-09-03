@@ -40,8 +40,15 @@ class ConservativeCacheDiscoveryTests(unittest.TestCase):
             # wrong would let LRU prune mutate a source snapshot in place.
             self.assertEqual(store.cache_entries(), [])
 
+            status = store.cache_status()
+            self.assertGreater(status["unindexed_cache_bytes"], 0)
+            self.assertGreater(status["cache_bytes"], 0)
+            self.assertTrue(status["over_soft_limit"])
+
             result = store.prune(target_bytes=0)
             self.assertEqual(result["removed_entries"], 0)
+            self.assertFalse(result["target_met"])
+            self.assertGreater(result["unindexed_cache_bytes"], 0)
             self.assertTrue((module / "addon.tf").is_file())
             self.assertTrue((nested / "extra.tf").is_file())
 
@@ -70,8 +77,12 @@ class ConservativeCacheDiscoveryTests(unittest.TestCase):
             self.assertEqual(len(entries), 1)
             self.assertEqual(Path(entries[0]["path"]), module.resolve())
 
+            status = store.cache_status()
+            self.assertEqual(status["unindexed_cache_bytes"], 0)
+
             result = store.prune(target_bytes=0)
             self.assertEqual(result["removed_entries"], 1)
+            self.assertTrue(result["target_met"])
             self.assertFalse(module.exists())
 
 
