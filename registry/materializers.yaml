@@ -1,0 +1,25 @@
+schema_version: 1
+plugins:
+  - id: pseudepigrapha-tf
+    name: Pseudepigrapha-TF
+    description: Convert Online Critical Pseudepigrapha XML editions into local Text-Fabric artifacts.
+    repository: alexsosn/Pseudepigrapha-TF
+    ref: a2300b3c5b1a5e859d82691dc28bd53967053a8d
+    version: 0.1.0
+    manifest: agora.materializer.json
+    package:
+      type: python-project
+      path: .
+      install_trust: explicit-code-execution
+    materializers:
+      - ocp-text-fabric
+    disciplines: [biblical-studies, digital-philology, judaica]
+    licenses:
+      software: MIT
+      data: upstream-dependent
+    verification:
+      status: community
+      notes:
+        - Passive fetch validates the immutable upstream source and materializer manifest without executing plugin Python.
+        - Explicit installation executes third-party Python packaging/build code and records the resolved runtime, distribution closure, source hash, and managed environment hash.
+        - The upstream materializer contract remains exercised by Agora's sandboxed Pseudepigrapha-TF reference materialization.

@@ -45,6 +45,7 @@ Release documents encode lifecycle instead of P-level priority:
 - [`architecture/ref-context-fabric-collections.md`](architecture/ref-context-fabric-collections.md) — member-aware handling of large Text-Fabric collection repositories.
 - [`architecture/ref-context-fabric-snapshot-cache.md`](architecture/ref-context-fabric-snapshot-cache.md) — revision-addressed corpus/feature-module source materialization, exact-byte export, and source-provenance boundary.
 - [`architecture/ref-context-fabric-cache-lifecycle.md`](architecture/ref-context-fabric-cache-lifecycle.md) — cross-process repository locking, cache-object leases, overlay-aware eviction, LRU/status/remove UX, and load/reload lifecycle.
+- [`architecture/ref-local-materialization.md`](architecture/ref-local-materialization.md) — experimental source → trusted materializer → transactional local artifact boundary, sandbox model, and reproducibility provenance.
 - [`architecture/ref-implementation-details.md`](architecture/ref-implementation-details.md) — marketplace generation, integration plumbing, verification details, scholarly skills, repository layout, and phase status moved out of the user-facing README.
 
 When older planning/research language is broader than the plugin boundary, `ref-plugin-boundary.md` controls. In particular, a backlog item or review finding about a third-party plugin does not authorize Agora to fix the plugin's own semantics.
@@ -63,8 +64,9 @@ When older planning/research language is broader than the plugin boundary, `ref-
 - [`backlog/P0-research-ecosystem-expansion.md`](backlog/P0-research-ecosystem-expansion.md) — cross-domain post-v0.1 candidate survey.
 - [`backlog/P0-research-egyptology.md`](backlog/P0-research-egyptology.md) — Egyptology-specific integration research.
 - [`backlog/P0-research-germanic-philology.md`](backlog/P0-research-germanic-philology.md) — Old Norse/Icelandic/Gothic integration research.
+- [`backlog/P1-design-local-materialization-composition.md`](backlog/P1-design-local-materialization-composition.md) — bind the exercised materialization primitive to installation approval, resources, artifact caching, and consumers.
 
-These three files are P0 **research** backlogs, not promises that every candidate inside them is P0 implementation work. Candidate-level priorities remain documented inside each survey until the backlog is normalized into structured candidate records.
+The three P0 research files are research backlogs, not promises that every candidate inside them is P0 implementation work. Candidate-level priorities remain documented inside each survey until the backlog is normalized into structured candidate records.
 
 ### Reviews
 
