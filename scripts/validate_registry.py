@@ -9,6 +9,8 @@ from typing import Any, Iterable
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
+from scripts.validate_candidate_research import validate_candidate_research
+
 ROOT = Path(__file__).resolve().parents[1]
 VERIFICATION_RANK = {"experimental": 0, "community": 1, "verified": 2}
 
@@ -277,6 +279,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
         if resource is not None and resource["plugin"] != "context-fabric":
             errors.append(f"v0.1.yaml: required resource {resource_id!r} is not owned by context-fabric")
 
+    errors += validate_candidate_research(root, vocab)
     return errors
 
 
@@ -287,7 +290,10 @@ def main() -> int:
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print("Registry validation passed: marketplace, materializer, resource, and feature-module metadata.")
+    print(
+        "Registry validation passed: marketplace, materializer, resource, "
+        "feature-module, and candidate-research metadata."
+    )
     return 0
 
 
