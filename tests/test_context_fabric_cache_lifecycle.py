@@ -236,6 +236,58 @@ class CacheObjectContractTests(CacheFixture):
             self.assertTrue(observed_detached_delete)
             self.assertFalse(corpus.exists())
 
+    def test_detach_invalidates_sidecars_before_served_path_can_disappear(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store, repo = self.make_store(Path(tmp))
+            corpus = store.materialize(repo, "tf/2.0")
+            meta = store._meta_path(corpus)
+            access = store._access_path(corpus)
+            self.assertTrue(meta.is_file())
+            self.assertTrue(access.is_file())
+
+            real_replace = os.replace
+
+            def fail_object_detach(source, destination):
+                if Path(source) == corpus:
+                    # If the process dies immediately after a successful rename,
+                    # stale identity must not survive and later bless a nested
+                    # path recreated by a different enclosing cache object.
+                    self.assertFalse(meta.exists())
+                    self.assertFalse(access.exists())
+                    raise OSError("simulated detach failure")
+                return real_replace(source, destination)
+
+            with patch("agora_context_fabric.gitstore.os.replace", side_effect=fail_object_detach):
+                with self.assertRaisesRegex(OSError, "simulated detach failure"):
+                    store.remove_cache_object(corpus)
+
+            self.assertTrue(corpus.is_dir())
+            self.assertEqual(store.cache_entries(), [])
+            store.touch_cache_object(corpus)
+            self.assertEqual([Path(entry["path"]) for entry in store.cache_entries()], [corpus])
+
+    def test_store_startup_never_performs_recursive_abandoned_eviction_cleanup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cache_dir = Path(tmp) / "cache"
+            store = GitStore(cache_dir, snapshot_soft_limit_bytes=10_000, min_free_bytes=0)
+            abandoned = store.tmp_dir / "evict-abandoned"
+            data = abandoned / "data"
+            data.mkdir(parents=True)
+            (data / "payload.tf").write_bytes(b"x" * 128)
+            old = time.time() - 600
+            os.utime(abandoned, (old, old))
+
+            reopened = GitStore(cache_dir, snapshot_soft_limit_bytes=10_000, min_free_bytes=0)
+            self.assertTrue(abandoned.is_dir())
+            status = reopened.cache_status()
+            self.assertGreaterEqual(status["abandoned_eviction_bytes"], 128)
+            self.assertGreaterEqual(status["abandoned_eviction_entries"], 1)
+
+            result = reopened.prune(target_bytes=10_000)
+            self.assertFalse(abandoned.exists())
+            self.assertGreaterEqual(result["abandoned_eviction_entries_removed"], 1)
+            self.assertGreaterEqual(result["abandoned_eviction_bytes_removed"], 128)
+
 
 class ServiceLifecycleContractTests(CacheFixture):
     @staticmethod
