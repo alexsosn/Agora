@@ -23,9 +23,9 @@ class CollectionMember:
     resource_id: str
     relative_path: str
     identity_path: str
-    source_revision: str
     author: str | None = None
     title: str | None = None
+    source_revision: str | None = None
 
 
 @dataclass(frozen=True)
@@ -233,9 +233,9 @@ class ContextFabricResolver:
                     resource_id=resource.id,
                     relative_path=selected,
                     identity_path=identity,
-                    source_revision=source_revision,
                     author=author,
                     title=title,
+                    source_revision=source_revision,
                 )
             )
         return sorted(members, key=lambda member: member.relative_path.casefold())
