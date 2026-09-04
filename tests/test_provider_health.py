@@ -150,6 +150,22 @@ class ProviderHealthContractTests(unittest.TestCase):
             errors,
         )
 
+    def test_registry_docs_distinguish_three_status_dimensions(self):
+        text = (ROOT / "registry/README.md").read_text(encoding="utf-8")
+        for phrase in (
+            "Provider/service health",
+            "Plugin/client integration evidence",
+            "Resource/data status",
+        ):
+            self.assertIn(phrase, text)
+
+    def test_user_facing_verification_scope_keeps_health_and_quality_separate(self):
+        text = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("provider/service health", text)
+        self.assertIn("plugin/client integration evidence", text)
+        self.assertIn("resource/data status", text)
+        self.assertIn("does not establish scholarly suitability", text)
+
 
 if __name__ == "__main__":
     unittest.main()
