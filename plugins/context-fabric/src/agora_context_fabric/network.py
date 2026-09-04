@@ -54,7 +54,7 @@ class RepositoryResolution:
     revision: str
     source_revision_verified: bool
     resolution: str
-    allow_network: bool
+    allow_network: bool = True
 
 
 def validate_network_mode(mode: str) -> str:
@@ -290,7 +290,7 @@ def materialize_corpus(
     resource_id: str,
     relative_path: str,
 ) -> Path:
-    if not resolution.allow_network:
+    if current_network_mode() == "offline" or not resolution.allow_network:
         return _cached_object(
             store,
             resource_id=resource_id,
@@ -313,7 +313,7 @@ def materialize_feature_module(
     resource_id: str,
     relative_path: str,
 ) -> Path:
-    if not resolution.allow_network:
+    if current_network_mode() == "offline" or not resolution.allow_network:
         return _cached_object(
             store,
             resource_id=resource_id,
