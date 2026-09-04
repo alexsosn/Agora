@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from scripts.smoke_context_fabric_resources import (
     LOAD_CASES,
     SEMANTIC_EXPECTATIONS,
     SemanticExpectation,
     check_semantic_expectations,
+    main,
     select_collection_member,
     summarize_loaded_corpus,
 )
@@ -96,9 +99,7 @@ class ContextFabricLoadSmokeTests(unittest.TestCase):
             )
 
     def test_semantic_comparison_normalizes_unicode_and_reports_the_check(self):
-        api = SimpleNamespace(
-            F=SimpleNamespace(token=_Feature({1: "μῆνιν "}))
-        )
+        api = SimpleNamespace(F=SimpleNamespace(token=_Feature({1: "μῆνιν "})))
         checks = check_semantic_expectations(
             "example",
             api,
@@ -127,6 +128,22 @@ class ContextFabricLoadSmokeTests(unittest.TestCase):
         missing_feature_api = SimpleNamespace(F=SimpleNamespace())
         with self.assertRaisesRegex(RuntimeError, "feature.*token"):
             check_semantic_expectations("example", missing_feature_api, expectation)
+
+    def test_main_without_case_arguments_runs_all_registered_cases(self):
+        called_cases = []
+
+        def fake_run_case(case_name, cache_dir):
+            called_cases.append(case_name)
+            return {"case": case_name, "cache_dir": str(cache_dir)}
+
+        with (
+            patch("scripts.smoke_context_fabric_resources.run_case", side_effect=fake_run_case),
+            patch("sys.argv", ["smoke_context_fabric_resources.py"]),
+            patch("sys.stdout", new_callable=StringIO),
+        ):
+            self.assertEqual(main(), 0)
+
+        self.assertEqual(called_cases, list(LOAD_CASES))
 
     def test_loaded_corpus_summary_requires_tf_data_loader_result_revision_and_checks(self):
         with tempfile.TemporaryDirectory() as tmp:
