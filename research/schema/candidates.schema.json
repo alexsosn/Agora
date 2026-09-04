@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agora.local/schema/candidates.schema.json",
+  "title": "Agora candidate research",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source_documents", "candidates"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "source_documents": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/sourceDocument"}
+    },
+    "candidates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/candidate"}
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "uri": {
+      "type": "string",
+      "format": "uri"
+    },
+    "sourceDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "coverage"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "path": {"type": "string", "minLength": 1},
+        "coverage": {"enum": ["structured", "linked"]},
+        "notes": {"type": "string"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notes", "section"],
+      "properties": {
+        "notes": {"type": "string", "minLength": 1},
+        "section": {"type": "string", "minLength": 1},
+        "upstream": {"$ref": "#/$defs/uri"}
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scholarly_value",
+        "technical_readiness",
+        "provenance_authority",
+        "legal_clarity",
+        "maintenance_health",
+        "overlap",
+        "implementation_effort",
+        "strategic_importance"
+      ],
+      "properties": {
+        "scholarly_value": {"enum": ["high", "medium", "low", "unknown"]},
+        "technical_readiness": {"enum": ["ready", "promising", "blocked", "unknown"]},
+        "provenance_authority": {"enum": ["high", "medium", "low", "unknown"]},
+        "legal_clarity": {"enum": ["clear", "partial", "blocked", "unknown"]},
+        "maintenance_health": {"enum": ["active", "slow", "inactive", "unknown"]},
+        "overlap": {"enum": ["none", "low", "moderate", "high", "unknown"]},
+        "implementation_effort": {"enum": ["low", "medium", "high", "unknown"]},
+        "strategic_importance": {"enum": ["high", "medium", "low", "unknown"]}
+      }
+    },
+    "license": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["known", "unknown", "not-applicable"]},
+        "expression": {"type": "string", "minLength": 1}
+      }
+    },
+    "serviceTerms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["known", "unknown", "not-applicable"]},
+        "url": {"$ref": "#/$defs/uri"}
+      }
+    },
+    "legal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "software_license",
+        "data_license",
+        "redistribution",
+        "authentication",
+        "service_terms"
+      ],
+      "properties": {
+        "software_license": {"$ref": "#/$defs/license"},
+        "data_license": {"$ref": "#/$defs/license"},
+        "redistribution": {"enum": ["permitted", "restricted", "unknown", "not-applicable"]},
+        "authentication": {"enum": ["none", "optional", "required", "unknown", "not-applicable"]},
+        "service_terms": {"$ref": "#/$defs/serviceTerms"}
+      }
+    },
+    "taxonomy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capabilities", "disciplines", "resource_kinds", "research_tags"],
+      "properties": {
+        "capabilities": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        "disciplines": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        "resource_kinds": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        "research_tags": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/id"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["success", "failure", "pending", "not-tested", "not-applicable"]},
+        "notes": {"type": "string"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checked_at",
+        "license_sources",
+        "observed_tools",
+        "install_connect",
+        "live_smoke",
+        "provenance_links",
+        "data_evidence_links"
+      ],
+      "properties": {
+        "checked_at": {"type": "string", "format": "date"},
+        "upstream_revision": {"type": "string", "minLength": 1},
+        "upstream_release": {"type": "string", "minLength": 1},
+        "license_sources": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/uri"},
+          "uniqueItems": true
+        },
+        "observed_tools": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "install_connect": {"$ref": "#/$defs/result"},
+        "live_smoke": {"$ref": "#/$defs/result"},
+        "provenance_links": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/uri"},
+          "uniqueItems": true
+        },
+        "data_evidence_links": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/uri"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "targets"],
+      "properties": {
+        "status": {"enum": ["candidate", "ready-for-verification", "promoted", "not-planned"]},
+        "targets": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "candidate_kind",
+        "priority",
+        "sources",
+        "assessment",
+        "legal",
+        "annotation_maturity",
+        "taxonomy",
+        "evidence",
+        "promotion"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "name": {"type": "string", "minLength": 1},
+        "candidate_kind": {"enum": ["plugin", "provider", "resource", "skill", "integration"]},
+        "priority": {"enum": ["P0", "P1", "P2", "wanted"]},
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/source"}
+        },
+        "assessment": {"$ref": "#/$defs/assessment"},
+        "legal": {"$ref": "#/$defs/legal"},
+        "annotation_maturity": {"enum": ["generated", "manually-reviewed", "mixed", "snapshot-wip", "unknown", "not-applicable"]},
+        "taxonomy": {"$ref": "#/$defs/taxonomy"},
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/evidence"}
+        },
+        "promotion": {"$ref": "#/$defs/promotion"}
+      }
+    }
+  }
+}
