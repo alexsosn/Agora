@@ -148,13 +148,16 @@ class CollectionMetadataTests(unittest.TestCase):
             disciplines=("classics",),
         )
         resolver = ContextFabricResolver(Catalog([resource]), object())
+        revision = "a" * 40
         members = resolver._collection_members_from_roots(
             resource,
             ["canonical-greekLit/tlg0012/tlg001/perseus-grc2/1/tf/1.0"],
+            revision,
         )
         self.assertEqual(len(members), 1)
         self.assertIsNone(members[0].author)
         self.assertIsNone(members[0].title)
+        self.assertEqual(members[0].source_revision, revision)
         self.assertEqual(
             members[0].identity_path,
             "canonical-greekLit/tlg0012/tlg001/perseus-grc2/1",
