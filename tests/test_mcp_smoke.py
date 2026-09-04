@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from scripts.smoke_mcp_plugin import (
     ROOT,
     SMOKE_CASES,
+    build_error_report,
     build_trace_metadata,
     load_plugin_launch,
 )
@@ -156,6 +157,28 @@ class MCPSmokeHarnessTests(unittest.TestCase):
         self.assertIsNone(trace["github"]["run_url"])
         self.assertTrue(trace["agora_revision"])
         self.assertEqual(trace["launch"]["cwd"], "plugins/sedra")
+
+    def test_error_report_keeps_same_trace_envelope(self):
+        env = {
+            "GITHUB_SERVER_URL": "https://github.com",
+            "GITHUB_REPOSITORY": "alexsosn/Agora",
+            "GITHUB_RUN_ID": "987654321",
+            "GITHUB_RUN_ATTEMPT": "1",
+            "GITHUB_SHA": "b" * 40,
+        }
+        report = build_error_report(
+            "context-fabric",
+            RuntimeError("synthetic failure"),
+            launch=load_plugin_launch("context-fabric"),
+            env=env,
+            checked_at=datetime(2026, 9, 5, 13, 0, tzinfo=timezone.utc),
+        )
+        self.assertEqual(report["status"], "error")
+        self.assertEqual(report["check_id"], "mcp-live/context-fabric-codex")
+        self.assertEqual(report["agora_revision"], "b" * 40)
+        self.assertEqual(report["github"]["run_id"], "987654321")
+        self.assertEqual(report["checked_at"], "2026-09-05T13:00:00Z")
+        self.assertEqual(report["error"], "RuntimeError: synthetic failure")
 
 
 if __name__ == "__main__":
