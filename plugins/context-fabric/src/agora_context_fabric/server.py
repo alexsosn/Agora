@@ -10,6 +10,7 @@ from .catalog import Catalog
 from .gitstore import GitStore
 from .mcp_tools import register_tools
 from .resolver import ContextFabricResolver
+from .resolution_service import ResolutionAwareContextFabricService
 from .service import ContextFabricService
 
 LOGGER = logging.getLogger("agora_context_fabric")
@@ -85,7 +86,7 @@ def build_runtime(
     catalog = Catalog.from_plugin_root(Path(plugin_root))
     store = GitStore(Path(cache_dir))
     resolver = ContextFabricResolver(catalog, store)
-    service = ContextFabricService(catalog, resolver, corpus_manager)
+    service = ResolutionAwareContextFabricService(catalog, resolver, corpus_manager)
     register_tools(mcp, service)
     return mcp, service, corpus_manager
 
