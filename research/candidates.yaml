@@ -4,7 +4,7 @@ source_documents:
   - id: ecosystem-expansion
     path: wiki/backlog/P0-research-ecosystem-expansion.md
     coverage: linked
-    notes: Structured records index the main prioritized candidates; the unchanged prose remains the complete narrative backlog.
+    notes: Structured records index the prioritized candidates; the unchanged prose remains the complete narrative backlog.
   - id: egyptology
     path: wiki/backlog/P0-research-egyptology.md
     coverage: linked
@@ -19,57 +19,30 @@ candidates:
     name: TEI MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: TEI MCP
-        upstream: https://github.com/Pantagrueliste/tei-mcp
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: TEI MCP, upstream: https://github.com/Pantagrueliste/tei-mcp}
     assessment: &p0-promising
-      scholarly_value: high
-      technical_readiness: promising
-      provenance_authority: medium
-      legal_clarity: partial
-      maintenance_health: unknown
-      overlap: low
-      implementation_effort: medium
-      strategic_importance: high
+      {scholarly_value: high, technical_readiness: promising, provenance_authority: medium, legal_clarity: unknown, maintenance_health: unknown, overlap: low, implementation_effort: medium, strategic_importance: high}
     legal: &unknown-legal
-      software_license: {status: unknown}
-      data_license: {status: unknown}
-      redistribution: unknown
-      authentication: unknown
-      service_terms: {status: unknown}
+      {software_license: {status: unknown}, data_license: {status: unknown}, redistribution: unknown, authentication: unknown, service_terms: {status: unknown}}
     annotation_maturity: not-applicable
-    taxonomy:
-      capabilities: [structured-search]
-      disciplines: [digital-philology]
-      resource_kinds: []
-      research_tags: [tei, digital-editions]
+    taxonomy: {capabilities: [structured-search], disciplines: [digital-philology], resource_kinds: [], research_tags: [tei, digital-editions]}
     evidence: &ecosystem-evidence
-      - checked_at: "2026-08-29"
-        license_sources: []
-        observed_tools: []
-        install_connect: {status: not-tested}
-        live_smoke: {status: not-tested}
-        provenance_links: []
-        data_evidence_links: []
+      - {checked_at: "2026-08-29", license_sources: [], observed_tools: [], install_connect: {status: not-tested}, live_smoke: {status: not-tested}, provenance_links: [], data_evidence_links: []}
     promotion: &candidate-promotion {status: candidate, targets: []}
 
   - id: iiif-mcp
     name: IIIF MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: IIIF MCP
-        upstream: https://github.com/code4history/IIIF_MCP
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: IIIF MCP, upstream: https://github.com/code4history/IIIF_MCP}
     assessment: *p0-promising
     legal: *unknown-legal
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [passage-retrieval, structured-search]
-      disciplines: [digital-philology]
-      resource_kinds: [collection]
-      research_tags: [iiif, manuscripts, images]
+    taxonomy: {capabilities: [passage-retrieval, structured-search], disciplines: [digital-philology], resource_kinds: [collection], research_tags: [iiif, manuscripts, images]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -77,11 +50,12 @@ candidates:
     name: Transkribus MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Transkribus MCP
-        upstream: https://github.com/lazyants/transkribus-mcp-server
-    assessment: *p0-promising
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Transkribus MCP, upstream: https://github.com/lazyants/transkribus-mcp-server}
+    assessment:
+      <<: *p0-promising
+      legal_clarity: partial
     legal:
       software_license: {status: known, expression: FSL-1.1-MIT}
       data_license: {status: unknown}
@@ -89,30 +63,28 @@ candidates:
       authentication: required
       service_terms: {status: unknown}
     annotation_maturity: generated
-    taxonomy:
-      capabilities: [structured-search]
-      disciplines: [digital-philology]
-      resource_kinds: []
-      research_tags: [htr-ocr, manuscripts, transcription]
-    evidence: *ecosystem-evidence
+    taxonomy: {capabilities: [structured-search], disciplines: [digital-philology], resource_kinds: [], research_tags: [htr-ocr, manuscripts, transcription]}
+    evidence:
+      - checked_at: "2026-09-05"
+        license_sources: [https://github.com/lazyants/transkribus-mcp-server/blob/main/LICENSE]
+        observed_tools: []
+        install_connect: {status: not-tested}
+        live_smoke: {status: not-tested}
+        provenance_links: [https://github.com/lazyants/transkribus-mcp-server]
+        data_evidence_links: []
     promotion: *candidate-promotion
 
   - id: zotero-mcp
     name: Zotero MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Zotero MCP
-        upstream: https://github.com/54yyyu/zotero-mcp
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Zotero MCP, upstream: https://github.com/54yyyu/zotero-mcp}
     assessment: *p0-promising
     legal: *unknown-legal
     annotation_maturity: not-applicable
-    taxonomy:
-      capabilities: [structured-search, passage-retrieval]
-      disciplines: [digital-philology]
-      resource_kinds: []
-      research_tags: [bibliography, research-workflow]
+    taxonomy: {capabilities: [structured-search, passage-retrieval], disciplines: [digital-philology], resource_kinds: [], research_tags: [bibliography, research-workflow]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -120,20 +92,15 @@ candidates:
     name: Wikidata MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Wikidata MCP
-        upstream: https://github.com/wmde/WikidataMCP
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Wikidata MCP, upstream: https://github.com/wmde/WikidataMCP}
     assessment:
       <<: *p0-promising
       provenance_authority: high
     legal: *unknown-legal
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [structured-search, reference-resolution, linked-text-navigation]
-      disciplines: [digital-philology, history]
-      resource_kinds: []
-      research_tags: [linked-data, prosopography, authority-control]
+    taxonomy: {capabilities: [structured-search, reference-resolution, linked-text-navigation], disciplines: [digital-philology, history], resource_kinds: [], research_tags: [linked-data, prosopography, authority-control]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -141,20 +108,15 @@ candidates:
     name: Quran Foundation MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Quran Foundation MCP
-        upstream: https://github.com/quran/quran-mcp
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Quran Foundation MCP, upstream: https://github.com/quran/quran-mcp}
     assessment:
       <<: *p0-promising
       provenance_authority: high
     legal: *unknown-legal
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [passage-retrieval, full-text-search, structured-search, lexeme-lookup]
-      disciplines: [islamic-studies, semitic-linguistics]
-      resource_kinds: [corpus]
-      research_tags: [quran, arabic, morphology, tafsir]
+    taxonomy: {capabilities: [passage-retrieval, full-text-search, structured-search, lexeme-lookup], disciplines: [islamic-studies, semitic-linguistics], resource_kinds: [corpus], research_tags: [quran, arabic, morphology, tafsir]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -162,44 +124,44 @@ candidates:
     name: Tafsir Center MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Tafsir Center MCP
-        upstream: https://github.com/tafsircenter/tafsir-mcp
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Tafsir Center MCP, upstream: https://github.com/tafsircenter/tafsir-mcp}
     assessment:
       <<: *p0-promising
       provenance_authority: high
+      legal_clarity: clear
     legal:
       software_license: {status: known, expression: MIT}
-      data_license: {status: unknown}
-      redistribution: unknown
-      authentication: unknown
-      service_terms: {status: unknown}
+      data_license: {status: known, expression: CC-BY-4.0}
+      redistribution: permitted
+      authentication: none
+      service_terms: {status: not-applicable}
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [passage-retrieval, full-text-search, structured-search, lexeme-lookup]
-      disciplines: [islamic-studies, semitic-linguistics]
-      resource_kinds: [corpus]
-      research_tags: [quran, tafsir, qiraat, arabic]
-    evidence: *ecosystem-evidence
+    taxonomy: {capabilities: [passage-retrieval, full-text-search, structured-search, lexeme-lookup], disciplines: [islamic-studies, semitic-linguistics], resource_kinds: [corpus], research_tags: [quran, tafsir, qiraat, arabic]}
+    evidence:
+      - checked_at: "2026-09-05"
+        license_sources:
+          - https://github.com/tafsircenter/tafsir-mcp/blob/main/LICENSE
+          - https://github.com/tafsircenter/tafsir-mcp/blob/main/LICENSE-DATA
+        observed_tools: []
+        install_connect: {status: not-tested}
+        live_smoke: {status: not-tested}
+        provenance_links: [https://github.com/tafsircenter/tafsir-mcp]
+        data_evidence_links: [https://github.com/tafsircenter/tafsir-mcp/blob/main/LICENSE-DATA]
     promotion: *candidate-promotion
 
   - id: shamela-mcp
     name: Shamela MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Shamela MCP
-        upstream: https://github.com/alhoqbani/shamela-mcp
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Shamela MCP, upstream: https://github.com/alhoqbani/shamela-mcp}
     assessment: *p0-promising
     legal: *unknown-legal
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [full-text-search, passage-retrieval, structured-search]
-      disciplines: [islamic-studies]
-      resource_kinds: [collection]
-      research_tags: [arabic, islamic-texts, bibliography]
+    taxonomy: {capabilities: [full-text-search, passage-retrieval, structured-search], disciplines: [islamic-studies], resource_kinds: [collection], research_tags: [arabic, islamic-texts, bibliography]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -207,18 +169,13 @@ candidates:
     name: Turath MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Turath MCP
-        upstream: https://github.com/opin22/turath-mcp
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Turath MCP, upstream: https://github.com/opin22/turath-mcp}
     assessment: *p0-promising
     legal: *unknown-legal
     annotation_maturity: unknown
-    taxonomy:
-      capabilities: [full-text-search, passage-retrieval]
-      disciplines: [islamic-studies]
-      resource_kinds: [collection]
-      research_tags: [arabic, islamic-texts]
+    taxonomy: {capabilities: [full-text-search, passage-retrieval], disciplines: [islamic-studies], resource_kinds: [collection], research_tags: [arabic, islamic-texts]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -226,11 +183,12 @@ candidates:
     name: FoJin MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: FoJin MCP
-        upstream: https://github.com/xr843/fojin
-    assessment: *p0-promising
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: FoJin MCP, upstream: https://github.com/xr843/fojin}
+    assessment:
+      <<: *p0-promising
+      legal_clarity: partial
     legal:
       software_license: {status: known, expression: Apache-2.0}
       data_license: {status: unknown}
@@ -238,54 +196,58 @@ candidates:
       authentication: unknown
       service_terms: {status: unknown}
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [full-text-search, passage-retrieval, linked-text-navigation, dictionary-lookup]
-      disciplines: [buddhist-studies, digital-philology]
-      resource_kinds: [collection]
-      research_tags: [chinese, pali, tibetan, sanskrit, cross-canon]
-    evidence: *ecosystem-evidence
+    taxonomy: {capabilities: [full-text-search, passage-retrieval, linked-text-navigation, dictionary-lookup], disciplines: [buddhist-studies, digital-philology], resource_kinds: [collection], research_tags: [chinese, pali, tibetan, sanskrit, cross-canon]}
+    evidence:
+      - checked_at: "2026-09-05"
+        license_sources: [https://github.com/xr843/fojin/blob/master/LICENSE]
+        observed_tools: []
+        install_connect: {status: not-tested}
+        live_smoke: {status: not-tested}
+        provenance_links: [https://github.com/xr843/fojin]
+        data_evidence_links: []
     promotion: *candidate-promotion
 
   - id: tripitaka-mcp
     name: Tripitaka MCP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Tripitaka MCP
-        upstream: https://github.com/dhamma-seeker/tripitaka-mcp
-    assessment: *p0-promising
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Tripitaka MCP, upstream: https://github.com/dhamma-seeker/tripitaka-mcp}
+    assessment:
+      <<: *p0-promising
+      legal_clarity: partial
     legal:
-      software_license: {status: unknown}
-      data_license: {status: known}
+      software_license: {status: known, expression: MIT}
+      data_license: {status: known, expression: "mixed: CC0-1.0 + Dhamma-Dana/non-commercial + public-domain/CC"}
       redistribution: restricted
-      authentication: unknown
-      service_terms: {status: unknown}
+      authentication: none
+      service_terms: {status: not-applicable}
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [full-text-search, passage-retrieval, dictionary-lookup, linked-text-navigation]
-      disciplines: [buddhist-studies]
-      resource_kinds: [corpus]
-      research_tags: [pali, tipitaka, lexica]
-    evidence: *ecosystem-evidence
+    taxonomy: {capabilities: [full-text-search, passage-retrieval, dictionary-lookup, linked-text-navigation], disciplines: [buddhist-studies], resource_kinds: [corpus], research_tags: [pali, tipitaka, lexica]}
+    evidence:
+      - checked_at: "2026-09-05"
+        license_sources:
+          - https://github.com/dhamma-seeker/tripitaka-mcp/blob/main/LICENSE
+          - https://github.com/dhamma-seeker/tripitaka-mcp/blob/main/NOTICE.md
+        observed_tools: []
+        install_connect: {status: not-tested}
+        live_smoke: {status: not-tested}
+        provenance_links: [https://github.com/dhamma-seeker/tripitaka-mcp]
+        data_evidence_links: [https://github.com/dhamma-seeker/tripitaka-mcp/blob/main/NOTICE.md]
     promotion: *candidate-promotion
 
   - id: eme-gir
     name: eme-gir
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: eme-gir
-        upstream: https://github.com/jenova-marie/eme-gir
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: eme-gir, upstream: https://github.com/jenova-marie/eme-gir}
     assessment: *p0-promising
     legal: *unknown-legal
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [dictionary-lookup, lexeme-lookup, passage-retrieval, linked-text-navigation]
-      disciplines: [assyriology, digital-philology]
-      resource_kinds: [collection]
-      research_tags: [sumerian, cuneiform, epsd2, etcsl, cdli]
+    taxonomy: {capabilities: [dictionary-lookup, lexeme-lookup, passage-retrieval, linked-text-navigation], disciplines: [assyriology, digital-philology], resource_kinds: [collection], research_tags: [sumerian, cuneiform, epsd2, etcsl, cdli]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -293,18 +255,13 @@ candidates:
     name: pyaegean / aegean-mcp
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: pyaegean / aegean-mcp
-        upstream: https://github.com/ryanpavlicek/pyaegean
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: pyaegean / aegean-mcp, upstream: https://github.com/ryanpavlicek/pyaegean}
     assessment: *p0-promising
     legal: *unknown-legal
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [corpus-loading, structured-search, feature-inspection, dictionary-lookup]
-      disciplines: [classics, digital-philology, historical-linguistics]
-      resource_kinds: [collection]
-      research_tags: [ancient-greek, nlp, epidoc, papyrology, aegean-scripts]
+    taxonomy: {capabilities: [corpus-loading, structured-search, feature-inspection, dictionary-lookup], disciplines: [classics, digital-philology, historical-linguistics], resource_kinds: [collection], research_tags: [ancient-greek, nlp, epidoc, papyrology, aegean-scripts]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -312,37 +269,27 @@ candidates:
     name: UralicMCP / UralicNLP
     candidate_kind: plugin
     priority: P0
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: UralicMCP / UralicNLP
-        upstream: https://github.com/mikahama/uralicNLP
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: UralicMCP / UralicNLP, upstream: https://github.com/mikahama/uralicNLP}
     assessment: *p0-promising
     legal: *unknown-legal
     annotation_maturity: generated
-    taxonomy:
-      capabilities: [dictionary-lookup, lexeme-lookup]
-      disciplines: [historical-linguistics, digital-philology]
-      resource_kinds: []
-      research_tags: [uralic, morphology, endangered-languages]
+    taxonomy: {capabilities: [dictionary-lookup, lexeme-lookup], disciplines: [historical-linguistics, digital-philology], resource_kinds: [], research_tags: [uralic, morphology, endangered-languages]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
   - id: kitconc
     name: Kitconc
-    candidate_kind: plugin
+    candidate_kind: integration
     priority: P0
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Kitconc
-        upstream: https://github.com/ilexistools/kitconc
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Kitconc, upstream: https://github.com/ilexistools/kitconc}
     assessment: *p0-promising
     legal: *unknown-legal
     annotation_maturity: not-applicable
-    taxonomy:
-      capabilities: [full-text-search, structured-search]
-      disciplines: [digital-philology, historical-linguistics]
-      resource_kinds: []
-      research_tags: [corpus-linguistics, kwic, collocations, ngrams]
+    taxonomy: {capabilities: [full-text-search, structured-search], disciplines: [digital-philology, historical-linguistics], resource_kinds: [], research_tags: [corpus-linguistics, kwic, collocations, ngrams]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -350,26 +297,14 @@ candidates:
     name: Logeion MCP
     candidate_kind: plugin
     priority: P1
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Logeion MCP
-        upstream: https://github.com/Corykidios/logeionicon_mcp
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Logeion MCP, upstream: https://github.com/Corykidios/logeionicon_mcp}
     assessment: &p1-promising
-      scholarly_value: high
-      technical_readiness: promising
-      provenance_authority: medium
-      legal_clarity: unknown
-      maintenance_health: unknown
-      overlap: moderate
-      implementation_effort: medium
-      strategic_importance: medium
+      {scholarly_value: high, technical_readiness: promising, provenance_authority: medium, legal_clarity: unknown, maintenance_health: unknown, overlap: moderate, implementation_effort: medium, strategic_importance: medium}
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [dictionary-lookup, lexeme-lookup]
-      disciplines: [classics, historical-linguistics]
-      resource_kinds: []
-      research_tags: [ancient-greek, lexicography]
+    taxonomy: {capabilities: [dictionary-lookup, lexeme-lookup], disciplines: [classics, historical-linguistics], resource_kinds: [], research_tags: [ancient-greek, lexicography]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -377,28 +312,21 @@ candidates:
     name: Sketch Engine MCP + skill
     candidate_kind: plugin
     priority: P1
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: Sketch Engine MCP + skill
-        upstream: https://github.com/techczech/sketchengine-skill
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: Sketch Engine MCP + skill, upstream: https://github.com/techczech/sketchengine-skill}
     assessment:
       <<: *p1-promising
       technical_readiness: blocked
     legal: *unknown-legal
     annotation_maturity: not-applicable
-    taxonomy:
-      capabilities: [full-text-search, structured-search]
-      disciplines: [digital-philology]
-      resource_kinds: []
-      research_tags: [corpus-linguistics, cql, word-sketch]
+    taxonomy: {capabilities: [full-text-search, structured-search], disciplines: [digital-philology], resource_kinds: [], research_tags: [corpus-linguistics, cql, word-sketch]}
     evidence:
       - checked_at: "2026-08-29"
         license_sources: []
         observed_tools: []
         install_connect: {status: not-tested}
-        live_smoke:
-          status: failure
-          notes: Initial survey recorded failures in several MCP tool paths; requires independent re-verification before promotion.
+        live_smoke: {status: failure, notes: Initial survey recorded failures in several MCP tool paths; requires independent re-verification before promotion.}
         provenance_links: []
         data_evidence_links: []
     promotion: *candidate-promotion
@@ -407,72 +335,43 @@ candidates:
     name: cuneiform-mcp
     candidate_kind: plugin
     priority: P2
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: cuneiform-mcp
-        upstream: https://github.com/Hugegreencandle/cuneiform-mcp
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: cuneiform-mcp, upstream: https://github.com/Hugegreencandle/cuneiform-mcp}
     assessment: &p2-unknown
-      scholarly_value: medium
-      technical_readiness: unknown
-      provenance_authority: unknown
-      legal_clarity: unknown
-      maintenance_health: unknown
-      overlap: high
-      implementation_effort: high
-      strategic_importance: medium
+      {scholarly_value: medium, technical_readiness: unknown, provenance_authority: unknown, legal_clarity: unknown, maintenance_health: unknown, overlap: high, implementation_effort: high, strategic_importance: medium}
     legal: *unknown-legal
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [structured-search, linked-text-navigation, passage-retrieval]
-      disciplines: [assyriology]
-      resource_kinds: [collection]
-      research_tags: [cuneiform, cdli, oracc, ogsl]
+    taxonomy: {capabilities: [structured-search, linked-text-navigation, passage-retrieval], disciplines: [assyriology], resource_kinds: [collection], research_tags: [cuneiform, cdli, oracc, ogsl]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
   - id: openiti
     name: OpenITI
     candidate_kind: integration
-    priority: wanted
+    priority: unranked
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: OpenITI
-        upstream: https://github.com/OpenITI
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: OpenITI, upstream: https://github.com/OpenITI}
     assessment: &wanted-blocked
-      scholarly_value: high
-      technical_readiness: blocked
-      provenance_authority: high
-      legal_clarity: unknown
-      maintenance_health: unknown
-      overlap: low
-      implementation_effort: high
-      strategic_importance: high
+      {scholarly_value: high, technical_readiness: blocked, provenance_authority: high, legal_clarity: unknown, maintenance_health: unknown, overlap: low, implementation_effort: high, strategic_importance: high}
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [corpus-discovery, passage-retrieval, full-text-search]
-      disciplines: [islamic-studies, digital-philology]
-      resource_kinds: [collection]
-      research_tags: [arabic, islamicate, corpus]
+    taxonomy: {capabilities: [corpus-discovery, passage-retrieval, full-text-search], disciplines: [islamic-studies, digital-philology], resource_kinds: [collection], research_tags: [arabic, islamicate, corpus]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
   - id: papyri-info
     name: papyri.info / DDbDP / HGV / DCLP / APIS
     candidate_kind: integration
-    priority: wanted
+    priority: unranked
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-ecosystem-expansion.md
-        section: papyri.info / DDbDP / HGV / DCLP / APIS
-        upstream: https://github.com/papyri/idp.data
+      - {notes: wiki/backlog/P0-research-ecosystem-expansion.md, section: papyri.info / DDbDP / HGV / DCLP / APIS, upstream: https://github.com/papyri/idp.data}
     assessment: *wanted-blocked
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [corpus-discovery, passage-retrieval, reference-resolution, linked-text-navigation]
-      disciplines: [classics, digital-philology, history]
-      resource_kinds: [collection]
-      research_tags: [papyrology, epidoc, rdf]
+    taxonomy: {capabilities: [corpus-discovery, passage-retrieval, reference-resolution, linked-text-navigation], disciplines: [classics, digital-philology, history], resource_kinds: [collection], research_tags: [papyrology, epidoc, rdf]}
     evidence: *ecosystem-evidence
     promotion: *candidate-promotion
 
@@ -481,122 +380,81 @@ candidates:
     name: Thesaurus Linguae Aegyptiae
     candidate_kind: provider
     priority: P0
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: Thesaurus Linguae Aegyptiae (TLA)
-        upstream: https://tla.digital/
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: Thesaurus Linguae Aegyptiae (TLA), upstream: https://tla.digital/}
     assessment:
       <<: *p0-promising
       provenance_authority: high
-      technical_readiness: promising
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [corpus-discovery, full-text-search, lexeme-lookup, passage-retrieval]
-      disciplines: [digital-philology, historical-linguistics]
-      resource_kinds: [collection]
-      research_tags: [egyptology, ancient-egyptian, demotic, lexicography]
+    taxonomy: {capabilities: [corpus-discovery, full-text-search, lexeme-lookup, passage-retrieval], disciplines: [digital-philology, historical-linguistics], resource_kinds: [collection], research_tags: [egyptology, ancient-egyptian, demotic, lexicography]}
     evidence: &egypt-evidence
-      - checked_at: "2026-08-29"
-        upstream_release: "corpus edition 20"
-        license_sources: []
-        observed_tools: []
-        install_connect: {status: not-tested}
-        live_smoke: {status: not-tested}
-        provenance_links: [https://tla.digital/]
-        data_evidence_links: []
+      - {checked_at: "2026-08-29", upstream_release: "corpus edition 20", license_sources: [], observed_tools: [], install_connect: {status: not-tested}, live_smoke: {status: not-tested}, provenance_links: [https://tla.digital/], data_evidence_links: []}
     promotion: *candidate-promotion
 
   - id: oraec-aed
     name: ORAEC + Ancient Egyptian Dictionary
     candidate_kind: provider
     priority: P0
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: ORAEC + Ancient Egyptian Dictionary (AED)
-        upstream: https://github.com/oraec/corpus_raw_data
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: ORAEC + Ancient Egyptian Dictionary (AED), upstream: https://github.com/oraec/corpus_raw_data}
     assessment:
       <<: *p0-promising
       technical_readiness: ready
       provenance_authority: high
-      legal_clarity: partial
+      legal_clarity: clear
       implementation_effort: low
     legal:
-      software_license: {status: unknown}
-      data_license: {status: known}
-      redistribution: unknown
+      software_license: {status: not-applicable}
+      data_license: {status: known, expression: "mixed: CC-BY-SA-4.0 + CC0"}
+      redistribution: permitted
       authentication: none
       service_terms: {status: not-applicable}
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [corpus-loading, passage-retrieval, dictionary-lookup, lexeme-lookup, linked-text-navigation]
-      disciplines: [digital-philology, historical-linguistics]
-      resource_kinds: [collection]
-      research_tags: [egyptology, ancient-egyptian, tei, lexicography]
+    taxonomy: {capabilities: [corpus-loading, passage-retrieval, dictionary-lookup, lexeme-lookup, linked-text-navigation], disciplines: [digital-philology, historical-linguistics], resource_kinds: [collection], research_tags: [egyptology, ancient-egyptian, tei, lexicography]}
     evidence:
-      - checked_at: "2026-08-29"
-        license_sources: []
+      - checked_at: "2026-09-05"
+        license_sources: [https://github.com/oraec/corpus_raw_data]
         observed_tools: []
         install_connect: {status: not-tested}
         live_smoke: {status: not-tested}
-        provenance_links:
-          - https://github.com/oraec/corpus_raw_data
-          - https://github.com/simondschweitzer/aed-tei
-        data_evidence_links:
-          - https://github.com/oraec/corpus_raw_data
-          - https://github.com/simondschweitzer/aed-tei
+        provenance_links: [https://github.com/oraec/corpus_raw_data, https://github.com/simondschweitzer/aed-tei]
+        data_evidence_links: [https://github.com/oraec/corpus_raw_data, https://github.com/simondschweitzer/aed-tei]
     promotion: *candidate-promotion
 
   - id: coptic-scriptorium
     name: Coptic SCRIPTORIUM + Coptic Dictionary Online
     candidate_kind: provider
     priority: P0
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: Coptic SCRIPTORIUM + Coptic Dictionary Online
-        upstream: https://github.com/CopticScriptorium/corpora
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: Coptic SCRIPTORIUM + Coptic Dictionary Online, upstream: https://github.com/CopticScriptorium/corpora}
     assessment:
       <<: *p0-promising
       technical_readiness: ready
       provenance_authority: high
     legal: *unknown-legal
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [corpus-loading, structured-search, feature-inspection, dictionary-lookup, lexeme-lookup]
-      disciplines: [digital-philology, historical-linguistics, biblical-studies]
-      resource_kinds: [collection]
-      research_tags: [egyptology, coptic, nlp, dependency-syntax, lexicography]
+    taxonomy: {capabilities: [corpus-loading, structured-search, feature-inspection, dictionary-lookup, lexeme-lookup], disciplines: [digital-philology, historical-linguistics, biblical-studies], resource_kinds: [collection], research_tags: [egyptology, coptic, nlp, dependency-syntax, lexicography]}
     evidence:
-      - checked_at: "2026-08-29"
-        license_sources: []
-        observed_tools: []
-        install_connect: {status: not-tested}
-        live_smoke: {status: not-tested}
-        provenance_links:
-          - https://github.com/CopticScriptorium/corpora
-          - https://github.com/CopticScriptorium/coptic-nlp
-          - https://github.com/KELLIA/dictionary
-        data_evidence_links: [https://github.com/CopticScriptorium/corpora]
+      - {checked_at: "2026-08-29", license_sources: [], observed_tools: [], install_connect: {status: not-tested}, live_smoke: {status: not-tested}, provenance_links: [https://github.com/CopticScriptorium/corpora, https://github.com/CopticScriptorium/coptic-nlp, https://github.com/KELLIA/dictionary], data_evidence_links: [https://github.com/CopticScriptorium/corpora]}
     promotion: *candidate-promotion
 
   - id: ud-egyptian-pc
     name: UD Egyptian-PC + GrewPT / Stanza
     candidate_kind: resource
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: UD Egyptian-PC + GrewPT / Stanza
-        upstream: https://github.com/UniversalDependencies/UD_Egyptian-PC
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: UD Egyptian-PC + GrewPT / Stanza, upstream: https://github.com/UniversalDependencies/UD_Egyptian-PC}
     assessment:
       <<: *p1-promising
       provenance_authority: high
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [feature-inspection, structured-search]
-      disciplines: [historical-linguistics, digital-philology]
-      resource_kinds: [corpus]
-      research_tags: [egyptology, ancient-egyptian, dependency-syntax, universal-dependencies]
+    taxonomy: {capabilities: [feature-inspection, structured-search], disciplines: [historical-linguistics, digital-philology], resource_kinds: [corpus], research_tags: [egyptology, ancient-egyptian, dependency-syntax, universal-dependencies]}
     evidence: *egypt-evidence
     promotion: *candidate-promotion
 
@@ -604,21 +462,16 @@ candidates:
     name: Ramses
     candidate_kind: provider
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: Ramses
-        upstream: https://ramses.ulg.ac.be/
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: Ramses, upstream: https://ramses.ulg.ac.be/}
     assessment:
       <<: *p1-promising
       technical_readiness: blocked
       provenance_authority: high
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [full-text-search, feature-inspection, passage-retrieval]
-      disciplines: [historical-linguistics, digital-philology]
-      resource_kinds: [corpus]
-      research_tags: [egyptology, late-egyptian, morphology]
+    taxonomy: {capabilities: [full-text-search, feature-inspection, passage-retrieval], disciplines: [historical-linguistics, digital-philology], resource_kinds: [corpus], research_tags: [egyptology, late-egyptian, morphology]}
     evidence: *egypt-evidence
     promotion: *candidate-promotion
 
@@ -626,41 +479,31 @@ candidates:
     name: Thot Sign List
     candidate_kind: provider
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: Thot Sign List
-        upstream: https://thotsignlist.org/
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: Thot Sign List, upstream: https://thotsignlist.org/}
     assessment:
       <<: *p1-promising
       provenance_authority: high
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [structured-search, reference-resolution, linked-text-navigation]
-      disciplines: [digital-philology]
-      resource_kinds: []
-      research_tags: [egyptology, hieroglyphic, sign-ontology, palaeography]
+    taxonomy: {capabilities: [structured-search, reference-resolution, linked-text-navigation], disciplines: [digital-philology], resource_kinds: [], research_tags: [egyptology, hieroglyphic, sign-ontology, palaeography]}
     evidence: *egypt-evidence
     promotion: *candidate-promotion
 
   - id: jsesh
     name: JSesh
-    candidate_kind: plugin
+    candidate_kind: integration
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: JSesh
-        upstream: https://github.com/rosmord/jsesh
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: JSesh, upstream: https://github.com/rosmord/jsesh}
     assessment:
       <<: *p1-promising
       scholarly_value: medium
     legal: *unknown-legal
     annotation_maturity: not-applicable
-    taxonomy:
-      capabilities: [reference-resolution]
-      disciplines: [digital-philology]
-      resource_kinds: []
-      research_tags: [egyptology, hieroglyphic, manuel-de-codage, rendering]
+    taxonomy: {capabilities: [reference-resolution], disciplines: [digital-philology], resource_kinds: [], research_tags: [egyptology, hieroglyphic, manuel-de-codage, rendering]}
     evidence: *egypt-evidence
     promotion: *candidate-promotion
 
@@ -668,20 +511,15 @@ candidates:
     name: Trismegistos Data Services
     candidate_kind: provider
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: Trismegistos Data Services
-        upstream: https://www.trismegistos.org/dataservices/
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: Trismegistos Data Services, upstream: https://www.trismegistos.org/dataservices/}
     assessment:
       <<: *p1-promising
       provenance_authority: high
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [reference-resolution, linked-text-navigation, structured-search]
-      disciplines: [classics, history, digital-philology]
-      resource_kinds: []
-      research_tags: [egyptology, papyrology, prosopography, linked-data]
+    taxonomy: {capabilities: [reference-resolution, linked-text-navigation, structured-search], disciplines: [classics, history, digital-philology], resource_kinds: [], research_tags: [egyptology, papyrology, prosopography, linked-data]}
     evidence: *egypt-evidence
     promotion: *candidate-promotion
 
@@ -689,18 +527,13 @@ candidates:
     name: Egyptological HTR/OCR datasets and models
     candidate_kind: resource
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: Hieroglyphic HTR/OCR datasets and models
-        upstream: https://github.com/imak-ai-lab/egyptian-hieroglyph-datasets
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: Hieroglyphic HTR/OCR datasets and models, upstream: https://github.com/imak-ai-lab/egyptian-hieroglyph-datasets}
     assessment: *p1-promising
     legal: *unknown-legal
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: []
-      disciplines: [digital-philology]
-      resource_kinds: [collection]
-      research_tags: [egyptology, hieroglyphic, htr-ocr, computer-vision]
+    taxonomy: {capabilities: [], disciplines: [digital-philology], resource_kinds: [collection], research_tags: [egyptology, hieroglyphic, htr-ocr, computer-vision]}
     evidence: *egypt-evidence
     promotion: *candidate-promotion
 
@@ -708,10 +541,9 @@ candidates:
     name: Chicago Demotic Dictionary
     candidate_kind: integration
     priority: P2
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: Chicago Demotic Dictionary (CDD)
-        upstream: https://isac.uchicago.edu/research/projects/chicago-demotic-dictionary-cdd-0
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: Chicago Demotic Dictionary (CDD), upstream: https://isac.uchicago.edu/research/projects/chicago-demotic-dictionary-cdd-0}
     assessment:
       <<: *p2-unknown
       scholarly_value: high
@@ -720,11 +552,7 @@ candidates:
       strategic_importance: high
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [dictionary-lookup, lexeme-lookup]
-      disciplines: [historical-linguistics]
-      resource_kinds: []
-      research_tags: [egyptology, demotic, lexicography]
+    taxonomy: {capabilities: [dictionary-lookup, lexeme-lookup], disciplines: [historical-linguistics], resource_kinds: [], research_tags: [egyptology, demotic, lexicography]}
     evidence: *egypt-evidence
     promotion: *candidate-promotion
 
@@ -732,17 +560,13 @@ candidates:
     name: Deir el-Medina documentary databases
     candidate_kind: integration
     priority: P2
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: Deir el-Medina documentary databases
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: Deir el-Medina documentary databases}
     assessment: *p2-unknown
     legal: *unknown-legal
     annotation_maturity: unknown
-    taxonomy:
-      capabilities: [structured-search, passage-retrieval]
-      disciplines: [history, digital-philology]
-      resource_kinds: [collection]
-      research_tags: [egyptology, late-egyptian, papyri, ostraca]
+    taxonomy: {capabilities: [structured-search, passage-retrieval], disciplines: [history, digital-philology], resource_kinds: [collection], research_tags: [egyptology, late-egyptian, papyri, ostraca]}
     evidence: *egypt-evidence
     promotion: *candidate-promotion
 
@@ -750,17 +574,13 @@ candidates:
     name: Turin Papyrus Online Platform and related manuscript infrastructures
     candidate_kind: integration
     priority: P2
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-egyptology.md
-        section: Turin Papyrus Online Platform and related manuscript infrastructures
+      - {notes: wiki/backlog/P0-research-egyptology.md, section: Turin Papyrus Online Platform and related manuscript infrastructures}
     assessment: *p2-unknown
     legal: *unknown-legal
     annotation_maturity: unknown
-    taxonomy:
-      capabilities: [structured-search, passage-retrieval]
-      disciplines: [digital-philology, history]
-      resource_kinds: [collection]
-      research_tags: [egyptology, papyri, manuscripts, iiif]
+    taxonomy: {capabilities: [structured-search, passage-retrieval], disciplines: [digital-philology, history], resource_kinds: [collection], research_tags: [egyptology, papyri, manuscripts, iiif]}
     evidence: *egypt-evidence
     promotion: *candidate-promotion
 
@@ -768,63 +588,43 @@ candidates:
   - id: onp
     name: A Dictionary of Old Norse Prose (ONP)
     candidate_kind: integration
-    priority: wanted
+    priority: P0
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: ONP — A Dictionary of Old Norse Prose
-    assessment:
-      <<: *wanted-blocked
-      provenance_authority: high
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: ONP — A Dictionary of Old Norse Prose}
+    assessment: *wanted-blocked
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [dictionary-lookup, lexeme-lookup, linked-text-navigation]
-      disciplines: [historical-linguistics, digital-philology]
-      resource_kinds: []
-      research_tags: [old-norse, old-icelandic, lexicography, manuscripts]
+    taxonomy: {capabilities: [dictionary-lookup, lexeme-lookup, linked-text-navigation], disciplines: [historical-linguistics, digital-philology], resource_kinds: [], research_tags: [old-norse, old-icelandic, lexicography, manuscripts]}
     evidence: &germanic-evidence
-      - checked_at: "2026-08-29"
-        license_sources: []
-        observed_tools: []
-        install_connect: {status: not-tested}
-        live_smoke: {status: not-tested}
-        provenance_links: []
-        data_evidence_links: []
+      - {checked_at: "2026-08-29", license_sources: [], observed_tools: [], install_connect: {status: not-tested}, live_smoke: {status: not-tested}, provenance_links: [], data_evidence_links: []}
     promotion: *candidate-promotion
 
   - id: menota
     name: Medieval Nordic Text Archive (Menota)
     candidate_kind: integration
-    priority: wanted
+    priority: P0
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: Menota — Medieval Nordic Text Archive
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: Menota — Medieval Nordic Text Archive}
     assessment: *wanted-blocked
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [corpus-discovery, passage-retrieval, feature-inspection]
-      disciplines: [historical-linguistics, digital-philology]
-      resource_kinds: [collection]
-      research_tags: [old-norse, old-icelandic, tei, manuscripts]
+    taxonomy: {capabilities: [corpus-discovery, passage-retrieval, feature-inspection], disciplines: [historical-linguistics, digital-philology], resource_kinds: [collection], research_tags: [old-norse, old-icelandic, tei, manuscripts]}
     evidence: *germanic-evidence
     promotion: *candidate-promotion
 
   - id: wulfila-project
     name: Wulfila Project MCP
     candidate_kind: integration
-    priority: wanted
+    priority: P0
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: Wulfila Project MCP
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: Wulfila Project MCP}
     assessment: *wanted-blocked
     legal: *unknown-legal
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [passage-retrieval, feature-inspection, lexeme-lookup, linked-text-navigation]
-      disciplines: [historical-linguistics, biblical-studies, digital-philology]
-      resource_kinds: [corpus]
-      research_tags: [gothic, bible, tei, morphology, manuscripts]
+    taxonomy: {capabilities: [passage-retrieval, feature-inspection, lexeme-lookup, linked-text-navigation], disciplines: [historical-linguistics, biblical-studies, digital-philology], resource_kinds: [corpus], research_tags: [gothic, bible, tei, morphology, manuscripts]}
     evidence: *germanic-evidence
     promotion: *candidate-promotion
 
@@ -832,19 +632,15 @@ candidates:
     name: PROIEL / Syntacticus / Universal Dependencies provider
     candidate_kind: provider
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: PROIEL / Syntacticus / Universal Dependencies provider
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: PROIEL / Syntacticus / Universal Dependencies provider}
     assessment:
       <<: *p1-promising
       provenance_authority: high
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [structured-search, feature-inspection, passage-retrieval]
-      disciplines: [historical-linguistics, digital-philology]
-      resource_kinds: [collection]
-      research_tags: [gothic, old-english, dependency-syntax, universal-dependencies]
+    taxonomy: {capabilities: [structured-search, feature-inspection, passage-retrieval], disciplines: [historical-linguistics, digital-philology], resource_kinds: [collection], research_tags: [gothic, old-english, dependency-syntax, universal-dependencies]}
     evidence: *germanic-evidence
     promotion: *candidate-promotion
 
@@ -852,9 +648,9 @@ candidates:
     name: Icelandic Parsed Historical Corpus (IcePaHC)
     candidate_kind: resource
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: IcePaHC — Icelandic Parsed Historical Corpus
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: IcePaHC — Icelandic Parsed Historical Corpus}
     assessment:
       <<: *p1-promising
       provenance_authority: high
@@ -866,21 +662,25 @@ candidates:
       authentication: none
       service_terms: {status: not-applicable}
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [structured-search, feature-inspection]
-      disciplines: [historical-linguistics]
-      resource_kinds: [corpus]
-      research_tags: [old-icelandic, icelandic, dependency-syntax]
-    evidence: *germanic-evidence
+    taxonomy: {capabilities: [structured-search, feature-inspection], disciplines: [historical-linguistics], resource_kinds: [corpus], research_tags: [old-icelandic, icelandic, dependency-syntax]}
+    evidence:
+      - checked_at: "2026-09-05"
+        upstream_release: "2024.03"
+        license_sources: [https://repository.clarin.is/repository/xmlui/handle/20.500.12537/325]
+        observed_tools: []
+        install_connect: {status: not-tested}
+        live_smoke: {status: not-tested}
+        provenance_links: [https://repository.clarin.is/repository/xmlui/handle/20.500.12537/325]
+        data_evidence_links: [https://repository.clarin.is/repository/xmlui/handle/20.500.12537/325]
     promotion: *candidate-promotion
 
   - id: saga-corpus
     name: Icelandic Saga Corpus
     candidate_kind: resource
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: Saga Corpus
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: Saga Corpus}
     assessment:
       <<: *p1-promising
       legal_clarity: clear
@@ -891,33 +691,31 @@ candidates:
       authentication: none
       service_terms: {status: not-applicable}
     annotation_maturity: mixed
-    taxonomy:
-      capabilities: [full-text-search, feature-inspection]
-      disciplines: [historical-linguistics, literary-studies]
-      resource_kinds: [corpus]
-      research_tags: [old-icelandic, sagas, lemmatization, pos]
-    evidence: *germanic-evidence
+    taxonomy: {capabilities: [full-text-search, feature-inspection], disciplines: [historical-linguistics, literary-studies], resource_kinds: [corpus], research_tags: [old-icelandic, sagas, lemmatization, pos]}
+    evidence:
+      - checked_at: "2026-09-05"
+        license_sources: [https://repository.clarin.is/repository/xmlui/handle/20.500.12537/32]
+        observed_tools: []
+        install_connect: {status: not-tested}
+        live_smoke: {status: not-tested}
+        provenance_links: [https://repository.clarin.is/repository/xmlui/handle/20.500.12537/32]
+        data_evidence_links: [https://repository.clarin.is/repository/xmlui/handle/20.500.12537/32]
     promotion: *candidate-promotion
 
   - id: cleasby-vigfusson
     name: Cleasby–Vigfusson dictionary
     candidate_kind: resource
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: Cleasby–Vigfusson dictionary
-        upstream: https://github.com/stscoundrel/cleasby-vigfusson-dictionary
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: Cleasby–Vigfusson dictionary, upstream: https://github.com/stscoundrel/cleasby-vigfusson-dictionary}
     assessment:
       <<: *p1-promising
       technical_readiness: ready
       implementation_effort: low
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [dictionary-lookup, lexeme-lookup]
-      disciplines: [historical-linguistics]
-      resource_kinds: []
-      research_tags: [old-norse, old-icelandic, lexicography]
+    taxonomy: {capabilities: [dictionary-lookup, lexeme-lookup], disciplines: [historical-linguistics], resource_kinds: [], research_tags: [old-norse, old-icelandic, lexicography]}
     evidence: *germanic-evidence
     promotion: *candidate-promotion
 
@@ -925,21 +723,16 @@ candidates:
     name: Zoëga — A Concise Dictionary of Old Icelandic
     candidate_kind: resource
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: Zoëga — A Concise Dictionary of Old Icelandic
-        upstream: https://github.com/stscoundrel/old-icelandic-zoega
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: Zoëga — A Concise Dictionary of Old Icelandic, upstream: https://github.com/stscoundrel/old-icelandic-zoega}
     assessment:
       <<: *p1-promising
       technical_readiness: ready
       implementation_effort: low
     legal: *unknown-legal
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [dictionary-lookup, lexeme-lookup]
-      disciplines: [historical-linguistics]
-      resource_kinds: []
-      research_tags: [old-icelandic, lexicography]
+    taxonomy: {capabilities: [dictionary-lookup, lexeme-lookup], disciplines: [historical-linguistics], resource_kinds: [], research_tags: [old-icelandic, lexicography]}
     evidence: *germanic-evidence
     promotion: *candidate-promotion
 
@@ -947,10 +740,9 @@ candidates:
     name: Streitberg Gothic dictionary data
     candidate_kind: resource
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: Streitberg Gothic dictionary data
-        upstream: https://github.com/loanwordbank/streitberggothic
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: Streitberg Gothic dictionary data, upstream: https://github.com/loanwordbank/streitberggothic}
     assessment:
       <<: *p1-promising
       legal_clarity: clear
@@ -962,30 +754,28 @@ candidates:
       authentication: none
       service_terms: {status: not-applicable}
     annotation_maturity: manually-reviewed
-    taxonomy:
-      capabilities: [dictionary-lookup, lexeme-lookup]
-      disciplines: [historical-linguistics, biblical-studies]
-      resource_kinds: []
-      research_tags: [gothic, lexicography, cldf]
-    evidence: *germanic-evidence
+    taxonomy: {capabilities: [dictionary-lookup, lexeme-lookup], disciplines: [historical-linguistics, biblical-studies], resource_kinds: [], research_tags: [gothic, lexicography, cldf]}
+    evidence:
+      - checked_at: "2026-09-05"
+        license_sources: [https://github.com/loanwordbank/streitberggothic]
+        observed_tools: []
+        install_connect: {status: not-tested}
+        live_smoke: {status: not-tested}
+        provenance_links: [https://github.com/loanwordbank/streitberggothic]
+        data_evidence_links: [https://github.com/loanwordbank/streitberggothic]
     promotion: *candidate-promotion
 
   - id: oicen-htr
     name: OICEN-HTR
     candidate_kind: resource
     priority: P1
+    integration_status: wanted
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: OICEN-HTR
-        upstream: https://github.com/NKCZ/OICEN-HTR
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: OICEN-HTR, upstream: https://github.com/NKCZ/OICEN-HTR}
     assessment: *p1-promising
     legal: *unknown-legal
     annotation_maturity: generated
-    taxonomy:
-      capabilities: []
-      disciplines: [digital-philology, historical-linguistics]
-      resource_kinds: []
-      research_tags: [old-icelandic, old-norse, htr-ocr, manuscripts]
+    taxonomy: {capabilities: [], disciplines: [digital-philology, historical-linguistics], resource_kinds: [], research_tags: [old-icelandic, old-norse, htr-ocr, manuscripts]}
     evidence: *germanic-evidence
     promotion: *candidate-promotion
 
@@ -993,10 +783,9 @@ candidates:
     name: Valksor Old Norse MCP
     candidate_kind: provider
     priority: P2
+    integration_status: existing
     sources:
-      - notes: wiki/backlog/P0-research-germanic-philology.md
-        section: Valksor Old Norse MCP
-        upstream: https://mcp.valksor.com/
+      - {notes: wiki/backlog/P0-research-germanic-philology.md, section: Valksor Old Norse MCP, upstream: https://mcp.valksor.com/}
     assessment:
       <<: *p2-unknown
       technical_readiness: ready
@@ -1004,10 +793,6 @@ candidates:
       overlap: high
     legal: *unknown-legal
     annotation_maturity: generated
-    taxonomy:
-      capabilities: [dictionary-lookup, lexeme-lookup]
-      disciplines: [historical-linguistics]
-      resource_kinds: []
-      research_tags: [old-norse, morphology, wiktionary]
+    taxonomy: {capabilities: [dictionary-lookup, lexeme-lookup], disciplines: [historical-linguistics], resource_kinds: [], research_tags: [old-norse, morphology, wiktionary]}
     evidence: *germanic-evidence
     promotion: *candidate-promotion
