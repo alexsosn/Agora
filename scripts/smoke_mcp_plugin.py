@@ -171,6 +171,21 @@ def _distribution_version(name: str) -> str | None:
         return None
 
 
+def _command_version(command: str) -> str | None:
+    try:
+        result = subprocess.run(
+            [command, "--version"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    output = (result.stdout or result.stderr).strip()
+    return output if result.returncode == 0 and output else None
+
+
 def _iso_utc(value: datetime) -> str:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
@@ -235,9 +250,39 @@ def build_trace_metadata(
             "python": platform.python_version(),
             "platform": platform.platform(),
             "mcp_sdk": _distribution_version("mcp"),
+            "uv": _command_version("uv"),
         },
         "launch": launch_data,
         "verification_inputs": reference["inputs"],
+    }
+
+
+def build_error_report(
+    plugin_id: str,
+    error: Exception,
+    *,
+    launch: LaunchSpec | None = None,
+    env: Mapping[str, str] | None = None,
+    checked_at: datetime | None = None,
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    try:
+        trace = build_trace_metadata(
+            plugin_id,
+            launch=launch,
+            env=env,
+            checked_at=checked_at,
+            root=root,
+        )
+    except Exception as trace_exc:
+        trace = {
+            "plugin": plugin_id,
+            "trace_error": f"{type(trace_exc).__name__}: {trace_exc}",
+        }
+    return {
+        **trace,
+        "status": "error",
+        "error": f"{type(error).__name__}: {error}",
     }
 
 
@@ -347,21 +392,8 @@ def main() -> int:
         launch = load_plugin_launch(args.plugin)
         report = asyncio.run(smoke_plugin(args.plugin, timeout=args.timeout, launch=launch))
     except Exception as exc:
-        try:
-            trace = build_trace_metadata(args.plugin, launch=launch)
-        except Exception as trace_exc:
-            trace = {
-                "plugin": args.plugin,
-                "trace_error": f"{type(trace_exc).__name__}: {trace_exc}",
-            }
-        print(
-            json.dumps(
-                {**trace, "status": "error", "error": f"{type(exc).__name__}: {exc}"},
-                ensure_ascii=False,
-                indent=2,
-                default=str,
-            )
-        )
+        report = build_error_report(args.plugin, exc, launch=launch)
+        print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
         return 1
 
     print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
