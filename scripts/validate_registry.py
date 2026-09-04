@@ -120,6 +120,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     resource_by_id = {item["id"]: item for item in resources}
 
     verification = set(vocab["verification_statuses"])
+    provider_health = set(vocab["provider_health_statuses"])
     runtime_modes = set(vocab["runtime_modes"])
     data_modes = set(vocab["data_modes"])
     resource_kinds = set(vocab["resource_kinds"])
@@ -173,12 +174,12 @@ def validate_registry(root: Path = ROOT) -> list[str]:
             errors.append(f"{prefix}: references missing plugin {provider['plugin']!r}")
         ensure_vocab(provider["access"]["runtime_mode"], runtime_modes, f"{prefix}.access.runtime_mode", errors)
         ensure_vocab(provider["access"]["data_mode"], data_modes, f"{prefix}.access.data_mode", errors)
-        provider_status = provider["verification"]["status"]
-        ensure_vocab(provider_status, verification, f"{prefix}.verification.status", errors)
-        if plugin is not None and provider_status != plugin["verification"]["status"]:
-            errors.append(
-                f"{prefix}.verification.status: {provider_status!r} does not match plugin aggregate status {plugin['verification']['status']!r}"
-            )
+        ensure_vocab(
+            provider["health"]["status"],
+            provider_health,
+            f"{prefix}.health.status",
+            errors,
+        )
 
     for resource in resources:
         prefix = f"resource {resource['id']}"
