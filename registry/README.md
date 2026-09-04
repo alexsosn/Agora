@@ -51,7 +51,14 @@ The current live workflow verifies the generated Codex path. Claude launch/confi
 
 ## Three independent status dimensions
 
-**Provider/service health** records an operational observation about the provider/runtime path. `observed-operational` means at least one live executable check explicitly scoped to that provider supplies traceable run evidence. It is not a real-time uptime guarantee and does not rank scholarly quality.
+**Provider/service health** is a recorded operational observation about a specific provider/runtime path. The controlled values are:
+
+- `unknown` — Agora makes no operational claim; live evidence is not required;
+- `observed-operational` — a provider-scoped live check has observed the advertised path working;
+- `degraded` — provider-scoped live evidence records that the advertised operational path is materially impaired but not wholly unavailable;
+- `unavailable` — provider-scoped live evidence records that the advertised operational path could not be used.
+
+Every non-`unknown` provider-health claim requires at least one exact-provider live evidence reference. These labels summarize recorded observations and are not automatic real-time monitoring or an uptime guarantee; later workflow runs and their artifacts are the mutable observations that maintainers should consult when current state matters.
 
 **Plugin/client integration evidence** records how strongly a particular Claude or Codex transport path has been tested. The `experimental` / `community` / `verified` ladder belongs here, and the plugin aggregate remains the weakest client status.
 
@@ -71,7 +78,7 @@ python scripts/generate_marketplaces.py --check
 python -m unittest discover -s tests -v
 ```
 
-Validation checks schema conformance, duplicate IDs, cross-file references, executable verification-check references, exact-provider health evidence, controlled-vocabulary values, collection/index consistency, the exact four-plugin / 37-resource v0.1 contract, materializer registry constraints, and freshness of committed Claude/Codex marketplace artifacts.
+Validation checks schema conformance, duplicate IDs, cross-file references, executable verification-check references, exact-provider evidence for every asserted provider-health state, controlled-vocabulary values, collection/index consistency, the exact four-plugin / 37-resource v0.1 contract, materializer registry constraints, and freshness of committed Claude/Codex marketplace artifacts.
 
 CI also performs a live Pseudepigrapha-TF integration smoke in two phases: passive immutable source fetch/manifest validation, then a separately explicit Python installation that records runtime and dependency identity. Materializer registration and verification do not assess upstream scholarly suitability or converter semantics.
 
