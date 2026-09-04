@@ -25,12 +25,16 @@ _CONNECTIVITY_MARKERS = (
     "connection timed out",
     "connection timeout",
     "connection refused",
+    "connection reset by peer",
     "network is unreachable",
     "no route to host",
+    "operation timed out",
     "temporary failure in name resolution",
     "couldn't connect to server",
     "proxy connect aborted",
     "proxyconnect tcp",
+    "recv failure",
+    "send failure",
     "tls connect error",
     "ssl connect error",
 )
@@ -117,12 +121,14 @@ def _write_selection_record(
     configured_ref: str | None,
     revision: str,
 ) -> None:
+    destination = _record_path(repo)
+    if not destination.parent.is_dir():
+        return
     record = {
         "repository": repository,
         "configured_ref": configured_ref,
         "revision": revision,
     }
-    destination = _record_path(repo)
     temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(
@@ -145,13 +151,25 @@ def _write_selection_record(
                 pass
 
 
+def _repository_matches(store: GitStore, repo: Path, repository: str) -> bool:
+    try:
+        actual = store._run("remote", "get-url", "origin", cwd=repo)
+    except subprocess.CalledProcessError:
+        return False
+    expected = store.repository_url(repository)
+    return actual.rstrip("/") == expected.rstrip("/")
+
+
 def _selection_matches(
+    store: GitStore,
     repo: Path,
     *,
     repository: str,
     configured_ref: str | None,
     revision: str,
 ) -> bool:
+    if not _repository_matches(store, repo, repository):
+        return False
     if configured_ref is None:
         return True
     if _IMMUTABLE_REVISION_RE.fullmatch(configured_ref):
@@ -186,13 +204,14 @@ def _cached_resolution(
             f"Context-Fabric resource {resource_id!r} has no cached selected revision; network access is required"
         ) from exc
     if not _selection_matches(
+        store,
         repo,
         repository=repository,
         configured_ref=configured_ref,
         revision=revision,
     ):
         raise OfflineCacheMissError(
-            f"cached metadata for Context-Fabric resource {resource_id!r} does not match its configured ref; network access is required"
+            f"cached metadata for Context-Fabric resource {resource_id!r} does not match its configured repository/ref; network access is required"
         )
     immutable = bool(
         configured_ref
