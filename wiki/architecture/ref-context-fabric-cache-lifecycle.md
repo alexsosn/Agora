@@ -14,8 +14,8 @@ Cache eviction changes **local residency**, not source identity. A removed revis
 
 1. A successfully loaded corpus remains usable until unload, replacement, or process exit, even when another Agora process sharing the cache is pruning.
 2. Process death releases cache/repository ownership automatically; users must not repair stale lock sentinels manually.
-3. Ordinary prepare/load calls do not perform unconditional full-cache pruning. Housekeeping may serialize only short cache-transition operations; recursive deletion I/O must not hold the global load-blocking transition lock.
-4. Status makes cache pressure understandable: indexed managed bytes, unindexed cache bytes, object kind, recency, active use, configured soft target, free-space reserve, and current free space.
+3. Ordinary startup, prepare, and load paths do not perform unconditional full-cache pruning or recursive eviction cleanup. Housekeeping may serialize only short cache-transition operations; recursive deletion I/O must not hold the global load-blocking transition lock.
+4. Status makes cache pressure understandable: indexed managed bytes, unindexed cache bytes, abandoned eviction bytes, object kind, recency, active use, configured soft target, free-space reserve, and current free space.
 5. Prune/remove never force-delete an active object and never guess an independently evictable root from nested Text-Fabric files. Partial reclamation is a normal, explicit result.
 6. Module-enabled loads participate in the same lifecycle without treating feature modules as corpora or requiring `otype.tf` in module snapshots.
 7. Failure states are finite and actionable: live-object skips, transition contention, unindexed residency, target not met, and insufficient free space are distinguishable outcomes.
@@ -135,24 +135,34 @@ Once an overlay has been completed and leased, its parent/module source snapshot
 
 Recursive deletion of a multi-gigabyte corpus must not hold the global transition lock. For each indexed unused object, eviction therefore has two phases.
 
-### Phase 1 — atomic detach
+### Phase 1 — invalidate identity and atomically detach
 
 Under the exclusive cache-transition lock and the object's exclusive lock:
 
 1. verify that the candidate is explicitly indexed;
 2. re-check that the object still exists and is not leased;
-3. create a unique `tmp/evict-*` quarantine directory;
-4. atomically rename the managed object to `tmp/evict-*/data` on the same cache filesystem;
-5. remove external access/object sidecars and empty managed parent directories;
-6. release the object and transition locks.
+3. remove its external access/object-index sidecars **before** the served pathname can disappear;
+4. create a unique `tmp/evict-*` quarantine directory;
+5. atomically rename the managed object to `tmp/evict-*/data` on the same cache filesystem;
+6. remove empty managed parent directories;
+7. release the object and transition locks.
 
-After the rename the original served pathname is gone atomically. A subsequent prepare/load can immediately enter the transition lock and re-materialize the same source identity if needed.
+Invalidating the sidecar before rename closes a crash window. If the process dies immediately after a successful rename, stale metadata cannot later bless a nested path recreated by a different enclosing cache object. If rename fails, the intact source object remains conservatively unindexed until a later normal prepare/load/touch recreates its exact sidecar.
+
+After a successful rename the original served pathname is gone atomically. A subsequent prepare/load can immediately enter the transition lock and re-materialize the same source identity if needed.
 
 ### Phase 2 — recursive delete
 
 Only after all cache-transition/object locks have been released does Agora measure and recursively delete the detached quarantine tree. Slow filesystem deletion therefore does not block normal prepare/load operations.
 
-If a process dies after detaching but before deletion finishes, the detached tree is not a served cache object and cannot be loaded accidentally. Later `GitStore` instances best-effort remove `tmp/evict-*` directories older than a grace period, avoiding both permanent disk leakage and races with a live process that has only just detached an object.
+If a process dies after detaching but before deletion finishes, the detached tree is not a served cache object and cannot be loaded accidentally. Aged `tmp/evict-*` trees are treated as explicit housekeeping debt:
+
+- constructing `GitStore` does **not** recursively delete them;
+- `corpus_cache_status()` reports aged abandoned eviction entry/byte counts;
+- `prune_corpus_cache()` best-effort removes aged quarantine trees before ordinary indexed LRU pruning;
+- the grace period avoids racing a live process that has only just detached an object and is deleting it outside the transition lock.
+
+This keeps startup and ordinary loads side-effect-light while still providing a deterministic recovery path after process death.
 
 ## Load/reload transaction
 
@@ -200,12 +210,13 @@ Persistent lock files are not deleted during eviction.
 
 `AGORA_CORPUS_MIN_FREE_GB` is a materialization/free-space guardrail (default 6 GiB).
 
-Prune measures the whole `snapshots/ + overlays/` tree for its before/after logical cache size, but only indexed managed objects are eligible for LRU deletion. Indexed candidates are attempted in least-recently-used order. Each candidate is independently detached under the short exclusive transition/object-lock section described above; recursive deletion occurs after those locks are released. Active objects are skipped.
+Prune is explicit housekeeping. It first best-effort removes aged abandoned `tmp/evict-*` quarantine trees, then measures the whole `snapshots/ + overlays/` tree for its logical cache size. Only indexed managed objects are eligible for LRU deletion. Indexed candidates are attempted in least-recently-used order. Each candidate is independently detached under the short exclusive transition/object-lock section described above; recursive deletion occurs after those locks are released. Active objects are skipped.
 
 The result reports:
 
-- `before_bytes` / `after_bytes` for the complete cache tree;
-- removed entry/byte counts;
+- `before_bytes` / `after_bytes` for the complete `snapshots/ + overlays/` tree;
+- removed indexed entry/byte counts;
+- `abandoned_eviction_entries_removed` / `abandoned_eviction_bytes_removed`;
 - `skipped_in_use`;
 - `blocked_by_transition`;
 - `unindexed_cache_bytes` remaining after the pass;
@@ -218,11 +229,12 @@ A soft target is not a promise that every individual corpus fits beneath it. Har
 
 ## Cache status UX
 
-`corpus_cache_status()` reports both total and indexed residency:
+`corpus_cache_status()` reports both logical cache residency and abandoned quarantine debt:
 
 - `cache_bytes` / `cache_gb` — complete `snapshots/ + overlays/` logical size;
 - `indexed_cache_bytes` / `indexed_cache_gb` — sum of explicitly indexed managed objects;
 - `unindexed_cache_bytes` / `unindexed_cache_gb` — conservative remainder;
+- `abandoned_eviction_entries` / `abandoned_eviction_bytes` / `abandoned_eviction_gb` — aged detached quarantine awaiting explicit prune cleanup;
 - configured soft limit and minimum-free guardrail;
 - actual free bytes/GiB;
 - over-limit / below-free-space booleans;
@@ -248,9 +260,9 @@ Direct low-level removal of an unindexed path is rejected with an actionable err
 - Lock acquisition uses finite timeouts; contention never means an unbounded hang.
 - An active object's exclusive lock failure during prune/remove is a skip, not an exception and not forced deletion.
 - User-facing batch prune/remove returns transition contention as `blocked_by_transition` and can succeed partially instead of discarding already-completed reclamation behind a late timeout exception.
-- Prune callers inspect `target_met`, `free_space_met`, `skipped_in_use`, `blocked_by_transition`, and `unindexed_cache_bytes` rather than infer success from a non-error return.
+- Prune callers inspect `target_met`, `free_space_met`, `skipped_in_use`, `blocked_by_transition`, `unindexed_cache_bytes`, and abandoned-cleanup results rather than infer success from a non-error return.
 - Insufficient materialization space explicitly points callers to `corpus_cache_status` and `prune_corpus_cache`.
-- Ordinary prepare/load does not automatically run a full LRU sweep.
+- Constructing the cache store, ordinary prepare, and ordinary load never perform recursive abandoned-eviction cleanup or a full LRU sweep.
 - Ambiguous pre-index data is reported, not destroyed to satisfy a quota.
 
 ## Platform boundary
@@ -268,8 +280,10 @@ Process-level regressions cover:
 - reclamation after lease release;
 - transition protection during composition;
 - recursive eviction I/O outside the global transition lock;
+- stale-sidecar invalidation before detach;
+- startup avoiding recursive abandoned-quarantine cleanup;
 - conservative cache discovery for nested TF trees.
 
 Service/MCP regressions cover failed-reload lease preservation, module/version logical names, idempotent unload, lifecycle tool registration, and cache-status/prune/remove result UX.
 
-Verified PR #31 head `7eb5de82daf990d98fad3086e63844add8936a76` passed Foundation run #293 and Context-Fabric source-audit run #52 with no unresolved review threads.
+Current PR verification evidence belongs in the PR/issue record rather than this durable architecture reference.
