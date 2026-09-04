@@ -22,6 +22,8 @@ class CandidateResearchValidationTests(unittest.TestCase):
         root = Path(tmp.name)
         shutil.copytree(ROOT / "registry", root / "registry")
         shutil.copytree(ROOT / "research", root / "research")
+        (root / "wiki").mkdir()
+        shutil.copytree(ROOT / "wiki/backlog", root / "wiki/backlog")
         return root
 
     def mutate_candidates(self, mutate):
