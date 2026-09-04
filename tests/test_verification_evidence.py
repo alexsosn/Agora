@@ -137,6 +137,16 @@ class VerificationEvidenceTests(unittest.TestCase):
         errors = validate_registry(root)
         self.assertTrue(any("matrix selector" in error and "does-not-exist" in error for error in errors), errors)
 
+    def test_live_workflow_reruns_when_canonical_verification_claims_change(self):
+        workflow = (ROOT / ".github/workflows/external-mcp-smoke.yml").read_text(encoding="utf-8")
+        for path in (
+            "registry/plugins.yaml",
+            "registry/verification-checks.yaml",
+            "registry/schema/plugins.schema.json",
+            "registry/schema/verification-checks.schema.json",
+        ):
+            self.assertIn(f'"{path}"', workflow, path)
+
 
 if __name__ == "__main__":
     unittest.main()
