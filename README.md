@@ -111,7 +111,9 @@ Agora is designed to add more providers without forcing them into Text-Fabric or
 
 Agora verification covers installation, launch, transport, resource resolution, and representative integration operations. It does not assess whether an upstream corpus is suitable for a particular research use or maintain a parallel account of upstream data quality.
 
-Use the resolved source revision to consult the original repository or corpus publisher's current documentation for semantics, limitations, and suitability. The four v0.1 integrations currently have live Codex-path verification; deeper resource-level integration verification is ongoing.
+Use the resolved source revision to consult the original repository or corpus publisher's current documentation for semantics, limitations, and suitability. The four v0.1 integrations currently have live **Codex-path** verification; their aggregate plugin status remains `community` because the Claude paths currently have deterministic configuration evidence rather than equivalent live client-path evidence.
+
+Plugin/client verification claims are bound to stable executable check IDs in `registry/verification-checks.yaml`. Live smoke artifacts record the check ID, exact Agora revision, timestamp, GitHub Actions run, runtime/platform, generated launch command, and configured dependency inputs, so a `verified` client claim can be traced to an actual executable check and run rather than a prose test name. See [`registry/README.md`](registry/README.md) for the evidence model.
 
 For the detailed verification model and current implementation status, see [implementation details](wiki/architecture/ref-implementation-details.md).
 
