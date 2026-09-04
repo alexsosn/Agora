@@ -10,6 +10,7 @@ plugins:
     package:
       type: python-project
       path: .
+      install_trust: explicit-code-execution
     materializers:
       - ocp-text-fabric
     disciplines: [biblical-studies, digital-philology, judaica]
@@ -19,5 +20,6 @@ plugins:
     verification:
       status: community
       notes:
-        - The upstream materializer contract is exercised by Agora's sandboxed Pseudepigrapha-TF reference materialization.
-        - A dedicated Agora install smoke downloads this immutable commit and installs its Python project and dependencies through the canonical registry entry.
+        - Passive fetch validates the immutable upstream source and materializer manifest without executing plugin Python.
+        - Explicit installation executes third-party Python packaging/build code and records the resolved runtime, distribution closure, source hash, and managed environment hash.
+        - The upstream materializer contract remains exercised by Agora's sandboxed Pseudepigrapha-TF reference materialization.
