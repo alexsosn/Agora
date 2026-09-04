@@ -8,7 +8,7 @@ Repository tooling lives here: registry validation, deterministic marketplace ge
 python scripts/validate_registry.py
 ```
 
-Validates Agora's canonical marketplace, plugin, provider, resource, collection, vocabulary, and v0.1 scope documents.
+Validates Agora's canonical marketplace, MCP plugin/provider/resource, collection, vocabulary, materializer-plugin, and v0.1 scope documents. Materializer disciplines and verification statuses use the same controlled vocabularies as the rest of the registry.
 
 ## Marketplace generation
 
@@ -38,36 +38,68 @@ This is an installation and source-resolution check. It does not assess upstream
 
 ## Registered materializer plugins
 
-Discover materializer plugins Agora knows how to install:
+Discover materializer plugins Agora knows about:
 
 ```bash
 python scripts/agora_install_materializer.py list
 ```
 
-Install the registered Pseudepigrapha-TF converter and its Python dependencies:
+A registered Python materializer has two separate phases.
+
+### Passive fetch
 
 ```bash
-python scripts/agora_install_materializer.py install pseudepigrapha-tf
+python scripts/agora_install_materializer.py fetch pseudepigrapha-tf
 ```
 
-The installer reads `registry/materializers.yaml`, fetches the exact immutable Git commit declared there, verifies that the upstream `agora.materializer.json` has the expected plugin identity/version/repository and exact materializer IDs, installs the upstream Python project into the managed checkout, verifies its execution modules are importable, and writes `agora-installation.json` as an installation receipt.
+`fetch` downloads the exact immutable Git commit from `registry/materializers.yaml`, removes Git metadata, validates the upstream `agora.materializer.json`, and hashes the fetched source tree. It does **not** build the project, import the package, or execute plugin Python.
 
-By default installations live under `$AGORA_DATA_HOME/agora/materializers` when `AGORA_DATA_HOME` is set, otherwise under `$XDG_DATA_HOME/agora/materializers` or `~/.local/share/agora/materializers`. Use `--root /path/to/root` for an explicit location. Re-running an installation is idempotent only when the existing receipt and manifest still match the canonical registry.
+### Explicit installation trust
 
-The installation receipt records what Agora downloaded and installed; it is not yet an automatic execution approval. Resource → materializer → consumer composition and binding an installed manifest into the materialization trust decision remain tracked separately.
+Python package installation is executable code: a PEP 517 build backend can run while pip builds or inspects a source project. Agora therefore refuses to install a registered Python materializer without an explicit acknowledgement:
+
+```bash
+python scripts/agora_install_materializer.py install pseudepigrapha-tf \
+  --approve-code-execution
+```
+
+This install-time code runs outside the later materialization sandbox. The flag is a user trust decision for the pinned plugin source and its packaging/build process; it must not be supplied silently by future resource-to-materializer automatic composition.
+
+The installer builds from a disposable copy of the fetched source. The canonical fetched source remains separate and is rehashed/revalidated after the build. Module verification is filesystem-only and does not import the plugin.
+
+Installations are separated by immutable plugin commit and current Python/runtime identity:
+
+```text
+<root>/<plugin>/<commit>/
+  source/
+  agora-source.json
+  environments/<python-abi-platform>/
+    runtime/
+      agora.materializer.json
+      .agora-environment.json
+      ... installed package and dependencies ...
+    pip-report.json
+    agora-installation.json
+```
+
+`agora-installation.json` records the source-tree hash, Python implementation/version/ABI/platform, exact installed distribution names and versions, a distribution/runtime descriptor digest, the full managed-runtime tree hash, pip-report hash, manifest hashes, and a combined execution identity. Reuse re-hashes source and runtime contents and re-reads installed distribution metadata; source or dependency modification invalidates the installation. `--repair` performs a transactional replacement. A per-target exclusive lock prevents concurrent installers from racing.
+
+The dependency resolver is not yet lockfile-reproducible: Pseudepigrapha-TF currently permits a Text-Fabric version range and its build backend is not hash-pinned. Two fresh installs may therefore resolve different environments. Agora records the resulting environment identity so they are distinguishable; a reviewed lock/constraints-and-hashes policy remains necessary before zero-touch automatic installation is appropriate.
+
+By default data lives under `$AGORA_DATA_HOME/agora/materializers` when `AGORA_DATA_HOME` is set, otherwise under `$XDG_DATA_HOME/agora/materializers` or `~/.local/share/agora/materializers`. Use `--root /path/to/root` for an explicit location.
 
 ## Experimental local materialization
 
-After installing Pseudepigrapha-TF, pass its installed manifest to the existing materialization host:
+The installer prints the execution manifest path after a successful installation. Pass that **managed runtime** manifest to the materialization host:
 
 ```bash
 python scripts/agora_materialize.py \
-  --manifest ~/.local/share/agora/materializers/pseudepigrapha-tf/a2300b3c5b1a5e859d82691dc28bd53967053a8d/agora.materializer.json \
+  --manifest <installed-environment>/runtime/agora.materializer.json \
   --materializer ocp-text-fabric \
   --output /path/to/artifact
 ```
 
-For any trusted materializer manifest:
+For any trusted unmanaged materializer manifest:
 
 ```bash
 python scripts/agora_materialize.py \
@@ -78,12 +110,14 @@ python scripts/agora_materialize.py \
 
 The host acquires a declared public Git source or accepts `--source /path/to/local/files`, validates the input contract, runs the materializer without a shell, requires an OS sandbox by default, validates the declared output, records immutable source/code provenance, and atomically publishes the finished artifact.
 
-Supplying `--manifest` is still the explicit execution trust decision. Agora now has canonical download/install metadata for registered materializers, but it does not yet automatically bind an arbitrary manifest path to that installation record. `--sandbox off` is a development-only override.
+Supplying `--manifest` remains the explicit **materializer execution** trust decision in this prototype. It is distinct from the earlier install-time build-code approval. Agora does not yet automatically bind a resource to an approved installed materializer.
+
+For a managed environment, its `runtime/` directory intentionally has no top-level `src/`; the existing materialization host therefore hashes the complete managed runtime tree as `plugin.code_sha256`. The same tree hash is recorded in `agora-installation.json`, binding artifact code provenance to the installed package/dependency contents rather than only to the upstream `src/` tree.
 
 Contract v1 exposes `{source}`, `{output}`, and `{source_revision}` argument placeholders. `{source_revision}` is the immutable commit resolved by Agora when one is available; it is an empty string for source trees with no Git revision.
 
 Linux requires a working bubblewrap installation with user/network namespaces enabled by the host policy. Some Ubuntu configurations install `bwrap` while AppArmor still blocks unprivileged user namespaces; Agora fails closed in that situation rather than silently running unsandboxed. The GitHub-hosted Ubuntu E2E adjusts that restriction only on its disposable CI VM. A persistent host should use its distribution's supported bubblewrap/AppArmor configuration instead of copying the CI sysctl blindly.
 
-The dedicated sandbox workflow exercises both OS backends with generic integration fixtures and also performs a pinned Pseudepigrapha-TF/OCP reference smoke. A separate install smoke exercises discovery, immutable download, package installation, receipt creation, manifest validation, and importability through `registry/materializers.yaml`. These checks validate Agora integration; converter semantics remain tested upstream.
+The dedicated sandbox workflow exercises both OS backends with generic integration fixtures and performs a pinned Pseudepigrapha-TF/OCP reference smoke. A separate install smoke exercises passive source acquisition and explicit approved environment installation from `registry/materializers.yaml`. These checks validate Agora integration; converter semantics remain tested upstream.
 
 See [`../wiki/architecture/ref-local-materialization.md`](../wiki/architecture/ref-local-materialization.md) for the ownership, sandbox, provenance, and trust boundaries.
