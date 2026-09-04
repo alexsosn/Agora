@@ -12,13 +12,15 @@ if str(PLUGIN_SRC) not in sys.path:
     sys.path.insert(0, str(PLUGIN_SRC))
 
 from agora_context_fabric.catalog import Catalog, ResourceSpec
-from agora_context_fabric.gitstore import (
-    GitStore,
+from agora_context_fabric.gitstore import GitStore
+from agora_context_fabric.mcp_tools import register_tools
+from agora_context_fabric.network import (
     NetworkUnavailableError,
     OfflineCacheMissError,
     RemoteResolutionError,
+    current_network_mode,
+    use_network_mode,
 )
-from agora_context_fabric.mcp_tools import register_tools
 from agora_context_fabric.resolver import ContextFabricResolver
 
 
@@ -104,7 +106,8 @@ class OfflineCacheTests(unittest.TestCase):
 
             store.fail_fetches = True
             attempts_before = store.fetch_attempts
-            second = resolver.prepare("fixture", network_mode="auto")
+            with use_network_mode("auto"):
+                second = resolver.prepare("fixture")
 
             self.assertEqual(second.path, first.path)
             self.assertEqual(second.source_revision, first.source_revision)
@@ -124,7 +127,8 @@ class OfflineCacheTests(unittest.TestCase):
 
             store.fail_fetches = True
             attempts_before = store.fetch_attempts
-            second = resolver.prepare("fixture", network_mode="offline")
+            with use_network_mode("offline"):
+                second = resolver.prepare("fixture")
 
             self.assertEqual(second.path, first.path)
             self.assertEqual(store.fetch_attempts, attempts_before)
@@ -143,7 +147,8 @@ class OfflineCacheTests(unittest.TestCase):
             store.fail_fetches = True
 
             with self.assertRaisesRegex(NetworkUnavailableError, "fixture.*network"):
-                resolver.prepare("fixture", network_mode="require-fresh")
+                with use_network_mode("require-fresh"):
+                    resolver.prepare("fixture")
 
     def test_non_connectivity_remote_failure_is_not_hidden_by_cache_fallback(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -158,7 +163,8 @@ class OfflineCacheTests(unittest.TestCase):
             store.fail_fetches = True
 
             with self.assertRaisesRegex(RemoteResolutionError, "Authentication failed"):
-                resolver.prepare("fixture", network_mode="auto")
+                with use_network_mode("auto"):
+                    resolver.prepare("fixture")
 
     def test_uncached_offline_resource_fails_without_network_attempt(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -170,7 +176,8 @@ class OfflineCacheTests(unittest.TestCase):
             resolver = self._resolver(source, store)
 
             with self.assertRaisesRegex(OfflineCacheMissError, "fixture.*network"):
-                resolver.prepare("fixture", network_mode="offline")
+                with use_network_mode("offline"):
+                    resolver.prepare("fixture")
             self.assertEqual(store.clone_attempts, 0)
             self.assertEqual(store.fetch_attempts, 0)
 
@@ -185,7 +192,8 @@ class OfflineCacheTests(unittest.TestCase):
             resolver = self._resolver(source, store)
 
             with self.assertRaisesRegex(NetworkUnavailableError, "fixture.*network"):
-                resolver.prepare("fixture", network_mode="auto")
+                with use_network_mode("auto"):
+                    resolver.prepare("fixture")
 
     def test_offline_metadata_without_materialized_snapshot_fails_before_export_fetch(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -199,7 +207,8 @@ class OfflineCacheTests(unittest.TestCase):
             attempts_before = store.fetch_attempts
 
             with self.assertRaisesRegex(OfflineCacheMissError, "materialized.*fixture"):
-                resolver.prepare("fixture", network_mode="offline")
+                with use_network_mode("offline"):
+                    resolver.prepare("fixture")
             self.assertEqual(store.fetch_attempts, attempts_before)
 
     def test_immutable_pinned_revision_is_verifiable_offline_once_cached(self):
@@ -213,7 +222,8 @@ class OfflineCacheTests(unittest.TestCase):
             first = resolver.prepare("fixture")
             attempts_before = store.fetch_attempts
 
-            second = resolver.prepare("fixture", network_mode="offline")
+            with use_network_mode("offline"):
+                second = resolver.prepare("fixture")
 
             self.assertEqual(second.source_revision, revision)
             self.assertEqual(second.path, first.path)
@@ -236,14 +246,14 @@ class FakeMCP:
 
 class NetworkModeService:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, dict[str, object]]] = []
+        self.calls: list[tuple[str, str]] = []
 
-    def prepare(self, resource_id: str, **kwargs):
-        self.calls.append(("prepare", {"resource_id": resource_id, **kwargs}))
+    def prepare(self, resource_id: str, **_kwargs):
+        self.calls.append(("prepare", current_network_mode()))
         return {"resource_id": resource_id}
 
-    def load(self, resource_id: str, **kwargs):
-        self.calls.append(("load", {"resource_id": resource_id, **kwargs}))
+    def load(self, resource_id: str, **_kwargs):
+        self.calls.append(("load", current_network_mode()))
         return {"resource_id": resource_id}
 
     def __getattr__(self, name: str):
@@ -262,10 +272,16 @@ class NetworkModeToolTests(unittest.TestCase):
         mcp.tools["prepare_corpus"]("fixture", network_mode="offline")
         mcp.tools["load_corpus"]("fixture", network_mode="require-fresh")
 
-        self.assertEqual(service.calls[0][0], "prepare")
-        self.assertEqual(service.calls[0][1]["network_mode"], "offline")
-        self.assertEqual(service.calls[1][0], "load")
-        self.assertEqual(service.calls[1][1]["network_mode"], "require-fresh")
+        self.assertEqual(service.calls, [("prepare", "offline"), ("load", "require-fresh")])
+
+    def test_invalid_network_mode_is_rejected_before_service_call(self):
+        mcp = FakeMCP()
+        service = NetworkModeService()
+        register_tools(mcp, service)
+
+        with self.assertRaises(ValueError):
+            mcp.tools["prepare_corpus"]("fixture", network_mode="sometimes")
+        self.assertEqual(service.calls, [])
 
 
 if __name__ == "__main__":
