@@ -1,0 +1,23 @@
+schema_version: 1
+plugins:
+  - id: pseudepigrapha-tf
+    name: Pseudepigrapha-TF
+    description: Convert Online Critical Pseudepigrapha XML editions into local Text-Fabric artifacts.
+    repository: alexsosn/Pseudepigrapha-TF
+    ref: a2300b3c5b1a5e859d82691dc28bd53967053a8d
+    version: 0.1.0
+    manifest: agora.materializer.json
+    package:
+      type: python-project
+      path: .
+    materializers:
+      - ocp-text-fabric
+    disciplines: [biblical-studies, digital-philology, judaica]
+    licenses:
+      software: MIT
+      data: upstream-dependent
+    verification:
+      status: community
+      notes:
+        - The upstream materializer contract is exercised by Agora's sandboxed Pseudepigrapha-TF reference materialization.
+        - A dedicated Agora install smoke downloads this immutable commit and installs its Python project and dependencies through the canonical registry entry.

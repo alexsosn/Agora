@@ -1,0 +1,83 @@
+name: Registered materializer install smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/materializer-install.yml'
+      - 'registry/materializers.yaml'
+      - 'registry/schema/materializers.schema.json'
+      - 'registry/schema/materializer-plugin.schema.json'
+      - 'scripts/agora_install_materializer.py'
+      - 'scripts/agora_materialize.py'
+      - 'tests/test_materializer_installation.py'
+  pull_request:
+    paths:
+      - '.github/workflows/materializer-install.yml'
+      - 'registry/materializers.yaml'
+      - 'registry/schema/materializers.schema.json'
+      - 'registry/schema/materializer-plugin.schema.json'
+      - 'scripts/agora_install_materializer.py'
+      - 'scripts/agora_materialize.py'
+      - 'tests/test_materializer_installation.py'
+
+permissions:
+  contents: read
+
+jobs:
+  pseudepigrapha-tf:
+    name: Download and install Pseudepigrapha-TF
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PSEUDEPIGRAPHA_TF_COMMIT: a2300b3c5b1a5e859d82691dc28bd53967053a8d
+    steps:
+      - name: Check out Agora
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Agora registry dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Discover registered materializer
+        run: python scripts/agora_install_materializer.py list | grep -F 'pseudepigrapha-tf'
+
+      - name: Download and install registered Pseudepigrapha-TF
+        run: python scripts/agora_install_materializer.py install pseudepigrapha-tf --root "$RUNNER_TEMP/materializers"
+
+      - name: Verify installation receipt, manifest, and importability
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_root="$RUNNER_TEMP/materializers/pseudepigrapha-tf/$PSEUDEPIGRAPHA_TF_COMMIT"
+          test -f "$install_root/agora.materializer.json"
+          test -f "$install_root/agora-installation.json"
+          INSTALL_ROOT="$install_root" python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          from scripts.agora_materialize import load_manifest
+
+          root = Path(os.environ['INSTALL_ROOT'])
+          expected = os.environ['PSEUDEPIGRAPHA_TF_COMMIT']
+          receipt = json.loads((root / 'agora-installation.json').read_text(encoding='utf-8'))
+          manifest = load_manifest(root / 'agora.materializer.json')
+
+          assert receipt['plugin']['id'] == 'pseudepigrapha-tf'
+          assert receipt['plugin']['repository'] == 'alexsosn/Pseudepigrapha-TF'
+          assert receipt['plugin']['commit'] == expected
+          assert receipt['plugin']['version'] == '0.1.0'
+          assert receipt['materializers'] == ['ocp-text-fabric']
+          assert manifest['plugin']['id'] == 'pseudepigrapha-tf'
+          assert [item['id'] for item in manifest['materializers']] == ['ocp-text-fabric']
+
+          sys.path[:0] = [str(root / 'src'), str(root)]
+          import pseudepigrapha_tf.cli  # noqa: F401
+          PY
