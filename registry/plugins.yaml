@@ -50,7 +50,11 @@ plugins:
               inputs:
                 source: {repository: alexsosn/Agora, revision: self}
                 runtime: python==3.13
-                resolution: [cfabric-mcp==0.1.7, "PyYAML>=6.0,<7", "mcp>=2,<3 (smoke harness)"]
+                resolution:
+                  - cfabric-mcp==0.1.7
+                  - "PyYAML>=6.0,<7"
+                  - "mcp>=2,<3 (smoke harness)"
+                  - "PyYAML>=6,<7 (smoke harness)"
       notes:
         - Deterministic checks cover the Agora runtime, resolver, collection discovery, MCP tool registration, and generated client launch metadata.
         - The scheduled Context-Fabric source audit resolves all 37 v0.1 upstream resources from Git metadata without materializing corpus blobs.
@@ -121,6 +125,7 @@ plugins:
                   - perseus-mcp==1.0.2
                   - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
                   - "mcp>=2,<3 (smoke harness)"
+                  - "PyYAML>=6,<7 (smoke harness)"
       notes:
         - Both clients use the pinned upstream perseus-mcp 1.0.2 package.
         - The live workflow currently exercises the Codex stdio path and performs an upstream author-discovery lookup for Homer.
@@ -176,7 +181,12 @@ plugins:
               inputs:
                 source: {repository: alexsosn/Agora, revision: self}
                 runtime: python==3.13 + uvx
-                resolution: [mcp-proxy==0.12.0, "mcp>=1.17,<2", https://mcp.sefaria.org/sse, "mcp>=2,<3 (smoke harness)"]
+                resolution:
+                  - mcp-proxy==0.12.0
+                  - "mcp>=1.17,<2"
+                  - https://mcp.sefaria.org/sse
+                  - "mcp>=2,<3 (smoke harness)"
+                  - "PyYAML>=6,<7 (smoke harness)"
       notes:
         - Claude targets Sefaria's official hosted Texts MCP endpoint while Codex uses the generated stdio proxy bridge.
         - The live workflow currently exercises the Codex bridge and retrieves Genesis 1:1 in English.
@@ -229,7 +239,11 @@ plugins:
               inputs:
                 source: {repository: alexsosn/Agora, revision: self}
                 runtime: python==3.13
-                resolution: ["fastmcp>=2.12.0,<3", 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"', "mcp>=2,<3 (smoke harness)"]
+                resolution:
+                  - "fastmcp>=2.12.0,<3"
+                  - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
+                  - "mcp>=2,<3 (smoke harness)"
+                  - "PyYAML>=6,<7 (smoke harness)"
       notes:
         - Deterministic tests cover Syriac URL encoding, JSON/error handling, tool delegation, packaging, and generated launch metadata.
         - The live workflow currently exercises the Codex adapter and executes a real Syriac word lookup against SEDRA IV.
