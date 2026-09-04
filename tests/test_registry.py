@@ -34,6 +34,27 @@ class RegistryValidationTests(unittest.TestCase):
         errors = self.validate_mutation("registry/plugins.yaml", mutate)
         self.assertTrue(any("duplicate id 'context-fabric'" in error for error in errors), errors)
 
+    def test_duplicate_materializer_plugin_id_is_rejected(self):
+        def mutate(doc):
+            doc["plugins"].append(copy.deepcopy(doc["plugins"][0]))
+
+        errors = self.validate_mutation("registry/materializers.yaml", mutate)
+        self.assertTrue(any("materializers.yaml: duplicate id 'pseudepigrapha-tf'" in error for error in errors), errors)
+
+    def test_unknown_materializer_discipline_is_rejected(self):
+        def mutate(doc):
+            doc["plugins"][0]["disciplines"] = ["typo-discipline"]
+
+        errors = self.validate_mutation("registry/materializers.yaml", mutate)
+        self.assertTrue(
+            any(
+                "materializer plugin pseudepigrapha-tf.disciplines" in error
+                and "unknown controlled-vocabulary value 'typo-discipline'" in error
+                for error in errors
+            ),
+            errors,
+        )
+
     def test_duplicate_resource_id_is_rejected(self):
         def mutate(doc):
             doc["resources"].append(copy.deepcopy(doc["resources"][0]))
