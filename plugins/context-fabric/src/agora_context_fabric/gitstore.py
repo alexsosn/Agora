@@ -94,7 +94,6 @@ class GitStore:
         if self.min_free_bytes < 0:
             raise ValueError("min_free_bytes must be >= 0")
         self._ensure_layout()
-        self._cleanup_abandoned_evictions()
 
     @staticmethod
     def _env_gib(name: str, default_bytes: int) -> int:
@@ -123,20 +122,46 @@ class GitStore:
         ):
             path.mkdir(parents=True, exist_ok=True)
 
-    def _cleanup_abandoned_evictions(self) -> None:
-        """Best-effort cleanup for detached trees left behind by process death.
-
-        A grace period keeps a newly created GitStore from racing a live process
-        that has just detached a tree and is deleting it outside the transition
-        lock. Detached trees are never served, so cleanup needs no cache lease.
-        """
+    def _abandoned_eviction_paths(self) -> list[Path]:
+        """Return detached eviction trees old enough to be safely reclaimed."""
         cutoff = time.time() - _ABANDONED_EVICTION_GRACE_SECONDS
+        paths: list[Path] = []
         for candidate in self.tmp_dir.glob("evict-*"):
             try:
                 if candidate.stat().st_mtime <= cutoff:
-                    shutil.rmtree(candidate, ignore_errors=True)
+                    paths.append(candidate)
             except FileNotFoundError:
                 continue
+        return sorted(paths)
+
+    def _abandoned_eviction_status(self) -> dict[str, int]:
+        paths = self._abandoned_eviction_paths()
+        return {
+            "entries": len(paths),
+            "bytes": sum(self._directory_size(path) for path in paths),
+        }
+
+    def _cleanup_abandoned_evictions(self) -> dict[str, int]:
+        """Explicit best-effort cleanup for detached trees left by process death.
+
+        This is housekeeping invoked by prune, not constructor/startup work. A
+        grace period avoids racing a live process that has only just detached an
+        object and is deleting it outside the cache-transition lock.
+        """
+        removed_entries = 0
+        removed_bytes = 0
+        for candidate in self._abandoned_eviction_paths():
+            try:
+                size = self._directory_size(candidate)
+                if not candidate.exists():
+                    continue
+                shutil.rmtree(candidate, ignore_errors=True)
+                if not candidate.exists():
+                    removed_entries += 1
+                    removed_bytes += size
+            except FileNotFoundError:
+                continue
+        return {"removed_entries": removed_entries, "removed_bytes": removed_bytes}
 
     @staticmethod
     def repository_url(repository: str) -> str:
@@ -961,7 +986,9 @@ class GitStore:
         candidate = self._managed_path(path)
         if not candidate.exists():
             return {"removed_entries": 0, "removed_bytes": 0, "skipped_in_use": 0}, None
-        if not self._meta_path(candidate).is_file():
+        meta_path = self._meta_path(candidate)
+        access_path = self._access_path(candidate)
+        if not meta_path.is_file():
             raise ValueError(
                 f"cache object is not indexed and cannot be safely evicted: {candidate}; "
                 "prepare or load it first so Agora records its exact object root"
@@ -973,6 +1000,18 @@ class GitStore:
         try:
             if not candidate.exists():
                 return {"removed_entries": 0, "removed_bytes": 0, "skipped_in_use": 0}, None
+
+            # Invalidate evictability before the served pathname can disappear.
+            # If the process dies immediately after a successful rename, a stale
+            # sidecar cannot later bless a nested path recreated by another
+            # enclosing cache object. If rename itself fails, the intact object
+            # remains conservatively unindexed until a later normal access.
+            for sidecar in (access_path, meta_path):
+                try:
+                    sidecar.unlink()
+                except FileNotFoundError:
+                    pass
+
             quarantine_root = Path(tempfile.mkdtemp(prefix="evict-", dir=self.tmp_dir))
             detached = quarantine_root / "data"
             try:
@@ -985,11 +1024,6 @@ class GitStore:
                 quarantine_root = None
                 raise
             self._cleanup_empty_parents(candidate)
-            for sidecar in (self._access_path(candidate), self._meta_path(candidate)):
-                try:
-                    sidecar.unlink()
-                except FileNotFoundError:
-                    pass
             return {"removed_entries": 1, "removed_bytes": 0, "skipped_in_use": 0}, quarantine_root
         finally:
             lock.release()
@@ -1038,6 +1072,8 @@ class GitStore:
         target = self.snapshot_soft_limit_bytes if target_bytes is None else target_bytes
         if target < 0:
             raise ValueError("target_bytes must be >= 0")
+
+        abandoned = self._cleanup_abandoned_evictions()
         entries = self.cache_entries()
         before_bytes = self._cache_tree_bytes()
         removed_entries = 0
@@ -1069,6 +1105,8 @@ class GitStore:
             "removed_bytes": removed_bytes,
             "skipped_in_use": skipped_in_use,
             "blocked_by_transition": blocked_by_transition,
+            "abandoned_eviction_entries_removed": abandoned["removed_entries"],
+            "abandoned_eviction_bytes_removed": abandoned["removed_bytes"],
             "unindexed_cache_bytes": unindexed_after,
             "target_met": after_bytes <= target,
             "free_space_met": free_after >= self.min_free_bytes,
@@ -1092,6 +1130,7 @@ class GitStore:
         indexed_bytes = sum(int(entry["size_bytes"]) for entry in entries)
         total_bytes = self._cache_tree_bytes()
         unindexed_bytes = max(0, total_bytes - indexed_bytes)
+        abandoned = self._abandoned_eviction_status()
         free_bytes = self._free_bytes()
         return {
             "cache_bytes": total_bytes,
@@ -1100,6 +1139,9 @@ class GitStore:
             "indexed_cache_gb": self._gib(indexed_bytes),
             "unindexed_cache_bytes": unindexed_bytes,
             "unindexed_cache_gb": self._gib(unindexed_bytes),
+            "abandoned_eviction_entries": abandoned["entries"],
+            "abandoned_eviction_bytes": abandoned["bytes"],
+            "abandoned_eviction_gb": self._gib(abandoned["bytes"]),
             "snapshot_soft_limit_bytes": self.snapshot_soft_limit_bytes,
             "snapshot_soft_limit_gb": self._gib(self.snapshot_soft_limit_bytes),
             "min_free_bytes": self.min_free_bytes,
