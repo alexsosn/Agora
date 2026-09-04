@@ -43,6 +43,7 @@ checks:
   - id: mcp-live/context-fabric-codex
     kind: live
     plugin: context-fabric
+    provider: context-fabric
     client: codex
     transport: stdio
     evidence_level: verified
@@ -56,6 +57,7 @@ checks:
   - id: mcp-live/perseus-codex
     kind: live
     plugin: perseus
+    provider: perseus
     client: codex
     transport: stdio
     evidence_level: verified
@@ -69,6 +71,7 @@ checks:
   - id: mcp-live/sefaria-codex
     kind: live
     plugin: sefaria
+    provider: sefaria
     client: codex
     transport: stdio-via-sse-proxy
     evidence_level: verified
@@ -82,6 +85,7 @@ checks:
   - id: mcp-live/sedra-codex
     kind: live
     plugin: sedra
+    provider: sedra
     client: codex
     transport: stdio
     evidence_level: verified
