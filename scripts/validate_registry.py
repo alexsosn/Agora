@@ -65,6 +65,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     plugins_doc = load_yaml(registry / "plugins.yaml")
     providers_doc = load_yaml(registry / "providers.yaml")
     resources_doc = load_yaml(registry / "resources.yaml")
+    materializers_doc = load_yaml(registry / "materializers.yaml")
     feature_modules_path = registry / "feature-modules.yaml"
     feature_modules_doc = (
         load_yaml(feature_modules_path)
@@ -78,6 +79,11 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     errors += schema_errors(plugins_doc, schema / "plugins.schema.json", "plugins.yaml")
     errors += schema_errors(providers_doc, schema / "providers.schema.json", "providers.yaml")
     errors += schema_errors(resources_doc, schema / "resources.schema.json", "resources.yaml")
+    errors += schema_errors(
+        materializers_doc,
+        schema / "materializers.schema.json",
+        "materializers.yaml",
+    )
     if feature_modules_path.is_file():
         errors += schema_errors(
             feature_modules_doc,
@@ -88,6 +94,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
 
     plugins = plugins_doc.get("plugins", [])
     providers = providers_doc.get("providers", [])
+    materializer_plugins = materializers_doc.get("plugins", [])
     resources = [
         *resources_doc.get("resources", []),
         *feature_modules_doc.get("resources", []),
@@ -95,6 +102,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
 
     errors += duplicate_errors(plugins, "plugins.yaml")
     errors += duplicate_errors(providers, "providers.yaml")
+    errors += duplicate_errors(materializer_plugins, "materializers.yaml")
     errors += duplicate_errors(resources, "resource registry")
 
     plugin_by_id = {item["id"]: item for item in plugins}
@@ -140,6 +148,11 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                 errors.append(
                     f"{prefix}.verification.status: aggregate status {status!r} must equal weakest client status {weakest!r}"
                 )
+
+    for plugin in materializer_plugins:
+        prefix = f"materializer plugin {plugin['id']}"
+        ensure_vocab_list(plugin["disciplines"], disciplines, f"{prefix}.disciplines", errors)
+        ensure_vocab(plugin["verification"]["status"], verification, f"{prefix}.verification.status", errors)
 
     for provider in providers:
         prefix = f"provider {provider['id']}"
@@ -200,12 +213,21 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                 errors.append(f"{prefix}: missing collection member index {collection['member_index']!r}")
                 continue
             index_doc = load_yaml(member_index)
-            errors += schema_errors(index_doc, schema / "collection-index.schema.json", str(member_index.relative_to(root)))
+            errors += schema_errors(
+                index_doc,
+                schema / "collection-index.schema.json",
+                str(member_index.relative_to(root)),
+            )
             if index_doc.get("collection_id") != resource["id"]:
                 errors.append(
                     f"{prefix}: member index collection_id {index_doc.get('collection_id')!r} does not match resource id"
                 )
-            ensure_vocab(index_doc.get("index_status"), collection_index_status, f"{prefix}.collection.index_status", errors)
+            ensure_vocab(
+                index_doc.get("index_status"),
+                collection_index_status,
+                f"{prefix}.collection.index_status",
+                errors,
+            )
             if collection["discovery"] == "git-tree":
                 if index_doc.get("index_status") != "dynamic":
                     errors.append(
@@ -221,8 +243,18 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                 if member_id in member_ids:
                     errors.append(f"{prefix}: duplicate collection member id {member_id!r}")
                 member_ids.add(member_id)
-                ensure_vocab_list(member["languages"], languages, f"{prefix}.member[{member_id}].languages", errors)
-                ensure_vocab(member["verification"]["status"], verification, f"{prefix}.member[{member_id}].verification.status", errors)
+                ensure_vocab_list(
+                    member["languages"],
+                    languages,
+                    f"{prefix}.member[{member_id}].languages",
+                    errors,
+                )
+                ensure_vocab(
+                    member["verification"]["status"],
+                    verification,
+                    f"{prefix}.member[{member_id}].verification.status",
+                    errors,
+                )
         elif resource["acquisition"]["strategy"] == "collection":
             errors.append(f"{prefix}: non-collection resource cannot use acquisition.strategy='collection'")
 
@@ -255,7 +287,7 @@ def main() -> int:
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print("Registry validation passed: marketplace metadata, resources, and feature modules.")
+    print("Registry validation passed: marketplace, materializer, resource, and feature-module metadata.")
     return 0
 
 
