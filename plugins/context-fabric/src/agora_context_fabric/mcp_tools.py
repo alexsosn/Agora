@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .gitstore import GIB
+from .network import use_network_mode
 from .service import ContextFabricService
 
 
@@ -67,8 +68,15 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         version: str | None = None,
         source_revision: str | None = None,
         modules: list[str] | None = None,
+        network_mode: str = "auto",
     ) -> dict[str, Any]:
         """Acquire/cache a corpus version and optional registered feature modules.
+
+        `network_mode` controls source resolution: `auto` refreshes upstream and
+        falls back only for connectivity failures when the exact materialized
+        snapshot is already cached; `offline` performs no Git network operation;
+        `require-fresh` refuses stale fallback. The result reports `resolution`
+        and `source_revision_verified`.
 
         For collection members, pass the `source_revision` returned by
         list_collection_members to resolve the member at exactly that cached
@@ -81,7 +89,8 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
             kwargs["version"] = version
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
-        return service.prepare(resource_id, **kwargs)
+        with use_network_mode(network_mode):
+            return service.prepare(resource_id, **kwargs)
 
     @mcp.tool()
     def load_corpus(
@@ -91,8 +100,13 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         source_revision: str | None = None,
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
+        network_mode: str = "auto",
     ) -> dict[str, Any]:
         """Acquire and load a corpus; its final cache path is leased until unload.
+
+        `network_mode` has the same `auto`/`offline`/`require-fresh` semantics as
+        prepare_corpus. Cached fallback is explicit in the returned `resolution`
+        and `source_revision_verified` fields.
 
         For a collection member, reuse the discovery `source_revision` to load
         exactly that cached collection snapshot. The response includes
@@ -108,7 +122,8 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
             kwargs["version"] = version
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
-        return service.load(resource_id, **kwargs)
+        with use_network_mode(network_mode):
+            return service.load(resource_id, **kwargs)
 
     @mcp.tool()
     def unload_corpus(logical_name: str) -> dict[str, Any]:
