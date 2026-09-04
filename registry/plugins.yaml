@@ -36,15 +36,27 @@ plugins:
         claude:
           status: community
           transport: stdio
-          tests:
-            - {name: generated Claude launch metadata, kind: deterministic}
+          checks:
+            - check_id: manifest/context-fabric-claude
+              inputs:
+                source: {repository: alexsosn/Agora, revision: self}
+                runtime: python>=3.13
+                resolution: [cfabric-mcp==0.1.7, "PyYAML>=6.0,<7"]
         codex:
           status: verified
           transport: stdio
-          tests:
-            - {name: scheduled live MCP catalog smoke, kind: live}
+          checks:
+            - check_id: mcp-live/context-fabric-codex
+              inputs:
+                source: {repository: alexsosn/Agora, revision: self}
+                runtime: python==3.13
+                resolution:
+                  - cfabric-mcp==0.1.7
+                  - "PyYAML>=6.0,<7"
+                  - "mcp>=2,<3 (smoke harness)"
+                  - "PyYAML>=6,<7 (smoke harness)"
       notes:
-        - Deterministic tests cover the Agora runtime, resolver, collection discovery, MCP tool registration, and generated client launch metadata.
+        - Deterministic checks cover the Agora runtime, resolver, collection discovery, MCP tool registration, and generated client launch metadata.
         - The scheduled Context-Fabric source audit resolves all 37 v0.1 upstream resources from Git metadata without materializing corpus blobs.
         - The live MCP smoke workflow currently exercises the Codex stdio path; Claude is not promoted to live-verified until an equivalent client-path check exists.
         - Plugin verification does not promote individual resource integrations; each acquisition and loading path is verified separately.
@@ -93,13 +105,27 @@ plugins:
         claude:
           status: community
           transport: stdio
-          tests:
-            - {name: generated Claude launch metadata, kind: deterministic}
+          checks:
+            - check_id: manifest/perseus-claude
+              inputs:
+                source: {repository: alexsosn/Agora, revision: self}
+                runtime: uvx
+                resolution:
+                  - perseus-mcp==1.0.2
+                  - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
         codex:
           status: verified
           transport: stdio
-          tests:
-            - {name: scheduled live Homer discovery smoke, kind: live}
+          checks:
+            - check_id: mcp-live/perseus-codex
+              inputs:
+                source: {repository: alexsosn/Agora, revision: self}
+                runtime: python==3.13 + uvx
+                resolution:
+                  - perseus-mcp==1.0.2
+                  - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
+                  - "mcp>=2,<3 (smoke harness)"
+                  - "PyYAML>=6,<7 (smoke harness)"
       notes:
         - Both clients use the pinned upstream perseus-mcp 1.0.2 package.
         - The live workflow currently exercises the Codex stdio path and performs an upstream author-discovery lookup for Homer.
@@ -141,13 +167,26 @@ plugins:
         claude:
           status: community
           transport: sse
-          tests:
-            - {name: generated official SSE launch metadata, kind: deterministic}
+          checks:
+            - check_id: manifest/sefaria-claude
+              inputs:
+                source: {repository: alexsosn/Agora, revision: self}
+                runtime: hosted-sse
+                resolution: [https://mcp.sefaria.org/sse]
         codex:
           status: verified
           transport: stdio-via-sse-proxy
-          tests:
-            - {name: scheduled live Genesis 1:1 retrieval smoke, kind: live}
+          checks:
+            - check_id: mcp-live/sefaria-codex
+              inputs:
+                source: {repository: alexsosn/Agora, revision: self}
+                runtime: python==3.13 + uvx
+                resolution:
+                  - mcp-proxy==0.12.0
+                  - "mcp>=1.17,<2"
+                  - https://mcp.sefaria.org/sse
+                  - "mcp>=2,<3 (smoke harness)"
+                  - "PyYAML>=6,<7 (smoke harness)"
       notes:
         - Claude targets Sefaria's official hosted Texts MCP endpoint while Codex uses the generated stdio proxy bridge.
         - The live workflow currently exercises the Codex bridge and retrieves Genesis 1:1 in English.
@@ -186,13 +225,25 @@ plugins:
         claude:
           status: community
           transport: stdio
-          tests:
-            - {name: generated Claude launch metadata, kind: deterministic}
+          checks:
+            - check_id: manifest/sedra-claude
+              inputs:
+                source: {repository: alexsosn/Agora, revision: self}
+                runtime: python>=3.11
+                resolution: ["fastmcp>=2.12.0,<3", 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"']
         codex:
           status: verified
           transport: stdio
-          tests:
-            - {name: scheduled live Syriac word lookup smoke, kind: live}
+          checks:
+            - check_id: mcp-live/sedra-codex
+              inputs:
+                source: {repository: alexsosn/Agora, revision: self}
+                runtime: python==3.13
+                resolution:
+                  - "fastmcp>=2.12.0,<3"
+                  - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
+                  - "mcp>=2,<3 (smoke harness)"
+                  - "PyYAML>=6,<7 (smoke harness)"
       notes:
         - Deterministic tests cover Syriac URL encoding, JSON/error handling, tool delegation, packaging, and generated launch metadata.
         - The live workflow currently exercises the Codex adapter and executes a real Syriac word lookup against SEDRA IV.

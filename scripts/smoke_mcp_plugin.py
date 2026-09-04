@@ -3,12 +3,18 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib.metadata
 import json
 import os
+import platform
+import subprocess
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Mapping
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -56,6 +62,11 @@ SMOKE_CASES: dict[str, SmokeCase] = {
         tool_call=("lookup_word", {"query": "ܐܒܪܐ"}),
     ),
 }
+
+
+def _load_yaml(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
 
 
 def load_plugin_launch(plugin_id: str, root: Path = ROOT) -> LaunchSpec:
@@ -112,6 +123,169 @@ def load_plugin_launch(plugin_id: str, root: Path = ROOT) -> LaunchSpec:
     )
 
 
+def _load_live_verification_reference(
+    plugin_id: str,
+    root: Path = ROOT,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    plugins_doc = _load_yaml(Path(root) / "registry/plugins.yaml")
+    checks_doc = _load_yaml(Path(root) / "registry/verification-checks.yaml")
+    plugins = {item["id"]: item for item in plugins_doc["plugins"]}
+    checks = {item["id"]: item for item in checks_doc["checks"]}
+
+    plugin = plugins.get(plugin_id)
+    if plugin is None:
+        raise KeyError(f"plugin {plugin_id!r} is not present in registry/plugins.yaml")
+    evidence = plugin["verification"]["clients"]["codex"]
+    live_references: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    for reference in evidence["checks"]:
+        check = checks.get(reference["check_id"])
+        if check is not None and check.get("kind") == "live":
+            live_references.append((check, reference))
+    if len(live_references) != 1:
+        raise ValueError(
+            f"plugin {plugin_id!r} must have exactly one Codex live verification check; "
+            f"found {len(live_references)}"
+        )
+    return live_references[0]
+
+
+def _local_revision(root: Path) -> str:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "HEAD"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    revision = result.stdout.strip()
+    return revision if result.returncode == 0 and revision else "unknown"
+
+
+def _distribution_version(name: str) -> str | None:
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def _command_version(command: str) -> str | None:
+    try:
+        result = subprocess.run(
+            [command, "--version"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    output = (result.stdout or result.stderr).strip()
+    return output if result.returncode == 0 and output else None
+
+
+def _iso_utc(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    value = value.astimezone(timezone.utc).replace(microsecond=0)
+    return value.isoformat().replace("+00:00", "Z")
+
+
+def build_trace_metadata(
+    plugin_id: str,
+    *,
+    launch: LaunchSpec | None = None,
+    env: Mapping[str, str] | None = None,
+    checked_at: datetime | None = None,
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    root = Path(root).resolve()
+    check, reference = _load_live_verification_reference(plugin_id, root)
+    environment = dict(os.environ if env is None else env)
+    when = checked_at or datetime.now(timezone.utc)
+
+    repository = environment.get("GITHUB_REPOSITORY")
+    run_id = environment.get("GITHUB_RUN_ID")
+    server_url = environment.get("GITHUB_SERVER_URL")
+    run_url = (
+        f"{server_url.rstrip('/')}/{repository}/actions/runs/{run_id}"
+        if server_url and repository and run_id
+        else None
+    )
+    revision = environment.get("GITHUB_SHA") or _local_revision(root)
+
+    if launch is None:
+        launch_data: dict[str, Any] | None = None
+    else:
+        try:
+            relative_cwd = launch.cwd.resolve().relative_to(root)
+            cwd = relative_cwd.as_posix()
+        except ValueError:
+            cwd = str(launch.cwd)
+        launch_data = {
+            "command": launch.command,
+            "args": list(launch.args),
+            "cwd": cwd,
+            "env": launch.env,
+        }
+
+    return {
+        "check_id": check["id"],
+        "checked_at": _iso_utc(when),
+        "plugin": plugin_id,
+        "client": check["client"],
+        "transport": check["transport"],
+        "agora_revision": revision,
+        "github": {
+            "repository": repository,
+            "workflow": environment.get("GITHUB_WORKFLOW"),
+            "job": environment.get("GITHUB_JOB"),
+            "run_id": run_id,
+            "run_attempt": environment.get("GITHUB_RUN_ATTEMPT"),
+            "run_url": run_url,
+        },
+        "runtime": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+            "mcp_sdk": _distribution_version("mcp"),
+            "uv": _command_version("uv"),
+        },
+        "launch": launch_data,
+        "verification_inputs": reference["inputs"],
+    }
+
+
+def build_error_report(
+    plugin_id: str,
+    error: Exception,
+    *,
+    launch: LaunchSpec | None = None,
+    env: Mapping[str, str] | None = None,
+    checked_at: datetime | None = None,
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    try:
+        trace = build_trace_metadata(
+            plugin_id,
+            launch=launch,
+            env=env,
+            checked_at=checked_at,
+            root=root,
+        )
+    except Exception as trace_exc:
+        trace = {
+            "plugin": plugin_id,
+            "trace_error": f"{type(trace_exc).__name__}: {trace_exc}",
+        }
+    return {
+        **trace,
+        "status": "error",
+        "error": f"{type(error).__name__}: {error}",
+    }
+
+
 @contextmanager
 def _working_directory(path: Path) -> Iterator[None]:
     previous = Path.cwd()
@@ -139,7 +313,12 @@ def _tool_has_payload(result: Any) -> bool:
     return False
 
 
-async def smoke_plugin(plugin_id: str, *, timeout: float = 180.0) -> dict[str, Any]:
+async def smoke_plugin(
+    plugin_id: str,
+    *,
+    timeout: float = 180.0,
+    launch: LaunchSpec | None = None,
+) -> dict[str, Any]:
     try:
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
@@ -148,7 +327,7 @@ async def smoke_plugin(plugin_id: str, *, timeout: float = 180.0) -> dict[str, A
             "the live smoke harness requires MCP Python SDK v2; install mcp>=2,<3"
         ) from exc
 
-    launch = load_plugin_launch(plugin_id)
+    launch = launch or load_plugin_launch(plugin_id)
     case = SMOKE_CASES[plugin_id]
     server_params = StdioServerParameters(
         command=launch.command,
@@ -182,7 +361,7 @@ async def smoke_plugin(plugin_id: str, *, timeout: float = 180.0) -> dict[str, A
                         )
 
     return {
-        "plugin": plugin_id,
+        **build_trace_metadata(plugin_id, launch=launch),
         "server_name": getattr(initialize_result, "serverInfo", None)
         or getattr(initialize_result, "server_info", None),
         "tool_count": len(tool_names),
@@ -208,16 +387,13 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    launch: LaunchSpec | None = None
     try:
-        report = asyncio.run(smoke_plugin(args.plugin, timeout=args.timeout))
+        launch = load_plugin_launch(args.plugin)
+        report = asyncio.run(smoke_plugin(args.plugin, timeout=args.timeout, launch=launch))
     except Exception as exc:
-        print(
-            json.dumps(
-                {"plugin": args.plugin, "status": "error", "error": str(exc)},
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
+        report = build_error_report(args.plugin, exc, launch=launch)
+        print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
         return 1
 
     print(json.dumps(report, ensure_ascii=False, indent=2, default=str))

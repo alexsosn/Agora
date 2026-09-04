@@ -6,6 +6,10 @@ on:
     - cron: "41 5 * * 3"
   push:
     paths:
+      - "registry/plugins.yaml"
+      - "registry/verification-checks.yaml"
+      - "registry/schema/plugins.schema.json"
+      - "registry/schema/verification-checks.schema.json"
       - "plugins/context-fabric/.codex-plugin/mcp.json"
       - "plugins/context-fabric/pyproject.toml"
       - "plugins/context-fabric/src/**"
@@ -49,7 +53,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          uv run --with "mcp>=2,<3" \
+          uv run --with "mcp>=2,<3" --with "PyYAML>=6,<7" \
             python scripts/smoke_mcp_plugin.py "${{ matrix.plugin }}" --timeout 180 \
             | tee "mcp-smoke-${{ matrix.plugin }}.json"
 

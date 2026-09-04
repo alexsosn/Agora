@@ -14,6 +14,11 @@ try:
 except ModuleNotFoundError:
     from validate_candidate_research import validate_candidate_research
 
+try:
+    from scripts.validate_verification_checks import validate_verification_checks
+except ModuleNotFoundError:
+    from validate_verification_checks import validate_verification_checks
+
 ROOT = Path(__file__).resolve().parents[1]
 VERIFICATION_RANK = {"experimental": 0, "community": 1, "verified": 2}
 
@@ -153,6 +158,8 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                 errors.append(
                     f"{prefix}.verification.status: aggregate status {status!r} must equal weakest client status {weakest!r}"
                 )
+
+    errors += validate_verification_checks(root, plugins_doc)
 
     for plugin in materializer_plugins:
         prefix = f"materializer plugin {plugin['id']}"
@@ -294,7 +301,7 @@ def main() -> int:
             print(f"- {error}", file=sys.stderr)
         return 1
     print(
-        "Registry validation passed: marketplace, materializer, resource, "
+        "Registry validation passed: marketplace, verification-check, materializer, resource, "
         "feature-module, and candidate-research metadata."
     )
     return 0

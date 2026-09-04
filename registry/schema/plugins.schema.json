@@ -97,25 +97,50 @@
         {"required": ["url"]}
       ]
     },
+    "sourceInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "minLength": 1}
+      }
+    },
+    "verificationInputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "runtime", "resolution"],
+      "properties": {
+        "source": {"$ref": "#/$defs/sourceInput"},
+        "runtime": {"type": "string", "minLength": 1},
+        "resolution": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "checkReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_id", "inputs"],
+      "properties": {
+        "check_id": {"type": "string", "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"},
+        "inputs": {"$ref": "#/$defs/verificationInputs"}
+      }
+    },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "transport", "tests"],
+      "required": ["status", "transport", "checks"],
       "properties": {
         "status": {"type": "string"},
         "transport": {"type": "string", "minLength": 1},
-        "tests": {
+        "checks": {
           "type": "array",
           "minItems": 1,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["name", "kind"],
-            "properties": {
-              "name": {"type": "string", "minLength": 1},
-              "kind": {"type": "string", "minLength": 1}
-            }
-          }
+          "items": {"$ref": "#/$defs/checkReference"}
         }
       }
     }
