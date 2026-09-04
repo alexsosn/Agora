@@ -178,14 +178,15 @@ def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Load representative Context-Fabric resources")
-    parser.add_argument("cases", nargs="*", choices=sorted(LOAD_CASES), default=list(LOAD_CASES))
+    parser.add_argument("cases", nargs="*", choices=sorted(LOAD_CASES))
     parser.add_argument(
         "--cache-dir",
         type=Path,
         default=Path("~/.cache/agora/context-fabric-smoke").expanduser(),
     )
     args = parser.parse_args()
-    for case_name in args.cases:
+    case_names = args.cases or list(LOAD_CASES)
+    for case_name in case_names:
         print(json.dumps(run_case(case_name, args.cache_dir), sort_keys=True, ensure_ascii=False))
     return 0
 
