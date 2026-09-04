@@ -12,6 +12,12 @@ from typing import Iterable
 
 from .catalog import Catalog, ResourceSpec
 from .gitstore import GitStore
+from .network import (
+    RepositoryResolution,
+    materialize_corpus,
+    materialize_feature_module,
+    resolve_repository,
+)
 
 
 _IMMUTABLE_REVISION_RE = re.compile(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\Z")
@@ -42,6 +48,8 @@ class PreparedFeatureModule:
     relative_path: str
     path: Path
     source_revision: str | None = None
+    source_revision_verified: bool = True
+    resolution: str = "fresh"
 
 
 @dataclass(frozen=True)
@@ -54,6 +62,8 @@ class PreparedCorpus:
     version: str | None = None
     source_revision: str | None = None
     modules: tuple[PreparedFeatureModule, ...] = ()
+    source_revision_verified: bool = True
+    resolution: str = "fresh"
 
 
 def _member_identity_path(path: str) -> str:
@@ -134,12 +144,17 @@ class ContextFabricResolver:
         self.catalog = catalog
         self.store = store
 
+    def _repo_resolution(self, resource: ResourceSpec) -> RepositoryResolution:
+        return resolve_repository(
+            self.store,
+            resource_id=resource.id,
+            repository=resource.repository,
+            configured_ref=resource.ref,
+        )
+
     def _repo(self, resource: ResourceSpec) -> tuple[Path, str]:
-        kwargs = {"cache_key": resource.id}
-        if resource.ref is not None:
-            kwargs["ref"] = resource.ref
-        repo = self.store.ensure_metadata(resource.repository, **kwargs)
-        return repo, self.store.selected_revision(repo)
+        resolution = self._repo_resolution(resource)
+        return resolution.path, resolution.revision
 
     def _collection_repo(
         self,
@@ -167,6 +182,21 @@ class ContextFabricResolver:
                 f"for collection {resource.id!r}; no fallback to current upstream state was attempted"
             ) from exc
         return repo, resolved
+
+    def _collection_resolution(
+        self,
+        resource: ResourceSpec,
+        source_revision: str | None,
+    ) -> RepositoryResolution:
+        if source_revision is None:
+            return self._repo_resolution(resource)
+        repo, revision = self._collection_repo(resource, source_revision)
+        return RepositoryResolution(
+            path=repo,
+            revision=revision,
+            source_revision_verified=True,
+            resolution="cached",
+        )
 
     @staticmethod
     def _select_resource_root(
@@ -324,9 +354,9 @@ class ContextFabricResolver:
                 raise ValueError("version selection is supported only for corpus resources")
             if not member_id:
                 raise ValueError(f"member_id is required for collection resource {resource_id!r}")
-            repo, revision = self._collection_repo(resource, source_revision)
+            resolution = self._collection_resolution(resource, source_revision)
             try:
-                roots = self.store.dataset_roots(repo, revision)
+                roots = self.store.dataset_roots(resolution.path, resolution.revision)
             except subprocess.CalledProcessError as exc:
                 if source_revision is None:
                     raise
@@ -336,13 +366,22 @@ class ContextFabricResolver:
                 ) from exc
             members = {
                 member.id: member
-                for member in self._collection_members_from_roots(resource, roots, revision)
+                for member in self._collection_members_from_roots(
+                    resource,
+                    roots,
+                    resolution.revision,
+                )
             }
             try:
                 member = members[member_id]
             except KeyError as exc:
                 raise KeyError(f"unknown member {member_id!r} in collection {resource_id!r}") from exc
-            local = self.store.materialize(repo, member.relative_path, revision)
+            local = materialize_corpus(
+                self.store,
+                resolution,
+                resource_id=resource.id,
+                relative_path=member.relative_path,
+            )
             resolved_version = dataset_version(member.relative_path)
             return PreparedCorpus(
                 resource_id=resource.id,
@@ -351,20 +390,27 @@ class ContextFabricResolver:
                 relative_path=member.relative_path,
                 path=local,
                 version=resolved_version,
-                source_revision=revision,
+                source_revision=resolution.revision,
+                source_revision_verified=resolution.source_revision_verified,
+                resolution=resolution.resolution,
             )
         if source_revision is not None:
             raise ValueError("source_revision selection is supported only for collection resources")
         if member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
-        repo, revision = self._repo(resource)
+        resolution = self._repo_resolution(resource)
         relative = self._select_resource_root(
             resource,
-            self.store.dataset_roots(repo, revision),
+            self.store.dataset_roots(resolution.path, resolution.revision),
             version,
         )
         resolved_version = dataset_version(relative)
-        local = self.store.materialize(repo, relative, revision)
+        local = materialize_corpus(
+            self.store,
+            resolution,
+            resource_id=resource.id,
+            relative_path=relative,
+        )
         logical_name = resource.id if version is None else f"{resource.id}@{resolved_version}"
         return PreparedCorpus(
             resource_id=resource.id,
@@ -373,7 +419,9 @@ class ContextFabricResolver:
             relative_path=relative,
             path=local,
             version=resolved_version,
-            source_revision=revision,
+            source_revision=resolution.revision,
+            source_revision_verified=resolution.source_revision_verified,
+            resolution=resolution.resolution,
         )
 
     def _prepare_feature_modules(
@@ -406,8 +454,13 @@ class ContextFabricResolver:
                 )
             if not module.tf_path or not module.module_path:
                 raise ValueError(f"feature module {module_id!r} has incomplete upstream path metadata")
-            repo, revision = self._repo(module)
-            local = self.store.materialize_feature_module(repo, module.tf_path, revision)
+            resolution = self._repo_resolution(module)
+            local = materialize_feature_module(
+                self.store,
+                resolution,
+                resource_id=module.id,
+                relative_path=module.tf_path,
+            )
             selected.append(
                 PreparedFeatureModule(
                     resource_id=module.id,
@@ -415,7 +468,9 @@ class ContextFabricResolver:
                     module_path=module.module_path,
                     relative_path=module.tf_path,
                     path=local,
-                    source_revision=revision,
+                    source_revision=resolution.revision,
+                    source_revision_verified=resolution.source_revision_verified,
+                    resolution=resolution.resolution,
                 )
             )
         return tuple(selected)
@@ -496,9 +551,20 @@ class ContextFabricResolver:
             logical_name = "+".join(
                 [prepared.logical_name, *(module.resource_id for module in selected)]
             )
+            verified = prepared.source_revision_verified and all(
+                module.source_revision_verified for module in selected
+            )
+            resolution = (
+                "fresh"
+                if prepared.resolution == "fresh"
+                and all(module.resolution == "fresh" for module in selected)
+                else "cached"
+            )
             return replace(
                 prepared,
                 logical_name=logical_name,
                 path=overlay,
                 modules=selected,
+                source_revision_verified=verified,
+                resolution=resolution,
             )
