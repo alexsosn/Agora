@@ -10,10 +10,12 @@ providers:
     upstream:
       repository: Context-Fabric/context-fabric
       homepage: https://context-fabric.ai/
-    verification:
-      status: community
+    health:
+      status: observed-operational
+      evidence:
+        - check_id: mcp-live/context-fabric-codex
       notes:
-        - The Agora provider runtime is implemented; client-specific live evidence is tracked on the plugin record.
+        - A live Agora smoke has observed the provider runtime starting and answering a published tool call; client-specific evidence strength remains on the plugin record.
 
   - id: perseus
     name: Perseus / Scaife
@@ -24,10 +26,12 @@ providers:
       data_mode: remote
     upstream:
       repository: tonyjurg/Perseus-mcp
-    verification:
-      status: community
+    health:
+      status: observed-operational
+      evidence:
+        - check_id: mcp-live/perseus-codex
       notes:
-        - Client-specific live evidence is tracked on the plugin record.
+        - A live Agora smoke has observed the provider path completing a real upstream discovery call; this does not assess upstream search or data semantics.
 
   - id: sefaria
     name: Sefaria Library
@@ -39,10 +43,12 @@ providers:
     upstream:
       repository: Sefaria/sefaria-mcp
       endpoint: https://mcp.sefaria.org/sse
-    verification:
-      status: community
+    health:
+      status: observed-operational
+      evidence:
+        - check_id: mcp-live/sefaria-codex
       notes:
-        - Claude and Codex use different transports; client-specific evidence is tracked on the plugin record.
+        - A live Agora smoke has observed the hosted provider through the Codex stdio/SSE bridge; Claude and Codex integration evidence remains separate.
 
   - id: sedra
     name: Beth Mardutho SEDRA IV
@@ -53,7 +59,9 @@ providers:
       data_mode: remote
     upstream:
       homepage: https://sedra.bethmardutho.org/
-    verification:
-      status: community
+    health:
+      status: observed-operational
+      evidence:
+        - check_id: mcp-live/sedra-codex
       notes:
-        - Client-specific live evidence is tracked on the plugin record.
+        - A live Agora smoke has observed the provider path completing a real SEDRA lookup; resource and data quality remain separate dimensions.
