@@ -67,8 +67,6 @@ class VerificationEvidenceTests(unittest.TestCase):
     def test_check_contract_must_match_plugin_client_and_transport(self):
         root = self.make_root()
         plugins = self.load_yaml(root, "registry/plugins.yaml")
-        # Reuse a real check from another client/plugin; referential integrity alone
-        # must not be enough to justify this evidence record.
         plugins["plugins"][0]["verification"]["clients"]["codex"]["checks"][0][
             "check_id"
         ] = "mcp-live/perseus-codex"
@@ -146,6 +144,18 @@ class VerificationEvidenceTests(unittest.TestCase):
             "registry/schema/verification-checks.schema.json",
         ):
             self.assertIn(f'"{path}"', workflow, path)
+
+    def test_isolated_live_harness_installs_and_records_all_direct_dependencies(self):
+        workflow = (ROOT / ".github/workflows/external-mcp-smoke.yml").read_text(encoding="utf-8")
+        self.assertIn('--with "mcp>=2,<3"', workflow)
+        self.assertIn('--with "PyYAML>=6,<7"', workflow)
+
+        plugins = self.load_yaml(ROOT, "registry/plugins.yaml")["plugins"]
+        for plugin in plugins:
+            live = plugin["verification"]["clients"]["codex"]["checks"]
+            resolution = live[0]["inputs"]["resolution"]
+            self.assertIn("mcp>=2,<3 (smoke harness)", resolution, plugin["id"])
+            self.assertIn("PyYAML>=6,<7 (smoke harness)", resolution, plugin["id"])
 
 
 if __name__ == "__main__":
