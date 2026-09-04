@@ -2,7 +2,7 @@
 
 ## Status
 
-Normative architecture reference for issue #6 and PR #29.
+Normative architecture reference for issue #6 and PR #29. Cache residency, locking, and reclamation after #29 are defined by `ref-context-fabric-cache-lifecycle.md`.
 
 ## Ownership boundary
 
@@ -53,17 +53,19 @@ No Agora marker or metadata file is written inside a published snapshot.
 
 ## Publication and concurrency
 
-Extraction occurs under `tmp/`. The completed subtree is validated before publication and moved atomically to its revision-addressed destination. The existing per-repository materialization lock serializes publication for one resource cache key.
+Extraction occurs under `tmp/`. The completed subtree is validated before publication and moved atomically to its revision-addressed destination.
 
 Different revisions have distinct destinations. Concurrent requests for revisions A and B may serialize while exporting, but neither can alter the path already returned for the other revision.
 
-The current lock is still the crash-stale sentinel tracked by issue #10. Replacing that lock is independent of snapshot identity and belongs in the follow-up locking work.
+Repository mutation and publication are coordinated with the OS-backed lock protocol defined in `ref-context-fabric-cache-lifecycle.md`. The old create/delete lock sentinel tracked by #10 is not part of the current lifecycle design; process death releases OS lock ownership automatically.
 
 ## Feature modules and overlays
 
 Feature modules introduced by #41 use the same revision-addressed raw-source mechanism. `materialize_feature_module()` validates the direct `.tf` feature set at the selected revision and publishes it under the `feature-modules` namespace without requiring `otype.tf`.
 
-`ContextFabricResolver.prepare_with_modules()` continues to build the existing derived overlay from parent and module source snapshots. Overlay identity includes the parent revision and each module revision, so an upstream revision change yields a different derived overlay. The overlay is an Agora-derived cache artifact and is not represented as upstream source provenance.
+`ContextFabricResolver.prepare_with_modules()` builds a derived overlay from parent and module source snapshots. Overlay identity includes the parent revision and each module revision, so an upstream revision change yields a different derived overlay. The overlay is an Agora-derived cache artifact and is not represented as upstream source provenance.
+
+Overlay residency and active-load protection belong to the generic cache-object lifecycle rather than to the source-snapshot identity contract. See `ref-context-fabric-cache-lifecycle.md`.
 
 ## Future writable and derived datasets
 
@@ -92,8 +94,10 @@ Runtime-generated Text-Fabric caches are a separate concern from scholarly/sourc
 
 This section is an architectural constraint for future work, not implementation scope for #29.
 
-## Retention
+## Retention and reclamation
 
-PR #29 is retention-only. It does not delete snapshots or expose pruning APIs. Cross-process-safe eviction and LRU policy remain tracked by #30/#31 and must not weaken revision-addressed source identity.
+PR #29 established revision-addressed source identity without deletion. PR #31 adds bounded local residency and safe reclamation under the cross-process cache lifecycle described in `ref-context-fabric-cache-lifecycle.md`.
 
-`AGORA_CORPUS_MIN_FREE_GB` remains a materialization guardrail. It is checked before and during streamed extraction; it is not a cache quota or eviction policy.
+Reclamation may delete an unused local snapshot and later reconstruct it, but it must never rewrite a source snapshot in place or change the meaning of its revision-addressed identity. Access timestamps, leases, and cache-management metadata live outside source snapshot trees.
+
+`AGORA_CORPUS_MIN_FREE_GB` remains a materialization/free-space guardrail. `AGORA_CORPUS_CACHE_MAX_GB` is a soft logical cache target; neither changes provenance semantics.

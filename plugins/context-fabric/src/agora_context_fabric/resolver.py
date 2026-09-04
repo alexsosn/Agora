@@ -141,7 +141,6 @@ class ContextFabricResolver:
             if version is None:
                 return select_dataset_root(candidates)
             return select_dataset_version(candidates, version)
-
         normalized = resource.tf_path.replace("\\", "/").strip("/") or "."
         configured_version = dataset_version(normalized)
         if version is not None and version != configured_version:
@@ -171,10 +170,7 @@ class ContextFabricResolver:
         if resource.kind != "corpus":
             raise ValueError(f"resource {resource_id!r} is not a corpus")
         repo, revision = self._repo(resource)
-        relative = self._select_resource_root(
-            resource,
-            self.store.dataset_roots(repo, revision),
-        )
+        relative = self._select_resource_root(resource, self.store.dataset_roots(repo, revision))
         return dataset_version(relative)
 
     def _collection_members_from_roots(
@@ -184,7 +180,6 @@ class ContextFabricResolver:
         for root in roots:
             identity = _member_identity_path(root)
             grouped.setdefault(identity, []).append(root)
-
         members: list[CollectionMember] = []
         for identity, versions in grouped.items():
             selected = select_dataset_root(versions)
@@ -208,9 +203,7 @@ class ContextFabricResolver:
         if resource.kind != "collection":
             raise ValueError(f"resource {resource_id!r} is not a collection")
         repo, revision = self._repo(resource)
-        return self._collection_members_from_roots(
-            resource, self.store.dataset_roots(repo, revision)
-        )
+        return self._collection_members_from_roots(resource, self.store.dataset_roots(repo, revision))
 
     def search_members(self, resource_id: str, query: str) -> list[CollectionMember]:
         needle = query.casefold().strip()
@@ -241,12 +234,10 @@ class ContextFabricResolver:
         version: str | None = None,
     ) -> PreparedCorpus:
         resource = self.catalog.get(resource_id)
-
         if resource.kind == "feature-module":
             raise ValueError(
                 f"feature module {resource_id!r} must be selected while preparing its parent corpus {resource.parent!r}"
             )
-
         if resource.kind == "collection":
             if version is not None:
                 raise ValueError("version selection is supported only for corpus resources")
@@ -262,9 +253,7 @@ class ContextFabricResolver:
             try:
                 member = members[member_id]
             except KeyError as exc:
-                raise KeyError(
-                    f"unknown member {member_id!r} in collection {resource_id!r}"
-                ) from exc
+                raise KeyError(f"unknown member {member_id!r} in collection {resource_id!r}") from exc
             local = self.store.materialize(repo, member.relative_path, revision)
             resolved_version = dataset_version(member.relative_path)
             return PreparedCorpus(
@@ -276,7 +265,6 @@ class ContextFabricResolver:
                 version=resolved_version,
                 source_revision=revision,
             )
-
         if member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
         repo, revision = self._repo(resource)
@@ -306,7 +294,6 @@ class ContextFabricResolver:
         parent = self.catalog.get(prepared.resource_id)
         if parent.kind != "corpus":
             raise ValueError("feature modules can currently be selected only for corpus resources")
-
         version = prepared.version or dataset_version(prepared.relative_path)
         seen: set[str] = set()
         selected: list[PreparedFeatureModule] = []
@@ -364,20 +351,18 @@ class ContextFabricResolver:
                 prepared.resource_id,
                 prepared.relative_path,
                 prepared.source_revision or "",
-                *(
-                    f"{module.resource_id}:{module.relative_path}:{module.source_revision or ''}"
-                    for module in modules
-                ),
+                *(f"{module.resource_id}:{module.relative_path}:{module.source_revision or ''}" for module in modules),
             ]
         )
         digest = hashlib.sha256(digest_input.encode("utf-8")).hexdigest()[:16]
-        overlays = self.store.cache_dir / "overlays"
+        revision = prepared.source_revision or "unknown"
+        overlays = self.store.overlays_dir / self.store.safe_cache_key(prepared.resource_id) / revision
         overlays.mkdir(parents=True, exist_ok=True)
-        destination = overlays / f"{self.store.safe_cache_key(prepared.logical_name)}-{digest}"
+        destination = overlays / digest
         if destination.is_dir():
+            self.store.touch_cache_object(destination)
             return destination
-
-        temporary = Path(tempfile.mkdtemp(prefix=f".{destination.name}-", dir=overlays))
+        temporary = Path(tempfile.mkdtemp(prefix=f".{digest}-", dir=overlays))
         try:
             self._link_features(prepared.path, temporary, allow_warp=True)
             for module in modules:
@@ -391,6 +376,7 @@ class ContextFabricResolver:
         finally:
             if temporary.exists():
                 shutil.rmtree(temporary)
+        self.store.touch_cache_object(destination)
         return destination
 
     def prepare_with_modules(
@@ -401,18 +387,22 @@ class ContextFabricResolver:
         version: str | None = None,
         modules: Iterable[str] | None = None,
     ) -> PreparedCorpus:
-        prepared = self.prepare(resource_id, member_id=member_id, version=version)
-        module_ids = tuple(modules or ())
-        if not module_ids:
-            return prepared
-        selected = self._prepare_feature_modules(prepared, module_ids)
-        overlay = self._overlay(prepared, selected)
-        logical_name = "+".join(
-            [prepared.logical_name, *(module.resource_id for module in selected)]
-        )
-        return replace(
-            prepared,
-            logical_name=logical_name,
-            path=overlay,
-            modules=selected,
-        )
+        # A prepare result is evictable after return, but the complete preparation
+        # transaction (including module composition) must not race with deletion
+        # of source paths it is actively reading.
+        with self.store.cache_transition():
+            prepared = self.prepare(resource_id, member_id=member_id, version=version)
+            module_ids = tuple(modules or ())
+            if not module_ids:
+                return prepared
+            selected = self._prepare_feature_modules(prepared, module_ids)
+            overlay = self._overlay(prepared, selected)
+            logical_name = "+".join(
+                [prepared.logical_name, *(module.resource_id for module in selected)]
+            )
+            return replace(
+                prepared,
+                logical_name=logical_name,
+                path=overlay,
+                modules=selected,
+            )

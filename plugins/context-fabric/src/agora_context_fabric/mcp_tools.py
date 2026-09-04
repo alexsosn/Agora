@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .gitstore import GIB
 from .service import ContextFabricService
 
 
@@ -59,11 +60,8 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
     ) -> dict[str, Any]:
         """Acquire/cache a corpus version and optional registered feature modules.
 
-        For ordinary corpora, version selects a Text-Fabric dataset version such
-        as '2021' or 'c'. Module values are Agora feature-module resource IDs
-        associated with this corpus. The order is significant: when modules
-        contain the same non-warp TF feature name, later selected modules take
-        precedence, matching Text-Fabric module ordering.
+        Prepared paths are cache-resident but evictable after this call returns;
+        use load_corpus when a corpus must stay protected for active use.
         """
         kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
         if version is not None:
@@ -78,7 +76,11 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Acquire and load a corpus version with optional registered feature modules."""
+        """Acquire and load a corpus; its final cache path is leased until unload.
+
+        The response includes `logical_name`. Pass that value to unload_corpus.
+        Module-enabled loads lease the composed overlay, not every source input.
+        """
         kwargs: dict[str, Any] = {
             "member_id": member_id,
             "features": features,
@@ -87,3 +89,48 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         if version is not None:
             kwargs["version"] = version
         return service.load(resource_id, **kwargs)
+
+    @mcp.tool()
+    def unload_corpus(logical_name: str) -> dict[str, Any]:
+        """Unload an Agora-loaded corpus and release its cache lease.
+
+        Use the exact `logical_name` returned by load_corpus. Repeating unload is
+        safe and reports `was_loaded=false` when nothing remains loaded.
+        """
+        return service.unload(logical_name)
+
+    @mcp.tool()
+    def corpus_cache_status() -> dict[str, Any]:
+        """Report Context-Fabric cache usage, object kinds, limits, and active leases."""
+        return service.cache_status()
+
+    @mcp.tool()
+    def prune_corpus_cache(target_gb: float | None = None) -> dict[str, Any]:
+        """LRU-prune unused Context-Fabric cache objects.
+
+        `target_gb` is a soft logical cache-size target. Active objects are never
+        forced out; the result explicitly reports whether the requested target
+        and free-space guardrail were achieved.
+        """
+        if target_gb is not None and target_gb < 0:
+            raise ValueError("target_gb must be >= 0")
+        target_bytes = None if target_gb is None else int(target_gb * GIB)
+        return service.prune_cache(target_bytes=target_bytes)
+
+    @mcp.tool()
+    def remove_cached_corpus(
+        resource_id: str,
+        member_id: str | None = None,
+        source_revision: str | None = None,
+    ) -> dict[str, Any]:
+        """Remove matching unused cache objects for a registered resource.
+
+        For corpus resources this includes unused derived overlays. Active
+        matches are skipped and reported. `source_revision` filters source
+        snapshots and overlays by the parent corpus revision.
+        """
+        return service.remove_cached(
+            resource_id,
+            member_id=member_id,
+            source_revision=source_revision,
+        )

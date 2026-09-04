@@ -10,6 +10,7 @@ requires-python = ">=3.13"
 dependencies = [
   "cfabric-mcp==0.1.7",
   "PyYAML>=6.0,<7",
+  "portalocker[win32]==4.3.0",
   # cryptography ships no CPython macOS x86_64 wheel after 42.x, so Intel Macs
   # would otherwise source-build it (and need a Rust toolchain) at MCP launch.
   'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"',

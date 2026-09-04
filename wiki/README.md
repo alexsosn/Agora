@@ -43,7 +43,8 @@ Release documents encode lifecycle instead of P-level priority:
 - [`architecture/ref-plugin-boundary.md`](architecture/ref-plugin-boundary.md) — **normative ownership boundary** for a thin marketplace: what Agora may implement, what must remain upstream, permitted adapters, skills, tests, and review rules.
 - [`architecture/ref-marketplace-architecture.md`](architecture/ref-marketplace-architecture.md) — clean-slate architecture, provider/resource model, verification model, and design rationale.
 - [`architecture/ref-context-fabric-collections.md`](architecture/ref-context-fabric-collections.md) — member-aware handling of large Text-Fabric collection repositories.
-- [`architecture/ref-context-fabric-snapshot-cache.md`](architecture/ref-context-fabric-snapshot-cache.md) — immutable revision-addressed corpus and feature-module materialization, exact-byte export, and retention boundary.
+- [`architecture/ref-context-fabric-snapshot-cache.md`](architecture/ref-context-fabric-snapshot-cache.md) — revision-addressed corpus/feature-module source materialization, exact-byte export, and source-provenance boundary.
+- [`architecture/ref-context-fabric-cache-lifecycle.md`](architecture/ref-context-fabric-cache-lifecycle.md) — cross-process repository locking, cache-object leases, overlay-aware eviction, LRU/status/remove UX, and load/reload lifecycle.
 - [`architecture/ref-local-materialization.md`](architecture/ref-local-materialization.md) — experimental source → trusted materializer → transactional local artifact boundary, sandbox model, and reproducibility provenance.
 - [`architecture/ref-implementation-details.md`](architecture/ref-implementation-details.md) — marketplace generation, integration plumbing, verification details, scholarly skills, repository layout, and phase status moved out of the user-facing README.
 

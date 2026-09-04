@@ -1,19 +1,35 @@
 from __future__ import annotations
 
+import threading
 from dataclasses import asdict, is_dataclass
+from pathlib import Path
 from typing import Any, Mapping
 
 from .catalog import Catalog, ResourceSpec
-from .resolver import CollectionMember, ContextFabricResolver, PreparedCorpus, dataset_version
+from .resolver import (
+    CollectionMember,
+    ContextFabricResolver,
+    PreparedCorpus,
+    dataset_version,
+    member_id_from_path,
+)
 
 
 class ContextFabricService:
     """Client-neutral operations behind Agora's Context-Fabric MCP tools."""
 
+    _LIFECYCLE_LOCK_STRIPES = 64
+
     def __init__(self, catalog: Catalog, resolver: ContextFabricResolver, loader: Any):
         self.catalog = catalog
         self.resolver = resolver
         self.loader = loader
+        self.store = getattr(resolver, "store", None)
+        self._loaded_leases: dict[str, Any] = {}
+        self._loaded_names_lock = threading.RLock()
+        self._lifecycle_locks = tuple(
+            threading.RLock() for _ in range(self._LIFECYCLE_LOCK_STRIPES)
+        )
 
     @staticmethod
     def _module_dict(module: ResourceSpec, default_version: str | None = None) -> dict[str, Any]:
@@ -38,10 +54,6 @@ class ContextFabricService:
         registered_modules: list[dict[str, Any]] | None = None
         available_modules: list[dict[str, Any]] | None = None
         if resolve_modules and resource.kind == "corpus":
-            # Describing a catalog entry must stay deterministic and offline. A
-            # configured TF path is packaged metadata and can therefore expose a
-            # known default version without resolving upstream HEAD. Floating
-            # corpora leave default/availability unknown until prepare/load.
             if resource.tf_path is not None:
                 default_version = dataset_version(resource.tf_path)
             registered_modules = [
@@ -50,9 +62,7 @@ class ContextFabricService:
             ]
             if default_version is not None:
                 available_modules = [
-                    module
-                    for module in registered_modules
-                    if module["compatible_with_default"]
+                    module for module in registered_modules if module["compatible_with_default"]
                 ]
 
         return {
@@ -71,10 +81,7 @@ class ContextFabricService:
                 else None
             ),
             "module": (
-                {
-                    "status": resource.module_status,
-                    "coverage": resource.module_coverage,
-                }
+                {"status": resource.module_status, "coverage": resource.module_coverage}
                 if resource.kind == "feature-module"
                 else None
             ),
@@ -135,6 +142,14 @@ class ContextFabricService:
             return as_dict()
         return str(value)
 
+    def _require_store(self) -> Any:
+        if self.store is None:
+            raise RuntimeError("Context-Fabric cache store is not configured")
+        return self.store
+
+    def _lifecycle_lock(self, logical_name: str) -> threading.RLock:
+        return self._lifecycle_locks[hash(logical_name) % len(self._lifecycle_locks)]
+
     def list_resources(
         self,
         query: str = "",
@@ -170,11 +185,9 @@ class ContextFabricService:
             raise ValueError("limit must be >= 1")
         if limit > 100:
             raise ValueError("limit must be <= 100")
-
         resource = self.catalog.get(resource_id)
         if resource.kind != "collection":
             raise ValueError(f"resource {resource_id!r} is not a collection")
-
         members = (
             self.resolver.search_members(resource_id, query)
             if query.strip()
@@ -200,12 +213,7 @@ class ContextFabricService:
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
-        result = self.list_members(
-            resource_id,
-            query=query,
-            offset=offset,
-            limit=limit,
-        )
+        result = self.list_members(resource_id, query=query, offset=offset, limit=limit)
         compatible = dict(result)
         compatible["items"] = compatible.pop("members")
         return compatible
@@ -222,10 +230,17 @@ class ContextFabricService:
         if version is not None:
             kwargs["version"] = version
         prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
-        return self._prepared_dict(prepared)
+        return self._prepared_dict(
+            prepared,
+            cache_residency="evictable" if self.store is not None else "unmanaged",
+        )
 
     @staticmethod
-    def _prepared_dict(prepared: PreparedCorpus) -> dict[str, Any]:
+    def _prepared_dict(
+        prepared: PreparedCorpus,
+        *,
+        cache_residency: str,
+    ) -> dict[str, Any]:
         return {
             "resource_id": prepared.resource_id,
             "member_id": prepared.member_id,
@@ -234,6 +249,7 @@ class ContextFabricService:
             "version": prepared.version,
             "path": str(prepared.path),
             "source_revision": prepared.source_revision,
+            "cache_residency": cache_residency,
             "modules": [
                 {
                     "id": module.resource_id,
@@ -257,15 +273,131 @@ class ContextFabricService:
         kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
         if version is not None:
             kwargs["version"] = version
-        prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
-        info = self.loader.load(
-            str(prepared.path),
-            name=prepared.logical_name,
-            features=features,
-        )
-        result = self._prepared_dict(prepared)
-        result["corpus"] = self._corpus_info(info)
+
+        if self.store is None:
+            prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
+            info = self.loader.load(
+                str(prepared.path),
+                name=prepared.logical_name,
+                features=features,
+            )
+            result = self._prepared_dict(prepared, cache_residency="unmanaged")
+            result["corpus"] = self._corpus_info(info)
+            return result
+
+        with self.store.cache_transition():
+            prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
+            new_lease = self.store.acquire_cache_lease(
+                prepared.path,
+                transition_held=True,
+            )
+
+        logical_name = prepared.logical_name
+        with self._lifecycle_lock(logical_name):
+            with self._loaded_names_lock:
+                previous_lease = self._loaded_leases.get(logical_name)
+
+            try:
+                info = self.loader.load(
+                    str(prepared.path),
+                    name=logical_name,
+                    features=features,
+                )
+            except Exception:
+                new_lease.release()
+                raise
+
+            with self._loaded_names_lock:
+                self._loaded_leases[logical_name] = new_lease
+            if previous_lease is not None:
+                previous_lease.release()
+
+            result = self._prepared_dict(prepared, cache_residency="leased")
+            result["corpus"] = self._corpus_info(info)
+            return result
+
+    def unload(self, logical_name: str) -> dict[str, Any]:
+        """Unload one Agora-loaded corpus by the logical name returned by load."""
+        if not logical_name:
+            raise ValueError("logical_name is required")
+        with self._lifecycle_lock(logical_name):
+            with self._loaded_names_lock:
+                lease = self._loaded_leases.get(logical_name)
+            if lease is None:
+                return {
+                    "logical_name": logical_name,
+                    "was_loaded": False,
+                    "released_path": None,
+                    "loaded": False,
+                }
+
+            self.loader.unload(logical_name)
+            with self._loaded_names_lock:
+                current = self._loaded_leases.get(logical_name)
+                if current is lease:
+                    self._loaded_leases.pop(logical_name, None)
+            lease.release()
+            return {
+                "logical_name": logical_name,
+                "was_loaded": True,
+                "released_path": str(lease.path),
+                "loaded": False,
+            }
+
+    def cache_status(self) -> dict[str, Any]:
+        store = self._require_store()
+        result = dict(store.cache_status())
+        with self._loaded_names_lock:
+            loaded = dict(self._loaded_leases)
+        result["loaded_corpora"] = [
+            {"logical_name": name, "path": str(lease.path)}
+            for name, lease in sorted(loaded.items())
+        ]
         return result
+
+    def prune_cache(self, *, target_bytes: int | None = None) -> dict[str, Any]:
+        store = self._require_store()
+        result = dict(store.prune(target_bytes=target_bytes))
+        result["cache"] = self.cache_status()
+        return result
+
+    def remove_cached(
+        self,
+        resource_id: str,
+        *,
+        member_id: str | None = None,
+        source_revision: str | None = None,
+    ) -> dict[str, Any]:
+        store = self._require_store()
+        resource = self.catalog.get(resource_id)
+        if resource.kind != "collection" and member_id is not None:
+            raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
+
+        matched: list[dict[str, Any]] = []
+        for entry in store.cache_entries(resource_id):
+            if source_revision is not None and entry["revision"] != source_revision:
+                continue
+            if member_id is not None:
+                if entry["kind"] != "corpus-snapshot":
+                    continue
+                relative_path = entry.get("relative_path")
+                if not isinstance(relative_path, str) or member_id_from_path(relative_path) != member_id:
+                    continue
+            matched.append(entry)
+
+        result = store.remove_cache_objects(
+            [Path(str(entry["path"])) for entry in matched]
+        )
+        blocked = int(result.get("blocked_by_transition", 0))
+        return {
+            "resource_id": resource_id,
+            "member_id": member_id,
+            "source_revision": source_revision,
+            "matched_entries": len(matched),
+            "matched_bytes": sum(int(entry["size_bytes"]) for entry in matched),
+            **result,
+            "complete": result["skipped_in_use"] == 0 and blocked == 0,
+        }
 
     def load_resource(
         self,
