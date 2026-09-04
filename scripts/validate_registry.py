@@ -76,6 +76,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     providers_doc = load_yaml(registry / "providers.yaml")
     resources_doc = load_yaml(registry / "resources.yaml")
     materializers_doc = load_yaml(registry / "materializers.yaml")
+    verification_checks_doc = load_yaml(registry / "verification-checks.yaml")
     feature_modules_path = registry / "feature-modules.yaml"
     feature_modules_doc = (
         load_yaml(feature_modules_path)
@@ -105,6 +106,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     plugins = plugins_doc.get("plugins", [])
     providers = providers_doc.get("providers", [])
     materializer_plugins = materializers_doc.get("plugins", [])
+    verification_checks = verification_checks_doc.get("checks", [])
     resources = [
         *resources_doc.get("resources", []),
         *feature_modules_doc.get("resources", []),
@@ -118,6 +120,11 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     plugin_by_id = {item["id"]: item for item in plugins}
     provider_by_id = {item["id"]: item for item in providers}
     resource_by_id = {item["id"]: item for item in resources}
+    verification_check_by_id = {
+        item["id"]: item
+        for item in verification_checks
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
 
     verification = set(vocab["verification_statuses"])
     provider_health = set(vocab["provider_health_statuses"])
@@ -174,12 +181,32 @@ def validate_registry(root: Path = ROOT) -> list[str]:
             errors.append(f"{prefix}: references missing plugin {provider['plugin']!r}")
         ensure_vocab(provider["access"]["runtime_mode"], runtime_modes, f"{prefix}.access.runtime_mode", errors)
         ensure_vocab(provider["access"]["data_mode"], data_modes, f"{prefix}.access.data_mode", errors)
+        health = provider["health"]
+        health_status = health["status"]
         ensure_vocab(
-            provider["health"]["status"],
+            health_status,
             provider_health,
             f"{prefix}.health.status",
             errors,
         )
+        evidence = health.get("evidence") or []
+        if health_status == "observed-operational" and not evidence:
+            errors.append(f"{prefix}.health: observed-operational requires at least one live evidence check")
+        for reference in evidence:
+            check_id = reference.get("check_id")
+            check = verification_check_by_id.get(check_id)
+            evidence_prefix = f"{prefix}.health.evidence[{check_id}]"
+            if check is None:
+                errors.append(f"{evidence_prefix}: references missing verification check {check_id!r}")
+                continue
+            if check.get("kind") != "live":
+                errors.append(f"{evidence_prefix}: provider health evidence must reference a live check")
+            check_plugin = check.get("plugin")
+            if check_plugin != provider["plugin"]:
+                errors.append(
+                    f"{evidence_prefix}: verification check belongs to plugin {check_plugin!r}, "
+                    f"not provider plugin {provider['plugin']!r}"
+                )
 
     for resource in resources:
         prefix = f"resource {resource['id']}"
