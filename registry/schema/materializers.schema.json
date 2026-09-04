@@ -46,10 +46,11 @@
         "package": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["type", "path"],
+          "required": ["type", "path", "install_trust"],
           "properties": {
             "type": {"const": "python-project"},
-            "path": {"$ref": "#/$defs/safeRelativePath"}
+            "path": {"$ref": "#/$defs/safeRelativePath"},
+            "install_trust": {"const": "explicit-code-execution"}
           }
         },
         "materializers": {
