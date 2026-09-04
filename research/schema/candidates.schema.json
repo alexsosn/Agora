@@ -203,6 +203,7 @@
         "name",
         "candidate_kind",
         "priority",
+        "integration_status",
         "sources",
         "assessment",
         "legal",
@@ -215,7 +216,8 @@
         "id": {"$ref": "#/$defs/id"},
         "name": {"type": "string", "minLength": 1},
         "candidate_kind": {"enum": ["plugin", "provider", "resource", "skill", "integration"]},
-        "priority": {"enum": ["P0", "P1", "P2", "wanted"]},
+        "priority": {"enum": ["P0", "P1", "P2", "unranked"]},
+        "integration_status": {"enum": ["existing", "wanted", "not-applicable", "unknown"]},
         "sources": {
           "type": "array",
           "minItems": 1,
