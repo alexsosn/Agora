@@ -201,6 +201,10 @@ class ContextFabricService:
             members = list(listing.members)
             resolved_source_revision = listing.source_revision
         else:
+            if source_revision is not None:
+                raise RuntimeError(
+                    "configured Context-Fabric resolver cannot honor collection source_revision"
+                )
             members = (
                 self.resolver.search_members(resource_id, query)
                 if query.strip()
@@ -211,11 +215,7 @@ class ContextFabricService:
                 for member in members
                 if getattr(member, "source_revision", None)
             }
-            resolved_source_revision = (
-                source_revision
-                if source_revision is not None
-                else next(iter(revisions)) if len(revisions) == 1 else None
-            )
+            resolved_source_revision = next(iter(revisions)) if len(revisions) == 1 else None
 
         total = len(members)
         page = members[offset : offset + limit]
