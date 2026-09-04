@@ -55,7 +55,7 @@ Individual members should have stable internal identifiers without becoming mark
 
 The member ID should be independent of the local checkout path. If a stable upstream identifier such as a CTS URN exists, prefer or preserve it. Otherwise derive a deterministic Agora ID from stable repository metadata.
 
-## Discovery
+## Discovery and snapshot consistency
 
 Agents should be able to search collection members before loading one. The Context-Fabric integration therefore needs collection-aware discovery operations such as:
 
@@ -67,13 +67,19 @@ Agents should be able to search collection members before loading one. The Conte
 
 A user asking for Homer should not require Agora to load or enumerate every Greek corpus into an MCP process first.
 
+Collection discovery is revision-addressed. Every member listing/search response carries the immutable upstream commit in `source_revision`, and each returned member repeats that revision for provenance. Callers should pass the returned token to subsequent pages and to `prepare_corpus` or `load_corpus` when they need the member they actually inspected.
+
+When `source_revision` is omitted, a floating collection resolves its configured current upstream state before discovery or loading. When an immutable revision is supplied, Agora does not refresh or silently substitute a newer revision: member resolution and materialization operate against that exact cached commit. If the commit is not present in the cache repository, the operation fails deterministically and the caller may explicitly choose whether to resolve current upstream state instead.
+
+This prevents a list → select → load time-of-check/time-of-use race. A member selected from revision A remains addressable at A even after upstream advances to B, so long as the A commit remains available in the local Git store. The same token should be reused across paginated discovery so pages cannot silently straddle different upstream revisions.
+
 ## Acquisition and loading
 
 Collection members should be lazy by default:
 
 ```text
-select collection member
-→ resolve stable member ID
+select collection member + source revision
+→ resolve stable member ID at that revision
 → acquire/cache only the required TF corpus where practical
 → compile/load that member with Context-Fabric
 → expose it through Context-Fabric MCP
@@ -111,6 +117,8 @@ It is neither necessary nor desirable to run full end-to-end tests for every mem
 - representative member smoke tests on normal PRs;
 - batched/scheduled tests across the wider collection;
 - explicit per-member integration-issue/status metadata.
+
+Collection-resolution tests should additionally cover revision consistency with a local Git fixture: discover a member at commit A, advance the upstream fixture to B with that member moved or removed, and prove that the A token still resolves/materializes A while an unpinned request follows B. Invalid or unavailable revision tokens must fail without fallback.
 
 ## v0.1 requirement
 

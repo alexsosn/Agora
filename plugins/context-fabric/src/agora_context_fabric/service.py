@@ -122,6 +122,7 @@ class ContextFabricService:
             "resource_id": member.resource_id,
             "relative_path": member.relative_path,
             "identity_path": member.identity_path,
+            "source_revision": member.source_revision,
             "author": member.author,
             "title": member.title,
         }
@@ -176,6 +177,7 @@ class ContextFabricService:
         resource_id: str,
         *,
         query: str = "",
+        source_revision: str | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
@@ -188,16 +190,39 @@ class ContextFabricService:
         resource = self.catalog.get(resource_id)
         if resource.kind != "collection":
             raise ValueError(f"resource {resource_id!r} is not a collection")
-        members = (
-            self.resolver.search_members(resource_id, query)
-            if query.strip()
-            else self.resolver.list_members(resource_id)
-        )
+
+        resolve_members = getattr(self.resolver, "resolve_members", None)
+        if callable(resolve_members):
+            listing = resolve_members(
+                resource_id,
+                query=query,
+                source_revision=source_revision,
+            )
+            members = list(listing.members)
+            resolved_source_revision = listing.source_revision
+        else:
+            if source_revision is not None:
+                raise RuntimeError(
+                    "configured Context-Fabric resolver cannot honor collection source_revision"
+                )
+            members = (
+                self.resolver.search_members(resource_id, query)
+                if query.strip()
+                else self.resolver.list_members(resource_id)
+            )
+            revisions = {
+                member.source_revision
+                for member in members
+                if getattr(member, "source_revision", None)
+            }
+            resolved_source_revision = next(iter(revisions)) if len(revisions) == 1 else None
+
         total = len(members)
         page = members[offset : offset + limit]
         return {
             "resource_id": resource_id,
             "query": query,
+            "source_revision": resolved_source_revision,
             "total": total,
             "offset": offset,
             "limit": limit,
@@ -210,10 +235,17 @@ class ContextFabricService:
         resource_id: str,
         *,
         query: str = "",
+        source_revision: str | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
-        result = self.list_members(resource_id, query=query, offset=offset, limit=limit)
+        result = self.list_members(
+            resource_id,
+            query=query,
+            source_revision=source_revision,
+            offset=offset,
+            limit=limit,
+        )
         compatible = dict(result)
         compatible["items"] = compatible.pop("members")
         return compatible
@@ -224,11 +256,14 @@ class ContextFabricService:
         *,
         member_id: str | None = None,
         version: str | None = None,
+        source_revision: str | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
         kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
         if version is not None:
             kwargs["version"] = version
+        if source_revision is not None:
+            kwargs["source_revision"] = source_revision
         prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
         return self._prepared_dict(
             prepared,
@@ -267,12 +302,15 @@ class ContextFabricService:
         *,
         member_id: str | None = None,
         version: str | None = None,
+        source_revision: str | None = None,
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
         kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
         if version is not None:
             kwargs["version"] = version
+        if source_revision is not None:
+            kwargs["source_revision"] = source_revision
 
         if self.store is None:
             prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
@@ -405,6 +443,7 @@ class ContextFabricService:
         *,
         member_id: str | None = None,
         version: str | None = None,
+        source_revision: str | None = None,
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
@@ -415,6 +454,8 @@ class ContextFabricService:
         }
         if version is not None:
             kwargs["version"] = version
+        if source_revision is not None:
+            kwargs["source_revision"] = source_revision
         result = self.load(resource_id, **kwargs)
         compatible = dict(result)
         compatible["features"] = features

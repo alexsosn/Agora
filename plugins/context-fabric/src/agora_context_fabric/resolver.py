@@ -4,6 +4,7 @@ import hashlib
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
@@ -11,6 +12,9 @@ from typing import Iterable
 
 from .catalog import Catalog, ResourceSpec
 from .gitstore import GitStore
+
+
+_IMMUTABLE_REVISION_RE = re.compile(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\Z")
 
 
 @dataclass(frozen=True)
@@ -21,6 +25,13 @@ class CollectionMember:
     identity_path: str
     author: str | None = None
     title: str | None = None
+    source_revision: str | None = None
+
+
+@dataclass(frozen=True)
+class CollectionMemberListing:
+    source_revision: str
+    members: tuple[CollectionMember, ...]
 
 
 @dataclass(frozen=True)
@@ -130,6 +141,33 @@ class ContextFabricResolver:
         repo = self.store.ensure_metadata(resource.repository, **kwargs)
         return repo, self.store.selected_revision(repo)
 
+    def _collection_repo(
+        self,
+        resource: ResourceSpec,
+        source_revision: str | None,
+    ) -> tuple[Path, str]:
+        if source_revision is None:
+            return self._repo(resource)
+        if not _IMMUTABLE_REVISION_RE.fullmatch(source_revision):
+            raise ValueError(
+                "source_revision must be an immutable commit id "
+                "(40 or 64 hexadecimal characters)"
+            )
+        repo = self.store.repositories_dir / self.store.safe_cache_key(resource.id)
+        if not (repo / ".git").is_dir():
+            raise ValueError(
+                f"source revision {source_revision!r} is not available in the cached repository "
+                f"for collection {resource.id!r}; omit source_revision to resolve current upstream state"
+            )
+        try:
+            resolved = self.store._resolved_revision(repo, source_revision)
+        except subprocess.CalledProcessError as exc:
+            raise ValueError(
+                f"source revision {source_revision!r} is not available in the cached repository "
+                f"for collection {resource.id!r}; no fallback to current upstream state was attempted"
+            ) from exc
+        return repo, resolved
+
     @staticmethod
     def _select_resource_root(
         resource: ResourceSpec,
@@ -174,7 +212,10 @@ class ContextFabricResolver:
         return dataset_version(relative)
 
     def _collection_members_from_roots(
-        self, resource: ResourceSpec, roots: Iterable[str]
+        self,
+        resource: ResourceSpec,
+        roots: Iterable[str],
+        source_revision: str,
     ) -> list[CollectionMember]:
         grouped: dict[str, list[str]] = {}
         for root in roots:
@@ -194,37 +235,76 @@ class ContextFabricResolver:
                     identity_path=identity,
                     author=author,
                     title=title,
+                    source_revision=source_revision,
                 )
             )
         return sorted(members, key=lambda member: member.relative_path.casefold())
 
-    def list_members(self, resource_id: str) -> list[CollectionMember]:
+    def resolve_members(
+        self,
+        resource_id: str,
+        *,
+        query: str = "",
+        source_revision: str | None = None,
+    ) -> CollectionMemberListing:
         resource = self.catalog.get(resource_id)
         if resource.kind != "collection":
             raise ValueError(f"resource {resource_id!r} is not a collection")
-        repo, revision = self._repo(resource)
-        return self._collection_members_from_roots(resource, self.store.dataset_roots(repo, revision))
-
-    def search_members(self, resource_id: str, query: str) -> list[CollectionMember]:
+        repo, revision = self._collection_repo(resource, source_revision)
+        try:
+            roots = self.store.dataset_roots(repo, revision)
+        except subprocess.CalledProcessError as exc:
+            if source_revision is None:
+                raise
+            raise ValueError(
+                f"source revision {source_revision!r} is not available in the cached repository "
+                f"for collection {resource.id!r}; no fallback to current upstream state was attempted"
+            ) from exc
+        members = self._collection_members_from_roots(resource, roots, revision)
         needle = query.casefold().strip()
-        if not needle:
-            return self.list_members(resource_id)
-        matches: list[CollectionMember] = []
-        for member in self.list_members(resource_id):
-            haystack = " ".join(
-                part
-                for part in (
-                    member.id,
-                    member.relative_path,
-                    member.identity_path,
-                    member.author,
-                    member.title,
-                )
-                if part
-            ).casefold()
-            if needle in haystack:
-                matches.append(member)
-        return matches
+        if needle:
+            members = [
+                member
+                for member in members
+                if needle
+                in " ".join(
+                    part
+                    for part in (
+                        member.id,
+                        member.relative_path,
+                        member.identity_path,
+                        member.author,
+                        member.title,
+                    )
+                    if part
+                ).casefold()
+            ]
+        return CollectionMemberListing(source_revision=revision, members=tuple(members))
+
+    def list_members(
+        self,
+        resource_id: str,
+        *,
+        source_revision: str | None = None,
+    ) -> list[CollectionMember]:
+        return list(
+            self.resolve_members(resource_id, source_revision=source_revision).members
+        )
+
+    def search_members(
+        self,
+        resource_id: str,
+        query: str,
+        *,
+        source_revision: str | None = None,
+    ) -> list[CollectionMember]:
+        return list(
+            self.resolve_members(
+                resource_id,
+                query=query,
+                source_revision=source_revision,
+            ).members
+        )
 
     def prepare(
         self,
@@ -232,6 +312,7 @@ class ContextFabricResolver:
         *,
         member_id: str | None = None,
         version: str | None = None,
+        source_revision: str | None = None,
     ) -> PreparedCorpus:
         resource = self.catalog.get(resource_id)
         if resource.kind == "feature-module":
@@ -243,12 +324,19 @@ class ContextFabricResolver:
                 raise ValueError("version selection is supported only for corpus resources")
             if not member_id:
                 raise ValueError(f"member_id is required for collection resource {resource_id!r}")
-            repo, revision = self._repo(resource)
+            repo, revision = self._collection_repo(resource, source_revision)
+            try:
+                roots = self.store.dataset_roots(repo, revision)
+            except subprocess.CalledProcessError as exc:
+                if source_revision is None:
+                    raise
+                raise ValueError(
+                    f"source revision {source_revision!r} is not available in the cached repository "
+                    f"for collection {resource.id!r}; no fallback to current upstream state was attempted"
+                ) from exc
             members = {
                 member.id: member
-                for member in self._collection_members_from_roots(
-                    resource, self.store.dataset_roots(repo, revision)
-                )
+                for member in self._collection_members_from_roots(resource, roots, revision)
             }
             try:
                 member = members[member_id]
@@ -265,6 +353,8 @@ class ContextFabricResolver:
                 version=resolved_version,
                 source_revision=revision,
             )
+        if source_revision is not None:
+            raise ValueError("source_revision selection is supported only for collection resources")
         if member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
         repo, revision = self._repo(resource)
@@ -385,13 +475,19 @@ class ContextFabricResolver:
         *,
         member_id: str | None = None,
         version: str | None = None,
+        source_revision: str | None = None,
         modules: Iterable[str] | None = None,
     ) -> PreparedCorpus:
         # A prepare result is evictable after return, but the complete preparation
         # transaction (including module composition) must not race with deletion
         # of source paths it is actively reading.
         with self.store.cache_transition():
-            prepared = self.prepare(resource_id, member_id=member_id, version=version)
+            prepared = self.prepare(
+                resource_id,
+                member_id=member_id,
+                version=version,
+                source_revision=source_revision,
+            )
             module_ids = tuple(modules or ())
             if not module_ids:
                 return prepared
