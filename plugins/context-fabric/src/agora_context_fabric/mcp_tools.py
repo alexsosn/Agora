@@ -40,13 +40,21 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
     def list_collection_members(
         resource_id: str,
         query: str = "",
+        source_revision: str | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
-        """Discover separately loadable corpora inside a collection resource."""
+        """Discover separately loadable corpora inside one collection snapshot.
+
+        The response contains the immutable `source_revision` used for discovery.
+        Pass it back for later pages and then to prepare_corpus/load_corpus to
+        keep the entire workflow on the same upstream collection revision. If it
+        is omitted, discovery follows the collection's current configured state.
+        """
         return service.list_members(
             resource_id,
             query=query,
+            source_revision=source_revision,
             offset=offset,
             limit=limit,
         )
@@ -56,16 +64,22 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         resource_id: str,
         member_id: str | None = None,
         version: str | None = None,
+        source_revision: str | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
         """Acquire/cache a corpus version and optional registered feature modules.
 
-        Prepared paths are cache-resident but evictable after this call returns;
-        use load_corpus when a corpus must stay protected for active use.
+        For collection members, pass the `source_revision` returned by
+        list_collection_members to resolve the member at exactly that cached
+        upstream commit. Omitting it preserves floating/current collection
+        behavior. Prepared paths are cache-resident but evictable after this call
+        returns; use load_corpus when a corpus must stay protected for active use.
         """
         kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
         if version is not None:
             kwargs["version"] = version
+        if source_revision is not None:
+            kwargs["source_revision"] = source_revision
         return service.prepare(resource_id, **kwargs)
 
     @mcp.tool()
@@ -73,13 +87,16 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         resource_id: str,
         member_id: str | None = None,
         version: str | None = None,
+        source_revision: str | None = None,
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
         """Acquire and load a corpus; its final cache path is leased until unload.
 
-        The response includes `logical_name`. Pass that value to unload_corpus.
-        Module-enabled loads lease the composed overlay, not every source input.
+        For a collection member, reuse the discovery `source_revision` to load
+        exactly that cached collection snapshot. The response includes
+        `logical_name`; pass that value to unload_corpus. Module-enabled loads
+        lease the composed overlay, not every source input.
         """
         kwargs: dict[str, Any] = {
             "member_id": member_id,
@@ -88,6 +105,8 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         }
         if version is not None:
             kwargs["version"] = version
+        if source_revision is not None:
+            kwargs["source_revision"] = source_revision
         return service.load(resource_id, **kwargs)
 
     @mcp.tool()
