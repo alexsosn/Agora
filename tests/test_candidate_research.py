@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import yaml
 
-from scripts.query_candidates import filter_candidates, main as query_main
+from scripts.query_candidates import filter_candidates, load_candidates, main as query_main
 from scripts.validate_registry import ROOT, validate_registry
 
 
@@ -95,6 +95,16 @@ class CandidateResearchValidationTests(unittest.TestCase):
         errors = self.mutate_candidates(mutate)
         self.assertTrue(any("promoted candidate requires at least one target" in error for error in errors), errors)
 
+    def test_known_license_requires_expression_and_evidence_source(self):
+        def mutate(doc):
+            candidate = doc["candidates"][0]
+            candidate["legal"]["software_license"] = {"status": "known"}
+            candidate["evidence"][0]["license_sources"] = []
+
+        errors = self.mutate_candidates(mutate)
+        self.assertTrue(any("known software_license requires expression" in error for error in errors), errors)
+        self.assertTrue(any("known license requires license_sources evidence" in error for error in errors), errors)
+
 
 class CandidateResearchQueryTests(unittest.TestCase):
     def setUp(self):
@@ -102,6 +112,7 @@ class CandidateResearchQueryTests(unittest.TestCase):
             {
                 "id": "p0-unknown",
                 "priority": "P0",
+                "integration_status": "wanted",
                 "assessment": {"technical_readiness": "blocked"},
                 "legal": {
                     "data_license": {"status": "unknown"},
@@ -113,6 +124,7 @@ class CandidateResearchQueryTests(unittest.TestCase):
             {
                 "id": "p0-smoked",
                 "priority": "P0",
+                "integration_status": "existing",
                 "assessment": {"technical_readiness": "ready"},
                 "legal": {
                     "data_license": {"status": "known"},
@@ -124,6 +136,7 @@ class CandidateResearchQueryTests(unittest.TestCase):
             {
                 "id": "p1-smoked",
                 "priority": "P1",
+                "integration_status": "existing",
                 "assessment": {"technical_readiness": "promising"},
                 "legal": {
                     "data_license": {"status": "unknown"},
@@ -141,6 +154,20 @@ class CandidateResearchQueryTests(unittest.TestCase):
             data_license_status="unknown",
         )
         self.assertEqual([candidate["id"] for candidate in matches], ["p0-unknown"])
+
+    def test_wanted_status_is_orthogonal_to_p0_priority(self):
+        matches = filter_candidates(
+            self.candidates,
+            priority="P0",
+            integration_status="wanted",
+        )
+        self.assertEqual([candidate["id"] for candidate in matches], ["p0-unknown"])
+
+    def test_migrated_p0_wanted_integrations_remain_p0(self):
+        by_id = {candidate["id"]: candidate for candidate in load_candidates()}
+        for candidate_id in ("onp", "menota", "wulfila-project"):
+            self.assertEqual(by_id[candidate_id]["priority"], "P0", candidate_id)
+            self.assertEqual(by_id[candidate_id]["integration_status"], "wanted", candidate_id)
 
     def test_live_smoke_filter_uses_latest_evidence_snapshot(self):
         candidates = copy.deepcopy(self.candidates)
