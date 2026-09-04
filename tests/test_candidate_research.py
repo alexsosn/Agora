@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 import io
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -39,6 +41,17 @@ class CandidateResearchValidationTests(unittest.TestCase):
 
     def test_current_candidate_research_is_valid(self):
         self.assertEqual(validate_registry(), [])
+
+    def test_validator_runs_as_direct_script_like_foundation(self):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "scripts/validate_registry.py")],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
     def test_duplicate_candidate_id_is_rejected(self):
         def mutate(doc):
