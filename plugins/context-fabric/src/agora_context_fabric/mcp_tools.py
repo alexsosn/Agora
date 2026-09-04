@@ -51,13 +51,14 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         keep the entire workflow on the same upstream collection revision. If it
         is omitted, discovery follows the collection's current configured state.
         """
-        return service.list_members(
-            resource_id,
-            query=query,
-            source_revision=source_revision,
-            offset=offset,
-            limit=limit,
-        )
+        kwargs: dict[str, Any] = {
+            "query": query,
+            "offset": offset,
+            "limit": limit,
+        }
+        if source_revision is not None:
+            kwargs["source_revision"] = source_revision
+        return service.list_members(resource_id, **kwargs)
 
     @mcp.tool()
     def prepare_corpus(
