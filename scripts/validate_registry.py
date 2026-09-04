@@ -190,8 +190,10 @@ def validate_registry(root: Path = ROOT) -> list[str]:
             errors,
         )
         evidence = health.get("evidence") or []
-        if health_status == "observed-operational" and not evidence:
-            errors.append(f"{prefix}.health: observed-operational requires at least one live evidence check")
+        if health_status in provider_health and health_status != "unknown" and not evidence:
+            errors.append(
+                f"{prefix}.health: {health_status} requires at least one live evidence check"
+            )
         for reference in evidence:
             check_id = reference.get("check_id")
             check = verification_check_by_id.get(check_id)
