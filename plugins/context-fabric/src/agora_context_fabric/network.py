@@ -54,6 +54,7 @@ class RepositoryResolution:
     revision: str
     source_revision_verified: bool
     resolution: str
+    allow_network: bool
 
 
 def validate_network_mode(mode: str) -> str:
@@ -203,6 +204,7 @@ def _cached_resolution(
         revision=revision,
         source_revision_verified=immutable,
         resolution="cached",
+        allow_network=False,
     )
 
 
@@ -254,6 +256,7 @@ def resolve_repository(
         revision=revision,
         source_revision_verified=True,
         resolution="fresh",
+        allow_network=True,
     )
 
 
@@ -287,7 +290,7 @@ def materialize_corpus(
     resource_id: str,
     relative_path: str,
 ) -> Path:
-    if resolution.resolution == "cached":
+    if not resolution.allow_network:
         return _cached_object(
             store,
             resource_id=resource_id,
@@ -310,7 +313,7 @@ def materialize_feature_module(
     resource_id: str,
     relative_path: str,
 ) -> Path:
-    if resolution.resolution == "cached":
+    if not resolution.allow_network:
         return _cached_object(
             store,
             resource_id=resource_id,
