@@ -1,0 +1,93 @@
+schema_version: 1
+checks:
+  - id: manifest/context-fabric-claude
+    kind: deterministic
+    plugin: context-fabric
+    client: claude
+    transport: stdio
+    evidence_level: community
+    executor:
+      type: unittest
+      target: tests.test_generation.MarketplaceGenerationTests.test_context_fabric_claude_mcp_uses_plugin_root
+
+  - id: manifest/perseus-claude
+    kind: deterministic
+    plugin: perseus
+    client: claude
+    transport: stdio
+    evidence_level: community
+    executor:
+      type: unittest
+      target: tests.test_generation.MarketplaceGenerationTests.test_perseus_claude_mcp_runs_pinned_upstream_package
+
+  - id: manifest/sefaria-claude
+    kind: deterministic
+    plugin: sefaria
+    client: claude
+    transport: sse
+    evidence_level: community
+    executor:
+      type: unittest
+      target: tests.test_generation.MarketplaceGenerationTests.test_sefaria_claude_mcp_uses_official_hosted_texts_endpoint
+
+  - id: manifest/sedra-claude
+    kind: deterministic
+    plugin: sedra
+    client: claude
+    transport: stdio
+    evidence_level: community
+    executor:
+      type: unittest
+      target: tests.test_generation.MarketplaceGenerationTests.test_sedra_claude_mcp_runs_bundled_adapter
+
+  - id: mcp-live/context-fabric-codex
+    kind: live
+    plugin: context-fabric
+    client: codex
+    transport: stdio
+    evidence_level: verified
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: live-mcp
+      matrix: {plugin: context-fabric}
+      artifact: mcp-smoke-context-fabric
+
+  - id: mcp-live/perseus-codex
+    kind: live
+    plugin: perseus
+    client: codex
+    transport: stdio
+    evidence_level: verified
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: live-mcp
+      matrix: {plugin: perseus}
+      artifact: mcp-smoke-perseus
+
+  - id: mcp-live/sefaria-codex
+    kind: live
+    plugin: sefaria
+    client: codex
+    transport: stdio-via-sse-proxy
+    evidence_level: verified
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: live-mcp
+      matrix: {plugin: sefaria}
+      artifact: mcp-smoke-sefaria
+
+  - id: mcp-live/sedra-codex
+    kind: live
+    plugin: sedra
+    client: codex
+    transport: stdio
+    evidence_level: verified
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: live-mcp
+      matrix: {plugin: sedra}
+      artifact: mcp-smoke-sedra
