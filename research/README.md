@@ -2,7 +2,7 @@
 
 `research/` stores structured investigation records for projects that are **not yet supported Agora marketplace entries**. Canonical release state continues to live under `registry/`.
 
-Candidate records are intentionally allowed to describe blocked, incomplete, unlicensed, superseded, experimental, or merely wanted integrations. A research priority therefore must not be interpreted as implementation readiness.
+Candidate records are intentionally allowed to describe blocked, incomplete, unlicensed, superseded, experimental, or merely wanted integrations. A research priority therefore must not be interpreted as implementation readiness or as evidence that an agent-facing integration already exists.
 
 ## Files
 
@@ -10,6 +10,15 @@ Candidate records are intentionally allowed to describe blocked, incomplete, unl
 - `schema/candidates.schema.json` — Draft 2020-12 schema validated by `python scripts/validate_registry.py`.
 
 The original narrative research remains under `wiki/backlog/`. Candidate `sources` point back to those documents and sections so rationale and caveats are preserved instead of flattened into YAML.
+
+## Priority and integration status
+
+`priority` and `integration_status` are deliberately separate dimensions.
+
+- `priority`: `P0`, `P1`, `P2`, or `unranked`. `unranked` is used only when the source research did not assign a P-level.
+- `integration_status`: `existing`, `wanted`, `not-applicable`, or `unknown`. `wanted` means the source identifies a useful integration target but no suitable agent-facing integration has been established in the research record.
+
+Thus a source heading such as **P0 wanted integrations** remains `priority: P0` and `integration_status: wanted`; querying P0 candidates does not lose strategically important gaps.
 
 ## Assessment dimensions
 
@@ -24,7 +33,7 @@ Each candidate records these independently:
 - `implementation_effort` — expected engineering effort;
 - `strategic_importance` — value of filling the marketplace capability gap.
 
-A P0 candidate can therefore be technically blocked, and a low-effort candidate can remain strategically low priority.
+A P0 candidate can be technically blocked, and a low-effort candidate can remain strategically low priority.
 
 ## Legal and access model
 
@@ -36,7 +45,7 @@ Do not collapse legal evidence into one `license` field. Records keep separate:
 - authentication requirements;
 - remote-service terms.
 
-Use `unknown` when the research did not establish a fact. Do not infer redistribution permission from public web access or infer data licensing from a repository's software license.
+Use `unknown` when the research did not establish a fact. Do not infer redistribution permission from public web access or infer data licensing from a repository's software license. A license marked `known` must name an expression and must have at least one upstream license-source URL in the candidate's evidence snapshots.
 
 ## Annotation maturity
 
@@ -81,6 +90,7 @@ Examples:
 
 ```bash
 python scripts/query_candidates.py --priority P0 --data-license-status unknown --ids-only
+python scripts/query_candidates.py --priority P0 --integration-status wanted --ids-only
 python scripts/query_candidates.py --live-smoke success --ids-only
 python scripts/query_candidates.py --authentication required
 python scripts/query_candidates.py --technical-readiness blocked --ids-only
