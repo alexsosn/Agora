@@ -9,7 +9,10 @@ from typing import Any, Iterable
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
-from scripts.validate_candidate_research import validate_candidate_research
+try:
+    from scripts.validate_candidate_research import validate_candidate_research
+except ModuleNotFoundError:
+    from validate_candidate_research import validate_candidate_research
 
 ROOT = Path(__file__).resolve().parents[1]
 VERIFICATION_RANK = {"experimental": 0, "community": 1, "verified": 2}
