@@ -208,10 +208,11 @@ class VerificationEvidenceTests(unittest.TestCase):
             for client, evidence in verification["clients"].items():
                 self.assertIn(evidence["status"], {"experimental", "community", "verified"})
                 self.assertTrue(evidence["transport"])
-                self.assertTrue(evidence["tests"])
-                for test in evidence["tests"]:
-                    self.assertTrue(test["name"])
-                    self.assertTrue(test["kind"])
+                self.assertTrue(evidence["checks"])
+                for check in evidence["checks"]:
+                    self.assertTrue(check["check_id"])
+                    self.assertTrue(check["inputs"]["runtime"])
+                    self.assertTrue(check["inputs"]["resolution"])
             # Until both client paths have equivalent live evidence, the aggregate
             # status must not claim stronger verification than the weakest client.
             client_statuses = {entry["status"] for entry in verification["clients"].values()}
