@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import shutil
 import tempfile
@@ -77,7 +78,22 @@ class ProviderHealthContractTests(unittest.TestCase):
         for provider in providers:
             with self.subTest(provider=provider["id"]):
                 self.assertEqual(provider["health"]["status"], "observed-operational")
-                self.assertEqual(plugins[provider["plugin"]]["verification"]["status"], "community")
+                self.assertNotEqual(
+                    provider["health"]["status"],
+                    plugins[provider["plugin"]]["verification"]["status"],
+                )
+
+    def test_live_checks_used_for_provider_health_declare_exact_provider(self):
+        providers = self.load_yaml("registry/providers.yaml")["providers"]
+        checks = {
+            item["id"]: item
+            for item in self.load_yaml("registry/verification-checks.yaml")["checks"]
+        }
+        for provider in providers:
+            for evidence in provider["health"].get("evidence", []):
+                check = checks[evidence["check_id"]]
+                with self.subTest(provider=provider["id"], check=check["id"]):
+                    self.assertEqual(check["provider"], provider["id"])
 
     def test_observed_operational_rejects_missing_check_id(self):
         root = self.make_root()
@@ -121,6 +137,25 @@ class ProviderHealthContractTests(unittest.TestCase):
         errors = validate_registry(root)
         self.assertTrue(
             any("provider context-fabric.health.evidence" in error and "belongs to plugin 'perseus'" in error for error in errors),
+            errors,
+        )
+
+    def test_observed_operational_rejects_same_plugin_wrong_provider_evidence(self):
+        root = self.make_root()
+        doc = self.load_yaml("registry/providers.yaml", root)
+        alternate = copy.deepcopy(next(item for item in doc["providers"] if item["id"] == "context-fabric"))
+        alternate["id"] = "context-fabric-alt"
+        alternate["name"] = "Context-Fabric alternate provider"
+        doc["providers"].append(alternate)
+        self.write_yaml(root, "registry/providers.yaml", doc)
+
+        errors = validate_registry(root)
+        self.assertTrue(
+            any(
+                "provider context-fabric-alt.health.evidence" in error
+                and "belongs to provider 'context-fabric'" in error
+                for error in errors
+            ),
             errors,
         )
 
