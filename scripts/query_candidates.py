@@ -29,6 +29,7 @@ def filter_candidates(
     candidates: Iterable[dict[str, Any]],
     *,
     priority: str | None = None,
+    integration_status: str | None = None,
     data_license_status: str | None = None,
     authentication: str | None = None,
     live_smoke: str | None = None,
@@ -38,6 +39,11 @@ def filter_candidates(
     matches: list[dict[str, Any]] = []
     for candidate in candidates:
         if priority is not None and candidate.get("priority") != priority:
+            continue
+        if (
+            integration_status is not None
+            and candidate.get("integration_status") != integration_status
+        ):
             continue
         legal = candidate.get("legal") or {}
         data_license = legal.get("data_license") or {}
@@ -65,7 +71,11 @@ def filter_candidates(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Query structured Agora candidate research")
     parser.add_argument("--file", type=Path, default=DEFAULT_FILE)
-    parser.add_argument("--priority", choices=["P0", "P1", "P2", "wanted"])
+    parser.add_argument("--priority", choices=["P0", "P1", "P2", "unranked"])
+    parser.add_argument(
+        "--integration-status",
+        choices=["existing", "wanted", "not-applicable", "unknown"],
+    )
     parser.add_argument(
         "--data-license-status",
         choices=["known", "unknown", "not-applicable"],
@@ -99,6 +109,7 @@ def main() -> int:
     matches = filter_candidates(
         load_candidates(args.file),
         priority=args.priority,
+        integration_status=args.integration_status,
         data_license_status=args.data_license_status,
         authentication=args.authentication,
         live_smoke=args.live_smoke,
