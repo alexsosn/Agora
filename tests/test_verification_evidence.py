@@ -33,6 +33,12 @@ class VerificationEvidenceTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def mutate_check(self, root: Path, check_id: str, mutate) -> None:
+        doc = self.load_yaml(root, "registry/verification-checks.yaml")
+        check = next(item for item in doc["checks"] if item["id"] == check_id)
+        mutate(check)
+        self.write_yaml(root, "registry/verification-checks.yaml", doc)
+
     def test_canonical_check_catalog_exists_and_registry_is_valid(self):
         self.assertTrue((ROOT / "registry/verification-checks.yaml").is_file())
         self.assertEqual(validate_registry(), [])
@@ -95,6 +101,41 @@ class VerificationEvidenceTests(unittest.TestCase):
 
         errors = validate_registry(root)
         self.assertTrue(any("plugins.yaml" in error and "checks" in error for error in errors), errors)
+
+    def test_nonexistent_unittest_target_is_rejected(self):
+        root = self.make_root()
+        self.mutate_check(
+            root,
+            "manifest/context-fabric-claude",
+            lambda check: check["executor"].update(
+                {"target": "tests.test_generation.MarketplaceGenerationTests.test_does_not_exist"}
+            ),
+        )
+
+        errors = validate_registry(root)
+        self.assertTrue(any("unittest target" in error and "not executable" in error for error in errors), errors)
+
+    def test_nonexistent_actions_job_is_rejected(self):
+        root = self.make_root()
+        self.mutate_check(
+            root,
+            "mcp-live/context-fabric-codex",
+            lambda check: check["executor"].update({"job": "does-not-exist"}),
+        )
+
+        errors = validate_registry(root)
+        self.assertTrue(any("missing workflow job 'does-not-exist'" in error for error in errors), errors)
+
+    def test_actions_matrix_selector_must_be_executable(self):
+        root = self.make_root()
+        self.mutate_check(
+            root,
+            "mcp-live/context-fabric-codex",
+            lambda check: check["executor"].update({"matrix": {"plugin": "does-not-exist"}}),
+        )
+
+        errors = validate_registry(root)
+        self.assertTrue(any("matrix selector" in error and "does-not-exist" in error for error in errors), errors)
 
 
 if __name__ == "__main__":
