@@ -207,6 +207,12 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                     f"{evidence_prefix}: verification check belongs to plugin {check_plugin!r}, "
                     f"not provider plugin {provider['plugin']!r}"
                 )
+            check_provider = check.get("provider")
+            if check_provider != provider["id"]:
+                errors.append(
+                    f"{evidence_prefix}: verification check belongs to provider {check_provider!r}, "
+                    f"not {provider['id']!r}"
+                )
 
     for resource in resources:
         prefix = f"resource {resource['id']}"
