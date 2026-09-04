@@ -11,7 +11,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "name", "plugin", "description", "access", "verification"],
+        "required": ["id", "name", "plugin", "description", "access", "health"],
         "properties": {
           "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
           "name": {"type": "string", "minLength": 1},
@@ -36,12 +36,26 @@
             },
             "minProperties": 1
           },
-          "verification": {
+          "health": {
             "type": "object",
             "additionalProperties": false,
             "required": ["status"],
             "properties": {
               "status": {"type": "string"},
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["check_id"],
+                  "properties": {
+                    "check_id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
+                    }
+                  }
+                }
+              },
               "notes": {"type": "array", "items": {"type": "string"}}
             }
           }
