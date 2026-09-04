@@ -1,0 +1,75 @@
+name: Context-Fabric representative load smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
+  pull_request:
+    paths:
+      - '.github/workflows/context-fabric-load-smoke.yml'
+      - 'registry/resources.yaml'
+      - 'plugins/context-fabric/pyproject.toml'
+      - 'plugins/context-fabric/src/**'
+      - 'scripts/smoke_context_fabric_resources.py'
+      - 'tests/test_context_fabric_load_smoke.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/context-fabric-load-smoke.yml'
+      - 'registry/resources.yaml'
+      - 'plugins/context-fabric/pyproject.toml'
+      - 'plugins/context-fabric/src/**'
+      - 'scripts/smoke_context_fabric_resources.py'
+      - 'tests/test_context_fabric_load_smoke.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: context-fabric-load-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  representative-loads:
+    name: Load BHSA, CUC, and Iliad member
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      AGORA_CORPUS_CACHE_MAX_GB: '5'
+      AGORA_CORPUS_MIN_FREE_GB: '2'
+
+    steps:
+      - name: Check out Agora
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Restore Context-Fabric corpus cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/agora/context-fabric-smoke
+          key: ${{ runner.os }}-context-fabric-load-${{ hashFiles('registry/resources.yaml', 'plugins/context-fabric/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-context-fabric-load-
+
+      - name: Install Context-Fabric runtime
+        run: python -m pip install -e plugins/context-fabric
+
+      - name: Load real corpora and assert representative semantics
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/smoke_context_fabric_resources.py \
+            --cache-dir "$HOME/.cache/agora/context-fabric-smoke" \
+            | tee context-fabric-load-smoke.jsonl
+
+      - name: Upload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: context-fabric-load-smoke
+          path: context-fabric-load-smoke.jsonl
+          if-no-files-found: warn
