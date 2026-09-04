@@ -190,18 +190,39 @@ class ContextFabricService:
         resource = self.catalog.get(resource_id)
         if resource.kind != "collection":
             raise ValueError(f"resource {resource_id!r} is not a collection")
-        listing = self.resolver.resolve_members(
-            resource_id,
-            query=query,
-            source_revision=source_revision,
-        )
-        members = list(listing.members)
+
+        resolve_members = getattr(self.resolver, "resolve_members", None)
+        if callable(resolve_members):
+            listing = resolve_members(
+                resource_id,
+                query=query,
+                source_revision=source_revision,
+            )
+            members = list(listing.members)
+            resolved_source_revision = listing.source_revision
+        else:
+            members = (
+                self.resolver.search_members(resource_id, query)
+                if query.strip()
+                else self.resolver.list_members(resource_id)
+            )
+            revisions = {
+                member.source_revision
+                for member in members
+                if getattr(member, "source_revision", None)
+            }
+            resolved_source_revision = (
+                source_revision
+                if source_revision is not None
+                else next(iter(revisions)) if len(revisions) == 1 else None
+            )
+
         total = len(members)
         page = members[offset : offset + limit]
         return {
             "resource_id": resource_id,
             "query": query,
-            "source_revision": listing.source_revision,
+            "source_revision": resolved_source_revision,
             "total": total,
             "offset": offset,
             "limit": limit,
