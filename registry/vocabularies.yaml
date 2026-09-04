@@ -5,6 +5,12 @@ verification_statuses:
   - community
   - verified
 
+provider_health_statuses:
+  - unknown
+  - observed-operational
+  - degraded
+  - unavailable
+
 runtime_modes:
   - local
   - hosted
