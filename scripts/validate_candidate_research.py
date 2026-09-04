@@ -56,11 +56,7 @@ def _ensure_vocab(
 
 
 def validate_candidate_research(root: Path, vocab: dict[str, Any]) -> list[str]:
-    """Validate optional candidate-research metadata under ``root/research``.
-
-    Temporary registry-only fixtures used by older tests may omit ``research``;
-    the repository itself contains the research tree and Foundation validates it.
-    """
+    """Validate candidate-research metadata under ``root/research`` when present."""
 
     root = Path(root)
     research = root / "research"
@@ -147,6 +143,22 @@ def validate_candidate_research(root: Path, vocab: dict[str, Any]) -> list[str]:
         string_dates = [value for value in dates if isinstance(value, str)]
         if string_dates != sorted(string_dates):
             errors.append(f"{prefix}: evidence snapshots must be ordered oldest to newest")
+
+        legal = candidate.get("legal") or {}
+        has_known_license = False
+        for license_key in ("software_license", "data_license"):
+            license_info = legal.get(license_key) or {}
+            if license_info.get("status") != "known":
+                continue
+            has_known_license = True
+            if not license_info.get("expression"):
+                errors.append(f"{prefix}: known {license_key} requires expression")
+        if has_known_license and not any(
+            (item.get("license_sources") or [])
+            for item in evidence
+            if isinstance(item, dict)
+        ):
+            errors.append(f"{prefix}: known license requires license_sources evidence")
 
         promotion = candidate.get("promotion") or {}
         if promotion.get("status") == "promoted" and not promotion.get("targets"):
