@@ -125,7 +125,17 @@ Network access is needed for:
 - Sefaria's hosted MCP endpoint;
 - SEDRA IV API lookups.
 
-Context-Fabric corpus data remains external to Agora and is acquired lazily only when selected.
+Context-Fabric corpus data remains external to Agora and is acquired lazily only when selected. Once a corpus snapshot has been fully materialized, `prepare_corpus` and `load_corpus` can reuse it without network access.
+
+Context-Fabric exposes three source-resolution modes through the `network_mode` argument on `prepare_corpus` and `load_corpus`:
+
+- `auto` (default) attempts the normal upstream refresh and falls back to the exact cached snapshot only when Git reports a connectivity failure. Authentication failures, a missing repository, and invalid or missing refs are not treated as offline conditions.
+- `offline` performs no Git network operation. It succeeds only when the selected revision and the required materialized corpus/module snapshots are already in the local cache.
+- `require-fresh` requires the upstream refresh to succeed and never falls back to a stale floating revision.
+
+The same default can be set for non-MCP/runtime use with `AGORA_CORPUS_NETWORK_MODE=auto|offline|require-fresh`; an explicit tool argument applies to that tool call. Successful prepare/load responses include `resolution` (`fresh` or `cached`) and `source_revision_verified`. A floating revision served from cache is marked `source_revision_verified: false`; an immutable configured commit can remain verified offline because its identity does not depend on a freshness check.
+
+If only Git metadata is cached but the selected Text-Fabric snapshot was never materialized, offline mode returns an actionable cache-miss error instead of attempting a hidden blob fetch.
 
 ## What to install for a task
 
