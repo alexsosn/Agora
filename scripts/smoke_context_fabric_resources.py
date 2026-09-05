@@ -20,6 +20,7 @@ class LoadCase:
     resource_id: str
     features: tuple[str, ...]
     member_path_contains: str | None = None
+    expected_known_issue: str | None = None
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,12 @@ LOAD_CASES = {
         "greek_literature",
         ("orig", "main"),
         "canonical-greekLit/tlg0012/tlg001/perseus-grc2/1/tf/1.0",
+    ),
+    "greek-known-bad": LoadCase(
+        "greek_literature",
+        (),
+        "canonical-greekLit/tlg0001/tlg001/perseus-grc2/1/tf/1.0",
+        "context-fabric/duplicate-structure-levels",
     ),
 }
 
@@ -140,7 +147,7 @@ def summarize_loaded_corpus(
 def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
     from agora_context_fabric.catalog import Catalog
     from agora_context_fabric.gitstore import GitStore
-    from agora_context_fabric.resolver import ContextFabricResolver
+    from agora_context_fabric.resolver import ContextFabricResolver, KnownMemberIssueError
     from agora_context_fabric.service import ContextFabricService
     from cfabric_mcp import corpus_manager
 
@@ -148,6 +155,7 @@ def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
     catalog = Catalog.from_registry(ROOT)
     resolver = ContextFabricResolver(catalog, GitStore(cache_dir))
     service = ContextFabricService(catalog, resolver, corpus_manager)
+    member = None
     member_id = None
     source_revision = None
     if case.member_path_contains:
@@ -156,6 +164,45 @@ def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
         )
         member_id = member.id
         source_revision = member.source_revision
+
+    if case.expected_known_issue is not None:
+        if member is None:
+            raise RuntimeError(f"{case_name}: expected-known-failure case has no selected member")
+        if case.expected_known_issue not in member.verification_known_issues:
+            raise RuntimeError(
+                f"{case_name}: member {member.id!r} is not marked with expected known issue "
+                f"{case.expected_known_issue!r}"
+            )
+        try:
+            service.prepare(
+                case.resource_id,
+                member_id=member_id,
+                source_revision=source_revision,
+            )
+        except KnownMemberIssueError as exc:
+            issue_ids = {
+                issue.get("id")
+                for issue in exc.issues
+                if isinstance(issue, dict) and isinstance(issue.get("id"), str)
+            }
+            if case.expected_known_issue not in issue_ids:
+                raise RuntimeError(
+                    f"{case_name}: prepare blocked for unexpected known issue(s): "
+                    f"{sorted(issue_ids)}"
+                ) from exc
+            return {
+                "case": case_name,
+                "status": "expected-known-failure",
+                "resource_id": case.resource_id,
+                "member_id": member.id,
+                "relative_path": member.relative_path,
+                "source_revision": source_revision,
+                "known_issue": case.expected_known_issue,
+            }
+        raise RuntimeError(
+            f"{case_name}: prepare unexpectedly accepted member {member.id!r} despite "
+            f"known blocking issue {case.expected_known_issue!r}"
+        )
 
     result = service.load(
         case.resource_id,
