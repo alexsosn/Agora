@@ -11,6 +11,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = Path("plugins/context-fabric/resources/catalog.yaml")
 MODULE_OUTPUT = Path("plugins/context-fabric/resources/feature-modules.yaml")
+COLLECTION_OUTPUT = Path("plugins/context-fabric/resources/collections")
 
 
 def load_yaml(path: Path) -> Any:
@@ -68,6 +69,27 @@ def build_feature_modules_document(root: Path = ROOT) -> dict[str, Any]:
     }
 
 
+def build_collection_index_documents(root: Path = ROOT) -> dict[Path, dict[str, Any]]:
+    """Project canonical collection indexes into the self-contained plugin package."""
+    root = Path(root)
+    documents: dict[Path, dict[str, Any]] = {}
+    for item in build_catalog_document(root)["resources"]:
+        if item.get("kind") != "collection":
+            continue
+        collection = item.get("collection") or {}
+        member_index = collection.get("member_index")
+        if not member_index:
+            raise ValueError(f"collection {item.get('id')!r} has no member_index")
+        source = root / member_index
+        if not source.is_file():
+            raise ValueError(
+                f"collection {item.get('id')!r} references missing member index {member_index!r}"
+            )
+        destination = COLLECTION_OUTPUT / source.name
+        documents[destination] = load_yaml(source)
+    return documents
+
+
 def catalog_text(document: dict[str, Any]) -> str:
     return yaml.safe_dump(
         document,
@@ -87,10 +109,11 @@ def generate_feature_modules(root: Path = ROOT) -> str:
 
 def check(root: Path = ROOT) -> list[str]:
     root = Path(root)
-    expected_documents = (
+    expected_documents: list[tuple[Path, dict[str, Any]]] = [
         (OUTPUT, build_catalog_document(root)),
         (MODULE_OUTPUT, build_feature_modules_document(root)),
-    )
+    ]
+    expected_documents.extend(build_collection_index_documents(root).items())
     errors: list[str] = []
     for relative_path, expected in expected_documents:
         path = root / relative_path
@@ -120,12 +143,16 @@ def main() -> int:
             for error in errors:
                 print(error, file=sys.stderr)
             return 1
-        print("Context-Fabric runtime catalogs are fresh and lossless.")
+        print("Context-Fabric runtime catalogs and collection indexes are fresh and lossless.")
         return 0
 
-    outputs = (
+    outputs: list[tuple[Path, str]] = [
         (OUTPUT, generate(ROOT)),
         (MODULE_OUTPUT, generate_feature_modules(ROOT)),
+    ]
+    outputs.extend(
+        (relative_path, catalog_text(document))
+        for relative_path, document in build_collection_index_documents(ROOT).items()
     )
     for relative_path, text in outputs:
         path = ROOT / relative_path
