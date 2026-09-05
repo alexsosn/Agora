@@ -112,6 +112,7 @@ class MarketplaceGenerationTests(unittest.TestCase):
             server["args"],
             [
                 "run",
+                "--locked",
                 "--project",
                 "${CLAUDE_PLUGIN_ROOT}",
                 "agora-context-fabric-mcp",
@@ -129,6 +130,8 @@ class MarketplaceGenerationTests(unittest.TestCase):
         self.assertEqual(
             server["args"],
             [
+                "--constraint",
+                "${CLAUDE_PLUGIN_ROOT}/runtime-constraints.txt",
                 "--from",
                 "perseus-mcp==1.0.2",
                 "--with",
@@ -157,6 +160,7 @@ class MarketplaceGenerationTests(unittest.TestCase):
             server["args"],
             [
                 "run",
+                "--locked",
                 "--project",
                 "${CLAUDE_PLUGIN_ROOT}",
                 "agora-sedra-mcp",
@@ -187,6 +191,7 @@ class MarketplaceGenerationTests(unittest.TestCase):
             server["args"],
             [
                 "run",
+                "--locked",
                 "--project",
                 ".",
                 "agora-context-fabric-mcp",
@@ -204,6 +209,8 @@ class MarketplaceGenerationTests(unittest.TestCase):
         self.assertEqual(
             server["args"],
             [
+                "--constraint",
+                "runtime-constraints.txt",
                 "--from",
                 "perseus-mcp==1.0.2",
                 "--with",
@@ -221,6 +228,8 @@ class MarketplaceGenerationTests(unittest.TestCase):
         self.assertEqual(
             server["args"],
             [
+                "--constraint",
+                "runtime-constraints.txt",
                 "--from",
                 "mcp-proxy==0.12.0",
                 "--with",
@@ -239,7 +248,7 @@ class MarketplaceGenerationTests(unittest.TestCase):
         self.assertEqual(server["command"], "uv")
         self.assertEqual(
             server["args"],
-            ["run", "--project", ".", "agora-sedra-mcp"],
+            ["run", "--locked", "--project", ".", "agora-sedra-mcp"],
         )
 
     def test_context_fabric_project_declares_runtime_entrypoint_and_dependencies(self):

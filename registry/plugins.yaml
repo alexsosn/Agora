@@ -1,249 +1,359 @@
 schema_version: 1
 plugins:
-  - id: context-fabric
-    name: Context-Fabric
-    description: Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.
-    disciplines: [digital-philology]
-    upstream:
-      repository: Context-Fabric/context-fabric
-      homepage: https://context-fabric.ai/
-    runtime:
-      mode: local
-      type: python
-      notes: Agora bundles resource discovery and lazy acquisition around cfabric-mcp 0.1.7; corpora remain external and are materialized only when selected.
-      launch:
-        claude:
-          command: uv
-          args: [run, --project, "${CLAUDE_PLUGIN_ROOT}", agora-context-fabric-mcp, --plugin-root, "${CLAUDE_PLUGIN_ROOT}"]
-        codex:
-          type: stdio
-          cwd: "."
-          command: uv
-          args: [run, --project, ".", agora-context-fabric-mcp, --plugin-root, "."]
-    data_mode: local
-    capabilities:
-      - corpus-discovery
-      - corpus-acquisition
-      - corpus-loading
-      - structured-search
-      - feature-inspection
-    licenses:
-      software: upstream
-      data: resource-specific
-    verification:
-      status: community
-      clients:
-        claude:
-          status: community
-          transport: stdio
-          checks:
-            - check_id: manifest/context-fabric-claude
-              inputs:
-                source: {repository: alexsosn/Agora, revision: self}
-                runtime: python>=3.13
-                resolution: [cfabric-mcp==0.1.7, "PyYAML>=6.0,<7"]
-        codex:
-          status: verified
-          transport: stdio
-          checks:
-            - check_id: mcp-live/context-fabric-codex
-              inputs:
-                source: {repository: alexsosn/Agora, revision: self}
-                runtime: python==3.13
-                resolution:
-                  - cfabric-mcp==0.1.7
-                  - "PyYAML>=6.0,<7"
-                  - "mcp>=2,<3 (smoke harness)"
-                  - "PyYAML>=6,<7 (smoke harness)"
-      notes:
-        - Deterministic checks cover the Agora runtime, resolver, collection discovery, MCP tool registration, and generated client launch metadata.
-        - The scheduled Context-Fabric source audit resolves all 37 v0.1 upstream resources from Git metadata without materializing corpus blobs.
-        - The live MCP smoke workflow currently exercises the Codex stdio path; Claude is not promoted to live-verified until an equivalent client-path check exists.
-        - Plugin verification does not promote individual resource integrations; each acquisition and loading path is verified separately.
-
-  - id: perseus
-    name: Perseus MCP
-    description: Access Perseus and Scaife text discovery, CTS passages, and search through tonyjurg/Perseus-mcp.
-    disciplines: [classics, digital-philology]
-    upstream:
-      repository: tonyjurg/Perseus-mcp
-    runtime:
-      mode: local
-      type: python
-      notes: Claude and Codex launch the upstream perseus-mcp 1.0.2 package directly through uvx; Agora does not vendor or fork the server. Intel macOS additionally constrains cryptography below 43 because no CPython macOS x86_64 wheel is published after 42.x.
-      launch:
-        claude:
-          command: uvx
-          args:
-            - --from
+- id: context-fabric
+  name: Context-Fabric
+  description: Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.
+  disciplines:
+  - digital-philology
+  upstream:
+    repository: Context-Fabric/context-fabric
+    homepage: https://context-fabric.ai/
+  runtime:
+    mode: local
+    type: python
+    notes: Agora bundles resource discovery and lazy acquisition around cfabric-mcp 0.1.7; corpora remain external and are materialized only when selected.
+    launch:
+      claude:
+        command: uv
+        args:
+        - run
+        - --locked
+        - --project
+        - ${CLAUDE_PLUGIN_ROOT}
+        - agora-context-fabric-mcp
+        - --plugin-root
+        - ${CLAUDE_PLUGIN_ROOT}
+      codex:
+        type: stdio
+        cwd: .
+        command: uv
+        args:
+        - run
+        - --locked
+        - --project
+        - .
+        - agora-context-fabric-mcp
+        - --plugin-root
+        - .
+  data_mode: local
+  capabilities:
+  - corpus-discovery
+  - corpus-acquisition
+  - corpus-loading
+  - structured-search
+  - feature-inspection
+  licenses:
+    software: upstream
+    data: resource-specific
+  verification:
+    status: community
+    clients:
+      claude:
+        status: community
+        transport: stdio
+        checks:
+        - check_id: manifest/context-fabric-claude
+          inputs:
+            source:
+              repository: alexsosn/Agora
+              revision: self
+            runtime: python>=3.13
+            resolution:
+            - cfabric-mcp==0.1.7
+            - PyYAML>=6.0,<7
+            environment:
+              kind: uv-lock
+              path: plugins/context-fabric/uv.lock
+              sha256: 758a825a46337e3ddc394781e17333690b3d4b5ca4c7e80762343a2bfacc42d9
+      codex:
+        status: verified
+        transport: stdio
+        checks:
+        - check_id: mcp-live/context-fabric-codex
+          inputs:
+            source:
+              repository: alexsosn/Agora
+              revision: self
+            runtime: python==3.13
+            resolution:
+            - cfabric-mcp==0.1.7
+            - PyYAML>=6.0,<7
+            - mcp>=2,<3 (smoke harness)
+            - PyYAML>=6,<7 (smoke harness)
+            environment:
+              kind: uv-lock
+              path: plugins/context-fabric/uv.lock
+              sha256: 758a825a46337e3ddc394781e17333690b3d4b5ca4c7e80762343a2bfacc42d9
+            harness_environment:
+              kind: uv-lock
+              path: verification/mcp-smoke/uv.lock
+              sha256: 02ee919d9bd8ff909f090463c563a425ab614ea77dc410eeddbd23bb7a330838
+    notes:
+    - Deterministic checks cover the Agora runtime, resolver, collection discovery, MCP tool registration, and generated client launch metadata.
+    - The scheduled Context-Fabric source audit resolves all 37 v0.1 upstream resources from Git metadata without materializing corpus blobs.
+    - The live MCP smoke workflow currently exercises the Codex stdio path; Claude is not promoted to live-verified until an equivalent client-path check exists.
+    - Plugin verification does not promote individual resource integrations; each acquisition and loading path is verified separately.
+- id: perseus
+  name: Perseus MCP
+  description: Access Perseus and Scaife text discovery, CTS passages, and search through tonyjurg/Perseus-mcp.
+  disciplines:
+  - classics
+  - digital-philology
+  upstream:
+    repository: tonyjurg/Perseus-mcp
+  runtime:
+    mode: local
+    type: python
+    notes: Claude and Codex launch the upstream perseus-mcp 1.0.2 package directly through uvx; Agora does not vendor or fork the server. Intel macOS additionally constrains cryptography below 43 because no CPython macOS x86_64 wheel is published after 42.x.
+    launch:
+      claude:
+        command: uvx
+        args:
+        - --constraint
+        - ${CLAUDE_PLUGIN_ROOT}/runtime-constraints.txt
+        - --from
+        - perseus-mcp==1.0.2
+        - --with
+        - cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"
+        - perseus-mcp
+      codex:
+        type: stdio
+        cwd: .
+        command: uvx
+        args:
+        - --constraint
+        - runtime-constraints.txt
+        - --from
+        - perseus-mcp==1.0.2
+        - --with
+        - cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"
+        - perseus-mcp
+  data_mode: remote
+  capabilities:
+  - corpus-discovery
+  - passage-retrieval
+  - full-text-search
+  - cts-navigation
+  licenses:
+    software: MIT
+    data: upstream-dependent
+  verification:
+    status: community
+    clients:
+      claude:
+        status: community
+        transport: stdio
+        checks:
+        - check_id: manifest/perseus-claude
+          inputs:
+            source:
+              repository: alexsosn/Agora
+              revision: self
+            runtime: uvx
+            resolution:
             - perseus-mcp==1.0.2
-            - --with
-            - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
-            - perseus-mcp
-        codex:
-          type: stdio
-          cwd: "."
-          command: uvx
-          args:
-            - --from
+            - cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"
+            environment:
+              kind: uv-constraints
+              path: plugins/perseus/runtime-constraints.txt
+              sha256: fd9eda54b119fe8d232578dfedb3be3a666a0ebd0866e70e85ad9dbb9f2d744a
+      codex:
+        status: verified
+        transport: stdio
+        checks:
+        - check_id: mcp-live/perseus-codex
+          inputs:
+            source:
+              repository: alexsosn/Agora
+              revision: self
+            runtime: python==3.13 + uvx
+            resolution:
             - perseus-mcp==1.0.2
-            - --with
-            - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
-            - perseus-mcp
-    data_mode: remote
-    capabilities:
-      - corpus-discovery
-      - passage-retrieval
-      - full-text-search
-      - cts-navigation
-    licenses:
-      software: MIT
-      data: upstream-dependent
-    verification:
-      status: community
-      clients:
-        claude:
-          status: community
-          transport: stdio
-          checks:
-            - check_id: manifest/perseus-claude
-              inputs:
-                source: {repository: alexsosn/Agora, revision: self}
-                runtime: uvx
-                resolution:
-                  - perseus-mcp==1.0.2
-                  - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
-        codex:
-          status: verified
-          transport: stdio
-          checks:
-            - check_id: mcp-live/perseus-codex
-              inputs:
-                source: {repository: alexsosn/Agora, revision: self}
-                runtime: python==3.13 + uvx
-                resolution:
-                  - perseus-mcp==1.0.2
-                  - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
-                  - "mcp>=2,<3 (smoke harness)"
-                  - "PyYAML>=6,<7 (smoke harness)"
-      notes:
-        - Both clients use the pinned upstream perseus-mcp 1.0.2 package.
-        - The live workflow currently exercises the Codex stdio path and performs an upstream author-discovery lookup for Homer.
-        - Upstream CTS/Scaife availability remains an external dependency.
-
-  - id: sefaria
-    name: Sefaria
-    description: Search and retrieve Jewish texts and linked resources through the official Sefaria Texts MCP.
-    disciplines: [judaica, biblical-studies, digital-philology]
-    upstream:
-      repository: Sefaria/sefaria-mcp
-      homepage: https://developers.sefaria.org/docs/the-sefaria-mcp
-      endpoint: https://mcp.sefaria.org/sse
-    runtime:
-      mode: hosted
-      notes: Claude connects directly to Sefaria's hosted Texts MCP over SSE; Codex bridges the legacy SSE endpoint to stdio with mcp-proxy 0.12.0 constrained to MCP SDK 1.x compatibility because current Codex plugin MCP support does not accept legacy SSE directly.
-      launch:
-        claude:
-          type: sse
-          url: https://mcp.sefaria.org/sse
-        codex:
-          type: stdio
-          command: uvx
-          args: [--from, mcp-proxy==0.12.0, --with, "mcp>=1.17,<2", mcp-proxy, https://mcp.sefaria.org/sse]
-    data_mode: remote
-    capabilities:
-      - passage-retrieval
-      - full-text-search
-      - reference-resolution
-      - linked-text-navigation
-      - dictionary-lookup
-    licenses:
-      software: MIT
-      data: upstream-dependent
-      service_terms: upstream-dependent
-    verification:
-      status: community
-      clients:
-        claude:
-          status: community
-          transport: sse
-          checks:
-            - check_id: manifest/sefaria-claude
-              inputs:
-                source: {repository: alexsosn/Agora, revision: self}
-                runtime: hosted-sse
-                resolution: [https://mcp.sefaria.org/sse]
-        codex:
-          status: verified
-          transport: stdio-via-sse-proxy
-          checks:
-            - check_id: mcp-live/sefaria-codex
-              inputs:
-                source: {repository: alexsosn/Agora, revision: self}
-                runtime: python==3.13 + uvx
-                resolution:
-                  - mcp-proxy==0.12.0
-                  - "mcp>=1.17,<2"
-                  - https://mcp.sefaria.org/sse
-                  - "mcp>=2,<3 (smoke harness)"
-                  - "PyYAML>=6,<7 (smoke harness)"
-      notes:
-        - Claude targets Sefaria's official hosted Texts MCP endpoint while Codex uses the generated stdio proxy bridge.
-        - The live workflow currently exercises the Codex bridge and retrieves Genesis 1:1 in English.
-        - The proxy environment constrains mcp-proxy 0.12.0 to MCP SDK 1.x to avoid its current incompatibility with MCP SDK 2.x.
-
-  - id: sedra
-    name: SEDRA
-    description: Syriac lexical and morphological lookup against Beth Mardutho's Syriac Electronic Data Research Archive.
-    disciplines: [syriac-studies, semitic-linguistics, digital-philology]
-    upstream:
-      homepage: https://sedra.bethmardutho.org/
-    runtime:
-      mode: local
-      type: python
-      notes: Agora ships a small read-only FastMCP adapter over Beth Mardutho's public SEDRA IV JSON word and lexeme endpoints; no SEDRA data is vendored.
-      launch:
-        claude:
-          command: uv
-          args: [run, --project, "${CLAUDE_PLUGIN_ROOT}", agora-sedra-mcp]
-        codex:
-          type: stdio
-          cwd: "."
-          command: uv
-          args: [run, --project, ".", agora-sedra-mcp]
-    data_mode: remote
-    capabilities:
-      - dictionary-lookup
-      - lexeme-lookup
-    licenses:
-      software: MIT
-      data: upstream-dependent
-      service_terms: upstream-dependent
-    verification:
-      status: community
-      clients:
-        claude:
-          status: community
-          transport: stdio
-          checks:
-            - check_id: manifest/sedra-claude
-              inputs:
-                source: {repository: alexsosn/Agora, revision: self}
-                runtime: python>=3.11
-                resolution: ["fastmcp>=2.12.0,<3", 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"']
-        codex:
-          status: verified
-          transport: stdio
-          checks:
-            - check_id: mcp-live/sedra-codex
-              inputs:
-                source: {repository: alexsosn/Agora, revision: self}
-                runtime: python==3.13
-                resolution:
-                  - "fastmcp>=2.12.0,<3"
-                  - 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"'
-                  - "mcp>=2,<3 (smoke harness)"
-                  - "PyYAML>=6,<7 (smoke harness)"
-      notes:
-        - Deterministic tests cover Syriac URL encoding, JSON/error handling, tool delegation, packaging, and generated launch metadata.
-        - The live workflow currently exercises the Codex adapter and executes a real Syriac word lookup against SEDRA IV.
+            - cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"
+            - mcp>=2,<3 (smoke harness)
+            - PyYAML>=6,<7 (smoke harness)
+            environment:
+              kind: uv-constraints
+              path: plugins/perseus/runtime-constraints.txt
+              sha256: fd9eda54b119fe8d232578dfedb3be3a666a0ebd0866e70e85ad9dbb9f2d744a
+            harness_environment:
+              kind: uv-lock
+              path: verification/mcp-smoke/uv.lock
+              sha256: 02ee919d9bd8ff909f090463c563a425ab614ea77dc410eeddbd23bb7a330838
+    notes:
+    - Both clients use the pinned upstream perseus-mcp 1.0.2 package.
+    - The live workflow currently exercises the Codex stdio path and performs an upstream author-discovery lookup for Homer.
+    - Upstream CTS/Scaife availability remains an external dependency.
+- id: sefaria
+  name: Sefaria
+  description: Search and retrieve Jewish texts and linked resources through the official Sefaria Texts MCP.
+  disciplines:
+  - judaica
+  - biblical-studies
+  - digital-philology
+  upstream:
+    repository: Sefaria/sefaria-mcp
+    homepage: https://developers.sefaria.org/docs/the-sefaria-mcp
+    endpoint: https://mcp.sefaria.org/sse
+  runtime:
+    mode: hosted
+    notes: Claude connects directly to Sefaria's hosted Texts MCP over SSE; Codex bridges the legacy SSE endpoint to stdio with mcp-proxy 0.12.0 constrained to MCP SDK 1.x compatibility because current Codex plugin MCP support does not accept legacy SSE directly.
+    launch:
+      claude:
+        type: sse
+        url: https://mcp.sefaria.org/sse
+      codex:
+        type: stdio
+        command: uvx
+        args:
+        - --constraint
+        - runtime-constraints.txt
+        - --from
+        - mcp-proxy==0.12.0
+        - --with
+        - mcp>=1.17,<2
+        - mcp-proxy
+        - https://mcp.sefaria.org/sse
+        cwd: .
+  data_mode: remote
+  capabilities:
+  - passage-retrieval
+  - full-text-search
+  - reference-resolution
+  - linked-text-navigation
+  - dictionary-lookup
+  licenses:
+    software: MIT
+    data: upstream-dependent
+    service_terms: upstream-dependent
+  verification:
+    status: community
+    clients:
+      claude:
+        status: community
+        transport: sse
+        checks:
+        - check_id: manifest/sefaria-claude
+          inputs:
+            source:
+              repository: alexsosn/Agora
+              revision: self
+            runtime: hosted-sse
+            resolution:
+            - https://mcp.sefaria.org/sse
+            environment:
+              kind: hosted
+      codex:
+        status: verified
+        transport: stdio-via-sse-proxy
+        checks:
+        - check_id: mcp-live/sefaria-codex
+          inputs:
+            source:
+              repository: alexsosn/Agora
+              revision: self
+            runtime: python==3.13 + uvx
+            resolution:
+            - mcp-proxy==0.12.0
+            - mcp>=1.17,<2
+            - https://mcp.sefaria.org/sse
+            - mcp>=2,<3 (smoke harness)
+            - PyYAML>=6,<7 (smoke harness)
+            environment:
+              kind: uv-constraints
+              path: plugins/sefaria/runtime-constraints.txt
+              sha256: 04e7e558dda68be2f81d6ee78bc5fc9175e32d7f603136fac3357e96edf96708
+            harness_environment:
+              kind: uv-lock
+              path: verification/mcp-smoke/uv.lock
+              sha256: 02ee919d9bd8ff909f090463c563a425ab614ea77dc410eeddbd23bb7a330838
+    notes:
+    - Claude targets Sefaria's official hosted Texts MCP endpoint while Codex uses the generated stdio proxy bridge.
+    - The live workflow currently exercises the Codex bridge and retrieves Genesis 1:1 in English.
+    - The proxy environment constrains mcp-proxy 0.12.0 to MCP SDK 1.x to avoid its current incompatibility with MCP SDK 2.x.
+- id: sedra
+  name: SEDRA
+  description: Syriac lexical and morphological lookup against Beth Mardutho's Syriac Electronic Data Research Archive.
+  disciplines:
+  - syriac-studies
+  - semitic-linguistics
+  - digital-philology
+  upstream:
+    homepage: https://sedra.bethmardutho.org/
+  runtime:
+    mode: local
+    type: python
+    notes: Agora ships a small read-only FastMCP adapter over Beth Mardutho's public SEDRA IV JSON word and lexeme endpoints; no SEDRA data is vendored.
+    launch:
+      claude:
+        command: uv
+        args:
+        - run
+        - --locked
+        - --project
+        - ${CLAUDE_PLUGIN_ROOT}
+        - agora-sedra-mcp
+      codex:
+        type: stdio
+        cwd: .
+        command: uv
+        args:
+        - run
+        - --locked
+        - --project
+        - .
+        - agora-sedra-mcp
+  data_mode: remote
+  capabilities:
+  - dictionary-lookup
+  - lexeme-lookup
+  licenses:
+    software: MIT
+    data: upstream-dependent
+    service_terms: upstream-dependent
+  verification:
+    status: community
+    clients:
+      claude:
+        status: community
+        transport: stdio
+        checks:
+        - check_id: manifest/sedra-claude
+          inputs:
+            source:
+              repository: alexsosn/Agora
+              revision: self
+            runtime: python>=3.11
+            resolution:
+            - fastmcp>=2.12.0,<3
+            - cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"
+            environment:
+              kind: uv-lock
+              path: plugins/sedra/uv.lock
+              sha256: c72692f28a955f22809db707986c7cec8cd17f5510b1a7e4754c552723c5de51
+      codex:
+        status: verified
+        transport: stdio
+        checks:
+        - check_id: mcp-live/sedra-codex
+          inputs:
+            source:
+              repository: alexsosn/Agora
+              revision: self
+            runtime: python==3.13
+            resolution:
+            - fastmcp>=2.12.0,<3
+            - cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"
+            - mcp>=2,<3 (smoke harness)
+            - PyYAML>=6,<7 (smoke harness)
+            environment:
+              kind: uv-lock
+              path: plugins/sedra/uv.lock
+              sha256: c72692f28a955f22809db707986c7cec8cd17f5510b1a7e4754c552723c5de51
+            harness_environment:
+              kind: uv-lock
+              path: verification/mcp-smoke/uv.lock
+              sha256: 02ee919d9bd8ff909f090463c563a425ab614ea77dc410eeddbd23bb7a330838
+    notes:
+    - Deterministic tests cover Syriac URL encoding, JSON/error handling, tool delegation, packaging, and generated launch metadata.
+    - The live workflow currently exercises the Codex adapter and executes a real Syriac word lookup against SEDRA IV.
