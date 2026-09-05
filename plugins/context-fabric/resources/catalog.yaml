@@ -176,7 +176,7 @@ resources:
     upstream: {repository: pthu/bible}
     acquisition: {strategy: collection, lazy: true}
     collection:
-      discovery: git-tree
+      discovery: indexed
       member_id_scheme: stable-relative-id
       lazy_members: true
       member_index: registry/collections/bible.yaml
@@ -196,7 +196,7 @@ resources:
     upstream: {repository: pthu/patristics}
     acquisition: {strategy: collection, lazy: true}
     collection:
-      discovery: git-tree
+      discovery: indexed
       member_id_scheme: stable-relative-id
       lazy_members: true
       member_index: registry/collections/patristics.yaml
@@ -216,7 +216,7 @@ resources:
     upstream: {repository: pthu/greek_literature}
     acquisition: {strategy: collection, lazy: true}
     collection:
-      discovery: git-tree
+      discovery: indexed
       member_id_scheme: stable-relative-id
       lazy_members: true
       member_index: registry/collections/greek_literature.yaml
@@ -431,7 +431,7 @@ resources:
     upstream: {repository: HuygensING/translatin-manif}
     acquisition: {strategy: collection, lazy: true}
     collection:
-      discovery: git-tree
+      discovery: indexed
       member_id_scheme: stable-relative-id
       lazy_members: true
       member_index: registry/collections/translatin-manif.yaml

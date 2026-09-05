@@ -13,7 +13,7 @@ metadata:
 
 Agora models large PTHU repositories as **collections of independent Text-Fabric corpora**, not as one giant Greek dataset and not as one marketplace plugin per work.
 
-The upstream `pthu/greek_literature` repository says it contains Text-Fabric packages of Greek texts available from the **Perseus Digital Library** and the **Open Greek and Latin Project**. Agora discovers the current dataset roots dynamically from upstream Git metadata.
+The upstream `pthu/greek_literature` repository contains Text-Fabric packages of Greek texts available from the **Perseus Digital Library** and the **Open Greek and Latin Project**. Agora's normal discovery path uses a complete member index bound to an exact upstream Git commit. If a caller requests another exact/current revision, Agora may generate and cache a revision-bound local index rather than rescanning the repository for every query.
 
 That scale makes discovery and schema inspection mandatory.
 
@@ -21,9 +21,11 @@ That scale makes discovery and schema inspection mandatory.
 
 Use `list_collection_members` on the appropriate registered collection rather than guessing a repository path from an author/title.
 
-Search the returned members for the author/work you need and retain the returned `member_id`.
+The query can match source-backed author/title metadata, canonical/provider identifiers, explicit edition identifiers, Agora member IDs, identity paths, and exact TF paths. For the committed Greek-literature snapshot, searches such as `Homer`, `Iliad`, or the corresponding TLG/provider identifier can locate the indexed Iliad member.
 
-Then call `load_corpus` with both the collection resource ID and that exact member ID.
+Not every upstream member supplies human-readable metadata. When `author`, `title`, or `edition` is missing, use `canonical_id`, `identity_path`, and `relative_path` to distinguish candidates. Do **not** infer author/work semantics from path positions.
+
+Retain both the selected `member_id` and the returned `source_revision`. Pass that exact revision to later pages and to `prepare_corpus`/`load_corpus` so the work you load is the same upstream snapshot you inspected.
 
 Do not acquire or load the whole collection just to work with one text.
 
@@ -53,12 +55,12 @@ The repository aggregates conversions ultimately based on sources from Perseus a
 For a substantive result, distinguish:
 
 1. Agora's collection/member identifier;
-2. the PTHU Text-Fabric conversion;
+2. the exact PTHU collection `source_revision` and TF member path;
 3. the underlying textual source/edition represented by that member.
 
 Do not cite "Agora" or "PTHU Greek literature" as though that uniquely identifies the ancient-text edition used.
 
-Where edition-sensitive wording matters, recover and record the underlying edition/resource metadata exposed by the selected corpus or upstream source.
+`canonical_id` preserves a provider/source identifier where the same-revision TF metadata supplies one. `edition` is exposed only when upstream metadata explicitly provides an edition field; absence of that field is not evidence that two similarly named members are the same edition. Use the canonical identifier and repository paths to keep variants distinct, and consult the selected corpus/upstream source when edition-sensitive wording matters.
 
 ## Do not confuse this provider with Perseus-MCP
 
@@ -93,7 +95,9 @@ Large source collections may contain multiple representations, recensions, editi
 
 When multiple members match an author/title:
 
-- compare their repository-relative identity paths and metadata;
+- compare `canonical_id` when available;
+- compare `identity_path` and exact `relative_path`;
+- compare explicit `edition` metadata when present;
 - determine whether they are duplicates or distinct editions/works;
 - select explicitly rather than accepting the first match.
 
@@ -119,11 +123,12 @@ Record:
 
 - collection resource ID;
 - member ID returned by `list_collection_members`;
-- author/title and repository-relative member path;
-- selected TF version/path if exposed;
-- resolved upstream source revision;
-- underlying edition/source when identifiable;
-- node types/features used;
+- resolved upstream source revision (`source_revision`);
+- source-backed author/title when present;
+- `canonical_id` when present;
+- `edition` when explicitly present;
+- `identity_path` and exact TF `relative_path`;
+- node types/features used after loading;
 - whether the same work was compared against the separate Perseus plugin.
 
-When a collection changes upstream, member discovery should be rerun rather than relying indefinitely on a remembered filesystem path.
+When a collection changes upstream, rerun discovery and retain the new returned revision rather than relying indefinitely on a remembered filesystem path or human label.

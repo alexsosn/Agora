@@ -103,27 +103,29 @@ class RegistryValidationTests(unittest.TestCase):
             self.assertTrue(resource["source_snapshot"]["source"], resource_id)
             self.assertTrue(resource["source_snapshot"]["checked_at"], resource_id)
 
-    def test_v01_collections_use_dynamic_git_tree_discovery(self):
+    def test_v01_collections_use_complete_indexed_discovery(self):
         with (ROOT / "registry/resources.yaml").open("r", encoding="utf-8") as fh:
             resources = {item["id"]: item for item in yaml.safe_load(fh)["resources"]}
         for resource_id in ("bible", "patristics", "greek_literature", "translatin-manif"):
             resource = resources[resource_id]
             self.assertEqual(resource["kind"], "collection")
             self.assertEqual(resource["acquisition"]["strategy"], "collection")
-            self.assertEqual(resource["collection"]["discovery"], "git-tree")
+            self.assertEqual(resource["collection"]["discovery"], "indexed")
             self.assertTrue(resource["collection"]["lazy_members"])
             index_path = ROOT / resource["collection"]["member_index"]
             index = yaml.safe_load(index_path.read_text(encoding="utf-8"))
-            self.assertEqual(index["index_status"], "dynamic")
-            self.assertEqual(index["members"], [])
+            self.assertEqual(index["index_status"], "complete")
+            self.assertRegex(index["source_revision"], r"^[0-9a-f]{40}$")
+            self.assertGreater(len(index["members"]), 0)
 
-    def test_git_tree_collection_rejects_static_or_pending_index(self):
+    def test_indexed_collection_rejects_dynamic_or_partial_index(self):
         def mutate(doc):
-            doc["index_status"] = "pending"
+            doc["index_status"] = "dynamic"
+            doc["members"] = []
 
         errors = self.validate_mutation("registry/collections/bible.yaml", mutate)
         self.assertTrue(
-            any("git-tree discovery requires collection index_status='dynamic'" in error for error in errors),
+            any("indexed discovery requires collection index_status='complete'" in error for error in errors),
             errors,
         )
 

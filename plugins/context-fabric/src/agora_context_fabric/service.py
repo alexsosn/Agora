@@ -125,6 +125,16 @@ class ContextFabricService:
             "source_revision": member.source_revision,
             "author": member.author,
             "title": member.title,
+            "canonical_id": member.canonical_id,
+            "edition": member.edition,
+            "verification": {
+                "status": member.verification_status,
+                "evidence": [
+                    {"check_id": check_id}
+                    for check_id in member.verification_evidence
+                ],
+                "notes": list(member.verification_notes),
+            },
         }
 
     @staticmethod

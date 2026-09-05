@@ -14,6 +14,7 @@ if str(PLUGIN_SRC) not in sys.path:
     sys.path.insert(0, str(PLUGIN_SRC))
 
 from agora_context_fabric.catalog import Catalog, ResourceSpec
+from agora_context_fabric.collection_index import build_collection_index
 from agora_context_fabric.gitstore import GitStore
 from agora_context_fabric.resolver import ContextFabricResolver
 from agora_context_fabric.server import build_parser
@@ -123,13 +124,13 @@ class GitRefreshAndProvenanceTests(unittest.TestCase):
 
 
 class CollectionMetadataTests(unittest.TestCase):
-    def test_service_exposes_dynamic_collection_discovery_contract(self):
+    def test_service_exposes_indexed_collection_discovery_contract(self):
         service = ContextFabricService(Catalog.from_registry(ROOT), _NoopResolver(), _NoopLoader())
         item = service.describe_resource("greek_literature")
         self.assertEqual(
             item["collection"],
             {
-                "discovery": "git-tree",
+                "discovery": "indexed",
                 "member_id_scheme": "stable-relative-id",
                 "lazy_members": True,
                 "member_index": "registry/collections/greek_literature.yaml",
@@ -137,29 +138,21 @@ class CollectionMetadataTests(unittest.TestCase):
         )
 
     def test_arbitrary_repository_path_segments_are_not_mislabeled_author_and_title(self):
-        resource = ResourceSpec(
-            id="greek_literature",
-            name="Greek Literature",
-            plugin="context-fabric",
-            provider="context-fabric",
-            kind="collection",
-            repository="unused/repository",
-            languages=("greek",),
-            disciplines=("classics",),
-        )
-        resolver = ContextFabricResolver(Catalog([resource]), object())
         revision = "a" * 40
-        members = resolver._collection_members_from_roots(
-            resource,
-            ["canonical-greekLit/tlg0012/tlg001/perseus-grc2/1/tf/1.0"],
-            revision,
+        index = build_collection_index(
+            collection_id="greek_literature",
+            source_revision=revision,
+            roots=["canonical-greekLit/tlg0012/tlg001/perseus-grc2/1/tf/1.0"],
+            languages=("greek",),
+            metadata_reader=lambda _path: {},
         )
-        self.assertEqual(len(members), 1)
-        self.assertIsNone(members[0].author)
-        self.assertIsNone(members[0].title)
-        self.assertEqual(members[0].source_revision, revision)
+        self.assertEqual(len(index.members), 1)
+        member = index.members[0]
+        self.assertIsNone(member.author)
+        self.assertIsNone(member.title)
+        self.assertEqual(index.source_revision, revision)
         self.assertEqual(
-            members[0].identity_path,
+            member.path,
             "canonical-greekLit/tlg0012/tlg001/perseus-grc2/1",
         )
 

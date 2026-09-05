@@ -1,0 +1,62 @@
+name: Context-Fabric collection index generation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "registry/collections/**"
+      - "registry/resources.yaml"
+      - "plugins/context-fabric/src/agora_context_fabric/collection_index.py"
+      - "plugins/context-fabric/src/agora_context_fabric/gitstore.py"
+      - "scripts/generate_context_fabric_collection_indexes.py"
+      - ".github/workflows/context-fabric-collection-index-generation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        resource:
+          - bible
+          - patristics
+          - greek_literature
+          - translatin-manif
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install generation dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Generate commit-bound collection index
+        run: >-
+          python scripts/generate_context_fabric_collection_indexes.py
+          --resource "${{ matrix.resource }}"
+          --output-dir generated-collection-indexes
+          --cache-dir "$RUNNER_TEMP/agora-context-fabric-index-cache"
+
+      - name: Verify canonical collection index is fresh
+        run: >-
+          python scripts/generate_context_fabric_collection_indexes.py
+          --resource "${{ matrix.resource }}"
+          --check
+          --cache-dir "$RUNNER_TEMP/agora-context-fabric-index-cache"
+
+      - name: Upload generated index
+        uses: actions/upload-artifact@v4
+        with:
+          name: context-fabric-collection-index-${{ matrix.resource }}
+          path: generated-collection-indexes/${{ matrix.resource }}.yaml
+          if-no-files-found: error
+          retention-days: 7

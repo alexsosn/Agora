@@ -7,6 +7,12 @@
   "properties": {
     "schema_version": {"const": 1},
     "collection_id": {"type": "string"},
+    "source_revision": {
+      "oneOf": [
+        {"type": "string", "pattern": "^[0-9a-fA-F]{40}$"},
+        {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"}
+      ]
+    },
     "index_status": {"type": "string"},
     "notes": {"type": "array", "items": {"type": "string"}},
     "members": {
@@ -14,21 +20,36 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "path", "languages", "verification"],
+        "required": ["id", "path", "tf_path", "languages", "verification"],
         "properties": {
           "id": {"type": "string", "minLength": 1},
           "path": {"type": "string", "minLength": 1},
+          "tf_path": {"type": "string", "minLength": 1},
           "author": {"type": "string"},
           "title": {"type": "string"},
           "canonical_id": {"type": "string"},
+          "edition": {"type": "string"},
           "languages": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
-          "tf_path": {"type": "string"},
           "verification": {
             "type": "object",
             "additionalProperties": false,
             "required": ["status"],
             "properties": {
               "status": {"type": "string"},
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["check_id"],
+                  "properties": {
+                    "check_id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
+                    }
+                  }
+                }
+              },
               "notes": {"type": "array", "items": {"type": "string"}}
             }
           },
@@ -36,5 +57,17 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"index_status": {"const": "complete"}},
+        "required": ["index_status"]
+      },
+      "then": {
+        "required": ["source_revision"],
+        "properties": {"members": {"minItems": 1}}
+      }
+    }
+  ]
 }
