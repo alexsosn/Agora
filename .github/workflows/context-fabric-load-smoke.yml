@@ -8,19 +8,25 @@ on:
     paths:
       - '.github/workflows/context-fabric-load-smoke.yml'
       - 'registry/resources.yaml'
+      - 'registry/collections/**'
+      - 'plugins/context-fabric/resources/collections/**'
       - 'plugins/context-fabric/pyproject.toml'
       - 'plugins/context-fabric/src/**'
       - 'scripts/smoke_context_fabric_resources.py'
       - 'tests/test_context_fabric_load_smoke.py'
+      - 'tests/test_context_fabric_load_smoke_workflow.py'
   push:
     branches: [main]
     paths:
       - '.github/workflows/context-fabric-load-smoke.yml'
       - 'registry/resources.yaml'
+      - 'registry/collections/**'
+      - 'plugins/context-fabric/resources/collections/**'
       - 'plugins/context-fabric/pyproject.toml'
       - 'plugins/context-fabric/src/**'
       - 'scripts/smoke_context_fabric_resources.py'
       - 'tests/test_context_fabric_load_smoke.py'
+      - 'tests/test_context_fabric_load_smoke_workflow.py'
 
 permissions:
   contents: read
@@ -31,7 +37,7 @@ concurrency:
 
 jobs:
   representative-loads:
-    name: Load BHSA, CUC, and Iliad member
+    name: Load representative corpora and Greek known-failure canary
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
