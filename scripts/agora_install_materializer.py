@@ -154,6 +154,13 @@ def installation_path(plugin: dict[str, Any], root: Path) -> Path:
     return commit_root(plugin, root) / "environments" / runtime_tag()
 
 
+def _release_quietly(lock: portalocker.Lock) -> None:
+    try:
+        lock.release()
+    except Exception:
+        pass
+
+
 @contextmanager
 def _lock(path: Path, *, timeout: float = LOCK_WAIT_SECONDS) -> Iterator[None]:
     """Hold an OS-backed exclusive advisory lock for the duration of the block.
@@ -172,13 +179,19 @@ def _lock(path: Path, *, timeout: float = LOCK_WAIT_SECONDS) -> Iterator[None]:
     )
     try:
         lock.acquire()
-    except portalocker.exceptions.LockException as exc:
-        try:
-            lock.release()
-        except Exception:
-            pass
+    except portalocker.exceptions.AlreadyLocked as exc:
+        # Contention: portalocker retried until the timeout expired.
+        _release_quietly(lock)
         raise MaterializerInstallError(
             f"another materializer operation is holding {path} after waiting {timeout:g}s"
+        ) from exc
+    except portalocker.exceptions.LockException as exc:
+        # A permanent backend failure (no locking support, refused flags).
+        # portalocker raises it immediately, so no waiting happened and no
+        # other installer is implied.
+        _release_quietly(lock)
+        raise MaterializerInstallError(
+            f"could not acquire the materializer lock {path}: {exc}"
         ) from exc
     try:
         yield
@@ -323,17 +336,30 @@ def fetch_materializer(
                 shutil.rmtree(staging, ignore_errors=True)
 
 
-def _require_pip() -> None:
+def _pip_env() -> dict[str, str]:
+    """The hardened environment every pip invocation runs under, probe included."""
+    env = os.environ.copy()
+    env.update({"PIP_DISABLE_PIP_VERSION_CHECK": "1", "PIP_NO_INPUT": "1",
+                "PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1"})
+    return env
+
+
+def _require_pip(env: dict[str, str]) -> None:
     """Fail with an actionable message when the active interpreter cannot run pip.
 
     Interpreters created by tools that omit pip by default (``uv venv``, a
     ``--without-pip`` virtual environment, some distribution packages) otherwise
     fail deep inside the installation with a bare non-zero pip exit status.
+
+    The probe runs under the same environment as the real installation. That
+    matters: ``PYTHONNOUSERSITE`` drops user site-packages from ``sys.path``, so
+    an interpreter whose only pip lives in user site would pass a probe run with
+    the inherited environment and still fail at install time.
     """
     try:
         probe = subprocess.run(
             [sys.executable, "-m", "pip", "--version"],
-            capture_output=True, text=True, timeout=PIP_PROBE_TIMEOUT_SECONDS,
+            capture_output=True, text=True, env=env, timeout=PIP_PROBE_TIMEOUT_SECONDS,
         )
     except (subprocess.TimeoutExpired, OSError) as exc:
         raise MaterializerInstallError(
@@ -353,10 +379,8 @@ def _install_python(plugin: dict[str, Any], source: Path, runtime: Path, report:
     package = _contained(source, plugin["package"]["path"], "registered Python project")
     if not (package / "pyproject.toml").is_file():
         raise MaterializerInstallError("registered Python project has no pyproject.toml")
-    _require_pip()
-    env = os.environ.copy()
-    env.update({"PIP_DISABLE_PIP_VERSION_CHECK": "1", "PIP_NO_INPUT": "1",
-                "PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1"})
+    env = _pip_env()
+    _require_pip(env)
     try:
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "--no-input", "--disable-pip-version-check",
