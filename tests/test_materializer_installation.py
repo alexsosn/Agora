@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
+import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +21,8 @@ from scripts.agora_install_materializer import (
     load_registry,
     runtime_tag,
     select_plugin,
+    _lock,
+    _require_pip,
     _verify_execution_modules_static,
     _checkout,
 )
@@ -130,6 +135,18 @@ def _fake_install(_plugin, build_source: Path, runtime_root: Path, report: Path)
             f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n", encoding="utf-8"
         )
     report.write_text(json.dumps({"version": "1", "install": []}), encoding="utf-8")
+
+
+def _hold_install_lock(path: str, ready, release) -> None:
+    with _lock(Path(path), timeout=5):
+        ready.set()
+        release.wait(10)
+
+
+def _crash_holding_install_lock(path: str, ready) -> None:
+    with _lock(Path(path), timeout=5):
+        ready.set()
+        os._exit(0)
 
 
 class MaterializerRegistryTests(unittest.TestCase):
@@ -379,6 +396,81 @@ class MaterializerInstallerTests(unittest.TestCase):
                 provenance["plugin"]["code_sha256"],
                 receipt["environment"]["tree_sha256"],
             )
+
+
+class MaterializerInstallLockTests(unittest.TestCase):
+    """Installation locks must be owned by the OS, not by a lock file's existence."""
+
+    def test_live_holder_blocks_and_process_death_releases_install_lock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / ".environment.lock"
+            ctx = multiprocessing.get_context("spawn")
+
+            ready, release = ctx.Event(), ctx.Event()
+            holder = ctx.Process(target=_hold_install_lock, args=(str(path), ready, release))
+            holder.start()
+            try:
+                self.assertTrue(ready.wait(10))
+                with self.assertRaisesRegex(MaterializerInstallError, "another materializer operation"):
+                    with _lock(path, timeout=0.1):
+                        pass
+            finally:
+                release.set()
+                holder.join(10)
+            self.assertEqual(holder.exitcode, 0)
+
+            ready = ctx.Event()
+            crashed = ctx.Process(target=_crash_holding_install_lock, args=(str(path), ready))
+            crashed.start()
+            self.assertTrue(ready.wait(10))
+            crashed.join(10)
+            self.assertEqual(crashed.exitcode, 0)
+
+            # The lock file outlives the dead holder; the lock itself must not.
+            self.assertTrue(path.exists())
+            with _lock(path, timeout=0.5):
+                pass
+
+    @mock.patch("scripts.agora_install_materializer._install_python", side_effect=_fake_install)
+    @mock.patch("scripts.agora_install_materializer._checkout")
+    def test_leftover_lock_file_does_not_wedge_installation(self, checkout, _install_python):
+        checkout.side_effect = MaterializerInstallerTests._populate_checkout
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            registry_path = root / "materializers.yaml"
+            registry_path.write_text(yaml.safe_dump(_registry(), sort_keys=False), encoding="utf-8")
+            install_root = root / "installed"
+            commit = _registry()["plugins"][0]["ref"]
+            base = install_root / "example-converter" / commit
+            base.mkdir(parents=True)
+            (base / ".source.lock").write_text("", encoding="utf-8")
+
+            target = install_materializer(
+                "example-converter",
+                install_root=install_root,
+                registry_path=registry_path,
+                approve_code_execution=True,
+            )
+            self.assertTrue((target / INSTALLATION_RECEIPT).is_file())
+
+
+class MaterializerPipPreflightTests(unittest.TestCase):
+    def test_interpreter_without_pip_is_reported_actionably(self):
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="No module named pip\n"
+        )
+        with mock.patch("scripts.agora_install_materializer.subprocess.run", return_value=completed):
+            with self.assertRaises(MaterializerInstallError) as caught:
+                _require_pip()
+        message = str(caught.exception)
+        self.assertIn("no usable pip", message)
+        self.assertIn("ensurepip", message)
+        self.assertIn("No module named pip", message)
+
+    def test_usable_pip_passes_preflight(self):
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="pip 24.0\n", stderr="")
+        with mock.patch("scripts.agora_install_materializer.subprocess.run", return_value=completed):
+            _require_pip()
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+import portalocker
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
@@ -34,6 +35,8 @@ ENVIRONMENT_MARKER = ".agora-environment.json"
 PIP_REPORT = "pip-report.json"
 GIT_TIMEOUT_SECONDS = 120
 PIP_TIMEOUT_SECONDS = 600
+PIP_PROBE_TIMEOUT_SECONDS = 60
+LOCK_WAIT_SECONDS = 60
 RUNTIME_TREE_EXCLUDES = {
     ".git", ".hg", ".svn", "__pycache__", ".pytest_cache", ".mypy_cache",
     ".ruff_cache", ".tox", ".nox", ".venv", "venv",
@@ -152,20 +155,35 @@ def installation_path(plugin: dict[str, Any], root: Path) -> Path:
 
 
 @contextmanager
-def _lock(path: Path) -> Iterator[None]:
+def _lock(path: Path, *, timeout: float = LOCK_WAIT_SECONDS) -> Iterator[None]:
+    """Hold an OS-backed exclusive advisory lock for the duration of the block.
+
+    The lock is owned by the operating system rather than by the existence of a
+    lock file, so an installer that is killed or crashes releases it. A leftover
+    lock file therefore never wedges later installations.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
+    lock = portalocker.Lock(
+        str(path),
+        mode="a",
+        timeout=timeout,
+        check_interval=0.05,
+        flags=portalocker.LockFlags.EXCLUSIVE | portalocker.LockFlags.NON_BLOCKING,
+    )
     try:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError as exc:
-        raise MaterializerInstallError(f"another materializer operation is in progress: {path}") from exc
+        lock.acquire()
+    except portalocker.exceptions.LockException as exc:
+        try:
+            lock.release()
+        except Exception:
+            pass
+        raise MaterializerInstallError(
+            f"another materializer operation is holding {path} after waiting {timeout:g}s"
+        ) from exc
     try:
-        os.close(fd)
         yield
     finally:
-        try:
-            path.unlink()
-        except FileNotFoundError:
-            pass
+        lock.release()
 
 
 def _write_json(path: Path, value: Any) -> None:
@@ -305,10 +323,37 @@ def fetch_materializer(
                 shutil.rmtree(staging, ignore_errors=True)
 
 
+def _require_pip() -> None:
+    """Fail with an actionable message when the active interpreter cannot run pip.
+
+    Interpreters created by tools that omit pip by default (``uv venv``, a
+    ``--without-pip`` virtual environment, some distribution packages) otherwise
+    fail deep inside the installation with a bare non-zero pip exit status.
+    """
+    try:
+        probe = subprocess.run(
+            [sys.executable, "-m", "pip", "--version"],
+            capture_output=True, text=True, timeout=PIP_PROBE_TIMEOUT_SECONDS,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        raise MaterializerInstallError(
+            f"cannot run pip with the active interpreter {sys.executable}: {exc}"
+        ) from exc
+    if probe.returncode != 0:
+        detail = (probe.stderr or probe.stdout or "").strip().splitlines()
+        raise MaterializerInstallError(
+            f"the active interpreter {sys.executable} has no usable pip"
+            + (f" ({detail[-1]})" if detail else "")
+            + "; install pip into it (python -m ensurepip --upgrade) or rerun the installer"
+            " with an interpreter that provides pip"
+        )
+
+
 def _install_python(plugin: dict[str, Any], source: Path, runtime: Path, report: Path) -> None:
     package = _contained(source, plugin["package"]["path"], "registered Python project")
     if not (package / "pyproject.toml").is_file():
         raise MaterializerInstallError("registered Python project has no pyproject.toml")
+    _require_pip()
     env = os.environ.copy()
     env.update({"PIP_DISABLE_PIP_VERSION_CHECK": "1", "PIP_NO_INPUT": "1",
                 "PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1"})
@@ -319,7 +364,9 @@ def _install_python(plugin: dict[str, Any], source: Path, runtime: Path, report:
             check=True, env=env, timeout=PIP_TIMEOUT_SECONDS,
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
-        raise MaterializerInstallError(f"Python package installation failed: {exc}") from exc
+        raise MaterializerInstallError(
+            f"Python package installation failed: {exc}; see the pip output above for the cause"
+        ) from exc
 
 
 def _module_exists(root: Path, module: str) -> bool:
