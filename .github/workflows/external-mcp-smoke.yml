@@ -78,3 +78,52 @@ jobs:
           name: mcp-smoke-${{ matrix.plugin }}
           path: mcp-smoke-${{ matrix.plugin }}.json
           if-no-files-found: warn
+
+  context-fabric-intel-macos:
+    name: Live MCP — context-fabric (Intel macOS)
+    runs-on: macos-15-intel
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out Agora
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.10"
+
+      - name: Verify Intel macOS runner
+        shell: bash
+        run: |
+          python - <<'PY'
+          import platform
+          system = platform.system()
+          machine = platform.machine()
+          if system != "Darwin" or machine != "x86_64":
+              raise SystemExit(
+                  f"expected Intel macOS runner, got system={system!r} machine={machine!r}"
+              )
+          print(f"Verified Intel macOS runner: {system} {machine}")
+          PY
+
+      - name: Initialize packaged Context-Fabric MCP on Intel macOS
+        shell: bash
+        run: |
+          set -o pipefail
+          uv run --project verification/mcp-smoke --locked \
+            python scripts/smoke_mcp_plugin.py context-fabric --timeout 180 \
+            | tee mcp-smoke-context-fabric-intel-macos.json
+
+      - name: Upload Intel macOS smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-smoke-context-fabric-intel-macos
+          path: mcp-smoke-context-fabric-intel-macos.json
+          if-no-files-found: warn
