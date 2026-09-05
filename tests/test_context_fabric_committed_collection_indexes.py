@@ -59,6 +59,27 @@ class CommittedCollectionIndexTests(unittest.TestCase):
                 ids.add(member["id"])
                 identities.add(member["path"])
 
+    def test_greek_index_contains_source_backed_homer_iliad_identity(self):
+        catalog = Catalog.from_registry(ROOT)
+        document = load_yaml(catalog.get("greek_literature").member_index_path)
+        matches = [
+            member
+            for member in document["members"]
+            if member.get("canonical_id") == "tlg0012.tlg001.perseus-grc2"
+        ]
+        self.assertEqual(len(matches), 1)
+        iliad = matches[0]
+        self.assertEqual(iliad.get("author"), "Homer")
+        self.assertIn("Iliad", iliad.get("title", ""))
+        self.assertEqual(
+            iliad["path"],
+            "canonical-greekLit/tlg0012/tlg001/perseus-grc2/1",
+        )
+        self.assertEqual(
+            iliad["tf_path"],
+            "canonical-greekLit/tlg0012/tlg001/perseus-grc2/1/tf/1.0",
+        )
+
     def test_installed_plugin_carries_exact_canonical_index_documents(self):
         catalog = Catalog.from_registry(ROOT)
         bundled_root = ROOT / "plugins" / "context-fabric" / "resources" / "collections"

@@ -19,6 +19,7 @@ from agora_context_fabric.collection_index import (
 )
 from agora_context_fabric.gitstore import GitStore
 from agora_context_fabric.resolver import ContextFabricResolver
+from agora_context_fabric.service import ContextFabricService
 
 
 class CountingGitStore(GitStore):
@@ -49,7 +50,7 @@ class CollectionIndexRuntimeTests(unittest.TestCase):
         self.git(source, "commit", "-qm", message)
         return self.git(source, "rev-parse", "HEAD")
 
-    def make_source(self, root: Path) -> tuple[Path, str]:
+    def make_source(self, root: Path, *, include_neutral: bool = False) -> tuple[Path, str]:
         source = root / "source"
         source.mkdir()
         self.git(source, "init", "-q", "-b", "main")
@@ -64,9 +65,14 @@ class CollectionIndexRuntimeTests(unittest.TestCase):
                 "@author=Homer\n"
                 f"@_book={title}\n"
                 f"@urn=urn:cts:greekLit:fixture.{name.casefold()}\n"
+                f"@edition=Fixture {title} edition\n"
                 "\n1\t" + title + "\n",
                 encoding="utf-8",
             )
+        if include_neutral:
+            tf = source / "Archive" / "Volume" / "tf" / "1.0"
+            tf.mkdir(parents=True)
+            (tf / "otype.tf").write_text("@node\n\n1\tword\n", encoding="utf-8")
         return source, self.commit(source, "snapshot A")
 
     @staticmethod
@@ -110,6 +116,65 @@ class CollectionIndexRuntimeTests(unittest.TestCase):
                 source_revision=revision,
             )
             self.assertEqual(store.dataset_root_calls, 1)
+
+    def test_collection_search_exposes_semantic_canonical_edition_and_neutral_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, revision = self.make_source(root, include_neutral=True)
+            store = CountingGitStore(root / "cache")
+            catalog = self.catalog(source)
+            resolver = ContextFabricResolver(catalog, store)
+            service = ContextFabricService(catalog, resolver, object())
+
+            for query in (
+                "Homer",
+                "Iliad",
+                "urn:cts:greekLit:fixture.iliad",
+                "Homer/Iliad",
+                "Fixture Iliad edition",
+            ):
+                result = service.list_members("greek", query=query)
+                self.assertEqual(result["source_revision"], revision)
+                self.assertTrue(
+                    any(member["title"] == "Iliad" for member in result["members"]),
+                    (query, result),
+                )
+
+            iliad_page = service.list_members("greek", query="Iliad", limit=1)
+            iliad = iliad_page["members"][0]
+            self.assertEqual(iliad["author"], "Homer")
+            self.assertEqual(iliad["title"], "Iliad")
+            self.assertEqual(iliad["canonical_id"], "urn:cts:greekLit:fixture.iliad")
+            self.assertEqual(iliad["edition"], "Fixture Iliad edition")
+            self.assertEqual(
+                iliad["verification"],
+                {"status": "community", "evidence": [], "notes": []},
+            )
+            self.assertEqual(iliad["identity_path"], "Homer/Iliad")
+            self.assertEqual(iliad["relative_path"], "Homer/Iliad/tf/1.0")
+            self.assertEqual(iliad["source_revision"], revision)
+
+            neutral_page = service.list_members("greek", query="Archive/Volume")
+            self.assertEqual(neutral_page["total"], 1)
+            neutral = neutral_page["members"][0]
+            self.assertEqual(neutral["identity_path"], "Archive/Volume")
+            self.assertIsNone(neutral["author"])
+            self.assertIsNone(neutral["title"])
+            self.assertIsNone(neutral["canonical_id"])
+            self.assertIsNone(neutral["edition"])
+
+            first_page = service.list_members("greek", query="Homer", limit=1)
+            second_page = service.list_members(
+                "greek",
+                query="Homer",
+                source_revision=first_page["source_revision"],
+                offset=1,
+                limit=1,
+            )
+            self.assertEqual(first_page["source_revision"], revision)
+            self.assertEqual(second_page["source_revision"], revision)
+            self.assertEqual(first_page["total"], 2)
+            self.assertEqual(second_page["total"], 2)
 
     def test_generated_index_persists_across_resolver_instances(self):
         with tempfile.TemporaryDirectory() as tmp:
