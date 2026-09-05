@@ -57,7 +57,7 @@ class Catalog:
     def _resources_from_document(
         doc: dict[str, Any],
         *,
-        base_dir: Path,
+        base_dir: Path = Path("."),
         bundled_collection_index_dir: Path | None = None,
     ) -> list[ResourceSpec]:
         resources: list[ResourceSpec] = []
@@ -103,7 +103,7 @@ class Catalog:
                     repository=repository,
                     languages=tuple(item.get("languages", [])),
                     disciplines=tuple(item.get("disciplines", [])),
-                    member_index=str(member_index_path) if member_index_path is not None else None,
+                    member_index=member_index_reference,
                     member_index_path=member_index_path,
                     member_index_reference=member_index_reference,
                     collection_discovery=collection.get("discovery"),
