@@ -1,7 +1,1791 @@
 schema_version: 1
 collection_id: patristics
-index_status: dynamic
-notes:
-  - Members are discovered lazily from current upstream Git tree metadata.
-  - The empty committed member list is intentional; stable member IDs are derived from discovered dataset paths at runtime.
-members: []
+source_revision: 75d0e305c4f88a9304a4cf524dc19b9a66b0ec9e
+index_status: complete
+members:
+- id: athanasius-of-alexandria-de-decretis-nicaenae-synodi-chapters-41-and-42-f15ddfa4
+  path: Athanasius Of Alexandria/De Decretis Nicaenae Synodi (Chapters 41 And 42)
+  tf_path: Athanasius Of Alexandria/De Decretis Nicaenae Synodi (Chapters 41 And 42)/tf/1.0
+  languages:
+  - greek
+  author: Athanasius of Alexandria
+  title: De decretis Nicaenae synodi (Chapters 41 and 42)
+  canonical_id: urn:cts:greekLit:tlg2035.tlg003.opp-grc1
+  edition: Gelasius Kirchengeschichte, Die griechischen christlichen Schriftsteller der ersten drei Jahrhunderte, Margret Heinemann, Gerhard Loeschke, Athanasius of Alexandria, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1918, 28.
+  verification:
+    status: community
+- id: athanasius-oratio-i-contra-arianos-9bae95d2
+  path: Athanasius/Oratio I Contra Arianos
+  tf_path: Athanasius/Oratio I Contra Arianos/tf/1.0
+  languages:
+  - greek
+  author: Athanasius
+  title: Oratio I contra Arianos
+  canonical_id: urn:cts:greekLit:tlg2035.tlg130.1st1K-grc1
+  edition: The Orations of St. Athanasius against the Arians, William Bright, Athanasius, Clarendon, Oxford, 1884, The Internet Archive.
+  verification:
+    status: community
+- id: athanasius-oratio-ii-contra-arianos-9d0523a7
+  path: Athanasius/Oratio Ii Contra Arianos
+  tf_path: Athanasius/Oratio Ii Contra Arianos/tf/1.0
+  languages:
+  - greek
+  author: Athanasius
+  title: Oratio II contra Arianos
+  canonical_id: urn:cts:greekLit:tlg2035.tlg131.1st1K-grc1
+  edition: The Orations of St. Athanasius against the Arians, William Bright, Athanasius, Clarendon, Oxford, 1884, The Internet Archive.
+  verification:
+    status: community
+- id: athanasius-oratio-iii-contra-arianos-c25ad976
+  path: Athanasius/Oratio Iii Contra Arianos
+  tf_path: Athanasius/Oratio Iii Contra Arianos/tf/1.0
+  languages:
+  - greek
+  author: Athanasius
+  title: Oratio III contra Arianos
+  canonical_id: urn:cts:greekLit:tlg2035.tlg132.1st1K-grc1
+  edition: The Orations of St. Athanasius against the Arians, William Bright, Athanasius, Clarendon, Oxford, 1884, The Internet Archive.
+  verification:
+    status: community
+- id: athanasius-oratio-quarta-contra-arianos-sp-88b09524
+  path: Athanasius/Oratio Quarta Contra Arianos [Sp]
+  tf_path: Athanasius/Oratio Quarta Contra Arianos [Sp]/tf/1.0
+  languages:
+  - greek
+  author: Athanasius
+  title: Oratio quarta contra Arianos [Sp]
+  canonical_id: urn:cts:greekLit:tlg2035.tlg117.1st1K-grc1
+  edition: The Orations of St. Athanasius against the Arians, William Bright, Athanasius, Clarendon, Oxford, 1884, The Internet Archive.
+  verification:
+    status: community
+- id: athenagoras-1-de-resurrectione-cb05763d
+  path: Athenagoras/1_De Resurrectione
+  tf_path: Athenagoras/1_De Resurrectione/tf/1.0
+  languages:
+  - greek
+  author: Athenagoras
+  title: De Resurrectione
+  canonical_id: urn:cts:greekLit:tlg1205.tlg002.perseus-grc1
+  edition: Athenagorae Philosophi Atheniensis Opera, Athenagoras, Johann Karl Theodor von Otto, Mauke, Ienae, 1857, Internet Archive.
+  verification:
+    status: community
+- id: athenagoras-de-resurrectione-b0bf6135
+  path: Athenagoras/De Resurrectione
+  tf_path: Athenagoras/De Resurrectione/tf/1.0
+  languages:
+  - greek
+  author: Athenagoras
+  title: De resurrectione
+  canonical_id: urn:cts:greekLit:tlg1205.tlg002.perseus-grc2
+  edition: Athenagoras, Athenagoras, Francis Andrew March, William Baxter Owen, Harper and Brothers, New York, 1876, Google Books.
+  verification:
+    status: community
+- id: athenagoras-legatio-sive-supplicatio-pro-christianis-8218264b
+  path: Athenagoras/Legatio Sive Supplicatio Pro Christianis
+  tf_path: Athenagoras/Legatio Sive Supplicatio Pro Christianis/tf/1.0
+  languages:
+  - greek
+  author: Athenagoras
+  title: Legatio sive Supplicatio pro Christianis
+  canonical_id: urn:cts:greekLit:tlg1205.tlg001.perseus-grc1
+  edition: Athenagorae Philosophi Atheniensis Opera, Athenagoras, Johann Karl Theodor von Otto, Mauke, Ienae, 1857, Internet Archive.
+  verification:
+    status: community
+- id: athenagoras-supplication-pro-christianis-24181771
+  path: Athenagoras/Supplication Pro Christianis
+  tf_path: Athenagoras/Supplication Pro Christianis/tf/1.0
+  languages:
+  - greek
+  author: Athenagoras
+  title: Supplication pro Christianis
+  canonical_id: urn:cts:greekLit:tlg1205.tlg001.perseus-grc2
+  edition: Athenagoras, Athenagoras, Francis Andrew March, William Baxter Owen, Harper and Brothers, New York, 1876, Internet Archive.
+  verification:
+    status: community
+- id: basil-saint-bishop-of-caesarea-de-legendis-gentilium-libris-a8b11d3e
+  path: Basil, Saint, Bishop Of Caesarea/De Legendis Gentilium Libris
+  tf_path: Basil, Saint, Bishop Of Caesarea/De Legendis Gentilium Libris/tf/1.0
+  languages:
+  - greek
+  author: Basil, Saint, Bishop of Caesarea
+  title: De legendis gentilium libris
+  edition: Basil, Saint, Bishop of Caesarea, Roy J. Deferrari, Saint Basil The Letters, in Four Volumes, William Heinemann; G.P. Putnam's Sons, London; New York, 1926-.
+  verification:
+    status: community
+- id: basil-saint-bishop-of-caesarea-epistulae-b3561818
+  path: Basil, Saint, Bishop Of Caesarea/Epistulae
+  tf_path: Basil, Saint, Bishop Of Caesarea/Epistulae/tf/1.0
+  languages:
+  - greek
+  author: Basil, Saint, Bishop of Caesarea
+  title: Epistulae
+  edition: Basil, Saint, Bishop of Caesarea, Roy J. Deferrari, Saint Basil The Letters, in Four Volumes, William Heinemann; G.P. Putnam's Sons, London; New York, 1926-.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-1-commentarius-in-apocalypsin-a6fc5976
+  path: Catenae (Novum Testamentum)/1_Commentarius In Apocalypsin
+  tf_path: Catenae (Novum Testamentum)/1_Commentarius In Apocalypsin/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Commentarius In Apocalypsin
+  canonical_id: urn:cts:greekLit:tlg4102.tlgX03.opp-grc1
+  edition: Catenæ Græcorum Patrum in Novum Testamentum, J. A. CRAMER, S.T.P, Oxford University Press, OXONII, 1840, 8, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-acta-7cf28cfa
+  path: Catenae (Novum Testamentum)/Catena In Acta
+  tf_path: Catenae (Novum Testamentum)/Catena In Acta/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Acta
+  canonical_id: urn:cts:greekLit:tlg4102.tlg008.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Acta Ss. Apostolorum, Oxford University Press, Oxford, 1844, 3, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ad-colossenses-f3020e5c
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Colossenses
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Colossenses/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Ad Colossenses
+  canonical_id: urn:cts:greekLit:tlg4102.tlg022.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Galatas, Ephesios, Philippenses, Colossenses, Thessalonicenses, Oxford University Press, Oxford, 1842, 6, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ad-ephesios-c4f6248a
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Ephesios
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Ephesios/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Ad Ephesios
+  canonical_id: urn:cts:greekLit:tlg4102.tlg020.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas Catholicas Et Apocalypsin, Oxford University Press, Oxford, 1844, 6, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ad-galatas-c6a337e6
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Galatas
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Galatas/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Ad Galatas
+  canonical_id: urn:cts:greekLit:tlg4102.tlg019.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Galatas, Ephesios, Philippenses, Colossenses, Thessalonicenses, Oxford University Press, Oxford, 1842, 6, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ad-hebraeos-07ca3c36
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Hebraeos
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Hebraeos/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Ad Hebraeos
+  canonical_id: urn:cts:greekLit:tlg4102.tlg038.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Timotheum, Titum, Philemona, Et Ad Hebraeos, Oxford University Press, Oxford, 1843, 7, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ad-philemonem-0ce5a5bb
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Philemonem
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Philemonem/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Ad Philemonem
+  canonical_id: urn:cts:greekLit:tlg4102.tlg037.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Timotheum, Titum, Philemona, Et Ad Hebraeos, Oxford University Press, Oxford, 1843, 7, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ad-philippenses-424985fe
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Philippenses
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Philippenses/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Ad Philippenses
+  canonical_id: urn:cts:greekLit:tlg4102.tlg021.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Galatas, Ephesios, Philippenses, Colossenses, Thessalonicenses, Oxford University Press, Oxford, 1842, 6, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ad-romanos-typus-monacensi-d73d4d88
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Romanos (Typus Monacensis)
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Romanos (Typus Monacensis)/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Ad Romanos (typus Monacensis)
+  canonical_id: urn:cts:greekLit:tlg4102.tlg011.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistulam S. Pauli Ad Romanos, Oxford University Press, Oxonii, 1844, 4, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ad-romanos-typus-vaticanus-9ff92bfd
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Romanos (Typus Vaticanus)
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Romanos (Typus Vaticanus)/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Ad Romanos (typus Vaticanus)
+  canonical_id: urn:cts:greekLit:tlg4102.tlg010.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistulam S. Pauli Ad Romanos, Oxford University Press, Oxford, 1844, 4, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ad-titum-ee64239b
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Titum
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ad Titum/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Ad Titum
+  canonical_id: urn:cts:greekLit:tlg4102.tlg036.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Timotheum, Titum, Philemona, Et Ad Hebraeos, Oxford University Press, Oxford, 1843, 7, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-i-ad-corinthios-a65cb1f6
+  path: Catenae (Novum Testamentum)/Catena In Epistulam I Ad Corinthios
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam I Ad Corinthios/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam I Ad Corinthios
+  canonical_id: urn:cts:greekLit:tlg4102.tlg012.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Corinthios, Oxford University Press, Oxford, 1844, 5, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-i-ad-thessalonicenses-7e290fbc
+  path: Catenae (Novum Testamentum)/Catena In Epistulam I Ad Thessalonicenses
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam I Ad Thessalonicenses/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam I Ad Thessalonicenses
+  canonical_id: urn:cts:greekLit:tlg4102.tlg023.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Galatas, Ephesios, Philippenses, Colossenses, Thessalonicenses, Oxford University Press, Oxford, 1842, 6, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-i-ad-timotheum-6c8bd461
+  path: Catenae (Novum Testamentum)/Catena In Epistulam I Ad Timotheum
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam I Ad Timotheum/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam I Ad Timotheum
+  canonical_id: urn:cts:greekLit:tlg4102.tlg034.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Timotheum, Titum, Philemona, Et Ad Hebraeos, Oxford University Press, Oxford, 1843, 7, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ii-ad-corinthios-a1fd896d
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ii Ad Corinthios
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ii Ad Corinthios/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam II Ad Corinthios
+  canonical_id: urn:cts:greekLit:tlg4102.tlg013.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistulam S. Pauli Ad Romanos, Oxford University Press, Oxford, 1844, 5, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ii-ad-thessalonicenses-76d003c2
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ii Ad Thessalonicenses
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ii Ad Thessalonicenses/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam II Ad Thessalonicenses
+  canonical_id: urn:cts:greekLit:tlg4102.tlg024.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Galatas, Ephesios, Philippenses, Colossenses, T hessalonicenses, Oxford University Press, Oxford, 1842, 6, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-ii-ad-timotheum-d01452de
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Ii Ad Timotheum
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Ii Ad Timotheum/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam II Ad Timotheum
+  canonical_id: urn:cts:greekLit:tlg4102.tlg035.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas S. Pauli Ad Timotheum, Titum, Philemona, Et Ad Hebraeos, Oxford University Press, Oxford, 1843, 7, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-jacobi-6e862ccf
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Jacobi
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Jacobi/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Jacobi
+  canonical_id: urn:cts:greekLit:tlg4102.tlg040.opp-grc1
+  edition: Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas Catholicas et Apocalypsin, J. A. Cramer, Oxford University Press, Oxford, 1844, 8.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-joannis-i-4d3282fb
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Joannis I
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Joannis I/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Joannis I
+  canonical_id: urn:cts:greekLit:tlg4102.tlg043.opp-grc1
+  edition: Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas Catholicas et Apocalypsin, J. A. Cramer, Catenæ Græcorum Patrum in Novum Testamentum, Oxford University Press, Oxford, 1844, 8, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-joannis-ii-a4a3f01a
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Joannis Ii
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Joannis Ii/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Joannis II
+  canonical_id: urn:cts:greekLit:tlg4102.tlg044.opp-grc1
+  edition: Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas Catholicas et Apocalypsin, J. A. Cramer, Oxford University Press, Oxford, 1844, 8, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-joannis-iii-19e11aaf
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Joannis Iii
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Joannis Iii/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Joannis III
+  canonical_id: urn:cts:greekLit:tlg4102.tlg045.opp-grc1
+  edition: Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas Catholicas et Apocalypsin, J. A. Cramer, Oxford University Press, Oxford, 1844, 8, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-juda-5cbb6add
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Juda
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Juda/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Juda
+  canonical_id: urn:cts:greekLit:tlg4102.tlg046.opp-grc1
+  edition: Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas Catholicas et Apocalypsin, J. A. Cramer, Oxford University Press, Oxford, 1844, 8, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-petri-i-96cfb0f5
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Petri I
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Petri I/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Petri I
+  canonical_id: urn:cts:greekLit:tlg4102.tlg041.opp-grc1
+  edition: Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas Catholicas et Apocalypsin, J. A. Cramer, Oxford University Press, Oxford, 1844, 8, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-epistulam-petri-ii-2e712147
+  path: Catenae (Novum Testamentum)/Catena In Epistulam Petri Ii
+  tf_path: Catenae (Novum Testamentum)/Catena In Epistulam Petri Ii/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Epistulam Petri II
+  canonical_id: urn:cts:greekLit:tlg4102.tlg042.opp-grc1
+  edition: Catenæ Græcorum Patrum in Novum Testamentum, In Epistolas Catholicas et Apocalypsin, J. A. Cramer, Oxford University Press, Oxford, 1844, 8, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-joannem-daaf1750
+  path: Catenae (Novum Testamentum)/Catena In Joannem
+  tf_path: Catenae (Novum Testamentum)/Catena In Joannem/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Joannem
+  canonical_id: urn:cts:greekLit:tlg4102.tlg005.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Evangelia S. Lucae Et S. Joannis, Oxford University Press, Oxford, 1844, 2, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-lucam-01095682
+  path: Catenae (Novum Testamentum)/Catena In Lucam
+  tf_path: Catenae (Novum Testamentum)/Catena In Lucam/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Lucam
+  canonical_id: urn:cts:greekLit:tlg4102.tlg004.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Evangelia S. Lucae Et S. Joannis, Oxford University Press, Oxford, 1844, 2, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-marcum-de3afe03
+  path: Catenae (Novum Testamentum)/Catena In Marcum
+  tf_path: Catenae (Novum Testamentum)/Catena In Marcum/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Marcum
+  canonical_id: urn:cts:greekLit:tlg4102.tlg002.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Evangelia S. Matthaei Et S. Marci, Oxford University Press, Oxford, 1844, 1, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-catena-in-matthaeum-42fbc412
+  path: Catenae (Novum Testamentum)/Catena In Matthaeum
+  tf_path: Catenae (Novum Testamentum)/Catena In Matthaeum/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Catena In Matthaeum
+  canonical_id: urn:cts:greekLit:tlg4102.tlg001.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Evangelia S. Matthaei Et S. Marci, Oxford University Press, Oxford, 1844, 1, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-commentarius-in-apocalypsin-0b967f21
+  path: Catenae (Novum Testamentum)/Commentarius In Apocalypsin
+  tf_path: Catenae (Novum Testamentum)/Commentarius In Apocalypsin/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Commentarius In Apocalypsin
+  canonical_id: urn:cts:greekLit:tlg4102.tlgX02.opp-grc1
+  edition: Catenæ Græcorum Patrum in Novum Testamentum, J. A. CRAMER, S.T.P, Oxford University Press, OXONII, 1840, 8, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-prooemium-pseudo-oecumenii-in-apocalypsin-comm-32b411cf
+  path: Catenae (Novum Testamentum)/Prooemium Pseudo-Oecumenii In Apocalypsin Commentarii
+  tf_path: Catenae (Novum Testamentum)/Prooemium Pseudo-Oecumenii In Apocalypsin Commentarii/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Prooemium Pseudo-Oecumenii In Apocalypsin Commentarii
+  canonical_id: urn:cts:greekLit:tlg4102.tlgX01.opp-grc1
+  edition: Catenæ Græcorum Patrum in Novum Testamentum, J. A. CRAMER, S.T.P, Oxford University Press, OXONII, 1840, 8, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-supplementum-et-varietas-lectionis-ad-catenam-67de8632
+  path: Catenae (Novum Testamentum)/Supplementum Et Varietas Lectionis Ad Catenam In Evangelium
+  tf_path: Catenae (Novum Testamentum)/Supplementum Et Varietas Lectionis Ad Catenam In Evangelium/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Supplementum Et Varietas Lectionis Ad Catenam In Evangelium
+  canonical_id: urn:cts:greekLit:tlg4102.tlg007.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Evangelia S. Lucae Et S. Joannis, Oxford University Press, Oxford, 1844, 2, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-supplementum-et-varietas-lectionis-ad-catenam-90dab846
+  path: Catenae (Novum Testamentum)/Supplementum Et Varietas Lectionis Ad Catenam In Evangelium Sancti Lucae
+  tf_path: Catenae (Novum Testamentum)/Supplementum Et Varietas Lectionis Ad Catenam In Evangelium Sancti Lucae/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Supplementum Et Varietas Lectionis Ad Catenam In Evangelium sancti Lucae
+  canonical_id: urn:cts:greekLit:tlg4102.tlg006.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Evangelia S. Lucae Et S. Joannis, Oxford University Press, Oxford, 1844, 2, Internet Archive.
+  verification:
+    status: community
+- id: catenae-novum-testamentum-supplementum-et-varietas-lectionis-ad-commenta-01a29ade
+  path: Catenae (Novum Testamentum)/Supplementum Et Varietas Lectionis Ad Commentarium Chrysostomi In Evangelium Sancti Matthaei
+  tf_path: Catenae (Novum Testamentum)/Supplementum Et Varietas Lectionis Ad Commentarium Chrysostomi In Evangelium Sancti Matthaei/tf/1.0
+  languages:
+  - greek
+  author: Catenae (Novum Testamentum)
+  title: Supplementum et varietas lectionis ad commentarium Chrysostomi in evangelium sancti Matthaei
+  canonical_id: urn:cts:greekLit:tlg4102.tlg003.opp-grc1
+  edition: John Anthony Cramer, Catenæ Græcorum Patrum in Novum Testamentum, In Evangelia S. Matthaei Et S. Marci, Oxford University Press, Oxford, 1844, 1, Internet Archive.
+  verification:
+    status: community
+- id: chronicon-paschale-chronicon-paschale-0d96133a
+  path: Chronicon Paschale/Chronicon Paschale
+  tf_path: Chronicon Paschale/Chronicon Paschale/tf/1.0
+  languages:
+  - greek
+  author: Chronicon Paschale
+  title: Chronicon Paschale
+  canonical_id: urn:cts:greekLit:tlg2371.tlg001.opp-grc1
+  edition: Chronicon Paschale, Corpus Scriptorum Historiae Byzantinae, Ludwig Dindorf, Chronicon Paschale, Weber, Bonn, 1832, 1, 16, Hathi Trust.
+  verification:
+    status: community
+- id: clemens-romanus-epistula-i-ad-corinthios-75c88923
+  path: Clemens Romanus/Epistula I Ad Corinthios
+  tf_path: Clemens Romanus/Epistula I Ad Corinthios/tf/1.0
+  languages:
+  - greek
+  author: Clemens Romanus
+  title: Epistula I ad Corinthios
+  canonical_id: urn:cts:greekLit:tlg1271.tlg001.1st1K-grc1
+  edition: Clemens Romanus, Kirsopp Lake, The Apostolic Fathers, William Heinemann, The Macmillan Company, New York, London, 1912, 1, Internet Archive.
+  verification:
+    status: community
+- id: clemens-romanus-epistula-ii-ad-corinthios-4a072f57
+  path: Clemens Romanus/Epistula Ii Ad Corinthios
+  tf_path: Clemens Romanus/Epistula Ii Ad Corinthios/tf/1.0
+  languages:
+  - greek
+  author: Clemens Romanus
+  title: Epistula II ad Corinthios
+  canonical_id: urn:cts:greekLit:tlg1271.tlg002.1st1K-grc1
+  edition: Clemens Romanus, Kirsopp Lake, The Apostolic Fathers, William Heinemann, The Macmillan Company, New York, London, 1912, 1, Internet Archive.
+  verification:
+    status: community
+- id: clement-of-alexandria-1-protrepticus-f91c39bd
+  path: Clement Of Alexandria/1_Protrepticus
+  tf_path: Clement Of Alexandria/1_Protrepticus/tf/1.0
+  languages:
+  - greek
+  author: Clement of Alexandria
+  title: Protrepticus
+  canonical_id: urn:cts:greekLit:tlg0555.tlg001.opp-grc1
+  edition: Clement of Alexandria, Otto Stahlin, Protrepticus und Paedagogus, Hinrichs, Leipzig, 1905.
+  verification:
+    status: community
+- id: clement-of-alexandria-eclogae-propheticae-98da7de4
+  path: Clement Of Alexandria/Eclogae Propheticae
+  tf_path: Clement Of Alexandria/Eclogae Propheticae/tf/1.0
+  languages:
+  - greek
+  author: Clement of Alexandria
+  title: Eclogae propheticae
+  canonical_id: urn:cts:greekLit:tlg0555.tlg005.opp-grc1
+  edition: Clement of Alexandria, Otto Stahlin, Clemens Alexandrinus Dritter Band, Hinrichs, Leipzig, 1909, 3, Internet Archive.
+  verification:
+    status: community
+- id: clement-of-alexandria-excerpta-ex-theodoto-0943bcc5
+  path: Clement Of Alexandria/Excerpta Ex Theodoto
+  tf_path: Clement Of Alexandria/Excerpta Ex Theodoto/tf/1.0
+  languages:
+  - greek
+  author: Clement of Alexandria
+  title: Excerpta ex Theodoto
+  canonical_id: urn:cts:greekLit:tlg0555.tlg007.opp-grc1
+  edition: Clement of Alexandria, Otto Stahlin, Clemens Alexandrinus Dritter Band, Hinrichs, Leipzig, 1909, 3, Internet Archive.
+  verification:
+    status: community
+- id: clement-of-alexandria-exhortation-to-endurance-or-to-the-newly-baptized-a948a293
+  path: Clement Of Alexandria/Exhortation To Endurance Or To The Newly Baptized
+  tf_path: Clement Of Alexandria/Exhortation To Endurance Or To The Newly Baptized/tf/1.0
+  languages:
+  - greek
+  author: Clement of Alexandria
+  title: Exhortation to Endurance or to the Newly Baptized
+  edition: Clement of Alexandria, G.W. Butterworth, Clement of Alexandria, with an English Translation by G.W. Butterworth, William Heinemann Ltd; G.P. Putnam's Sons, London; New York, 1919.
+  verification:
+    status: community
+- id: clement-of-alexandria-paedagogus-4e1b7cb7
+  path: Clement Of Alexandria/Paedagogus
+  tf_path: Clement Of Alexandria/Paedagogus/tf/1.0
+  languages:
+  - greek
+  author: Clement of Alexandria
+  title: Paedagogus
+  canonical_id: urn:cts:greekLit:tlg0555.tlg002.opp-grc1
+  edition: Clement of Alexandria, Otto Stahlin, Protrepticus und Paedagogus, Hinrichs, Leipzig, 1905, Internet Archive.
+  verification:
+    status: community
+- id: clement-of-alexandria-protrepticus-f8c9b645
+  path: Clement Of Alexandria/Protrepticus
+  tf_path: Clement Of Alexandria/Protrepticus/tf/1.0
+  languages:
+  - greek
+  author: Clement of Alexandria
+  title: Protrepticus
+  edition: Clement of Alexandria, G.W. Butterworth, Clement of Alexandria, with an English Translation by G.W. Butterworth, William Heinemann Ltd; G.P. Putnam's Sons, London; New York, 1919.
+  verification:
+    status: community
+- id: clement-of-alexandria-quis-dis-salvetur-75668fec
+  path: Clement Of Alexandria/Quis Dis Salvetur
+  tf_path: Clement Of Alexandria/Quis Dis Salvetur/tf/1.0
+  languages:
+  - greek
+  author: Clement of Alexandria
+  title: Quis Dis Salvetur
+  edition: Clement of Alexandria, G.W. Butterworth, Clement of Alexandria, with an English Translation by G.W. Butterworth, William Heinemann Ltd; G.P. Putnam's Sons, London; New York, 1919.
+  verification:
+    status: community
+- id: clement-of-alexandria-quis-dives-salvetur-755dc41b
+  path: Clement Of Alexandria/Quis Dives Salvetur
+  tf_path: Clement Of Alexandria/Quis Dives Salvetur/tf/1.0
+  languages:
+  - greek
+  author: Clement of Alexandria
+  title: Quis dives salvetur
+  canonical_id: urn:cts:greekLit:tlg0555.tlg006.opp-grc1
+  edition: Clement of Alexandria, Otto Stahlin, Clemens Alexandrinus Dritter Band, Hinrichs, Leipzig, 1909, 3, Internet Archive.
+  verification:
+    status: community
+- id: clement-of-alexandria-stromata-a4ccd16d
+  path: Clement Of Alexandria/Stromata
+  tf_path: Clement Of Alexandria/Stromata/tf/1.0
+  languages:
+  - greek
+  author: Clement of Alexandria
+  title: Stromata
+  canonical_id: urn:cts:greekLit:tlg0555.tlg004b.opp-grc1
+  edition: Clement of Alexandria, Otto Stahlin, Clemens Alexandrinus Dritter Band, Hinrichs, Leipzig, 1909, 3, Internet Archive.
+  verification:
+    status: community
+- id: cyrillus-alexandrinus-in-xii-prophetas-b1528051
+  path: Cyrillus Alexandrinus/In Xii Prophetas
+  tf_path: Cyrillus Alexandrinus/In Xii Prophetas/tf/1.0
+  languages:
+  - greek
+  author: Cyrillus Alexandrinus
+  title: In XII Prophetas
+  canonical_id: urn:cts:greekLit:tlg4090.tlg001.1st1K-grc1
+  edition: Cyrilli Archiepiscopi Alexandrini In XII Prophetas, Philippus Edvardus Pusey, Cyrillus Alexandrinus, Clarendon, Oxford, 1868, 1-2.
+  verification:
+    status: community
+- id: didymus-alexandrinus-mensurae-marmorum-ac-lignorum-5fc5ca7e
+  path: Didymus Alexandrinus/Mensurae Marmorum Ac Lignorum
+  tf_path: Didymus Alexandrinus/Mensurae Marmorum Ac Lignorum/tf/1.0
+  languages:
+  - greek
+  author: Didymus Alexandrinus
+  title: Mensurae marmorum ac lignorum
+  canonical_id: urn:cts:greekLit:tlg0357.tlg001.1st1K-grc1
+  edition: Heronis Alexandrini geometricorum et stereometricorum reliquiae, Frederick Hultsch, Didymus Alexandrinus, Weidmann, Berlin, 1864, The Internet Archive.
+  verification:
+    status: community
+- id: didymus-alexandrinus-mensuris-marmorum-ef95833e
+  path: Didymus Alexandrinus/Mensuris Marmorum
+  tf_path: Didymus Alexandrinus/Mensuris Marmorum/tf/1.0
+  languages:
+  - greek
+  author: Didymus Alexandrinus
+  title: Mensuris marmorum
+  canonical_id: urn:cts:greekLit:tlg0357.tlg001.1st1K-grc2
+  edition: Metrologicorum Scriptorum, Frederick Hultsch, Didymus Alexandrinus, Teubner, Leipzig, 1864, The Internet Archive.
+  verification:
+    status: community
+- id: dionysius-corinthius-fragmenta-339c65f1
+  path: Dionysius Corinthius/Fragmenta
+  tf_path: Dionysius Corinthius/Fragmenta/tf/1.0
+  languages:
+  - greek
+  author: Dionysius Corinthius
+  title: Fragmenta
+  canonical_id: urn:cts:greekLit:tlg1329.tlg001.1st1K-grc1
+  edition: Reliquiae sacrae, Martin Joseph Routh, Dionysius Corinthius, Oxford University Press, Oxford, 1846, 1, Hathi Trust.
+  verification:
+    status: community
+- id: epiphanius-anacephalaeosis-sp-b2eab699
+  path: Epiphanius/Anacephalaeosis [Sp]
+  tf_path: Epiphanius/Anacephalaeosis [Sp]/tf/1.0
+  languages:
+  - greek
+  author: Epiphanius
+  title: Anacephalaeosis [Sp]
+  canonical_id: urn:cts:greekLit:tlg2021.tlg003.opp-grc1
+  edition: Epiphanius, Bände 1‑3, Karl Holl, Epiphanius, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1915-1933, Vol. I-III.
+  verification:
+    status: community
+- id: epiphanius-ancoratus-24728779
+  path: Epiphanius/Ancoratus
+  tf_path: Epiphanius/Ancoratus/tf/1.0
+  languages:
+  - greek
+  author: Epiphanius
+  title: Ancoratus
+  canonical_id: urn:cts:greekLit:tlg2021.tlg001.opp-grc1
+  edition: Epiphanius, (Ancoratus und Panarion), Karl Holl, Epiphanius, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1915, Vol I.
+  verification:
+    status: community
+- id: epiphanius-panarion-adversus-haereses-1d537b2f
+  path: Epiphanius/Panarion (Adversus Haereses)
+  tf_path: Epiphanius/Panarion (Adversus Haereses)/tf/1.0
+  languages:
+  - greek
+  author: Epiphanius
+  title: Panarion (Adversus haereses)
+  canonical_id: urn:cts:greekLit:tlg2021.tlg002.opp-grc1
+  edition: Epiphanius, Bände 1‑3, Karl Holl, Epiphanius, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1915-1933, Vol. I-III.
+  verification:
+    status: community
+- id: eusebius-of-caesarea-historia-ecclesiastica-d04cbdc9
+  path: Eusebius Of Caesarea/Historia Ecclesiastica
+  tf_path: Eusebius Of Caesarea/Historia Ecclesiastica/tf/1.0
+  languages:
+  - greek
+  author: Eusebius of Caesarea
+  title: Historia ecclesiastica
+  edition: Eusebius, The Ecclesiastical History, Vol 1-2, Eusebius of Caesarea, Kirsopp Lake, J.E.L. Oulton, H.J. Lawlor, William Heinemann; G.P. Putnam's Press; Harvard University Press, London; New York; Cambridge, Mass, 1926-1932.
+  verification:
+    status: community
+- id: eusebius-1-historia-ecclesiastica-16e7d57d
+  path: Eusebius/1_Historia Ecclesiastica
+  tf_path: Eusebius/1_Historia Ecclesiastica/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: Historia Ecclesiastica
+  canonical_id: urn:cts:greekLit:tlg2018.tlg002.opp-grc2
+  edition: Eusebii Caesariensis Opera, Guilielmus Dindorfius, Eusebius, Teubner, Leipzig, 1871, IV, Internet Archive.
+  verification:
+    status: community
+- id: eusebius-constantini-imperatoris-oratio-ad-coetum-sanctorum-f446fa14
+  path: Eusebius/Constantini Imperatoris Oratio Ad Coetum Sanctorum
+  tf_path: Eusebius/Constantini Imperatoris Oratio Ad Coetum Sanctorum/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: Constantini imperatoris oratio ad coetum sanctorum
+  canonical_id: urn:cts:greekLit:tlg2018.tlg021.opp-grc1
+  edition: Eusebius Werke, Ivar A. Heikel, Eusebius, J.C.Hinrichs'Sche Buchhandlung, Leipzig, 1902, Vol. I, Internet Archive.
+  verification:
+    status: community
+- id: eusebius-de-ecclesiastica-theologia-cf653f49
+  path: Eusebius/De Ecclesiastica Theologia
+  tf_path: Eusebius/De Ecclesiastica Theologia/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: De Ecclesiastica Theologia
+  canonical_id: urn:cts:greekLit:tlg2018.tlg009.opp-grc1
+  edition: 'Eusebius Werke, Vierter Band: Gegen Marcell, Über die Kirchliche Theologie, Die Fragmente Marcells, Erich Klostermann, Eusebius, J. C. Hinrichs''sche Buchhandlung, Leipzig, 1906, 4, Internet Archive.'
+  verification:
+    status: community
+- id: eusebius-de-laudibus-constantini-13a1fc1d
+  path: Eusebius/De Laudibus Constantini
+  tf_path: Eusebius/De Laudibus Constantini/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: De laudibus Constantini
+  canonical_id: urn:cts:greekLit:tlg2018.tlg022.opp-grc1
+  edition: Eusebius Werke, Ivar A. Heikel, Eusebius, J.C.Hinrichs'sche Buchhandlung, Leipzig, 1902, Vol. I, Internet Archive.
+  verification:
+    status: community
+- id: eusebius-de-martyribus-palaestinae-recensio-brevior-1048e1ee
+  path: Eusebius/De Martyribus Palaestinae (Recensio Brevior)
+  tf_path: Eusebius/De Martyribus Palaestinae (Recensio Brevior)/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: De Martyribus Palaestinae (Recensio Brevior)
+  canonical_id: urn:cts:greekLit:tlg2018.tlg003.opp-grc1
+  edition: Eusebii Caesariensis Opera, Guilielmus Dindorfius, Eusebius, Teubner, Leipzig, 1871, IV, Internet Archive.
+  verification:
+    status: community
+- id: eusebius-de-theophania-fragmenta-0aa46678
+  path: Eusebius/De Theophania (Fragmenta)
+  tf_path: Eusebius/De Theophania (Fragmenta)/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: De Theophania (Fragmenta)
+  canonical_id: urn:cts:greekLit:tlg2018.tlg010.opp-grc1
+  edition: Eusebius Werke, Hugo Gressmann, Eusebius, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1904, vol. iii pt. ii, Internet Archive.
+  verification:
+    status: community
+- id: eusebius-demonstratio-evangelica-68126919
+  path: Eusebius/Demonstratio Evangelica
+  tf_path: Eusebius/Demonstratio Evangelica/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: Demonstratio Evangelica
+  canonical_id: urn:cts:greekLit:tlg2018.tlg005.opp-grc1
+  edition: Eusebii Caesariensis Opera, Wilhelm Dindorf, Eusebius, Teubner, Leipzig, 1867, III, Internet Archive.
+  verification:
+    status: community
+- id: eusebius-historia-ecclesiastica-7306fc2b
+  path: Eusebius/Historia Ecclesiastica
+  tf_path: Eusebius/Historia Ecclesiastica/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: Historia Ecclesiastica
+  canonical_id: urn:cts:greekLit:tlg2018.tlg002.opp-grc3
+  edition: Eusebius, Kirsopp Lake, Eusebius, William Heinemann, G.P. Putnam's Sons, New York, London, 1926, I.
+  verification:
+    status: community
+- id: eusebius-onomasticon-8577c6ea
+  path: Eusebius/Onomasticon
+  tf_path: Eusebius/Onomasticon/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: Onomasticon
+  canonical_id: urn:cts:greekLit:tlg2018.tlg011.opp-grc1
+  edition: Eusebius Werke, Erich Klostermann, Eusebius, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1904, Vol. III Pt. I, Internet Archive.
+  verification:
+    status: community
+- id: eusebius-praeperatio-evangelica-0174895b
+  path: Eusebius/Praeperatio Evangelica
+  tf_path: Eusebius/Praeperatio Evangelica/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: Praeperatio Evangelica
+  canonical_id: urn:cts:greekLit:tlg2018.tlg001.opp-grc1
+  edition: Eusebii Caesaerensis Opera, Guilielmus Dindorfius, Eusebius, Teubner, Leipzig, 1867, I-II, Internet Archive (vol. i.), Internet Archive (vol. ii.).
+  verification:
+    status: community
+- id: eusebius-vita-constantini-ad53f09d
+  path: Eusebius/Vita Constantini
+  tf_path: Eusebius/Vita Constantini/tf/1.0
+  languages:
+  - greek
+  author: Eusebius
+  title: Vita Constantini
+  canonical_id: urn:cts:greekLit:tlg2018.tlg020.opp-grc1
+  edition: Eusebius Werke, Ivar A. Heikel, Eusebius, J.C.Hinrichs'sche Buchhandlung, Leipzig, 1902, Vol. I, Internet Archive.
+  verification:
+    status: community
+- id: evagrius-scholasticus-historia-ecclesiastica-d1d44e5f
+  path: Evagrius, Scholasticus/Historia Ecclesiastica
+  tf_path: Evagrius, Scholasticus/Historia Ecclesiastica/tf/1.0
+  languages:
+  - greek
+  author: Evagrius, Scholasticus
+  title: Historia Ecclesiastica
+  canonical_id: urn:cts:greekLit:tlg2733.tlg001.1st1K-grc1
+  edition: The ecclesiastical history of Evagrius with the scholia, Evagrius, Scholasticus, Joseph Bidez, Leon Parmentier, London, Methuen, 1898, Internet Archive.
+  verification:
+    status: community
+- id: gelasius-historia-ecclesiastica-03d7c485
+  path: Gelasius/Historia Ecclesiastica
+  tf_path: Gelasius/Historia Ecclesiastica/tf/1.0
+  languages:
+  - greek
+  author: Gelasius
+  title: Historia Ecclesiastica
+  canonical_id: urn:cts:greekLit:tlg2768.tlg001.opp-grc1
+  edition: Gelasius Kirchengeschichte, Die griechischen christlichen Schriftsteller der ersten drei Jahrhunderte, Margret Heinemann, Gerhard Loeschke, Gelasius, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1918, 28.
+  verification:
+    status: community
+- id: gregorius-nazianzenus-adversus-eunomianos-orat-27-fedef35e
+  path: Gregorius Nazianzenus/Adversus Eunomianos (Orat 27)
+  tf_path: Gregorius Nazianzenus/Adversus Eunomianos (Orat 27)/tf/1.0
+  languages:
+  - greek
+  author: Gregorius Nazianzenus
+  title: Adversus Eunomianos (orat 27)
+  canonical_id: urn:cts:greekLit:tlg2022.tlg007.opp-grc1
+  edition: The Five Theological Orations of Gregory Of Nazianzus, Arthur James Mason, Gregorius Nazianzenus, Cambridge University Press, Cambridge, 1899.
+  verification:
+    status: community
+- id: gregorius-nazianzenus-christus-patiens-dub-fort-auctore-constantino-mana-4177c007
+  path: Gregorius Nazianzenus/Christus Patiens [Dub] (Fort Auctore Constantino Manasse)
+  tf_path: Gregorius Nazianzenus/Christus Patiens [Dub] (Fort Auctore Constantino Manasse)/tf/1.0
+  languages:
+  - greek
+  author: Gregorius Nazianzenus
+  title: Christus patiens [Dub] (fort auctore Constantino Manasse)
+  canonical_id: urn:cts:greekLit:tlg2022.tlg003.opp-grc1
+  edition: Christus Patiens, J.G. Brambs, Gregorius Nazianzenus, Teubner, Leipzig, 1885, Internet Archive.
+  verification:
+    status: community
+- id: gregorius-nazianzenus-de-filio-orat-29-1d280be8
+  path: Gregorius Nazianzenus/De Filio (Orat 29)
+  tf_path: Gregorius Nazianzenus/De Filio (Orat 29)/tf/1.0
+  languages:
+  - greek
+  author: Gregorius Nazianzenus
+  title: De Filio (Orat 29)
+  canonical_id: urn:cts:greekLit:tlg2022.tlg009.opp-grc1
+  edition: The Five Theological Orations of Gregory of Nazianzus, Arthur James Mason, Gregorius Nazianzenus, Cambridge University Press, Cambridge, 1899.
+  verification:
+    status: community
+- id: gregorius-nazianzenus-de-filio-orat-30-8da11ad7
+  path: Gregorius Nazianzenus/De Filio (Orat 30)
+  tf_path: Gregorius Nazianzenus/De Filio (Orat 30)/tf/1.0
+  languages:
+  - greek
+  author: Gregorius Nazianzenus
+  title: De Filio (Orat 30)
+  canonical_id: urn:cts:greekLit:tlg2022.tlg010.opp-grc1
+  edition: The Five Theological Orations of Gregory of Nazianzus, Arthur James Mason, Gregorius Nazianzenus, Cambridge University Press, Cambridge, 1899.
+  verification:
+    status: community
+- id: gregorius-nazianzenus-de-spiritu-sancto-orat-31-ca2785e0
+  path: Gregorius Nazianzenus/De Spiritu Sancto (Orat 31)
+  tf_path: Gregorius Nazianzenus/De Spiritu Sancto (Orat 31)/tf/1.0
+  languages:
+  - greek
+  author: Gregorius Nazianzenus
+  title: De Spiritu Sancto (Orat 31)
+  canonical_id: urn:cts:greekLit:tlg2022.tlg011.opp-grc1
+  edition: The Five Theological Orations of Gregory of Nazianzus, Arthur James Mason, Gregorius Nazianzenus, Cambridge University Press, Cambridge, 1899.
+  verification:
+    status: community
+- id: gregorius-nazianzenus-de-theologia-orat-28-3e467d77
+  path: Gregorius Nazianzenus/De Theologia (Orat 28)
+  tf_path: Gregorius Nazianzenus/De Theologia (Orat 28)/tf/1.0
+  languages:
+  - greek
+  author: Gregorius Nazianzenus
+  title: De Theologia (Orat 28)
+  canonical_id: urn:cts:greekLit:tlg2022.tlg008.opp-grc1
+  edition: The Five Theological Orations of Gregory of Nazianzus, Arthur James Mason, Gregorius Nazianzenus, Cambridge University Press, Cambridge, 1899.
+  verification:
+    status: community
+- id: hegemonius-acta-archelai-7c9dcf12
+  path: Hegemonius/Acta Archelai
+  tf_path: Hegemonius/Acta Archelai/tf/1.0
+  languages:
+  - greek
+  author: Hegemonius
+  title: Acta Archelai
+  canonical_id: urn:cts:greekLit:stoa0146d.stoa001.opp-grc1
+  edition: Hegemonius Acta Archelai, Charles Henry Beeson, Hegemonius, J. C. Hinrichs, Leipzig, 1906, Internet Archive.
+  verification:
+    status: community
+- id: hippolytus-1-refutatio-omnium-haeresium-f746523d
+  path: Hippolytus/1_Refutatio Omnium Haeresium
+  tf_path: Hippolytus/1_Refutatio Omnium Haeresium/tf/1.0
+  languages:
+  - greek
+  author: Hippolytus
+  title: Refutatio Omnium Haeresium
+  canonical_id: urn:cts:greekLit:tlg2115.tlg060.opp-grc1
+  edition: Hippolytus Werke, Die griechischen christlichen Schriftsteller der ersten drei Jahrhunderte, Paul Wendland, Hippolytus, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1916, vol. 3, 26.
+  verification:
+    status: community
+- id: hippolytus-refutatio-omnium-haeresium-9915f10f
+  path: Hippolytus/Refutatio Omnium Haeresium
+  tf_path: Hippolytus/Refutatio Omnium Haeresium/tf/1.0
+  languages:
+  - greek
+  author: Hippolytus
+  title: Refutatio Omnium Haeresium
+  canonical_id: urn:cts:greekLit:tlg2115.tlg060.perseus-grc1
+  edition: Refutationis omnium haeresium librorum decem quae supersunt, Hippolytus, Ludwig Duncker, F.G. Schneidewin, Dieterich, Göttingen, 1859, Google Books.
+  verification:
+    status: community
+- id: ignatius-antiochenus-ad-ephesios-epist-1-7d1e4603
+  path: Ignatius Antiochenus/Ad Ephesios (Epist 1)
+  tf_path: Ignatius Antiochenus/Ad Ephesios (Epist 1)/tf/1.0
+  languages:
+  - greek
+  author: Ignatius Antiochenus
+  title: Ad Ephesios (epist 1)
+  canonical_id: urn:cts:greekLit:tlg1443.tlg004.1st1K-grc1
+  edition: The Apostolic Fathers, Kirsopp Lake, Ignatius Antiochenus, Harvard University Press, Cambridge, Massachusetts, USA, 1912, 1, Hathi Trust.
+  verification:
+    status: community
+- id: ignatius-antiochenus-ad-magnesios-epist-2-a5ace444
+  path: Ignatius Antiochenus/Ad Magnesios (Epist 2)
+  tf_path: Ignatius Antiochenus/Ad Magnesios (Epist 2)/tf/1.0
+  languages:
+  - greek
+  author: Ignatius Antiochenus
+  title: Ad Magnesios (epist 2)
+  canonical_id: urn:cts:greekLit:tlg1443.tlg005.1st1K-grc1
+  edition: The Apostolic Fathers, Kirsopp Lake, Ignatius Antiochenus, Harvard University Press, Cambridge, Massachusetts, USA, 1912, 1, Hathi Trust.
+  verification:
+    status: community
+- id: ignatius-antiochenus-ad-philadelphios-epist-5-8b54ae6f
+  path: Ignatius Antiochenus/Ad Philadelphios (Epist 5)
+  tf_path: Ignatius Antiochenus/Ad Philadelphios (Epist 5)/tf/1.0
+  languages:
+  - greek
+  author: Ignatius Antiochenus
+  title: Ad Philadelphios (epist 5)
+  canonical_id: urn:cts:greekLit:tlg1443.tlg008.1st1K-grc1
+  edition: The Apostolic Fathers, Kirsopp Lake, Ignatius Antiochenus, Harvard University Press, Cambridge, Massachusetts, USA, 1912, 1, Hathi Trust.
+  verification:
+    status: community
+- id: ignatius-antiochenus-ad-polycarpum-epist-7-4a2f59d1
+  path: Ignatius Antiochenus/Ad Polycarpum (Epist 7)
+  tf_path: Ignatius Antiochenus/Ad Polycarpum (Epist 7)/tf/1.0
+  languages:
+  - greek
+  author: Ignatius Antiochenus
+  title: Ad Polycarpum (epist 7)
+  canonical_id: urn:cts:greekLit:tlg1443.tlg010.1st1K-grc1
+  edition: The Apostolic Fathers, Kirsopp Lake, Ignatius Antiochenus, Harvard University Press, Cambridge, Massachusetts, USA, 1912, 1, Hathi Trust.
+  verification:
+    status: community
+- id: ignatius-antiochenus-ad-romanos-epist-4-1434d01a
+  path: Ignatius Antiochenus/Ad Romanos (Epist 4)
+  tf_path: Ignatius Antiochenus/Ad Romanos (Epist 4)/tf/1.0
+  languages:
+  - greek
+  author: Ignatius Antiochenus
+  title: Ad Romanos (epist 4)
+  canonical_id: urn:cts:greekLit:tlg1443.tlg007.1st1K-grc1
+  edition: The Apostolic Fathers, Kirsopp Lake, Ignatius Antiochenus, Harvard University Press, Cambridge, Massachusetts, USA, 1985, 1, Hathi Trust.
+  verification:
+    status: community
+- id: ignatius-antiochenus-ad-smyrnaeos-epist-6-c5d7878a
+  path: Ignatius Antiochenus/Ad Smyrnaeos (Epist 6)
+  tf_path: Ignatius Antiochenus/Ad Smyrnaeos (Epist 6)/tf/1.0
+  languages:
+  - greek
+  author: Ignatius Antiochenus
+  title: Ad Smyrnaeos (epist 6)
+  canonical_id: urn:cts:greekLit:tlg1443.tlg009.1st1K-grc1
+  edition: The Apostolic Fathers, Kirsopp Lake, Ignatius Antiochenus, Harvard University Press, Cambridge, Massachusetts, USA, 1912, 1, Hathi Trust.
+  verification:
+    status: community
+- id: ignatius-antiochenus-ad-trallianos-epist-3-774d3001
+  path: Ignatius Antiochenus/Ad Trallianos (Epist 3)
+  tf_path: Ignatius Antiochenus/Ad Trallianos (Epist 3)/tf/1.0
+  languages:
+  - greek
+  author: Ignatius Antiochenus
+  title: Ad Trallianos (epist 3)
+  canonical_id: urn:cts:greekLit:tlg1443.tlg006.1st1K-grc1
+  edition: The Apostolic Fathers I, Kirsopp Lake, Ignatius Antiochenus, Harvard University Press, Cambridge, Massachusetts, USA, 1985, 1, Hathi Trust.
+  verification:
+    status: community
+- id: irenaeus-libros-quinque-adversus-haereses-626e2852
+  path: Irenaeus/Libros Quinque Adversus Haereses
+  tf_path: Irenaeus/Libros Quinque Adversus Haereses/tf/1.0
+  languages:
+  - greek
+  author: Irenaeus
+  title: Libros quinque adversus haereses
+  canonical_id: urn:cts:greekLit:tlg1447.tlg001.1st1K-grc1
+  edition: Sancti Irenaei episcopi Lugdunensis Libros quinque adversus haereses, William Wigan Harvey, Irenaeus, Cantabrigiæ, Typis Academicis, 1857, 1, Hathi Trust.
+  verification:
+    status: community
+- id: justin-martyr-apology-ii-06ef3076
+  path: Justin Martyr/Apology Ii
+  tf_path: Justin Martyr/Apology Ii/tf/1.0
+  languages:
+  - greek
+  author: Justin Martyr
+  title: Apology II
+  canonical_id: urn:cts:greekLit:tlg0645.tlg002.perseus-grc2
+  edition: S. Iustini Aplogiae Duae, S. Iustini, Gerardus Rauschen, P. Hanstein, Bonnae, 2, 1911, Internet Archive.
+  verification:
+    status: community
+- id: justinus-martyr-apologia-6cb87850
+  path: Justinus Martyr/Apologia
+  tf_path: Justinus Martyr/Apologia/tf/1.0
+  languages:
+  - greek
+  author: Justinus Martyr
+  title: Apologia
+  canonical_id: urn:cts:greekLit:tlg0645.tlg001.opp-grc1
+  edition: S. Iustini Aplogiae Duae, Justinus Martyr, Gerardus Rauschen, P. Hanstein, Bonnae, 1911, Internet Archive.
+  verification:
+    status: community
+- id: justinus-martyr-apologia-secunda-2c550d76
+  path: Justinus Martyr/Apologia Secunda
+  tf_path: Justinus Martyr/Apologia Secunda/tf/1.0
+  languages:
+  - greek
+  author: Justinus Martyr
+  title: Apologia Secunda
+  canonical_id: urn:cts:greekLit:tlg0645.tlg002.opp-grc1
+  edition: S. Iustini Aplogiae Duae, Justinus Martyr, Gerardus Rauschen, P. Hanstein, Bonnae, 1911, Internet Archive.
+  verification:
+    status: community
+- id: justinus-martyr-dialogus-cum-tryphone-fb6f344d
+  path: Justinus Martyr/Dialogus Cum Tryphone
+  tf_path: Justinus Martyr/Dialogus Cum Tryphone/tf/1.0
+  languages:
+  - greek
+  author: Justinus Martyr
+  title: Dialogus cum Tryphone
+  canonical_id: urn:cts:greekLit:tlg0645.tlg003.perseus-grc2
+  edition: Dialogue avec Tryphon, Justinus Martyr, Georges Archambault, A. Picard, Paris, 1909, Internet Archive.
+  verification:
+    status: community
+- id: libanius-libanius-opera-orationes-xiii-xxx-8d64301c
+  path: Libanius/Libanius Opera Orationes Xiii-Xxx
+  tf_path: Libanius/Libanius Opera Orationes Xiii-Xxx/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: Libanius Opera
+  canonical_id: urn:cts:greekLit:tlg9006.tlg011.opp-grc1
+  edition: Richardus Foerster, Richard Foerster, Libanius, Orationes XIII-XXX, In Aedibus B. G. Teubneri, Lipsiae, 1911, 6, Internet Archive.
+  verification:
+    status: community
+- id: marcus-diaconus-vita-porphyrii-episcopi-gazensis-c4ec2d72
+  path: Marcus Diaconus/Vita Porphyrii Episcopi Gazensis
+  tf_path: Marcus Diaconus/Vita Porphyrii Episcopi Gazensis/tf/1.0
+  languages:
+  - greek
+  author: Marcus Diaconus
+  title: Vita Porphyrii episcopi Gazensis
+  canonical_id: urn:cts:greekLit:tlg2806.tlg001.1st1K-grc1
+  edition: Vita Porphyrii episcopi Gazensis, Societatis philologae bonnensis sodales, Marcus Diaconus, Teubner, Leipzig, 1895, Hathi Trust.
+  verification:
+    status: community
+- id: methodius-adversus-porphyrium-fragmenta-6361a656
+  path: Methodius/Adversus Porphyrium (Fragmenta)
+  tf_path: Methodius/Adversus Porphyrium (Fragmenta)/tf/1.0
+  languages:
+  - greek
+  author: Methodius
+  title: Adversus Porphyrium (Fragmenta)
+  canonical_id: urn:cts:greekLit:tlg2959.tlg006.opp-grc1
+  edition: Methodius, D.G. Nathanael Bonwetsch, Methodius, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1917.
+  verification:
+    status: community
+- id: methodius-de-creatis-fragmenta-ap-photium-bibl-cod-235-f7928c7e
+  path: Methodius/De Creatis (Fragmenta Ap Photium Bibl Cod 235)
+  tf_path: Methodius/De Creatis (Fragmenta Ap Photium Bibl Cod 235)/tf/1.0
+  languages:
+  - greek
+  author: Methodius
+  title: De Creatis (Fragmenta Ap Photium Bibl Cod 235)
+  canonical_id: urn:cts:greekLit:tlg2959.tlg005.opp-grc1
+  edition: Methodius, D.G. Nathanael Bonwetsch, Methodius, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1917.
+  verification:
+    status: community
+- id: methodius-de-libero-arbitrio-5b178e5e
+  path: Methodius/De Libero Arbitrio
+  tf_path: Methodius/De Libero Arbitrio/tf/1.0
+  languages:
+  - greek
+  author: Methodius
+  title: De Libero Arbitrio
+  canonical_id: urn:cts:greekLit:tlg2959.tlg002.opp-grc1
+  edition: Methodius, D.G. Nathanael Bonwetsch, Methodius, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1917.
+  verification:
+    status: community
+- id: methodius-de-martyribus-fragmenta-236ce638
+  path: Methodius/De Martyribus (Fragmenta)
+  tf_path: Methodius/De Martyribus (Fragmenta)/tf/1.0
+  languages:
+  - greek
+  author: Methodius
+  title: De Martyribus (Fragmenta)
+  canonical_id: urn:cts:greekLit:tlg2959.tlg008.opp-grc1
+  edition: Methodius, D.G. Nathanael Bonwetsch, Methodius, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1917, vol.
+  verification:
+    status: community
+- id: methodius-fragmenta-in-job-in-catenis-71c0e6be
+  path: Methodius/Fragmenta In Job (In Catenis)
+  tf_path: Methodius/Fragmenta In Job (In Catenis)/tf/1.0
+  languages:
+  - greek
+  author: Methodius
+  title: Fragmenta In Job (In Catenis)
+  canonical_id: urn:cts:greekLit:tlg2959.tlg007.opp-grc1
+  edition: Methodius, D.G. Nathanael Bonwetsch, Methodius, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1917.
+  verification:
+    status: community
+- id: methodius-fragmenta-incerta-sp-25be35dc
+  path: Methodius/Fragmenta Incerta [Sp]
+  tf_path: Methodius/Fragmenta Incerta [Sp]/tf/1.0
+  languages:
+  - greek
+  author: Methodius
+  title: Fragmenta Incerta [Sp]
+  canonical_id: urn:cts:greekLit:tlg2959.tlg010.opp-grc1
+  edition: Methodius, D.G. Nathanael Bonwetsch, Methodius, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1917.
+  verification:
+    status: community
+- id: methodius-symposium-sive-convivium-decem-virginum-c948018c
+  path: Methodius/Symposium Sive Convivium Decem Virginum
+  tf_path: Methodius/Symposium Sive Convivium Decem Virginum/tf/1.0
+  languages:
+  - greek
+  author: Methodius
+  title: Symposium Sive Convivium Decem Virginum
+  canonical_id: urn:cts:greekLit:tlg2959.tlg001.opp-grc1
+  edition: Methodius, D.G. Nathanael Bonwetsch, Methodius, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1917.
+  verification:
+    status: community
+- id: origen-adnotationes-in-deuteronomium-fragmenta-e-catenis-4bb9630e
+  path: Origen/Adnotationes In Deuteronomium (Fragmenta E Catenis)
+  tf_path: Origen/Adnotationes In Deuteronomium (Fragmenta E Catenis)/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Adnotationes in Deuteronomium (fragmenta e catenis)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg070.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, 17, The Internet Archive.
+  verification:
+    status: community
+- id: origen-adnotationes-in-exodum-6b16d87b
+  path: Origen/Adnotationes In Exodum
+  tf_path: Origen/Adnotationes In Exodum/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Adnotationes in Exodum
+  canonical_id: urn:cts:greekLit:tlg2042.tlg067.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, 17, The Internet Archive.
+  verification:
+    status: community
+- id: origen-adnotationes-in-genesim-b12e4d09
+  path: Origen/Adnotationes In Genesim
+  tf_path: Origen/Adnotationes In Genesim/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Adnotationes in Genesim
+  canonical_id: urn:cts:greekLit:tlg2042.tlg066.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, 17, The Internet Archive.
+  verification:
+    status: community
+- id: origen-adnotationes-in-jesu-filium-nave-fragmenta-e-catenis-dda2fc44
+  path: Origen/Adnotationes In Jesu Filium Nave (Fragmenta E Catenis)
+  tf_path: Origen/Adnotationes In Jesu Filium Nave (Fragmenta E Catenis)/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Adnotationes in Jesu filium Nave (fragmenta e catenis)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg071.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, 17, The Internet Archive.
+  verification:
+    status: community
+- id: origen-adnotationes-in-judices-b01509a2
+  path: Origen/Adnotationes In Judices
+  tf_path: Origen/Adnotationes In Judices/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Adnotationes in Judices
+  canonical_id: urn:cts:greekLit:tlg2042.tlg072.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, 17, The Internet Archive.
+  verification:
+    status: community
+- id: origen-adnotationes-in-leviticum-fragmenta-e-catenis-f4094c90
+  path: Origen/Adnotationes In Leviticum (Fragmenta E Catenis)
+  tf_path: Origen/Adnotationes In Leviticum (Fragmenta E Catenis)/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Adnotationes in Leviticum (fragmenta e catenis)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg068.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, 17, The Internet Archive.
+  verification:
+    status: community
+- id: origen-adnotationes-in-numeros-3edd7dfb
+  path: Origen/Adnotationes In Numeros
+  tf_path: Origen/Adnotationes In Numeros/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Adnotationes in Numeros
+  canonical_id: urn:cts:greekLit:tlg2042.tlg069.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, 17, The Internet Archive.
+  verification:
+    status: community
+- id: origen-commentarium-in-evangelium-matthaei-lib-12-17-58981dd7
+  path: Origen/Commentarium In Evangelium Matthaei (Lib 12-17)
+  tf_path: Origen/Commentarium In Evangelium Matthaei (Lib 12-17)/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Commentarium In Evangelium Matthaei (Lib 12-17)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg030.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origen, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1935-1937, 10.1-10.2, Internet Archive.
+  verification:
+    status: community
+- id: origen-excerpta-in-psalmos-dub-aec6a95d
+  path: Origen/Excerpta In Psalmos [Dub]
+  tf_path: Origen/Excerpta In Psalmos [Dub]/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Excerpta in Psalmos [Dub]
+  canonical_id: urn:cts:greekLit:tlg2042.tlg074.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, 17, The Internet Archive.
+  verification:
+    status: community
+- id: origen-expositio-in-proverbia-fragmenta-e-catenis-f48bd037
+  path: Origen/Expositio In Proverbia (Fragmenta E Catenis)
+  tf_path: Origen/Expositio In Proverbia (Fragmenta E Catenis)/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Expositio in Proverbia (fragmenta e catenis)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg075.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, 17, The Internet Archive.
+  verification:
+    status: community
+- id: origen-fragmenta-in-ezechielem-ba8ab90e
+  path: Origen/Fragmenta In Ezechielem
+  tf_path: Origen/Fragmenta In Ezechielem/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Fragmenta in Ezechielem
+  canonical_id: urn:cts:greekLit:tlg2042.tlg061.1st1K-grc1
+  edition: Origenis Opera Omnia, Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, The Internet Archive.
+  verification:
+    status: community
+- id: origen-homiliae-in-job-fragmenta-in-catenis-typus-ii-38b800ee
+  path: Origen/Homiliae In Job (Fragmenta In Catenis Typus Ii)
+  tf_path: Origen/Homiliae In Job (Fragmenta In Catenis Typus Ii)/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Homiliae in Job (fragmenta in catenis typus II)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg073.1st1K-grc1
+  edition: Origenis Opera Omnia, Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, The Internet Archive.
+  verification:
+    status: community
+- id: origen-scholia-in-canticum-canticorum-bfc5bea4
+  path: Origen/Scholia In Canticum Canticorum
+  tf_path: Origen/Scholia In Canticum Canticorum/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Scholia in Canticum canticorum
+  canonical_id: urn:cts:greekLit:tlg2042.tlg076.1st1K-grc1
+  edition: Origenis Opera Omnia, Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, The Internet Archive.
+  verification:
+    status: community
+- id: origen-scholia-in-lucam-fragmenta-e-cod-venet-28-60a06249
+  path: Origen/Scholia In Lucam (Fragmenta E Cod Venet 28)
+  tf_path: Origen/Scholia In Lucam (Fragmenta E Cod Venet 28)/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Scholia in Lucam (fragmenta e cod Venet 28)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg078.1st1K-grc1
+  edition: Origenis Opera Omnia, Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, The Internet Archive.
+  verification:
+    status: community
+- id: origen-scholia-in-matthaeum-5140b5b4
+  path: Origen/Scholia In Matthaeum
+  tf_path: Origen/Scholia In Matthaeum/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Scholia in Matthaeum
+  canonical_id: urn:cts:greekLit:tlg2042.tlg077.1st1K-grc1
+  edition: Origenis Opera Omnia, Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 7, The Internet Archive.
+  verification:
+    status: community
+- id: origen-selecta-in-psalmos-dub-64f1f346
+  path: Origen/Selecta In Psalmos [Dub]
+  tf_path: Origen/Selecta In Psalmos [Dub]/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: Selecta in Psalmos [Dub]
+  canonical_id: urn:cts:greekLit:tlg2042.tlg058.1st1K-grc1
+  edition: Origenis Opera Omnia, Charles Vincent Delarue, Origen, Imprimerie Catholique, Paris, 1857, 2, The Internet Archive.
+  verification:
+    status: community
+- id: origen-the-philocalia-of-origen-fa456de3
+  path: Origen/The Philocalia Of Origen
+  tf_path: Origen/The Philocalia Of Origen/tf/1.0
+  languages:
+  - greek
+  author: Origen
+  title: The Philocalia of Origen
+  canonical_id: urn:cts:greekLit:tlg2042.tlg019.1st1K-grc1
+  edition: The Philocalia of Origen, James Armitage Robinson, Origen of Alexandria, Cambridge University Press, Cambridge, 1893, The Hathi Trust.
+  verification:
+    status: community
+- id: origenes-commentarii-in-evangelium-joannis-ef6d6f41
+  path: Origenes/Commentarii In Evangelium Joannis
+  tf_path: Origenes/Commentarii In Evangelium Joannis/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Commentarii in Evangelium Joannis
+  canonical_id: urn:cts:greekLit:tlg2042.tlg005.opp-grc1
+  edition: Origenes Werke, Der Johanneskommentar, Erwin Preuschen, Origenes, J. C. Hinrich'sche Buchhandlung, Leipzig, 1903, vol. 4, Internet Archive.
+  verification:
+    status: community
+- id: origenes-commentarium-in-evangelium-matthaei-lib-10-11-406da7c3
+  path: Origenes/Commentarium In Evangelium Matthaei (Lib 10-11)
+  tf_path: Origenes/Commentarium In Evangelium Matthaei (Lib 10-11)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Commentarium In Evangelium Matthaei (Lib 10-11)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg029.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origenes, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1935, vol. 10.1, Internet Archive.
+  verification:
+    status: community
+- id: origenes-contra-celsum-428a4d7c
+  path: Origenes/Contra Celsum
+  tf_path: Origenes/Contra Celsum/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Contra Celsum
+  canonical_id: urn:cts:greekLit:tlg2042.tlg001.perseus-grc1
+  edition: Origenes Werke, Origenes, Paul Koetschau, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1899, 1-2, Internet Archive.
+  verification:
+    status: community
+- id: origenes-de-engastrimytho-610b7332
+  path: Origenes/De Engastrimytho
+  tf_path: Origenes/De Engastrimytho/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: De Engastrimytho
+  canonical_id: urn:cts:greekLit:tlg2042.tlg013.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origenes, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1901, vol. 3, Internet Archive.
+  verification:
+    status: community
+- id: origenes-de-oratione-e4930ba7
+  path: Origenes/De Oratione
+  tf_path: Origenes/De Oratione/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: De oratione
+  canonical_id: urn:cts:greekLit:tlg2042.tlg008.perseus-grc1
+  edition: Origenes Werke, Paul Koetschau, Origenes, J.C. Hinrich'sche Buchhandlung, Leipzig, 1899, vol. 2, Internet Archive.
+  verification:
+    status: community
+- id: origenes-epistula-ad-africanum-d1b5e17a
+  path: Origenes/Epistula Ad Africanum
+  tf_path: Origenes/Epistula Ad Africanum/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Epistula ad Africanum
+  canonical_id: urn:cts:greekLit:tlg2042.tlg045.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Delarue, Charles Vincent Delarue, Origen, J. P. Migne, Paris, 1857, Volume 1, 11.
+  verification:
+    status: community
+- id: origenes-exhortatio-ad-martyrium-8681ea83
+  path: Origenes/Exhortatio Ad Martyrium
+  tf_path: Origenes/Exhortatio Ad Martyrium/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Exhortatio ad martyrium
+  canonical_id: urn:cts:greekLit:tlg2042.tlg007.perseus-grc1
+  edition: Origenes Werke, Paul Koetschau, Origenes, J.C. Hinrich'sche Buchhandlung, Leipzig, 1899, vol. 1, Internet Archive.
+  verification:
+    status: community
+- id: origenes-fragmenta-in-evangelium-joannis-in-catenis-cf4d27d6
+  path: Origenes/Fragmenta In Evangelium Joannis (In Catenis)
+  tf_path: Origenes/Fragmenta In Evangelium Joannis (In Catenis)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Fragmenta In Evangelium Joannis (In Catenis)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg006.opp-grc1
+  edition: Origenes Werke, Der Johanneskommentar, Erwin Preuschen, Origenes, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1903, vol. 4, Internet Archive.
+  verification:
+    status: community
+- id: origenes-fragmenta-in-jeremiam-e-philocalia-1c157103
+  path: Origenes/Fragmenta In Jeremiam (E Philocalia)
+  tf_path: Origenes/Fragmenta In Jeremiam (E Philocalia)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Fragmenta In Jeremiam (E Philocalia)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg084.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origenes, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1901, vol. 3, Internet Archive.
+  verification:
+    status: community
+- id: origenes-fragmenta-in-jeremiam-in-catenis-4fc9207b
+  path: Origenes/Fragmenta In Jeremiam (In Catenis)
+  tf_path: Origenes/Fragmenta In Jeremiam (In Catenis)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Fragmenta In Jeremiam (in Catenis)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg010.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origenes, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1901, vol. 3, Internet Archive.
+  verification:
+    status: community
+- id: origenes-fragmenta-in-lamentationes-in-catenis-de-prophetis-bed9248f
+  path: Origenes/Fragmenta In Lamentationes (In Catenis De Prophetis)
+  tf_path: Origenes/Fragmenta In Lamentationes (In Catenis De Prophetis)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Fragmenta In Lamentationes (In Catenis de Prophetis)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg011.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origenes, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1901, vol. 3, Internet Archive.
+  verification:
+    status: community
+- id: origenes-fragmenta-in-librum-primum-regnorum-in-catenis-de-samuelis-et-r-d8b0d07b
+  path: Origenes/Fragmenta In Librum Primum Regnorum (In Catenis De Samuelis Et Regnorum)
+  tf_path: Origenes/Fragmenta In Librum Primum Regnorum (In Catenis De Samuelis Et Regnorum)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Fragmenta in Librum Primum Regnorum (In Catenis de Samuelis et Regnorum)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg014.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origenes, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1901, vol. 3, Internet Archive.
+  verification:
+    status: community
+- id: origenes-fragmenta-in-lucam-in-catenis-42a159d6
+  path: Origenes/Fragmenta In Lucam (In Catenis)
+  tf_path: Origenes/Fragmenta In Lucam (In Catenis)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Fragmenta in Lucam (in catenis)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg017.opp-grc1
+  edition: Origenes Werke, Max Rauer, Origenes, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1930, vol. 9, Internet Archive.
+  verification:
+    status: community
+- id: origenes-fragmentum-in-lamentationes-in-catenis-de-octateucho-fb98025e
+  path: Origenes/Fragmentum In Lamentationes (In Catenis De Octateucho)
+  tf_path: Origenes/Fragmentum In Lamentationes (In Catenis De Octateucho)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Fragmentum in Lamentationes (In Catenis de Octateucho)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg012.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origenes, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1901, vol. 3, Internet Archive.
+  verification:
+    status: community
+- id: origenes-fragmentum-in-librum-primum-regnorum-in-catenis-de-cantico-cant-47194ec1
+  path: Origenes/Fragmentum In Librum Primum Regnorum (In Catenis De Cantico Canticorum)
+  tf_path: Origenes/Fragmentum In Librum Primum Regnorum (In Catenis De Cantico Canticorum)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Fragmentum In Librum Primum Regnorum (In Catenis de Cantico Canticorum)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg015.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origenes, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1901, vol. 3, Internet Archive.
+  verification:
+    status: community
+- id: origenes-homiliae-in-lucam-ded8264a
+  path: Origenes/Homiliae In Lucam
+  tf_path: Origenes/Homiliae In Lucam/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Homiliae In Lucam
+  canonical_id: urn:cts:greekLit:tlg2042.tlg016.opp-grc1
+  edition: Origenes Werke, Max Rauer, Origenes, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1930, vol. 9, Internet Archive.
+  verification:
+    status: community
+- id: origenes-in-jeremiam-homiliae-1-11-d5903d56
+  path: Origenes/In Jeremiam (Homiliae 1-11)
+  tf_path: Origenes/In Jeremiam (Homiliae 1-11)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: In Jeremiam (Homiliae 1-11)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg009.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origenes, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1901, vol. 3, Internet Archive.
+  verification:
+    status: community
+- id: origenes-in-jeremiam-homiliae-12-20-0445cc28
+  path: Origenes/In Jeremiam (Homiliae 12-20)
+  tf_path: Origenes/In Jeremiam (Homiliae 12-20)/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: In Jeremiam (Homiliae 12-20)
+  canonical_id: urn:cts:greekLit:tlg2042.tlg021.opp-grc1
+  edition: Origenes Werke, Erich Klostermann, Origenes, J. C. Hinrichs'Sche Buchhandlung, Leipzig, 1901, vol. 3, Internet Archive.
+  verification:
+    status: community
+- id: origenes-selecta-in-deuteronomium-657b6de0
+  path: Origenes/Selecta In Deuteronomium
+  tf_path: Origenes/Selecta In Deuteronomium/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Selecta in Deuteronomium
+  canonical_id: urn:cts:greekLit:tlg2042.tlg053.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Delarue, Origen, J. P. Migne, Paris, 1862, 2, 12, Internet Archive.
+  verification:
+    status: community
+- id: origenes-selecta-in-exodum-593fda27
+  path: Origenes/Selecta In Exodum
+  tf_path: Origenes/Selecta In Exodum/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Selecta in Exodum
+  canonical_id: urn:cts:greekLit:tlg2042.tlg050.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Delarue, Origen, J. P. Migne, Paris, 1862, 2, 12, Internet Archive.
+  verification:
+    status: community
+- id: origenes-selecta-in-genesim-35d670b7
+  path: Origenes/Selecta In Genesim
+  tf_path: Origenes/Selecta In Genesim/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Selecta in Genesim
+  canonical_id: urn:cts:greekLit:tlg2042.tlg048.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Delarue, Origen, J. P. Migne, Paris, 1862, 2, 12, Internet Archive.
+  verification:
+    status: community
+- id: origenes-selecta-in-jesum-nave-4fd4efd3
+  path: Origenes/Selecta In Jesum Nave
+  tf_path: Origenes/Selecta In Jesum Nave/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Selecta in Jesum Nave
+  canonical_id: urn:cts:greekLit:tlg2042.tlg054.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Delarue, Origen, J. P. Migne, Paris, 1862, 2, 12, Internet Archive.
+  verification:
+    status: community
+- id: origenes-selecta-in-job-ae1430fd
+  path: Origenes/Selecta In Job
+  tf_path: Origenes/Selecta In Job/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Selecta in Job
+  canonical_id: urn:cts:greekLit:tlg2042.tlg057.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Delarue, Origen, J. P. Migne, Paris, 1857, 12, Internet Archive.
+  verification:
+    status: community
+- id: origenes-selecta-in-judices-3398439e
+  path: Origenes/Selecta In Judices
+  tf_path: Origenes/Selecta In Judices/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Selecta in Judices
+  canonical_id: urn:cts:greekLit:tlg2042.tlg055.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Delarue, Origen, J. P. Migne, Paris, 1862, 2, 12, Internet Archive.
+  verification:
+    status: community
+- id: origenes-selecta-in-leviticum-b58d96c2
+  path: Origenes/Selecta In Leviticum
+  tf_path: Origenes/Selecta In Leviticum/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Selecta in Leviticum
+  canonical_id: urn:cts:greekLit:tlg2042.tlg051.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Delarue, Origen, J. P. Migne, Paris, 1862, 2, 12, Internet Archive.
+  verification:
+    status: community
+- id: origenes-selecta-in-numeros-2f1ff0fd
+  path: Origenes/Selecta In Numeros
+  tf_path: Origenes/Selecta In Numeros/tf/1.0
+  languages:
+  - greek
+  author: Origenes
+  title: Selecta in Numeros
+  canonical_id: urn:cts:greekLit:tlg2042.tlg052.1st1K-grc1
+  edition: Origenis Opera Omnia, Patrologiae cursus completus (series Graeca), Charles Delarue, Origen, J. P. Migne, Paris, 1862, 2, 12, Internet Archive.
+  verification:
+    status: community
+- id: philostorgius-historia-ecclesiastica-fragmenta-ap-photium-1efd60fd
+  path: Philostorgius/Historia Ecclesiastica (Fragmenta Ap Photium)
+  tf_path: Philostorgius/Historia Ecclesiastica (Fragmenta Ap Photium)/tf/1.0
+  languages:
+  - greek
+  author: Philostorgius
+  title: Historia ecclesiastica (fragmenta ap Photium)
+  canonical_id: urn:cts:greekLit:tlg2058.tlg001.1st1K-grc1
+  edition: Philostorgius Kirchengeschichte, Joseph Bidez, Philostorgius, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1913, Internet Archive.
+  verification:
+    status: community
+- id: pinytus-de-epistola-pinyti-ad-dionysium-7c7cb544
+  path: Pinytus/De Epistola Pinyti Ad Dionysium
+  tf_path: Pinytus/De Epistola Pinyti Ad Dionysium/tf/1.0
+  languages:
+  - greek
+  author: Pinytus
+  title: De Epistola Pinyti ad Dionysium
+  canonical_id: urn:cts:greekLit:ogl0001.ogl001.1st1K-grc1
+  edition: Reliquiae sacrae, Martin Joseph Routh, Pinytus of Knossos, Oxford University Press, Oxford, 1846, 1, Hathi Trust.
+  verification:
+    status: community
+- id: polycarp-epistula-ad-philippenses-ceec49bf
+  path: Polycarp/Epistula Ad Philippenses
+  tf_path: Polycarp/Epistula Ad Philippenses/tf/1.0
+  languages:
+  - greek
+  author: Polycarp
+  title: Epistula ad Philippenses
+  canonical_id: urn:cts:greekLit:tlg1622.tlg001.1st1K-grc1
+  edition: Polycarp, Kirsopp Lake, The Apostolic Fathers, William Heinemann, The Macmillan Co, London, New York, 1912, 1, Internet Archive.
+  verification:
+    status: community
+- id: pseudo-justinus-martyr-epistula-ad-diognetum-9385c76b
+  path: Pseudo-Justinus Martyr/Epistula Ad Diognetum
+  tf_path: Pseudo-Justinus Martyr/Epistula Ad Diognetum/tf/1.0
+  languages:
+  - greek
+  author: Pseudo-Justinus Martyr
+  title: Epistula ad Diognetum
+  canonical_id: urn:cts:greekLit:tlg0646.tlg004.1st1K-grc1
+  edition: Pseudo-Justinus Martyr, Kirsopp Lake, The Apostolic Fathers, Vol 2, William Heinemann; G.P. Putnam's Sons, London; New York, 1917.
+  verification:
+    status: community
+- id: pseudo-menander-gregory-nazianzus-sententiae-carmen-morale-xxx-e112973b
+  path: Pseudo-Menander, Gregory Nazianzus/Sententiae = (Carmen Morale Xxx)
+  tf_path: Pseudo-Menander, Gregory Nazianzus/Sententiae = (Carmen Morale Xxx)/tf/1.0
+  languages:
+  - greek
+  author: pseudo-Menander, Gregory Nazianzus
+  title: Sententiae = (Carmen morale XXX)
+  canonical_id: urn:cts:greekLit:tlg2022.tlg060.1st1K-grc1
+  edition: pseudo-Menander, Die arabische Überlieferung der sogenannten Menandersentenzen, Manfred Ullmann, Wiesbaden, Kommissionsverlag Franz Steiner, 77-80, 1961.
+  verification:
+    status: community
+- id: seniores-apud-irenaeum-reliquiae-plurium-anonymorum-a867f328
+  path: Seniores Apud Irenaeum/Reliquiae Plurium Anonymorum
+  tf_path: Seniores Apud Irenaeum/Reliquiae Plurium Anonymorum/tf/1.0
+  languages:
+  - greek
+  author: Seniores Apud Irenaeum
+  title: Reliquiae plurium anonymorum
+  canonical_id: urn:cts:greekLit:tlg1665.tlg001.1st1K-grc1
+  edition: Reliquiae sacrae, Martin Joseph Routh, Seniores Apud Irenaeum, Oxford University Press, Oxford, 1846, 1, Hathi Trust.
+  verification:
+    status: community
+- id: socrates-scholasticus-historia-ecclesiastica-f5388689
+  path: Socrates, Scholasticus/Historia Ecclesiastica
+  tf_path: Socrates, Scholasticus/Historia Ecclesiastica/tf/1.0
+  languages:
+  - greek
+  author: Socrates, Scholasticus
+  title: Historia Ecclesiastica
+  canonical_id: urn:cts:greekLit:tlg2057.tlg002.1st1K-grc1
+  edition: Socrates' Ecclesiastical history, Socrates, Scholasticus, Robert Hussey, William Bright, Oxford at the Clarendon Press, Oxford, 1893, HathiTrust.
+  verification:
+    status: community
+- id: sozomenus-salaminius-hermias-historia-ecclesiastica-bea3d838
+  path: Sozomenus, Salaminius Hermias/Historia Ecclesiastica
+  tf_path: Sozomenus, Salaminius Hermias/Historia Ecclesiastica/tf/1.0
+  languages:
+  - greek
+  author: Sozomenus, Salaminius Hermias
+  title: Historia Ecclesiastica
+  canonical_id: urn:cts:greekLit:tlg2048.tlg001.1st1K-grc1
+  edition: 'Sozomeni Ecclesiastica Historia, Tomus I-II, Sozomenus, Salaminius Hermias, Robert Hussey, 1-2, Oxford, Oxonii: E Typographeo Academico, 1860, Hathi Trust.'
+  verification:
+    status: community
+- id: tatianus-oratio-ad-graecos-3ccaece3
+  path: Tatianus/Oratio Ad Graecos
+  tf_path: Tatianus/Oratio Ad Graecos/tf/1.0
+  languages:
+  - greek
+  author: Tatianus
+  title: Oratio ad Graecos
+  canonical_id: urn:cts:greekLit:tlg1766.tlg001.perseus-grc1
+  edition: Corpus apologetarum Christianorum saeculi secundi, Tatianus, Johann Carl Theodor Otto, Mauke, Jena, 1851, vol.6, Google Books.
+  verification:
+    status: community
+- id: theodoret-bishop-of-cyrus-historia-ecclesiastica-555ded28
+  path: Theodoret, Bishop Of Cyrus/Historia Ecclesiastica
+  tf_path: Theodoret, Bishop Of Cyrus/Historia Ecclesiastica/tf/1.0
+  languages:
+  - greek
+  author: Theodoret, Bishop of Cyrus
+  title: Historia Ecclesiastica
+  canonical_id: urn:cts:greekLit:tlg4089.tlg003.1st1K-grc1
+  edition: Theodoretus Cyrensis Episcopus Opera Omnia, Patrologiae Graecae, Theodoret, Bishop of Cyrus, Johann Ludvig Schulze, Paris, J.P. Migne, 1864, 3, 82, Internet Archive.
+  verification:
+    status: community
+- id: theodoret-bishop-of-cyrus-historia-religiosa-fb058a28
+  path: Theodoret, Bishop Of Cyrus/Historia Religiosa
+  tf_path: Theodoret, Bishop Of Cyrus/Historia Religiosa/tf/1.0
+  languages:
+  - greek
+  author: Theodoret, Bishop of Cyrus
+  title: Historia Religiosa
+  canonical_id: urn:cts:greekLit:tlg4089.tlg004.1st1K-grc1
+  edition: Theodoretus Cyrensis Episcopus Opera Omnia, Patrologiae Graecae, Theodoret, Bishop of Cyrus, Johann Ludwig Schulze, Paris, J.P. Migne, 1864, 3, 82, +, Internet Archive.
+  verification:
+    status: community
+- id: theodoretus-historia-ecclesiastica-226caf40
+  path: Theodoretus/Historia Ecclesiastica
+  tf_path: Theodoretus/Historia Ecclesiastica/tf/1.0
+  languages:
+  - greek
+  author: Theodoretus
+  title: Historia ecclesiastica
+  canonical_id: urn:cts:greekLit:tlg4089.tlg003.opp-grc1
+  edition: Theodoret Kirchengeschichte, Die Griechischen Christlichen Schriftsteller der ersten Jahrhunderte, Léon Parmentier, Theodoretus, Hinrichs, Leipzig, 1911, 19, HathiTrust.
+  verification:
+    status: community
+- id: theophylacti-in-cyrilli-in-xii-prophetas-912ad3bb
+  path: Theophylacti/In Cyrilli In Xii Prophetas
+  tf_path: Theophylacti/In Cyrilli In Xii Prophetas/tf/1.0
+  languages:
+  - greek
+  author: Theophylacti
+  title: In Cyrilli In XII Prophetas
+  edition: Cyrilli Archiepiscopi Alexandrini In XII Prophetas, Philippus Edvardus Pusey, Cyrilli Archiepiscopi Alexandrini, E Typographeo Clarendoniano, Oxoni, 1868, 1-2.
+  verification:
+    status: community

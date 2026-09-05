@@ -1,7 +1,1071 @@
 schema_version: 1
 collection_id: bible
-index_status: dynamic
-notes:
-  - Members are discovered lazily from current upstream Git tree metadata.
-  - The empty committed member list is intentional; stable member IDs are derived from discovered dataset paths at runtime.
-members: []
+source_revision: f09ea5060761b372adf1ac1d70d7b96918f57757
+index_status: complete
+members:
+- id: extra-biblical-acta-joannis-acta-joannis-f846b695
+  path: extra_biblical/Acta Joannis/Acta Joannis
+  tf_path: extra_biblical/Acta Joannis/Acta Joannis/tf/1.0
+  languages:
+  - greek
+  author: Acta Joannis
+  title: Acta Joannis
+  canonical_id: urn:cts:greekLit:tlg0317.tlg001.1st1K-grc1
+  edition: Acta apostolorum apocrypha, Maximilianus Bonnet, Acta Joannis, Mendelssohn, Leipzig, 1898, 2.1, The Internet Archive.
+  verification:
+    status: community
+- id: extra-biblical-acta-joannis-acta-joannis-recenscio-c41537be
+  path: extra_biblical/Acta Joannis/Acta Joannis (Recenscio)
+  tf_path: extra_biblical/Acta Joannis/Acta Joannis (Recenscio)/tf/1.0
+  languages:
+  - greek
+  author: Acta Joannis
+  title: Acta Joannis (recenscio)
+  canonical_id: urn:cts:greekLit:tlg0317.tlg002.1st1K-grc1
+  edition: Acta apostolorum apocrypha, Maximilianus Bonnet, Acta Joannis, Mendelssohn, Leipzig, 1898, 2.1, The Internet Archive.
+  verification:
+    status: community
+- id: extra-biblical-anonymus-didache-xii-apostolorum-52b6801a
+  path: extra_biblical/Anonymus/Didache Xii Apostolorum
+  tf_path: extra_biblical/Anonymus/Didache Xii Apostolorum/tf/1.0
+  languages:
+  - greek
+  author: Anonymus
+  title: Didache XII Apostolorum
+  canonical_id: urn:cts:greekLit:tlg1311.tlg001.1st1K-grc1
+  edition: Anonymus, Kirsopp Lake, The Apostolic Fathers, William Heinemann, The Macmillan Company, London, New York, 1912, 1.
+  verification:
+    status: community
+- id: extra-biblical-barnabas-1-barnabae-epistula-18c7d0b1
+  path: extra_biblical/Barnabas/1_Barnabae Epistula
+  tf_path: extra_biblical/Barnabas/1_Barnabae Epistula/tf/1.0
+  languages:
+  - greek
+  author: Barnabas
+  title: Barnabae epistula
+  canonical_id: urn:cts:greekLit:tlg1216.tlg001.opp-grc1
+  edition: The Apostolic Fathers, Kirsopp Lake, Barnabas, Harvard University Press, Cambridge, Massachusetts, USA, 1912, 1, Hathi Trust.
+  verification:
+    status: community
+- id: extra-biblical-barnabas-barnabae-epistula-b8e95e18
+  path: extra_biblical/Barnabas/Barnabae Epistula
+  tf_path: extra_biblical/Barnabas/Barnabae Epistula/tf/1.0
+  languages:
+  - greek
+  author: Barnabas
+  title: Barnabae Epistula
+  edition: Barnabas, Kirsopp Lake, The Apostolic Fathers, Vol 1, William Heinemann; The Macmillan Co, London; New York, 1912.
+  verification:
+    status: community
+- id: extra-biblical-hermas-2nd-cent-the-shepherd-of-hermas-bd1120fb
+  path: extra_biblical/Hermas, 2Nd Cent/The Shepherd Of Hermas
+  tf_path: extra_biblical/Hermas, 2Nd Cent/The Shepherd Of Hermas/tf/1.0
+  languages:
+  - greek
+  author: Hermas, 2nd cent
+  title: The Shepherd of Hermas
+  canonical_id: urn:cts:greekLit:tlg1419.tlg001.1st1K-grc1
+  edition: Hermas, 2nd cent, Kirsopp Lake, The Apostolic Fathers, William Heinemann, G.P. Putnam's Sons, London, New York, 1917, 2, Internet Archive.
+  verification:
+    status: community
+- id: extra-biblical-kirsopp-lake-martyrium-polycarpi-94d919cd
+  path: extra_biblical/Kirsopp Lake/Martyrium Polycarpi
+  tf_path: extra_biblical/Kirsopp Lake/Martyrium Polycarpi/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: Martyrium Polycarpi
+  canonical_id: urn:cts:greekLit:tlg1484.tlg001.1st1K-grc1
+  edition: Kirsopp Lake, The Apostolic Fathers, Vol 2, William Heinemann; G.P. Putnam's Sons, London; New York, 1917, Internet Archive.
+  verification:
+    status: community
+- id: extra-biblical-liber-enoch-1-apocalypsis-enochi-5d634baf
+  path: extra_biblical/Liber Enoch/1_Apocalypsis Enochi
+  tf_path: extra_biblical/Liber Enoch/1_Apocalypsis Enochi/tf/1.0
+  languages:
+  - greek
+  author: Liber Enoch
+  title: Apocalypsis Enochi
+  canonical_id: urn:cts:greekLit:tlg1463.tlg001.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Liber Enoch, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: extra-biblical-liber-enoch-apocalypsis-enochi-2e8568e6
+  path: extra_biblical/Liber Enoch/Apocalypsis Enochi
+  tf_path: extra_biblical/Liber Enoch/Apocalypsis Enochi/tf/1.0
+  languages:
+  - greek
+  author: Liber Enoch
+  title: Apocalypsis Enochi
+  canonical_id: urn:cts:greekLit:tlg1463.tlg001.opp-grc1
+  edition: Das Buch Henoch, Johannes Flemming, Ludwig Radermacher, Liber Enoch, J.C.Hinrichs'sche Buchhandlung, Leipzig, 1901, The Internet Archive.
+  verification:
+    status: community
+- id: extra-biblical-oracula-sibyllina-fragmenta-655c9911
+  path: extra_biblical/Oracula Sibyllina/Fragmenta
+  tf_path: extra_biblical/Oracula Sibyllina/Fragmenta/tf/1.0
+  languages:
+  - greek
+  author: Oracula Sibyllina
+  title: Fragmenta
+  canonical_id: urn:cts:greekLit:tlg1551.tlg002.opp-grc1
+  edition: Die Oracula Sibyllina, Die griechischen christlichen Schriftsteller, Johannes Geffcken, Oracula Sibyllina, J. C. Hinrichs'sche Buchhandlung, Leipzig, 1902, 8.
+  verification:
+    status: community
+- id: extra-biblical-oracula-sibyllina-oracula-bff38134
+  path: extra_biblical/Oracula Sibyllina/Oracula
+  tf_path: extra_biblical/Oracula Sibyllina/Oracula/tf/1.0
+  languages:
+  - greek
+  author: Oracula Sibyllina
+  title: Oracula
+  canonical_id: urn:cts:greekLit:tlg1551.tlg001.opp-grc1
+  edition: Die Oracula Sibyllina, Die griechischen christlichen Schriftsteller, Johannes Geffcken, Oracula Sibyllina, J. C. Hinrichs'sche Bechhandlung, Leipzig, 1902, 8.
+  verification:
+    status: community
+- id: extra-biblical-testamentum-abrahamae-the-testament-of-abraham-recension-01242656
+  path: extra_biblical/Testamentum Abrahamae/The Testament Of Abraham Recension A
+  tf_path: extra_biblical/Testamentum Abrahamae/The Testament Of Abraham Recension A/tf/1.0
+  languages:
+  - greek
+  author: Testamentum Abrahamae
+  title: The Testament of Abraham Recension A
+  canonical_id: urn:cts:greekLit:tlg1701.tlg001.1st1K-grc1
+  edition: The Testament of Abraham, Montague Rhodes James, Testamentum Abrahamae, Cambridge University Press, Cambridge, 1892, 1, Hathi Trust.
+  verification:
+    status: community
+- id: extra-biblical-testamentum-abrahamae-the-testament-of-abraham-recension-65394609
+  path: extra_biblical/Testamentum Abrahamae/The Testament Of Abraham Recension B
+  tf_path: extra_biblical/Testamentum Abrahamae/The Testament Of Abraham Recension B/tf/1.0
+  languages:
+  - greek
+  author: Testamentum Abrahamae
+  title: The Testament of Abraham Recension B
+  canonical_id: urn:cts:greekLit:tlg1701.tlg002.1st1K-grc1
+  edition: The Testament of Abraham, Montague Rhodes James, Testamentum Abrahamae, Cambridge University Press, Cambridge, 1892, 1, Hathi Trust.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-cc89efc4
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 1 Corinthians
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 1 Corinthians/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 1 Corinthians
+  canonical_id: urn:cts:greekLit:tlg0031.tlg007.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-34f0180d
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 1 John
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 1 John/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 1 John
+  canonical_id: urn:cts:greekLit:tlg0031.tlg023.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-9ed3526b
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 1 Peter
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 1 Peter/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 1 Peter
+  canonical_id: urn:cts:greekLit:tlg0031.tlg021.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-37203860
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 1 Thessalonians
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 1 Thessalonians/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 1 Thessalonians
+  canonical_id: urn:cts:greekLit:tlg0031.tlg013.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-01839894
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 1 Timothy
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 1 Timothy/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 1 Timothy
+  canonical_id: urn:cts:greekLit:tlg0031.tlg015.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-86f993cd
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 2 Corinthians
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 2 Corinthians/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 2 Corinthians
+  canonical_id: urn:cts:greekLit:tlg0031.tlg008.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-317b47d8
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 2 John
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 2 John/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 2 John
+  canonical_id: urn:cts:greekLit:tlg0031.tlg024.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-9c36db61
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 2 Peter
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 2 Peter/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 2 Peter
+  canonical_id: urn:cts:greekLit:tlg0031.tlg022.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-bccb7171
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 2 Thessalonians
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 2 Thessalonians/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 2 Thessalonians
+  canonical_id: urn:cts:greekLit:tlg0031.tlg014.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-9b5dead2
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 2 Timothy
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 2 Timothy/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 2 Timothy
+  canonical_id: urn:cts:greekLit:tlg0031.tlg016.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-b2334946
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 3 John
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - 3 John/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - 3 John
+  canonical_id: urn:cts:greekLit:tlg0031.tlg025.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-d8f450e1
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Acts
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Acts/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Acts
+  canonical_id: urn:cts:greekLit:tlg0031.tlg005.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-0413f6d6
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Colossians
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Colossians/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Colossians
+  canonical_id: urn:cts:greekLit:tlg0031.tlg012.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-c4e664cf
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Ephesians
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Ephesians/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Ephesians
+  canonical_id: urn:cts:greekLit:tlg0031.tlg010.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-e61da62d
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Galatians
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Galatians/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Galatians
+  canonical_id: urn:cts:greekLit:tlg0031.tlg009.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-4342f26c
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Hebrews
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Hebrews/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Hebrews
+  canonical_id: urn:cts:greekLit:tlg0031.tlg019.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-1665d599
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - James
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - James/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - James
+  canonical_id: urn:cts:greekLit:tlg0031.tlg020.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-2c7d7058
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - John
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - John/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - John
+  canonical_id: urn:cts:greekLit:tlg0031.tlg004.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-bcaf55ea
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Jude
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Jude/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Jude
+  canonical_id: urn:cts:greekLit:tlg0031.tlg026.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-21d8cc9e
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Luke
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Luke/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Luke
+  canonical_id: urn:cts:greekLit:tlg0031.tlg003.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-219a51d7
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Mark
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Mark/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Mark
+  canonical_id: urn:cts:greekLit:tlg0031.tlg002.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper and Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-8dfe75ed
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Matthew
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Matthew/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Matthew
+  canonical_id: urn:cts:greekLit:tlg0031.tlg001.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper and Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-6f6045f4
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Philemon
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Philemon/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Philemon
+  canonical_id: urn:cts:greekLit:tlg0031.tlg018.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-829debdd
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Philippians
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Philippians/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Philippians
+  canonical_id: urn:cts:greekLit:tlg0031.tlg011.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-55acb677
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Revelation
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Revelation/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Revelation
+  canonical_id: urn:cts:greekLit:tlg0031.tlg027.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-e7c97643
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Romans
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Romans/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Romans
+  canonical_id: urn:cts:greekLit:tlg0031.tlg006.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: new-testament-brooke-foss-westcott-fenton-john-anthony-hort-new-testamen-9b4a509d
+  path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Titus
+  tf_path: new_testament/Brooke Foss Westcott, Fenton John Anthony Hort/New Testament - Titus/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: New Testament - Titus
+  canonical_id: urn:cts:greekLit:tlg0031.tlg017.perseus-grc2
+  edition: The New Testament in the original Greek, 26007333, The text revised by, Brooke Foss Westcott, D.D, Fenton John Anthony Hort, D.D, New York, Harper amp Brothers, Franklin Square, 1882.
+  verification:
+    status: community
+- id: old-testament-john-henry-arthur-hart-ecclesiasticus-32fb3cc7
+  path: old_testament/John Henry Arthur Hart/Ecclesiasticus
+  tf_path: old_testament/John Henry Arthur Hart/Ecclesiasticus/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: Ecclesiasticus
+  canonical_id: urn:cts:greekLit:tlg0527.tlg034.1st1K-grc1
+  edition: Ecclesiasticus, John Henry Arthur Hart, Septuaginta, Cambridge University Press, Cambridge, 1909, Internet Archive.
+  verification:
+    status: community
+- id: old-testament-richard-rusden-ottley-isaias-7383d64f
+  path: old_testament/Richard Rusden Ottley/Isaias
+  tf_path: old_testament/Richard Rusden Ottley/Isaias/tf/1.0
+  languages:
+  - greek
+  author: not provided
+  title: Isaias
+  canonical_id: urn:cts:greekLit:tlg0527.tlg048.opp-grc2
+  edition: The Book Of Isaiah, Richard Rusden Ottley, Septuaginta, Cambridge University Press, Cambridge, 1904, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-abdias-9e5db5e6
+  path: old_testament/Septuaginta/Abdias
+  tf_path: old_testament/Septuaginta/Abdias/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Abdias
+  canonical_id: urn:cts:greekLit:tlg0527.tlg040.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-aggaeus-5116f5fa
+  path: old_testament/Septuaginta/Aggaeus
+  tf_path: old_testament/Septuaginta/Aggaeus/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Aggaeus
+  canonical_id: urn:cts:greekLit:tlg0527.tlg045.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-amos-d2b64d25
+  path: old_testament/Septuaginta/Amos
+  tf_path: old_testament/Septuaginta/Amos/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Amos
+  canonical_id: urn:cts:greekLit:tlg0527.tlg037.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-baruch-08054798
+  path: old_testament/Septuaginta/Baruch
+  tf_path: old_testament/Septuaginta/Baruch/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Baruch
+  canonical_id: urn:cts:greekLit:tlg0527.tlg050.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-bel-et-draco-theodotionis-versio-9d4b5549
+  path: old_testament/Septuaginta/Bel Et Draco (Theodotionis Versio)
+  tf_path: old_testament/Septuaginta/Bel Et Draco (Theodotionis Versio)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Bel et Draco (Theodotionis versio)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg059.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-bel-et-draco-translatio-graeca-2b1b898f
+  path: old_testament/Septuaginta/Bel Et Draco (Translatio Graeca)
+  tf_path: old_testament/Septuaginta/Bel Et Draco (Translatio Graeca)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Bel et Draco (translatio Graeca)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg058.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-canticum-c490f7dc
+  path: old_testament/Septuaginta/Canticum
+  tf_path: old_testament/Septuaginta/Canticum/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Canticum
+  canonical_id: urn:cts:greekLit:tlg0527.tlg031.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-daniel-theodotionis-versio-bf8ab86f
+  path: old_testament/Septuaginta/Daniel (Theodotionis Versio)
+  tf_path: old_testament/Septuaginta/Daniel (Theodotionis Versio)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Daniel (Theodotionis versio)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg057.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-daniel-translatio-graeca-614a0346
+  path: old_testament/Septuaginta/Daniel (Translatio Graeca)
+  tf_path: old_testament/Septuaginta/Daniel (Translatio Graeca)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Daniel (translatio Graeca)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg056.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-deuteronomium-2f940319
+  path: old_testament/Septuaginta/Deuteronomium
+  tf_path: old_testament/Septuaginta/Deuteronomium/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Deuteronomium
+  canonical_id: urn:cts:greekLit:tlg0527.tlg005.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-ecclesiasticus-ada31b1c
+  path: old_testament/Septuaginta/Ecclesiasticus
+  tf_path: old_testament/Septuaginta/Ecclesiasticus/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Ecclesiasticus
+  canonical_id: urn:cts:greekLit:tlg0527.tlg034.opp-grc2
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-epistula-jeremiae-85b88530
+  path: old_testament/Septuaginta/Epistula Jeremiae
+  tf_path: old_testament/Septuaginta/Epistula Jeremiae/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Epistula Jeremiae
+  canonical_id: urn:cts:greekLit:tlg0527.tlg052.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-esdras-a-64340d68
+  path: old_testament/Septuaginta/Esdras A
+  tf_path: old_testament/Septuaginta/Esdras A/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Esdras A
+  canonical_id: urn:cts:greekLit:tlg0527.tlg017.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-esdras-b-1207aafa
+  path: old_testament/Septuaginta/Esdras B
+  tf_path: old_testament/Septuaginta/Esdras B/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Esdras B
+  canonical_id: urn:cts:greekLit:tlg0527.tlg018.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-esther-66bf7b9e
+  path: old_testament/Septuaginta/Esther
+  tf_path: old_testament/Septuaginta/Esther/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Esther
+  canonical_id: urn:cts:greekLit:tlg0527.tlg019.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-exodus-c9aca2b9
+  path: old_testament/Septuaginta/Exodus
+  tf_path: old_testament/Septuaginta/Exodus/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Exodus
+  canonical_id: urn:cts:greekLit:tlg0527.tlg002.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, I, Rigaudon hOCR output, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-ezechiel-5ab2d6c1
+  path: old_testament/Septuaginta/Ezechiel
+  tf_path: old_testament/Septuaginta/Ezechiel/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Ezechiel
+  canonical_id: urn:cts:greekLit:tlg0527.tlg053.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-genesis-afeab361
+  path: old_testament/Septuaginta/Genesis
+  tf_path: old_testament/Septuaginta/Genesis/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Genesis
+  canonical_id: urn:cts:greekLit:tlg0527.tlg001.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-habacuc-3622a77d
+  path: old_testament/Septuaginta/Habacuc
+  tf_path: old_testament/Septuaginta/Habacuc/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Habacuc
+  canonical_id: urn:cts:greekLit:tlg0527.tlg043.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-isaias-0747faae
+  path: old_testament/Septuaginta/Isaias
+  tf_path: old_testament/Septuaginta/Isaias/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Isaias
+  canonical_id: urn:cts:greekLit:tlg0527.tlg048.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-jeremias-ede7cd75
+  path: old_testament/Septuaginta/Jeremias
+  tf_path: old_testament/Septuaginta/Jeremias/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Jeremias
+  canonical_id: urn:cts:greekLit:tlg0527.tlg049.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-job-8136b03f
+  path: old_testament/Septuaginta/Job
+  tf_path: old_testament/Septuaginta/Job/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Job
+  canonical_id: urn:cts:greekLit:tlg0527.tlg032.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-joel-6228a12d
+  path: old_testament/Septuaginta/Joel
+  tf_path: old_testament/Septuaginta/Joel/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Joel
+  canonical_id: urn:cts:greekLit:tlg0527.tlg039.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-jonas-5b95de0e
+  path: old_testament/Septuaginta/Jonas
+  tf_path: old_testament/Septuaginta/Jonas/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Jonas
+  canonical_id: urn:cts:greekLit:tlg0527.tlg041.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-josue-cod-vaticanus-cod-alexandrinus-10de09f3
+  path: old_testament/Septuaginta/Josue (Cod Vaticanus + Cod Alexandrinus)
+  tf_path: old_testament/Septuaginta/Josue (Cod Vaticanus + Cod Alexandrinus)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Josue (Cod Vaticanus + Cod Alexandrinus)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg006.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-judices-cod-alexandrinus-6eccae46
+  path: old_testament/Septuaginta/Judices (Cod Alexandrinus)
+  tf_path: old_testament/Septuaginta/Judices (Cod Alexandrinus)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Judices (Cod Alexandrinus)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg008.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-judith-99d3c7db
+  path: old_testament/Septuaginta/Judith
+  tf_path: old_testament/Septuaginta/Judith/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Judith
+  canonical_id: urn:cts:greekLit:tlg0527.tlg020.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-leviticus-a1fc5fa3
+  path: old_testament/Septuaginta/Leviticus
+  tf_path: old_testament/Septuaginta/Leviticus/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Leviticus
+  canonical_id: urn:cts:greekLit:tlg0527.tlg003.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-machabaeorum-i-7db29639
+  path: old_testament/Septuaginta/Machabaeorum I
+  tf_path: old_testament/Septuaginta/Machabaeorum I/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Machabaeorum i
+  canonical_id: urn:cts:greekLit:tlg0527.tlg023.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-machabaeorum-ii-af586b77
+  path: old_testament/Septuaginta/Machabaeorum Ii
+  tf_path: old_testament/Septuaginta/Machabaeorum Ii/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Machabaeorum ii
+  canonical_id: urn:cts:greekLit:tlg0527.tlg024.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-machabaeorum-iii-25a26c0e
+  path: old_testament/Septuaginta/Machabaeorum Iii
+  tf_path: old_testament/Septuaginta/Machabaeorum Iii/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Machabaeorum iii
+  canonical_id: urn:cts:greekLit:tlg0527.tlg025.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-machabaeorum-iv-14e36574
+  path: old_testament/Septuaginta/Machabaeorum Iv
+  tf_path: old_testament/Septuaginta/Machabaeorum Iv/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Machabaeorum iv
+  canonical_id: urn:cts:greekLit:tlg0527.tlg026.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-malachias-386e1f2d
+  path: old_testament/Septuaginta/Malachias
+  tf_path: old_testament/Septuaginta/Malachias/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Malachias
+  canonical_id: urn:cts:greekLit:tlg0527.tlg047.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-michaeas-cd1e5070
+  path: old_testament/Septuaginta/Michaeas
+  tf_path: old_testament/Septuaginta/Michaeas/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Michaeas
+  canonical_id: urn:cts:greekLit:tlg0527.tlg038.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-nahum-37634e2f
+  path: old_testament/Septuaginta/Nahum
+  tf_path: old_testament/Septuaginta/Nahum/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Nahum
+  canonical_id: urn:cts:greekLit:tlg0527.tlg042.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-numeri-dec3f3cf
+  path: old_testament/Septuaginta/Numeri
+  tf_path: old_testament/Septuaginta/Numeri/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Numeri
+  canonical_id: urn:cts:greekLit:tlg0527.tlg004.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-odae-5a0ce528
+  path: old_testament/Septuaginta/Odae
+  tf_path: old_testament/Septuaginta/Odae/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Odae
+  canonical_id: urn:cts:greekLit:tlg0527.tlg028.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-osee-0f700505
+  path: old_testament/Septuaginta/Osee
+  tf_path: old_testament/Septuaginta/Osee/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Osee
+  canonical_id: urn:cts:greekLit:tlg0527.tlg036.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-paralipomenon-i-sive-chronicon-i-bb09aa8c
+  path: old_testament/Septuaginta/Paralipomenon I Sive Chronicon I
+  tf_path: old_testament/Septuaginta/Paralipomenon I Sive Chronicon I/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Paralipomenon I sive Chronicon I
+  canonical_id: urn:cts:greekLit:tlg0527.tlg015.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-paralipomenon-ii-sive-chronicon-ii-97f21a23
+  path: old_testament/Septuaginta/Paralipomenon Ii Sive Chronicon Ii
+  tf_path: old_testament/Septuaginta/Paralipomenon Ii Sive Chronicon Ii/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Paralipomenon II sive Chronicon II
+  canonical_id: urn:cts:greekLit:tlg0527.tlg016.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-proverbia-17861682
+  path: old_testament/Septuaginta/Proverbia
+  tf_path: old_testament/Septuaginta/Proverbia/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Proverbia
+  canonical_id: urn:cts:greekLit:tlg0527.tlg029.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-psalmi-ec4a3152
+  path: old_testament/Septuaginta/Psalmi
+  tf_path: old_testament/Septuaginta/Psalmi/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Psalmi
+  canonical_id: urn:cts:greekLit:tlg0527.tlg027.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-psalmi-salomonis-443d5871
+  path: old_testament/Septuaginta/Psalmi Salomonis
+  tf_path: old_testament/Septuaginta/Psalmi Salomonis/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Psalmi Salomonis
+  canonical_id: urn:cts:greekLit:tlg0527.tlg035.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-regnorum-i-samuelis-i-in-textu-masoretico-93ef6966
+  path: old_testament/Septuaginta/Regnorum I (Samuelis I In Textu Masoretico)
+  tf_path: old_testament/Septuaginta/Regnorum I (Samuelis I In Textu Masoretico)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Regnorum I (Samuelis I in textu Masoretico)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg011.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-regnorum-ii-samuelis-ii-in-textu-masoretico-a7ae27f4
+  path: old_testament/Septuaginta/Regnorum Ii (Samuelis Ii In Textu Masoretico)
+  tf_path: old_testament/Septuaginta/Regnorum Ii (Samuelis Ii In Textu Masoretico)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Regnorum II (Samuelis II In Textu Masoretico)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg012.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-regnorum-iii-regum-i-in-textu-masoretico-38ece466
+  path: old_testament/Septuaginta/Regnorum Iii (Regum I In Textu Masoretico)
+  tf_path: old_testament/Septuaginta/Regnorum Iii (Regum I In Textu Masoretico)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Regnorum III (Regum I in textu Masoretico)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg013.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-regnorum-iv-regum-ii-in-textu-masoretico-1668870a
+  path: old_testament/Septuaginta/Regnorum Iv (Regum Ii In Textu Masoretico)
+  tf_path: old_testament/Septuaginta/Regnorum Iv (Regum Ii In Textu Masoretico)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Regnorum IV (Regum II in textu Masoretico)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg014.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-ruth-80777811
+  path: old_testament/Septuaginta/Ruth
+  tf_path: old_testament/Septuaginta/Ruth/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Ruth
+  canonical_id: urn:cts:greekLit:tlg0527.tlg010.opp-grc2
+  edition: The Old Testament in Greek, Genesis - IV Kings, Henry Barclay Swete, Septuaginta, University Press, Cambridge, 1901, 1, Rigaudon hOCR output, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-sapientia-salomonis-60fa8949
+  path: old_testament/Septuaginta/Sapientia Salomonis
+  tf_path: old_testament/Septuaginta/Sapientia Salomonis/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Sapientia Salomonis
+  canonical_id: urn:cts:greekLit:tlg0527.tlg033.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-sophonias-cee61551
+  path: old_testament/Septuaginta/Sophonias
+  tf_path: old_testament/Septuaginta/Sophonias/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Sophonias
+  canonical_id: urn:cts:greekLit:tlg0527.tlg044.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-susanna-theodotionis-versio-a2137316
+  path: old_testament/Septuaginta/Susanna (Theodotionis Versio)
+  tf_path: old_testament/Septuaginta/Susanna (Theodotionis Versio)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Susanna (Theodotionis versio)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg055.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-susanna-translatio-graeca-b30d9927
+  path: old_testament/Septuaginta/Susanna (Translatio Graeca)
+  tf_path: old_testament/Septuaginta/Susanna (Translatio Graeca)/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Susanna (translatio Graeca)
+  canonical_id: urn:cts:greekLit:tlg0527.tlg054.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-threni-seu-lamentationes-8b04e256
+  path: old_testament/Septuaginta/Threni Seu Lamentationes
+  tf_path: old_testament/Septuaginta/Threni Seu Lamentationes/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Threni seu Lamentationes
+  canonical_id: urn:cts:greekLit:tlg0527.tlg051.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-tobias-cdd698c2
+  path: old_testament/Septuaginta/Tobias
+  tf_path: old_testament/Septuaginta/Tobias/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Tobias
+  canonical_id: urn:cts:greekLit:tlg0527.tlg021.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1896, 2, The Internet Archive.
+  verification:
+    status: community
+- id: old-testament-septuaginta-zacharias-5fcf8ea1
+  path: old_testament/Septuaginta/Zacharias
+  tf_path: old_testament/Septuaginta/Zacharias/tf/1.0
+  languages:
+  - greek
+  author: Septuaginta
+  title: Zacharias
+  canonical_id: urn:cts:greekLit:tlg0527.tlg046.1st1K-grc1
+  edition: The Old Testament in Greek, Henry Barclay Swete D.D, Septuaginta, Cambridge University Press, Cambridge, 1905, 3, The Internet Archive.
+  verification:
+    status: community

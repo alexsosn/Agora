@@ -1,7 +1,481 @@
 schema_version: 1
 collection_id: translatin-manif
-index_status: dynamic
-notes:
-  - Members are discovered lazily from current upstream Git tree metadata.
-  - The empty committed member list is intentional; stable member IDs are derived from discovered dataset paths at runtime.
-members: []
+source_revision: ab4df0d84d3480cee0cdaa41973c77ec7a0f99ed
+index_status: complete
+members:
+- id: tf-m1043-99b1c66d
+  path: tf/M1043
+  tf_path: tf/M1043/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m1144-32aa33fd
+  path: tf/M1144
+  tf_path: tf/M1144/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m119-2ce58089
+  path: tf/M119
+  tf_path: tf/M119/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m120-f5bbdd76
+  path: tf/M120
+  tf_path: tf/M120/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m124-72bf4fd6
+  path: tf/M124
+  tf_path: tf/M124/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m127-105fd9c7
+  path: tf/M127
+  tf_path: tf/M127/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m130-f409013c
+  path: tf/M130
+  tf_path: tf/M130/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m132-459b7797
+  path: tf/M132
+  tf_path: tf/M132/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m14-007078b3
+  path: tf/M14
+  tf_path: tf/M14/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m1478-3374e5b7
+  path: tf/M1478
+  tf_path: tf/M1478/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m15-659f7f19
+  path: tf/M15
+  tf_path: tf/M15/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m150-eb58248c
+  path: tf/M150
+  tf_path: tf/M150/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m151-42eac478
+  path: tf/M151
+  tf_path: tf/M151/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m1682-58cf8415
+  path: tf/M1682
+  tf_path: tf/M1682/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m1723-8b11665e
+  path: tf/M1723
+  tf_path: tf/M1723/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m1747-2eb0c69b
+  path: tf/M1747
+  tf_path: tf/M1747/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m1781-d198aa35
+  path: tf/M1781
+  tf_path: tf/M1781/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m1807-c10248e3
+  path: tf/M1807
+  tf_path: tf/M1807/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m19-d56a6a1d
+  path: tf/M19
+  tf_path: tf/M19/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m195-43197bb8
+  path: tf/M195
+  tf_path: tf/M195/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m2107-17ba1142
+  path: tf/M2107
+  tf_path: tf/M2107/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m2114-6235dcaa
+  path: tf/M2114
+  tf_path: tf/M2114/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m2138-0be7e1b2
+  path: tf/M2138
+  tf_path: tf/M2138/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m216-47e9173a
+  path: tf/M216
+  tf_path: tf/M216/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m2167-071bfe1c
+  path: tf/M2167
+  tf_path: tf/M2167/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m218-941b2333
+  path: tf/M218
+  tf_path: tf/M218/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m219-a0544382
+  path: tf/M219
+  tf_path: tf/M219/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m236-127000fb
+  path: tf/M236
+  tf_path: tf/M236/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m238-7ac8b059
+  path: tf/M238
+  tf_path: tf/M238/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m24-03f6f521
+  path: tf/M24
+  tf_path: tf/M24/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m242-9316488a
+  path: tf/M242
+  tf_path: tf/M242/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m245-d9bf26f7
+  path: tf/M245
+  tf_path: tf/M245/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m248-e0563b77
+  path: tf/M248
+  tf_path: tf/M248/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m255-2a8141fc
+  path: tf/M255
+  tf_path: tf/M255/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m270-e9c970f7
+  path: tf/M270
+  tf_path: tf/M270/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m272-f01f8408
+  path: tf/M272
+  tf_path: tf/M272/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m279-54b77e65
+  path: tf/M279
+  tf_path: tf/M279/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m281-5ff89a20
+  path: tf/M281
+  tf_path: tf/M281/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m294-17f67a0e
+  path: tf/M294
+  tf_path: tf/M294/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m306-b1b1bb29
+  path: tf/M306
+  tf_path: tf/M306/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m317-10511269
+  path: tf/M317
+  tf_path: tf/M317/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m318-1d009365
+  path: tf/M318
+  tf_path: tf/M318/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m323-92b9a4ef
+  path: tf/M323
+  tf_path: tf/M323/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m343-4a7ac16c
+  path: tf/M343
+  tf_path: tf/M343/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m346-845b570e
+  path: tf/M346
+  tf_path: tf/M346/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m371-417a601b
+  path: tf/M371
+  tf_path: tf/M371/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m38-68d630e1
+  path: tf/M38
+  tf_path: tf/M38/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m39-67ce386e
+  path: tf/M39
+  tf_path: tf/M39/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m401-4443ab97
+  path: tf/M401
+  tf_path: tf/M401/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m416-5e849433
+  path: tf/M416
+  tf_path: tf/M416/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m431-52e7275f
+  path: tf/M431
+  tf_path: tf/M431/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m432-8356d911
+  path: tf/M432
+  tf_path: tf/M432/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m478-1017cfe7
+  path: tf/M478
+  tf_path: tf/M478/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m480-95e581eb
+  path: tf/M480
+  tf_path: tf/M480/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m481-266cefba
+  path: tf/M481
+  tf_path: tf/M481/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m49-19082a70
+  path: tf/M49
+  tf_path: tf/M49/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m50-c44e3c45
+  path: tf/M50
+  tf_path: tf/M50/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m6-892bf9ea
+  path: tf/M6
+  tf_path: tf/M6/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m66-e0b3fc13
+  path: tf/M66
+  tf_path: tf/M66/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m666-87c3b033
+  path: tf/M666
+  tf_path: tf/M666/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m672-d6f591f7
+  path: tf/M672
+  tf_path: tf/M672/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m83-f561f0d0
+  path: tf/M83
+  tf_path: tf/M83/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m84-38284d3f
+  path: tf/M84
+  tf_path: tf/M84/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m851-4e1679e7
+  path: tf/M851
+  tf_path: tf/M851/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m857-4ee4ba62
+  path: tf/M857
+  tf_path: tf/M857/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m9-eed31fd0
+  path: tf/M9
+  tf_path: tf/M9/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m95-1e121725
+  path: tf/M95
+  tf_path: tf/M95/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
+- id: tf-m96-f6f7aa20
+  path: tf/M96
+  tf_path: tf/M96/0.1.2
+  languages:
+  - latin
+  verification:
+    status: community
