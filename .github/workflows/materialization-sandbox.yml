@@ -5,13 +5,19 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/materialization-sandbox.yml'
+      - 'registry/materializers.yaml'
       - 'registry/schema/materializer-plugin.schema.json'
+      - 'registry/schema/materializers.schema.json'
+      - 'scripts/agora_install_materializer.py'
       - 'scripts/agora_materialize.py'
       - 'tests/test_materialization*.py'
   pull_request:
     paths:
       - '.github/workflows/materialization-sandbox.yml'
+      - 'registry/materializers.yaml'
       - 'registry/schema/materializer-plugin.schema.json'
+      - 'registry/schema/materializers.schema.json'
+      - 'scripts/agora_install_materializer.py'
       - 'scripts/agora_materialize.py'
       - 'tests/test_materialization*.py'
 
@@ -83,18 +89,9 @@ jobs:
     timeout-minutes: 30
     env:
       OCP_COMMIT: 2d1d14d23434a784d377ff7f4409ccdb2d18aafb
-      PSEUDEPIGRAPHA_TF_COMMIT: fb837dca52bf2f9f86b628d84f7928c7ec93fede
     steps:
       - name: Check out Agora
         uses: actions/checkout@v4
-
-      - name: Check out pinned reference materializer
-        uses: actions/checkout@v4
-        with:
-          repository: alexsosn/Pseudepigrapha-TF
-          ref: ${{ env.PSEUDEPIGRAPHA_TF_COMMIT }}
-          path: .reference/pseudepigrapha-tf
-          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -102,10 +99,38 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      - name: Install host and reference dependencies
+      - name: Install host dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      # The registry is the single source of truth for which third-party commit
+      # Agora installs. Reading it here keeps this evidence bound to the pin
+      # users actually get instead of drifting behind it.
+      - name: Resolve the registered materializer commit
+        id: pin
+        shell: bash
         run: |
-          python -m pip install -r requirements-dev.txt
-          python -m pip install -e .reference/pseudepigrapha-tf
+          set -euo pipefail
+          ref=$(python -c "from scripts.agora_install_materializer import load_registry, select_plugin; print(select_plugin(load_registry(), 'pseudepigrapha-tf')['ref'])")
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "PSEUDEPIGRAPHA_TF_COMMIT=$ref" >> "$GITHUB_ENV"
+
+      - name: Check out the registered reference materializer
+        uses: actions/checkout@v4
+        with:
+          repository: alexsosn/Pseudepigrapha-TF
+          ref: ${{ steps.pin.outputs.ref }}
+          path: .reference/pseudepigrapha-tf
+          persist-credentials: false
+
+      - name: Verify the checkout is the registered commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          resolved=$(git -C .reference/pseudepigrapha-tf rev-parse HEAD)
+          test "$resolved" = "$PSEUDEPIGRAPHA_TF_COMMIT"
+
+      - name: Install the reference materializer
+        run: python -m pip install -e .reference/pseudepigrapha-tf
 
       - name: Install bubblewrap
         run: sudo apt-get update && sudo apt-get install -y bubblewrap
