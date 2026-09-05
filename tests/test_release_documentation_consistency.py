@@ -145,7 +145,16 @@ class ReleaseDocumentationConsistencyTests(unittest.TestCase):
 
     def test_indexed_collections_reject_stale_normal_git_tree_discovery_prose(self):
         validate = self.require_validator()
-        errors = validate(ROOT)
+        root = self.make_root()
+        scope = root / "wiki/releases/v0.1-scope-frozen.md"
+        text = scope.read_text(encoding="utf-8")
+        text = text.replace(
+            "Ordinary list/search/prepare operations use committed member indexes bound to exact upstream source revisions.",
+            "Agora discovers current members lazily from upstream Git tree metadata.",
+        )
+        scope.write_text(text, encoding="utf-8")
+
+        errors = validate(root)
         self.assertTrue(
             any("Git tree" in error and "collection" in error.lower() for error in errors),
             errors,
