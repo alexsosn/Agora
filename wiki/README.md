@@ -38,6 +38,17 @@ Release documents encode lifecycle instead of P-level priority:
 
 ## Current documents
 
+<!-- BEGIN AGORA V0.1 STATUS -->
+| v0.1 integration | Aggregate plugin status | Claude path | Codex path |
+| --- | --- | --- | --- |
+| Context-Fabric | `community` | `community` | `verified` |
+| Perseus MCP | `community` | `community` | `verified` |
+| Sefaria | `community` | `community` | `verified` |
+| SEDRA | `community` | `community` | `verified` |
+
+Phase 5 baseline: **8 implemented scholarly skills**. Additional resource-specific guidance is follow-up work, not an unstarted phase.
+<!-- END AGORA V0.1 STATUS -->
+
 ### Architecture
 
 - [`architecture/ref-plugin-boundary.md`](architecture/ref-plugin-boundary.md) — **normative ownership boundary** for a thin marketplace: what Agora may implement, what must remain upstream, permitted adapters, skills, tests, and review rules.
