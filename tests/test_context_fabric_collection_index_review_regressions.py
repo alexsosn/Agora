@@ -114,6 +114,14 @@ class CollectionIndexWorkflowTests(unittest.TestCase):
         self.assertIn('"registry/resources.yaml"', workflow)
         self.assertIn("--check", workflow)
 
+    def test_generation_workflow_uploads_evidence_before_freshness_check(self):
+        workflow = (
+            ROOT / ".github" / "workflows" / "context-fabric-collection-index-generation.yml"
+        ).read_text(encoding="utf-8")
+        upload_position = workflow.index("- name: Upload generated index")
+        check_position = workflow.index("- name: Verify canonical collection index is fresh")
+        self.assertLess(upload_position, check_position)
+
 
 if __name__ == "__main__":
     unittest.main()
