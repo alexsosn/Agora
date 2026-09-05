@@ -1,5 +1,6 @@
 schema_version: 1
 collection_id: bible
+source_revision: f09ea5060761b372adf1ac1d70d7b96918f57757
 index_status: dynamic
 notes:
   - Members are discovered lazily from current upstream Git tree metadata.
