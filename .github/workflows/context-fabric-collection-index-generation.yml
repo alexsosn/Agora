@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - "registry/collections/**"
+      - "registry/resources.yaml"
+      - "plugins/context-fabric/resources/catalog.yaml"
       - "plugins/context-fabric/src/agora_context_fabric/collection_index.py"
       - "plugins/context-fabric/src/agora_context_fabric/gitstore.py"
       - "scripts/generate_context_fabric_collection_indexes.py"
@@ -50,5 +52,43 @@ jobs:
         with:
           name: context-fabric-collection-index-${{ matrix.resource }}
           path: generated-collection-indexes/${{ matrix.resource }}.yaml
+          if-no-files-found: error
+          retention-days: 7
+
+  render-indexed-catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Render exact four-collection discovery promotion
+        shell: python
+        run: |
+          from pathlib import Path
+
+          source = Path("registry/resources.yaml")
+          text = source.read_text(encoding="utf-8")
+          marker = "      discovery: git-tree\n"
+          indexed = "      discovery: indexed\n"
+          git_tree_count = text.count(marker)
+          indexed_count = text.count(indexed)
+          if (git_tree_count, indexed_count) == (4, 0):
+              text = text.replace(marker, indexed)
+          elif (git_tree_count, indexed_count) != (0, 4):
+              raise SystemExit(
+                  "expected exactly four collection discovery modes in either git-tree or indexed state; "
+                  f"found git-tree={git_tree_count}, indexed={indexed_count}"
+              )
+
+          output = Path("generated-indexed-catalog")
+          output.mkdir()
+          (output / "resources.yaml").write_text(text, encoding="utf-8")
+          (output / "catalog.yaml").write_text(text, encoding="utf-8")
+
+      - name: Upload indexed catalog promotion preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: context-fabric-indexed-catalog
+          path: generated-indexed-catalog/*.yaml
           if-no-files-found: error
           retention-days: 7
