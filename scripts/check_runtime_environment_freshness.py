@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import difflib
 import subprocess
 import sys
 import tempfile
@@ -48,6 +49,22 @@ def _failure_detail(result: Any) -> str:
     stderr = str(getattr(result, "stderr", "") or "").strip()
     stdout = str(getattr(result, "stdout", "") or "").strip()
     return stderr or stdout or f"exit code {getattr(result, 'returncode', '<unknown>')}"
+
+
+def _bounded_diff(expected: Path, actual: Path, *, max_lines: int = 16) -> str:
+    diff = list(
+        difflib.unified_diff(
+            expected.read_text(encoding="utf-8").splitlines(),
+            actual.read_text(encoding="utf-8").splitlines(),
+            fromfile=str(expected),
+            tofile="regenerated",
+            lineterm="",
+        )
+    )
+    shown = diff[:max_lines]
+    if len(diff) > max_lines:
+        shown.append(f"... {len(diff) - max_lines} more diff lines")
+    return "\n".join(shown)
 
 
 def check_runtime_environment_freshness(
@@ -127,7 +144,8 @@ def check_runtime_environment_freshness(
                 continue
             if regenerated.read_bytes() != snapshot_path.read_bytes():
                 errors.append(
-                    f"{snapshot}: stale relative to {source}; regenerate with the canonical uv pip compile command"
+                    f"{snapshot}: stale relative to {source}; regenerate with the canonical uv pip compile command\n"
+                    f"{_bounded_diff(snapshot_path, regenerated)}"
                 )
 
     return errors
