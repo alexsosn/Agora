@@ -230,7 +230,9 @@ resources:
           summary: Some collection members declare duplicate structure levels and cannot be loaded by the supported Context-Fabric release.
           upstream:
             - repository: Context-Fabric/context-fabric
+              url: https://github.com/Context-Fabric/context-fabric/pull/7
             - repository: pthu/greek_literature
+              url: https://github.com/pthu/greek_literature/pull/1
     source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
 
   - id: athenaeus
