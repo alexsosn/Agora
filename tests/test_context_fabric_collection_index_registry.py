@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import json
 import shutil
 import sys
@@ -125,21 +124,18 @@ class CollectionIndexRegistryTests(unittest.TestCase):
             errors,
         )
 
-    def test_installed_catalog_rewrites_only_collection_index_location(self):
+    def test_installed_catalog_remains_lossless_registry_projection(self):
         root = self.make_root()
         self.make_complete_bible_index(root)
         registry = self.load_yaml(root / "registry" / "resources.yaml")
-        source = copy.deepcopy(next(item for item in registry["resources"] if item["id"] == "bible"))
+        source = next(item for item in registry["resources"] if item["id"] == "bible")
         generated = build_catalog_document(root)
         installed = next(item for item in generated["resources"] if item["id"] == "bible")
-
+        self.assertEqual(installed, source)
         self.assertEqual(
             installed["collection"]["member_index"],
-            "resources/collections/bible.yaml",
+            "registry/collections/bible.yaml",
         )
-        installed = copy.deepcopy(installed)
-        installed["collection"]["member_index"] = source["collection"]["member_index"]
-        self.assertEqual(installed, source)
 
     def test_installed_collection_indexes_are_generated_from_canonical_registry(self):
         root = self.make_root()
