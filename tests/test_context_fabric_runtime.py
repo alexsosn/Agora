@@ -150,8 +150,17 @@ class ResolverTests(unittest.TestCase):
         for dataset in datasets:
             tf = source / dataset
             tf.mkdir(parents=True)
+            title = Path(dataset).parts[1]
             (tf / "otype.tf").write_text("@node\n", encoding="utf-8")
             (tf / "text.tf").write_text(dataset, encoding="utf-8")
+            (tf / "_book.tf").write_text(
+                "@node\n"
+                "@author=Homer\n"
+                f"@_book={title}\n"
+                f"@urn=urn:cts:greekLit:fixture.{title.casefold()}\n"
+                "\n1\t" + title + "\n",
+                encoding="utf-8",
+            )
         (source / "huge-source.xml").write_bytes(b"z" * 2048)
         GitStoreTests._commit(source)
         return source
