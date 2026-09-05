@@ -107,7 +107,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
         with:
-          version: '0.12.9'
+          version: '0.12.10'
 
       - name: Install validation dependencies
         run: python -m pip install -r requirements-dev.txt
