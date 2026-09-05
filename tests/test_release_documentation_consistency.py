@@ -66,6 +66,12 @@ class ReleaseDocumentationConsistencyTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def inject_text(self, root: Path, relative: str, marker: str, stale: str) -> None:
+        path = root / relative
+        text = path.read_text(encoding="utf-8")
+        self.assertIn(marker, text, relative)
+        path.write_text(text.replace(marker, stale, 1), encoding="utf-8")
+
     def test_high_level_current_status_docs_have_bounded_visible_status_blocks(self):
         for relative in SHARED_STATUS_DOCS:
             text = (ROOT / relative).read_text(encoding="utf-8")
@@ -157,6 +163,70 @@ class ReleaseDocumentationConsistencyTests(unittest.TestCase):
         errors = validate(root)
         self.assertTrue(
             any("Git tree" in error and "collection" in error.lower() for error in errors),
+            errors,
+        )
+
+    def test_phase5_cannot_regress_to_wholly_unstarted_status(self):
+        validate = self.require_validator()
+        root = self.make_root()
+        self.inject_text(
+            root,
+            "wiki/releases/v0.1-plan-active.md",
+            "## Phase 5 — Scholarly skills",
+            "## Phase 5 — Scholarly skills\n\n**Status: next major implementation phase.**",
+        )
+
+        errors = validate(root)
+        self.assertTrue(
+            any("Phase 5" in error and "implemented" in error.lower() for error in errors),
+            errors,
+        )
+
+    def test_aggregate_plugin_status_cannot_be_described_as_verified_when_registry_is_community(self):
+        validate = self.require_validator()
+        root = self.make_root()
+        self.inject_text(
+            root,
+            "wiki/releases/v0.1-plan-active.md",
+            "### Implemented plugin/integration evidence",
+            "### Implemented plugin/integration evidence\n\nThe current v0.1 plugin statuses in `registry/plugins.yaml` are therefore `verified`.",
+        )
+
+        errors = validate(root)
+        self.assertTrue(
+            any("aggregate" in error.lower() and "verified" in error.lower() for error in errors),
+            errors,
+        )
+
+    def test_historical_review_findings_cannot_be_labeled_current_priorities(self):
+        validate = self.require_validator()
+        root = self.make_root()
+        self.inject_text(
+            root,
+            "wiki/README.md",
+            "### Reviews",
+            "### Reviews\n\n## Current P0 engineering findings",
+        )
+
+        errors = validate(root)
+        self.assertTrue(
+            any("historical" in error.lower() and "P0" in error for error in errors),
+            errors,
+        )
+
+    def test_completed_snapshot_and_load_work_cannot_be_presented_as_next_priority(self):
+        validate = self.require_validator()
+        root = self.make_root()
+        self.inject_text(
+            root,
+            "wiki/architecture/ref-implementation-details.md",
+            "## Repository layout",
+            "The next implementation work includes Context-Fabric snapshot integrity and representative corpus-load evidence among the highest-priority engineering items.\n\n## Repository layout",
+        )
+
+        errors = validate(root)
+        self.assertTrue(
+            any("completed" in error.lower() and "priority" in error.lower() for error in errors),
             errors,
         )
 
