@@ -1,0 +1,184 @@
+name: Temporary runtime dependency GREEN1 application
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/tmp-apply-runtime-green1.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: >-
+      github.head_ref == 'feat/14-reproducible-runtime-dependencies' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/14-reproducible-runtime-dependencies
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install repository validation dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Bind canonical launch and evidence metadata
+        shell: python
+        run: |
+          from copy import deepcopy
+          from pathlib import Path
+          import yaml
+
+          root = Path('.')
+          registry_path = root / 'registry/plugins.yaml'
+          document = yaml.safe_load(registry_path.read_text(encoding='utf-8'))
+
+          digests = {
+              'plugins/context-fabric/uv.lock': '758a825a46337e3ddc394781e17333690b3d4b5ca4c7e80762343a2bfacc42d9',
+              'plugins/sedra/uv.lock': 'c72692f28a955f22809db707986c7cec8cd17f5510b1a7e4754c552723c5de51',
+              'verification/mcp-smoke/uv.lock': '02ee919d9bd8ff909f090463c563a425ab614ea77dc410eeddbd23bb7a330838',
+              'plugins/perseus/runtime-constraints.txt': 'fd9eda54b119fe8d232578dfedb3be3a666a0ebd0866e70e85ad9dbb9f2d744a',
+              'plugins/sefaria/runtime-constraints.txt': '04e7e558dda68be2f81d6ee78bc5fc9175e32d7f603136fac3357e96edf96708',
+          }
+          environments = {
+              'context-fabric': {
+                  'kind': 'uv-lock',
+                  'path': 'plugins/context-fabric/uv.lock',
+                  'sha256': digests['plugins/context-fabric/uv.lock'],
+              },
+              'perseus': {
+                  'kind': 'uv-constraints',
+                  'path': 'plugins/perseus/runtime-constraints.txt',
+                  'sha256': digests['plugins/perseus/runtime-constraints.txt'],
+              },
+              'sefaria': {
+                  'kind': 'uv-constraints',
+                  'path': 'plugins/sefaria/runtime-constraints.txt',
+                  'sha256': digests['plugins/sefaria/runtime-constraints.txt'],
+              },
+              'sedra': {
+                  'kind': 'uv-lock',
+                  'path': 'plugins/sedra/uv.lock',
+                  'sha256': digests['plugins/sedra/uv.lock'],
+              },
+          }
+          harness = {
+              'kind': 'uv-lock',
+              'path': 'verification/mcp-smoke/uv.lock',
+              'sha256': digests['verification/mcp-smoke/uv.lock'],
+          }
+
+          plugins = {item['id']: item for item in document['plugins']}
+
+          for plugin_id in ('context-fabric', 'sedra'):
+              for client in ('claude', 'codex'):
+                  args = plugins[plugin_id]['runtime']['launch'][client]['args']
+                  if '--locked' not in args:
+                      args.insert(args.index('run') + 1, '--locked')
+
+          for client in ('claude', 'codex'):
+              args = plugins['perseus']['runtime']['launch'][client]['args']
+              if '--constraint' not in args:
+                  constraint = (
+                      '${CLAUDE_PLUGIN_ROOT}/runtime-constraints.txt'
+                      if client == 'claude'
+                      else 'runtime-constraints.txt'
+                  )
+                  args[0:0] = ['--constraint', constraint]
+
+          sefaria_codex = plugins['sefaria']['runtime']['launch']['codex']
+          sefaria_codex['cwd'] = '.'
+          if '--constraint' not in sefaria_codex['args']:
+              sefaria_codex['args'][0:0] = ['--constraint', 'runtime-constraints.txt']
+
+          for plugin_id, plugin in plugins.items():
+              for client, evidence in plugin['verification']['clients'].items():
+                  for reference in evidence['checks']:
+                      inputs = reference['inputs']
+                      if plugin_id == 'sefaria' and client == 'claude':
+                          inputs['environment'] = {'kind': 'hosted'}
+                      else:
+                          inputs['environment'] = deepcopy(environments[plugin_id])
+                      if reference['check_id'].startswith('mcp-live/'):
+                          inputs['harness_environment'] = deepcopy(harness)
+
+          registry_path.write_text(
+              yaml.safe_dump(document, sort_keys=False, allow_unicode=True, width=1000),
+              encoding='utf-8',
+          )
+
+          validator_path = root / 'scripts/validate_registry.py'
+          text = validator_path.read_text(encoding='utf-8')
+          import_marker = '''try:\n    from scripts.validate_verification_checks import validate_verification_checks\nexcept ModuleNotFoundError:\n    from validate_verification_checks import validate_verification_checks\n\n'''
+          runtime_import = '''try:\n    from scripts.validate_runtime_environments import validate_runtime_environments\nexcept ModuleNotFoundError:\n    from validate_runtime_environments import validate_runtime_environments\n\n'''
+          if runtime_import not in text:
+              if import_marker not in text:
+                  raise SystemExit('validate_registry import marker missing')
+              text = text.replace(import_marker, import_marker + runtime_import, 1)
+          call_marker = '    errors += validate_candidate_research(root, vocab)\n    return errors\n'
+          replacement = (
+              '    errors += validate_candidate_research(root, vocab)\n'
+              '    errors += validate_runtime_environments(root)\n'
+              '    return errors\n'
+          )
+          if 'errors += validate_runtime_environments(root)' not in text:
+              if call_marker not in text:
+                  raise SystemExit('validate_registry call marker missing')
+              text = text.replace(call_marker, replacement, 1)
+          validator_path.write_text(text, encoding='utf-8')
+
+      - name: Regenerate native client manifests
+        run: python scripts/generate_marketplaces.py
+
+      - name: Update existing exact-launch regression expectations
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('tests/test_generation.py')
+          text = path.read_text(encoding='utf-8')
+          replacements = {
+              '''                "run",\n                "--project",\n                "${CLAUDE_PLUGIN_ROOT}",\n                "agora-context-fabric-mcp",''': '''                "run",\n                "--locked",\n                "--project",\n                "${CLAUDE_PLUGIN_ROOT}",\n                "agora-context-fabric-mcp",''',
+              '''                "run",\n                "--project",\n                ".",\n                "agora-context-fabric-mcp",''': '''                "run",\n                "--locked",\n                "--project",\n                ".",\n                "agora-context-fabric-mcp",''',
+              '''                "--from",\n                "perseus-mcp==1.0.2",''': '''                "--constraint",\n                "${CLAUDE_PLUGIN_ROOT}/runtime-constraints.txt",\n                "--from",\n                "perseus-mcp==1.0.2",''',
+              '''            [\n                "--from",\n                "perseus-mcp==1.0.2",''': '''            [\n                "--constraint",\n                "runtime-constraints.txt",\n                "--from",\n                "perseus-mcp==1.0.2",''',
+              '''            [\n                "--from",\n                "mcp-proxy==0.12.0",''': '''            [\n                "--constraint",\n                "runtime-constraints.txt",\n                "--from",\n                "mcp-proxy==0.12.0",''',
+              '''                "run",\n                "--project",\n                "${CLAUDE_PLUGIN_ROOT}",\n                "agora-sedra-mcp",''': '''                "run",\n                "--locked",\n                "--project",\n                "${CLAUDE_PLUGIN_ROOT}",\n                "agora-sedra-mcp",''',
+              '''            ["run", "--project", ".", "agora-sedra-mcp"],''': '''            ["run", "--locked", "--project", ".", "agora-sedra-mcp"],''',
+          }
+          for old, new in replacements.items():
+              if old in text:
+                  text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+
+      - name: Verify GREEN1 focused contracts
+        run: |
+          python scripts/validate_registry.py
+          python scripts/generate_marketplaces.py --check
+          python -m unittest tests.test_runtime_dependency_environments tests.test_generation -v
+
+      - name: Commit GREEN1
+        run: |
+          git add \
+            registry/plugins.yaml \
+            registry/schema/plugins.schema.json \
+            scripts/validate_registry.py \
+            scripts/validate_runtime_environments.py \
+            plugins/*/.claude-plugin/mcp.json \
+            plugins/*/.codex-plugin/mcp.json \
+            tests/test_generation.py
+          if git diff --cached --quiet; then
+            echo "GREEN1 changes already present."
+            exit 0
+          fi
+          git config user.name "Agora CI"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "feat: bind plugin launches to dependency snapshots"
+          git push origin HEAD:feat/14-reproducible-runtime-dependencies
