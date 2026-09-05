@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
-from typing import Iterable
+from typing import Any, Iterable
 
 from .catalog import Catalog, ResourceSpec
 from .collection_index import (
@@ -20,6 +20,32 @@ from .gitstore import GitStore
 
 
 _IMMUTABLE_REVISION_RE = re.compile(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\Z")
+
+
+class KnownMemberIssueError(ValueError):
+    """A collection member is known to violate an Agora-advertised integration precondition."""
+
+    def __init__(
+        self,
+        *,
+        resource_id: str,
+        member_id: str,
+        source_revision: str,
+        issues: tuple[dict[str, Any], ...],
+    ) -> None:
+        self.resource_id = resource_id
+        self.member_id = member_id
+        self.source_revision = source_revision
+        self.issues = issues
+        rendered = "; ".join(
+            f"{issue.get('id')}: {issue.get('summary', 'known integration limitation')}"
+            for issue in issues
+        )
+        super().__init__(
+            f"collection member {member_id!r} in {resource_id!r} has known blocking issue(s) "
+            f"at source revision {source_revision}: {rendered}. "
+            "Choose another member or inspect the resource/member discovery metadata for details."
+        )
 
 
 @dataclass(frozen=True)
@@ -35,6 +61,7 @@ class CollectionMember:
     verification_status: str = "community"
     verification_evidence: tuple[str, ...] = ()
     verification_notes: tuple[str, ...] = ()
+    verification_known_issues: tuple[str, ...] = ()
     source_revision: str | None = None
 
 
@@ -205,8 +232,28 @@ class ContextFabricResolver:
             verification_status=member.verification_status,
             verification_evidence=member.verification_evidence,
             verification_notes=member.verification_notes,
+            verification_known_issues=member.verification_known_issues,
             source_revision=revision,
         )
+
+    @staticmethod
+    def _blocking_member_issues(resource: ResourceSpec, member) -> tuple[dict[str, Any], ...]:
+        issue_by_id = {
+            issue["id"]: issue
+            for issue in resource.verification_known_issues
+            if isinstance(issue.get("id"), str)
+        }
+        resolved: list[dict[str, Any]] = []
+        for issue_id in member.verification_known_issues:
+            issue = issue_by_id.get(issue_id)
+            if issue is None:
+                raise ValueError(
+                    f"collection member {member.id!r} in {resource.id!r} references unknown "
+                    f"known issue {issue_id!r}"
+                )
+            if issue.get("severity") == "blocking":
+                resolved.append(dict(issue))
+        return tuple(resolved)
 
     @staticmethod
     def _select_resource_root(
@@ -349,6 +396,14 @@ class ContextFabricResolver:
                 member = members[member_id]
             except KeyError as exc:
                 raise KeyError(f"unknown member {member_id!r} in collection {resource_id!r}") from exc
+            blocking_issues = self._blocking_member_issues(resource, member)
+            if blocking_issues:
+                raise KnownMemberIssueError(
+                    resource_id=resource.id,
+                    member_id=member.id,
+                    source_revision=revision,
+                    issues=blocking_issues,
+                )
             local = self.store.materialize(repo, member.tf_path, revision)
             resolved_version = dataset_version(member.tf_path)
             return PreparedCorpus(

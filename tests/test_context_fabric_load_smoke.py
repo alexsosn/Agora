@@ -27,8 +27,11 @@ class _Feature:
 
 
 class ContextFabricLoadSmokeTests(unittest.TestCase):
-    def test_cases_cover_two_core_corpora_and_one_lazy_greek_member(self):
-        self.assertEqual(set(LOAD_CASES), {"bhsa", "cuc", "greek-iliad"})
+    def test_cases_cover_core_good_greek_and_expected_known_failure(self):
+        self.assertEqual(
+            set(LOAD_CASES),
+            {"bhsa", "cuc", "greek-iliad", "greek-known-bad"},
+        )
 
         self.assertEqual(LOAD_CASES["bhsa"].resource_id, "bhsa")
         self.assertIsNone(LOAD_CASES["bhsa"].member_path_contains)
@@ -45,9 +48,25 @@ class ContextFabricLoadSmokeTests(unittest.TestCase):
             "canonical-greekLit/tlg0012/tlg001/perseus-grc2/1/tf/1.0",
         )
         self.assertEqual(iliad.features, ("orig", "main"))
+        self.assertIsNone(iliad.expected_known_issue)
 
-    def test_each_real_case_has_narrow_semantic_expectations(self):
-        self.assertEqual(set(SEMANTIC_EXPECTATIONS), set(LOAD_CASES))
+        known_bad = LOAD_CASES["greek-known-bad"]
+        self.assertEqual(known_bad.resource_id, "greek_literature")
+        self.assertEqual(
+            known_bad.member_path_contains,
+            "canonical-greekLit/tlg0001/tlg001/perseus-grc2/1/tf/1.0",
+        )
+        self.assertEqual(known_bad.features, ())
+        self.assertEqual(
+            known_bad.expected_known_issue,
+            "context-fabric/duplicate-structure-levels",
+        )
+
+    def test_each_real_load_case_has_narrow_semantic_expectations(self):
+        self.assertEqual(
+            set(SEMANTIC_EXPECTATIONS),
+            set(LOAD_CASES) - {"greek-known-bad"},
+        )
         self.assertEqual(
             [(item.feature, item.node) for item in SEMANTIC_EXPECTATIONS["bhsa"]],
             [("g_cons", 1), ("g_cons", 2), ("sp", 1), ("sp", 2)],
@@ -192,7 +211,7 @@ class ContextFabricLoadSmokeTests(unittest.TestCase):
             result["corpus"] = {"name": "example", "loaded": True}
             result["source_revision"] = None
             with self.assertRaisesRegex(RuntimeError, "source revision"):
-                summarize_loaded_corpus("example", result, checks)
+                summarize_loaded_corpus("example", result, [])
 
             result["source_revision"] = "a" * 40
             with self.assertRaisesRegex(RuntimeError, "semantic checks"):

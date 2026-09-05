@@ -44,6 +44,14 @@ class ContextFabricService:
             ),
         }
 
+    @staticmethod
+    def _known_issue_map(resource: ResourceSpec) -> dict[str, dict[str, Any]]:
+        return {
+            issue["id"]: dict(issue)
+            for issue in resource.verification_known_issues
+            if isinstance(issue.get("id"), str)
+        }
+
     def _resource_dict(
         self,
         resource: ResourceSpec,
@@ -64,6 +72,15 @@ class ContextFabricService:
                 available_modules = [
                     module for module in registered_modules if module["compatible_with_default"]
                 ]
+
+        verification: dict[str, Any] = {
+            "status": resource.verification_status,
+            "notes": list(resource.verification_notes),
+        }
+        if resource.verification_known_issues:
+            verification["known_issues"] = [
+                dict(issue) for issue in resource.verification_known_issues
+            ]
 
         return {
             "id": resource.id,
@@ -99,10 +116,7 @@ class ContextFabricService:
                 if resource.kind == "collection"
                 else None
             ),
-            "verification": {
-                "status": resource.verification_status,
-                "notes": list(resource.verification_notes),
-            },
+            "verification": verification,
             "licenses": dict(resource.licenses),
             "integration_issues": list(resource.integration_issues),
             "source_snapshot": dict(resource.source_snapshot),
@@ -115,8 +129,28 @@ class ContextFabricService:
             },
         }
 
-    @staticmethod
-    def _member_dict(member: CollectionMember) -> dict[str, Any]:
+    def _member_dict(self, member: CollectionMember) -> dict[str, Any]:
+        resource = self.catalog.get(member.resource_id)
+        issue_by_id = self._known_issue_map(resource)
+        known_issues: list[dict[str, Any]] = []
+        for issue_id in member.verification_known_issues:
+            issue = issue_by_id.get(issue_id)
+            if issue is None:
+                raise RuntimeError(
+                    f"collection member {member.id!r} references unknown known issue {issue_id!r} "
+                    f"for resource {member.resource_id!r}"
+                )
+            known_issues.append(dict(issue))
+        verification: dict[str, Any] = {
+            "status": member.verification_status,
+            "evidence": [
+                {"check_id": check_id}
+                for check_id in member.verification_evidence
+            ],
+            "notes": list(member.verification_notes),
+        }
+        if known_issues:
+            verification["known_issues"] = known_issues
         return {
             "id": member.id,
             "resource_id": member.resource_id,
@@ -127,14 +161,7 @@ class ContextFabricService:
             "title": member.title,
             "canonical_id": member.canonical_id,
             "edition": member.edition,
-            "verification": {
-                "status": member.verification_status,
-                "evidence": [
-                    {"check_id": check_id}
-                    for check_id in member.verification_evidence
-                ],
-                "notes": list(member.verification_notes),
-            },
+            "verification": verification,
         }
 
     @staticmethod

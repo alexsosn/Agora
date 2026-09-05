@@ -26,7 +26,7 @@ Experimental materializer plugins are registered separately from the frozen v0.1
 - `schema/` — JSON Schemas for canonical registry documents and the upstream materializer contract.
 - `collections/` — member indexes for collection resources.
 
-The collection indexes are intentionally dynamic: their schema and references are stable, while current members are discovered lazily from upstream Git tree metadata.
+Collection indexes are complete, commit-bound discovery snapshots. Each index records an immutable `source_revision`; indexed members are discovered from that snapshot and acquired lazily only when selected. Member `verification.known_issues` entries are compact references to structured issue definitions on the parent resource, so snapshot-specific integration limitations can be surfaced before acquisition without rewriting upstream data.
 
 A materializer registry entry pins an immutable repository commit, expected upstream plugin identity/version, manifest path, package type/path, install-time trust class, and the exact materializer IDs expected in that manifest. `scripts/validate_registry.py` validates `materializers.yaml` alongside the other canonical files, including duplicate IDs and shared discipline/verification controlled vocabularies.
 
@@ -78,7 +78,7 @@ Every non-`unknown` provider-health claim requires at least one exact-provider l
 
 **Plugin/client integration evidence** records how strongly a particular Claude or Codex transport path has been tested. The `experimental` / `community` / `verified` ladder belongs here, and the plugin aggregate remains the weakest client status.
 
-**Resource/data status** remains resource-specific. Loadability, provenance, licensing, known issues, annotations, and scholarly suitability are not inferred from provider health or client integration evidence. Resource/member executable evidence is a separate trust-layer workstream.
+**Resource/data status** remains resource-specific. Loadability, provenance, licensing, known issues, annotations, and scholarly suitability are not inferred from provider health or client integration evidence. A resource-level status does not imply that every member is loadable: structured resource known-issue definitions plus commit-bound member references record known snapshot-specific exceptions. Resource/member executable evidence is a separate trust-layer workstream.
 
 These dimensions are intentionally not synchronized. A provider can have `observed-operational` health while the aggregate plugin remains `community`, and neither statement promotes the resources behind that provider.
 

@@ -221,7 +221,16 @@ resources:
       lazy_members: true
       member_index: registry/collections/greek_literature.yaml
     licenses: {data: unknown, redistribution: unknown}
-    verification: {status: community}
+    verification:
+      status: community
+      known_issues:
+        - id: context-fabric/duplicate-structure-levels
+          severity: blocking
+          signature: duplicate-structure-levels
+          summary: Some collection members declare duplicate structure levels and cannot be loaded by the supported Context-Fabric release.
+          upstream:
+            - repository: Context-Fabric/context-fabric
+            - repository: pthu/greek_literature
     source_snapshot: {source: Context-Fabric/context-fabric:CorporaTable.tsx, checked_at: "2026-08-29"}
 
   - id: athenaeus

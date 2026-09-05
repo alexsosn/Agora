@@ -13,6 +13,7 @@ import yaml
 
 
 _IMMUTABLE_REVISION_RE = re.compile(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\Z")
+DUPLICATE_STRUCTURE_LEVELS_ISSUE_ID = "context-fabric/duplicate-structure-levels"
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class CollectionIndexMember:
     verification_status: str = "community"
     verification_evidence: tuple[str, ...] = ()
     verification_notes: tuple[str, ...] = ()
+    verification_known_issues: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -80,6 +82,15 @@ def parse_tf_header(lines: Iterable[str]) -> dict[str, str]:
         if key:
             metadata[key] = value
     return metadata
+
+
+def duplicate_structure_levels(metadata: Mapping[str, str]) -> bool:
+    """Mirror Context-Fabric's uniqueness precondition for structureTypes."""
+    raw = metadata.get("structureTypes")
+    if not raw:
+        return False
+    levels = [value.strip() for value in raw.split(",") if value.strip()]
+    return len(levels) != len(set(levels))
 
 
 def _natural_tokens(value: str) -> tuple[tuple[int, int | str], ...]:
@@ -140,6 +151,11 @@ def build_collection_index(
         metadata = dict(metadata_reader(selected) or {})
         title = metadata.get("title") or metadata.get("_book")
         canonical_id = metadata.get("urn") or metadata.get("filename")
+        known_issues = (
+            (DUPLICATE_STRUCTURE_LEVELS_ISSUE_ID,)
+            if duplicate_structure_levels(metadata)
+            else ()
+        )
         members.append(
             CollectionIndexMember(
                 id=member_id_from_identity(identity),
@@ -150,6 +166,7 @@ def build_collection_index(
                 title=title,
                 canonical_id=canonical_id,
                 edition=metadata.get("edition"),
+                verification_known_issues=known_issues,
             )
         )
 
@@ -185,6 +202,11 @@ def index_to_document(index: CollectionIndex) -> dict:
             ]
         if member.verification_notes:
             verification["notes"] = list(member.verification_notes)
+        if member.verification_known_issues:
+            verification["known_issues"] = [
+                {"issue_id": issue_id}
+                for issue_id in member.verification_known_issues
+            ]
         item["verification"] = verification
         members.append(item)
 
@@ -209,6 +231,11 @@ def index_from_document(document: Mapping) -> CollectionIndex:
             for ref in verification.get("evidence", [])
             if isinstance(ref, Mapping) and isinstance(ref.get("check_id"), str)
         )
+        known_issues = tuple(
+            ref["issue_id"]
+            for ref in verification.get("known_issues", [])
+            if isinstance(ref, Mapping) and isinstance(ref.get("issue_id"), str)
+        )
         members.append(
             CollectionIndexMember(
                 id=item["id"],
@@ -222,6 +249,7 @@ def index_from_document(document: Mapping) -> CollectionIndex:
                 verification_status=verification.get("status", "community"),
                 verification_evidence=evidence,
                 verification_notes=tuple(verification.get("notes", ())),
+                verification_known_issues=known_issues,
             )
         )
     return CollectionIndex(
@@ -282,17 +310,41 @@ class CollectionIndexManager:
             return None
         return index
 
-    def _metadata_for(self, repo: Path, tf_path: str, revision: str) -> Mapping[str, str]:
-        relative = "_book.tf" if tf_path == "." else f"{tf_path}/_book.tf"
-        try:
-            metadata = self.store.tf_header_metadata(repo, relative, revision)
-        except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
-            return {}
+    @staticmethod
+    def _clean_metadata(metadata: Mapping) -> dict[str, str]:
         return {
             str(key): str(value)
             for key, value in metadata.items()
             if isinstance(key, str) and isinstance(value, (str, int, float, bool))
         }
+
+    def _metadata_for(self, repo: Path, tf_path: str, revision: str) -> Mapping[str, str]:
+        prefix = "" if tf_path == "." else f"{tf_path}/"
+        merged: dict[str, str] = {}
+
+        try:
+            book_metadata = self.store.tf_header_metadata(
+                repo,
+                f"{prefix}_book.tf",
+                revision,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
+            book_metadata = {}
+        merged.update(self._clean_metadata(book_metadata))
+
+        try:
+            text_metadata = self.store.tf_header_metadata(
+                repo,
+                f"{prefix}otext.tf",
+                revision,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
+            text_metadata = {}
+        cleaned_text_metadata = self._clean_metadata(text_metadata)
+        for key in ("structureTypes", "structureFeatures"):
+            if key in cleaned_text_metadata:
+                merged[key] = cleaned_text_metadata[key]
+        return merged
 
     @staticmethod
     def _atomic_write(path: Path, text: str) -> None:

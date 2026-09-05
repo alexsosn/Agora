@@ -24,6 +24,7 @@ from scripts.validate_registry import validate_registry
 
 
 REVISION = "a" * 40
+ISSUE_ID = "context-fabric/duplicate-structure-levels"
 
 
 class CollectionIndexRegistryTests(unittest.TestCase):
@@ -48,7 +49,13 @@ class CollectionIndexRegistryTests(unittest.TestCase):
         shutil.copy2(ROOT / "tests" / "test_generation.py", root / "tests" / "test_generation.py")
         return root
 
-    def make_complete_bible_index(self, root: Path, *, evidence: str | None = None) -> None:
+    def make_complete_bible_index(
+        self,
+        root: Path,
+        *,
+        evidence: str | None = None,
+        issue_id: str | None = None,
+    ) -> None:
         resources = self.load_yaml(root / "registry" / "resources.yaml")
         bible = next(item for item in resources["resources"] if item["id"] == "bible")
         bible["collection"]["discovery"] = "indexed"
@@ -57,6 +64,8 @@ class CollectionIndexRegistryTests(unittest.TestCase):
         verification = {"status": "community"}
         if evidence is not None:
             verification["evidence"] = [{"check_id": evidence}]
+        if issue_id is not None:
+            verification["known_issues"] = [{"issue_id": issue_id}]
         index = {
             "schema_version": 1,
             "collection_id": "bible",
@@ -75,6 +84,23 @@ class CollectionIndexRegistryTests(unittest.TestCase):
             ],
         }
         self.write_yaml(root / "registry" / "collections" / "bible.yaml", index)
+
+    def add_resource_issue(self, root: Path, resource_id: str = "bible") -> None:
+        resources = self.load_yaml(root / "registry" / "resources.yaml")
+        resource = next(item for item in resources["resources"] if item["id"] == resource_id)
+        resource["verification"]["known_issues"] = [
+            {
+                "id": ISSUE_ID,
+                "severity": "blocking",
+                "signature": "duplicate-structure-levels",
+                "summary": "Some members declare duplicate structureTypes.",
+                "upstream": [
+                    {"repository": "Context-Fabric/context-fabric"},
+                    {"repository": "pthu/greek_literature"},
+                ],
+            }
+        ]
+        self.write_yaml(root / "registry" / "resources.yaml", resources)
 
     def test_schema_requires_revision_and_nonempty_members_for_complete_index(self):
         schema = json.loads(
@@ -101,6 +127,34 @@ class CollectionIndexRegistryTests(unittest.TestCase):
         self.assertIn("evidence", verification["properties"])
         evidence_item = verification["properties"]["evidence"]["items"]
         self.assertEqual(evidence_item["required"], ["check_id"])
+
+    def test_member_schema_carries_compact_known_issue_references(self):
+        schema = json.loads(
+            (ROOT / "registry" / "schema" / "collection-index.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        verification = schema["properties"]["members"]["items"]["properties"]["verification"]
+        known_issues = verification["properties"]["known_issues"]
+        self.assertTrue(known_issues["uniqueItems"])
+        self.assertEqual(known_issues["items"]["required"], ["issue_id"])
+
+    def test_resource_schema_supports_structured_known_issue_definitions(self):
+        schema = json.loads(
+            (ROOT / "registry" / "schema" / "resources.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        resource = schema["properties"]["resources"]["items"]
+        verification = resource["properties"]["verification"]
+        known_issues = verification["properties"]["known_issues"]
+        issue = known_issues["items"]
+        self.assertEqual(
+            set(issue["required"]),
+            {"id", "severity", "signature", "summary"},
+        )
+        self.assertEqual(issue["properties"]["severity"]["enum"], ["advisory", "blocking"])
+        self.assertIn("upstream", issue["properties"])
 
     def test_registry_accepts_complete_revision_bound_index(self):
         root = self.make_root()
@@ -142,6 +196,33 @@ class CollectionIndexRegistryTests(unittest.TestCase):
             any(
                 "resource bible.member[fixture-12345678].verification.evidence" in error
                 and "missing verification check" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_member_known_issue_must_reference_resource_definition(self):
+        root = self.make_root()
+        self.make_complete_bible_index(root, issue_id=ISSUE_ID)
+        errors = validate_registry(root)
+        self.assertTrue(
+            any(
+                "resource bible.member[fixture-12345678].verification.known_issues" in error
+                and "missing resource known issue" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_member_known_issue_reference_is_valid_when_resource_defines_it(self):
+        root = self.make_root()
+        self.make_complete_bible_index(root, issue_id=ISSUE_ID)
+        self.add_resource_issue(root)
+        errors = validate_registry(root)
+        self.assertFalse(
+            any(
+                "resource bible.member[fixture-12345678].verification.known_issues" in error
+                or "registry/resources.yaml" in error and "known_issues" in error
                 for error in errors
             ),
             errors,

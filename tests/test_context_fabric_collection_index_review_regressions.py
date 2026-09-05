@@ -31,16 +31,25 @@ class HeaderOnlyMetadataTests(unittest.TestCase):
         )
         return result.stdout.strip()
 
-    def test_collection_manager_uses_header_only_git_reader(self):
+    def test_collection_manager_uses_header_only_git_reader_for_identity_and_structure(self):
         with tempfile.TemporaryDirectory() as tmp:
+            calls: list[str] = []
+
             class HeaderOnlyStore:
                 cache_dir = Path(tmp)
 
                 @staticmethod
                 def tf_header_metadata(_repo, relative_path, revision):
-                    self.assertEqual(relative_path, "tf/1.0/_book.tf")
+                    calls.append(relative_path)
                     self.assertEqual(revision, REVISION)
-                    return {"author": "Homer", "title": "Iliad"}
+                    if relative_path == "tf/1.0/_book.tf":
+                        return {"author": "Homer", "title": "Iliad"}
+                    if relative_path == "tf/1.0/otext.tf":
+                        return {
+                            "structureTypes": "_book,book,card,card,_sentence,_phrase",
+                            "structureFeatures": "_book,book,card,card,_sentence,_phrase",
+                        }
+                    raise AssertionError(f"unexpected metadata path: {relative_path}")
 
                 @staticmethod
                 def tf_feature_summary(*_args, **_kwargs):
@@ -49,8 +58,14 @@ class HeaderOnlyMetadataTests(unittest.TestCase):
             manager = CollectionIndexManager(HeaderOnlyStore())
             self.assertEqual(
                 manager._metadata_for(Path("unused"), "tf/1.0", REVISION),
-                {"author": "Homer", "title": "Iliad"},
+                {
+                    "author": "Homer",
+                    "title": "Iliad",
+                    "structureTypes": "_book,book,card,card,_sentence,_phrase",
+                    "structureFeatures": "_book,book,card,card,_sentence,_phrase",
+                },
             )
+            self.assertEqual(calls, ["tf/1.0/_book.tf", "tf/1.0/otext.tf"])
 
     def test_git_header_reader_stops_before_invalid_feature_body(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -98,6 +113,14 @@ class CollectionIndexWorkflowTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn('"registry/resources.yaml"', workflow)
         self.assertIn("--check", workflow)
+
+    def test_generation_workflow_uploads_evidence_before_freshness_check(self):
+        workflow = (
+            ROOT / ".github" / "workflows" / "context-fabric-collection-index-generation.yml"
+        ).read_text(encoding="utf-8")
+        upload_position = workflow.index("- name: Upload generated index")
+        check_position = workflow.index("- name: Verify canonical collection index is fresh")
+        self.assertLess(upload_position, check_position)
 
 
 if __name__ == "__main__":
