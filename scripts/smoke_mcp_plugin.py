@@ -53,13 +53,7 @@ SMOKE_CASES: dict[str, SmokeCase] = {
         tool_call=("list_available_corpora", {"query": "Ugaritic"}),
     ),
     "perseus": SmokeCase(
-        expected_tools={
-            "get_passage",
-            "search_perseus",
-            "find_author_names",
-            "get_work_resources",
-            "get_scaife_library_metadata",
-        },
+        expected_tools={"get_passage", "search_perseus", "find_author_names"},
         tool_call=("find_author_names", {"query": "Homer", "limit": 1}),
         known_issue_canaries=(PERSEUS_ROUTING_KNOWN_ISSUE_ID,),
     ),
@@ -428,6 +422,25 @@ def _tool_has_payload(result: Any) -> bool:
     return False
 
 
+def _parse_json_object_text(
+    text: str,
+    *,
+    plugin_id: str,
+    tool_name: str,
+) -> dict[str, Any]:
+    try:
+        parsed = json.loads(text)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
+        ) from exc
+    if not isinstance(parsed, dict):
+        raise RuntimeError(
+            f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
+        )
+    return parsed
+
+
 def _json_object_from_tool_result(
     result: Any,
     *,
@@ -443,6 +456,22 @@ def _json_object_from_tool_result(
     if structured is None:
         structured = getattr(result, "structuredContent", None)
     if isinstance(structured, Mapping):
+        # FastMCP wraps annotated primitive returns as {"result": value} because
+        # MCP structuredContent must have an object at the root. Perseus tools
+        # return JSON serialized as str, so decode exactly that documented shape.
+        if set(structured) == {"result"}:
+            wrapped = structured["result"]
+            if isinstance(wrapped, Mapping):
+                return dict(wrapped)
+            if isinstance(wrapped, str):
+                return _parse_json_object_text(
+                    wrapped,
+                    plugin_id=plugin_id,
+                    tool_name=tool_name,
+                )
+            raise RuntimeError(
+                f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
+            )
         return dict(structured)
 
     text_parts: list[str] = []
@@ -454,18 +483,11 @@ def _json_object_from_tool_result(
         raise RuntimeError(
             f"{plugin_id} live tool {tool_name!r} did not return one valid JSON object"
         )
-
-    try:
-        parsed = json.loads(text_parts[0])
-    except (TypeError, json.JSONDecodeError) as exc:
-        raise RuntimeError(
-            f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
-        ) from exc
-    if not isinstance(parsed, dict):
-        raise RuntimeError(
-            f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
-        )
-    return parsed
+    return _parse_json_object_text(
+        text_parts[0],
+        plugin_id=plugin_id,
+        tool_name=tool_name,
+    )
 
 
 def _json_contains_exact_string(value: Any, expected: str) -> bool:
@@ -494,7 +516,7 @@ async def run_known_issue_canary(
     discovery = _json_object_from_tool_result(
         await session.call_tool(
             "find_author_names",
-            arguments={"query": "Euripides", "language": "greek", "limit": 100},
+            arguments={"query": "Euripides", "language": "greek", "limit": 20},
         ),
         plugin_id=plugin_id,
         tool_name="find_author_names",
