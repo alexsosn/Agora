@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import copy
+import hashlib
 import importlib.metadata
 import json
 import os
@@ -17,6 +19,7 @@ from typing import Any, Iterator, Mapping
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+FILE_BACKED_ENVIRONMENT_KINDS = {"uv-lock", "uv-constraints"}
 
 
 @dataclass(frozen=True)
@@ -67,6 +70,14 @@ SMOKE_CASES: dict[str, SmokeCase] = {
 def _load_yaml(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as fh:
         return yaml.safe_load(fh)
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for block in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def load_plugin_launch(plugin_id: str, root: Path = ROOT) -> LaunchSpec:
@@ -149,6 +160,73 @@ def _load_live_verification_reference(
     return live_references[0]
 
 
+def _bind_environment_identity(
+    identity: Mapping[str, Any] | None,
+    *,
+    label: str,
+    root: Path,
+) -> dict[str, Any]:
+    if not isinstance(identity, Mapping):
+        raise ValueError(f"{label}: missing dependency environment identity")
+
+    bound = dict(identity)
+    kind = bound.get("kind")
+    if kind == "hosted":
+        return bound
+    if kind not in FILE_BACKED_ENVIRONMENT_KINDS:
+        raise ValueError(f"{label}: unsupported dependency environment kind {kind!r}")
+
+    relative = bound.get("path")
+    expected = bound.get("sha256")
+    if not isinstance(relative, str) or not relative:
+        raise ValueError(f"{label}: file-backed environment requires path")
+    if not isinstance(expected, str) or len(expected) != 64:
+        raise ValueError(f"{label}: file-backed environment requires a 64-character sha256")
+
+    candidate = Path(relative)
+    if candidate.is_absolute() or ".." in candidate.parts:
+        raise ValueError(f"{label}: environment path must be repository-relative: {relative!r}")
+    target = root / candidate
+    if not target.is_file():
+        raise ValueError(f"{label}: dependency environment file does not exist: {relative}")
+
+    actual = _sha256(target)
+    if actual != expected:
+        raise ValueError(
+            f"{label}: sha256 mismatch for {relative}: declared {expected}, actual {actual}"
+        )
+    bound["actual_sha256"] = actual
+    return bound
+
+
+def bind_live_verification_inputs(
+    plugin_id: str,
+    *,
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    """Bind one live check's declared dependency identities to files on disk.
+
+    This function is intentionally called before importing or starting the MCP
+    runtime. A successful live evidence artifact therefore cannot claim a lock
+    or constraints digest that differs from the files available to the launch.
+    """
+
+    root = Path(root).resolve()
+    _check, reference = _load_live_verification_reference(plugin_id, root)
+    inputs = copy.deepcopy(reference["inputs"])
+    inputs["environment"] = _bind_environment_identity(
+        inputs.get("environment"),
+        label=f"plugin[{plugin_id}].environment",
+        root=root,
+    )
+    inputs["harness_environment"] = _bind_environment_identity(
+        inputs.get("harness_environment"),
+        label=f"plugin[{plugin_id}].harness_environment",
+        root=root,
+    )
+    return inputs
+
+
 def _local_revision(root: Path) -> str:
     try:
         result = subprocess.run(
@@ -200,9 +278,15 @@ def build_trace_metadata(
     env: Mapping[str, str] | None = None,
     checked_at: datetime | None = None,
     root: Path = ROOT,
+    verification_inputs: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = Path(root).resolve()
-    check, reference = _load_live_verification_reference(plugin_id, root)
+    check, _reference = _load_live_verification_reference(plugin_id, root)
+    bound_inputs = (
+        copy.deepcopy(dict(verification_inputs))
+        if verification_inputs is not None
+        else bind_live_verification_inputs(plugin_id, root=root)
+    )
     environment = dict(os.environ if env is None else env)
     when = checked_at or datetime.now(timezone.utc)
 
@@ -253,7 +337,7 @@ def build_trace_metadata(
             "uv": _command_version("uv"),
         },
         "launch": launch_data,
-        "verification_inputs": reference["inputs"],
+        "verification_inputs": bound_inputs,
     }
 
 
@@ -318,7 +402,12 @@ async def smoke_plugin(
     *,
     timeout: float = 180.0,
     launch: LaunchSpec | None = None,
+    root: Path = ROOT,
 ) -> dict[str, Any]:
+    # Bind the exact dependency files before importing the harness SDK or
+    # constructing a stdio client, so mismatched evidence cannot start a server.
+    bound_inputs = bind_live_verification_inputs(plugin_id, root=root)
+
     try:
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
@@ -327,7 +416,7 @@ async def smoke_plugin(
             "the live smoke harness requires MCP Python SDK v2; install mcp>=2,<3"
         ) from exc
 
-    launch = launch or load_plugin_launch(plugin_id)
+    launch = launch or load_plugin_launch(plugin_id, root=root)
     case = SMOKE_CASES[plugin_id]
     server_params = StdioServerParameters(
         command=launch.command,
@@ -361,7 +450,12 @@ async def smoke_plugin(
                         )
 
     return {
-        **build_trace_metadata(plugin_id, launch=launch),
+        **build_trace_metadata(
+            plugin_id,
+            launch=launch,
+            root=root,
+            verification_inputs=bound_inputs,
+        ),
         "server_name": getattr(initialize_result, "serverInfo", None)
         or getattr(initialize_result, "server_info", None),
         "tool_count": len(tool_names),
