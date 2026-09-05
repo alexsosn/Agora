@@ -72,7 +72,14 @@ def check_runtime_environment_freshness(
     *,
     runner: Runner = subprocess.run,
 ) -> list[str]:
-    """Return freshness errors without modifying committed dependency snapshots."""
+    """Return freshness errors without modifying committed dependency snapshots.
+
+    Project locks use uv's native metadata freshness check. For uvx constraint
+    snapshots, the committed snapshot is also supplied as a constraint while
+    recompiling its source declaration. This verifies that the frozen graph is
+    still a valid complete resolution without treating newly published package
+    versions as drift.
+    """
 
     root = Path(root)
     errors: list[str] = []
@@ -124,6 +131,8 @@ def check_runtime_environment_freshness(
                 "3.13",
                 "--no-header",
                 "--no-annotate",
+                "--constraint",
+                snapshot,
                 source,
                 "-o",
                 str(regenerated),
@@ -135,7 +144,7 @@ def check_runtime_environment_freshness(
                 continue
             if getattr(result, "returncode", 1) != 0:
                 errors.append(
-                    f"{snapshot}: could not regenerate from {source}: "
+                    f"{snapshot}: no longer satisfies {source}: "
                     f"{_failure_detail(result)}"
                 )
                 continue
