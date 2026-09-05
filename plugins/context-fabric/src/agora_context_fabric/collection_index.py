@@ -285,10 +285,9 @@ class CollectionIndexManager:
     def _metadata_for(self, repo: Path, tf_path: str, revision: str) -> Mapping[str, str]:
         relative = "_book.tf" if tf_path == "." else f"{tf_path}/_book.tf"
         try:
-            summary = self.store.tf_feature_summary(repo, relative, revision)
+            metadata = self.store.tf_header_metadata(repo, relative, revision)
         except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
             return {}
-        metadata = summary.get("metadata") or {}
         return {
             str(key): str(value)
             for key, value in metadata.items()
