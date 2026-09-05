@@ -79,6 +79,8 @@ Agora separates immutable plugin source from interpreter/platform-specific insta
     agora-installation.json
 ```
 
+Installation runs `pip` from the interpreter that invokes the installer, so that interpreter must provide pip; the installer checks this before building and reports an interpreter without pip (a `uv venv` or `--without-pip` environment, for example) as an actionable failure rather than a bare pip exit status.
+
 The environment key includes Python implementation, full Python version, ABI, and platform. A Python 3.12 environment is therefore not silently reused as a Python 3.13 environment, and architecture/platform changes select a different installation path.
 
 `agora-installation.json` records:
@@ -94,7 +96,7 @@ The environment key includes Python implementation, full Python version, ABI, an
 - the install-time trust class;
 - a combined execution identity over source tree, managed runtime tree, and Python runtime identity.
 
-Idempotent reuse recomputes source and runtime hashes and re-reads distribution metadata. Editing plugin source, installed dependency files, distribution metadata, the execution manifest, or the pip report invalidates the installation. `--repair` uses a staging environment and replacement/rollback path. Per-source and per-environment exclusive locks prevent concurrent installations from racing.
+Idempotent reuse recomputes source and runtime hashes and re-reads distribution metadata. Editing plugin source, installed dependency files, distribution metadata, the execution manifest, or the pip report invalidates the installation. `--repair` uses a staging environment and replacement/rollback path. Per-source and per-environment exclusive locks prevent concurrent installations from racing. Those locks are OS-backed advisory locks, matching the Context-Fabric cache policy in [`ref-context-fabric-cache-lifecycle.md`](ref-context-fabric-cache-lifecycle.md): the kernel releases them when a holder exits, so an installer killed mid-run leaves a lock **file** behind but never a lock. Lock files are therefore not evidence of a running installation and must not be cleaned up by hand.
 
 The current registry does **not** yet guarantee reproducible rebuilding from a lockfile. Pseudepigrapha-TF currently declares a Text-Fabric version range and an unpinned build backend. Fresh installs may therefore resolve different dependency files. Agora distinguishes those executions by recording the resolved closure and complete runtime-tree hash; reviewed lock/constraints plus package hashes remain a prerequisite for unattended automatic installation.
 

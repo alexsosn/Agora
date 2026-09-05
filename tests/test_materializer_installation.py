@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import multiprocessing
+import os
+import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
 
+import portalocker
 import yaml
 from jsonschema import Draft202012Validator
 
@@ -18,13 +23,17 @@ from scripts.agora_install_materializer import (
     load_registry,
     runtime_tag,
     select_plugin,
+    _lock,
+    _install_python,
+    _pip_env,
+    _require_pip,
     _verify_execution_modules_static,
     _checkout,
 )
 from scripts.agora_materialize import materialize
 
 ROOT = Path(__file__).resolve().parents[1]
-PSEUDEPIGRAPHA_TF_COMMIT = "a2300b3c5b1a5e859d82691dc28bd53967053a8d"
+PSEUDEPIGRAPHA_TF_COMMIT = "082c6aeae72df8c93c11d8b6bbb1b69ec2b1f544"
 
 
 def _registry() -> dict:
@@ -130,6 +139,24 @@ def _fake_install(_plugin, build_source: Path, runtime_root: Path, report: Path)
             f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n", encoding="utf-8"
         )
     report.write_text(json.dumps({"version": "1", "install": []}), encoding="utf-8")
+
+
+def _hold_install_lock(path: str, ready, release) -> None:
+    with _lock(Path(path), timeout=5):
+        ready.set()
+        release.wait(10)
+
+
+def _crash_holding_install_lock(path: str, ready) -> None:
+    with _lock(Path(path), timeout=5):
+        ready.set()
+        os._exit(0)
+
+
+def _hold_install_lock_briefly(path: str, ready, hold_seconds: float) -> None:
+    with _lock(Path(path), timeout=5):
+        ready.set()
+        time.sleep(hold_seconds)
 
 
 class MaterializerRegistryTests(unittest.TestCase):
@@ -379,6 +406,151 @@ class MaterializerInstallerTests(unittest.TestCase):
                 provenance["plugin"]["code_sha256"],
                 receipt["environment"]["tree_sha256"],
             )
+
+
+class MaterializerInstallLockTests(unittest.TestCase):
+    """Installation locks must be owned by the OS, not by a lock file's existence."""
+
+    def test_live_holder_blocks_and_process_death_releases_install_lock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / ".environment.lock"
+            ctx = multiprocessing.get_context("spawn")
+
+            ready, release = ctx.Event(), ctx.Event()
+            holder = ctx.Process(target=_hold_install_lock, args=(str(path), ready, release))
+            holder.start()
+            try:
+                self.assertTrue(ready.wait(10))
+                with self.assertRaisesRegex(MaterializerInstallError, "another materializer operation"):
+                    with _lock(path, timeout=0.1):
+                        pass
+            finally:
+                release.set()
+                holder.join(10)
+            self.assertEqual(holder.exitcode, 0)
+
+            ready = ctx.Event()
+            crashed = ctx.Process(target=_crash_holding_install_lock, args=(str(path), ready))
+            crashed.start()
+            self.assertTrue(ready.wait(10))
+            crashed.join(10)
+            self.assertEqual(crashed.exitcode, 0)
+
+            # The lock file outlives the dead holder; the lock itself must not.
+            self.assertTrue(path.exists())
+            with _lock(path, timeout=0.5):
+                pass
+
+    def test_lock_waits_for_a_live_holder_within_its_timeout(self):
+        """Failing fast would pass the contention test above; waiting is the contract."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / ".source.lock"
+            ctx = multiprocessing.get_context("spawn")
+            ready = ctx.Event()
+            holder = ctx.Process(target=_hold_install_lock_briefly, args=(str(path), ready, 1.5))
+            holder.start()
+            try:
+                self.assertTrue(ready.wait(10))
+                started = time.monotonic()
+                with _lock(path, timeout=30):
+                    waited = time.monotonic() - started
+            finally:
+                holder.join(15)
+            self.assertEqual(holder.exitcode, 0)
+            self.assertGreater(waited, 0.2, "acquired without waiting for the live holder")
+
+    @mock.patch("scripts.agora_install_materializer._install_python", side_effect=_fake_install)
+    @mock.patch("scripts.agora_install_materializer._checkout")
+    def test_leftover_lock_file_does_not_wedge_installation(self, checkout, _install_python):
+        checkout.side_effect = MaterializerInstallerTests._populate_checkout
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            registry_path = root / "materializers.yaml"
+            registry_path.write_text(yaml.safe_dump(_registry(), sort_keys=False), encoding="utf-8")
+            install_root = root / "installed"
+            commit = _registry()["plugins"][0]["ref"]
+            base = install_root / "example-converter" / commit
+            base.mkdir(parents=True)
+            (base / ".source.lock").write_text("", encoding="utf-8")
+
+            target = install_materializer(
+                "example-converter",
+                install_root=install_root,
+                registry_path=registry_path,
+                approve_code_execution=True,
+            )
+            self.assertTrue((target / INSTALLATION_RECEIPT).is_file())
+
+
+class MaterializerPipPreflightTests(unittest.TestCase):
+    def test_interpreter_without_pip_is_reported_actionably(self):
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="No module named pip\n"
+        )
+        with mock.patch("scripts.agora_install_materializer.subprocess.run", return_value=completed):
+            with self.assertRaises(MaterializerInstallError) as caught:
+                _require_pip(_pip_env())
+        message = str(caught.exception)
+        self.assertIn("no usable pip", message)
+        self.assertIn("ensurepip", message)
+        self.assertIn("No module named pip", message)
+
+    def test_usable_pip_passes_preflight(self):
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="pip 24.0\n", stderr="")
+        with mock.patch("scripts.agora_install_materializer.subprocess.run", return_value=completed):
+            _require_pip(_pip_env())
+
+    def test_preflight_and_installation_share_one_hardened_environment(self):
+        """A probe run under a softer environment would not predict the install.
+
+        PYTHONNOUSERSITE removes user site-packages from sys.path, so a pip
+        reachable only through user site must fail the preflight rather than
+        pass it and break the real installation.
+        """
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs.get("env")))
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp)
+            (source / "pyproject.toml").write_text("[project]\nname='x'\n", encoding="utf-8")
+            runtime = source / "runtime"
+            runtime.mkdir()
+            plugin = {"package": {"path": "."}}
+            with mock.patch("scripts.agora_install_materializer.subprocess.run", side_effect=fake_run):
+                _install_python(plugin, source, runtime, source / "pip-report.json")
+
+        self.assertEqual(len(calls), 2, "expected a preflight probe and an installation")
+        (probe_command, probe_env), (install_command, install_env) = calls
+        self.assertIn("--version", probe_command)
+        self.assertIn("install", install_command)
+        self.assertIsNotNone(probe_env)
+        self.assertEqual(probe_env, install_env)
+        self.assertEqual(probe_env.get("PYTHONNOUSERSITE"), "1")
+
+
+class MaterializerLockErrorClassificationTests(unittest.TestCase):
+    def test_permanent_lock_failure_is_not_reported_as_a_concurrent_installer(self):
+        """Only AlreadyLocked means contention.
+
+        portalocker raises a plain LockException immediately for a backend that
+        cannot lock at all, so reporting it as another installer -- and as a
+        timeout that never elapsed -- would be two false statements at once.
+        """
+        broken = mock.Mock()
+        broken.acquire.side_effect = portalocker.exceptions.LockException("no locking support")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "x.lock"
+            with mock.patch("scripts.agora_install_materializer.portalocker.Lock", return_value=broken):
+                with self.assertRaises(MaterializerInstallError) as caught:
+                    with _lock(path, timeout=0.1):
+                        pass
+        message = str(caught.exception)
+        self.assertIn("could not acquire the materializer lock", message)
+        self.assertNotIn("another materializer operation", message)
+        self.assertIsInstance(caught.exception.__cause__, portalocker.exceptions.LockException)
 
 
 if __name__ == "__main__":

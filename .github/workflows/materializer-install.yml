@@ -33,8 +33,6 @@ jobs:
     name: Fetch and install Pseudepigrapha-TF
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      PSEUDEPIGRAPHA_TF_COMMIT: a2300b3c5b1a5e859d82691dc28bd53967053a8d
     steps:
       - name: Check out Agora
         uses: actions/checkout@v4
@@ -50,6 +48,13 @@ jobs:
 
       - name: Validate canonical registry
         run: python scripts/validate_registry.py
+
+      - name: Resolve the registered materializer commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref=$(python -c "from scripts.agora_install_materializer import load_registry, select_plugin; print(select_plugin(load_registry(), 'pseudepigrapha-tf')['ref'])")
+          echo "PSEUDEPIGRAPHA_TF_COMMIT=$ref" >> "$GITHUB_ENV"
 
       - name: Discover registered materializer
         run: python scripts/agora_install_materializer.py list | grep -F 'pseudepigrapha-tf'

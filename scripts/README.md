@@ -63,6 +63,8 @@ python scripts/agora_install_materializer.py install pseudepigrapha-tf \
   --approve-code-execution
 ```
 
+Installation shells out to `pip` from the interpreter you run the installer with, so that interpreter must provide pip. Environments created by `uv venv` or `python -m venv --without-pip` do not; the installer says so before building rather than failing with an opaque pip exit status.
+
 This install-time code runs outside the later materialization sandbox. The flag is a user trust decision for the pinned plugin source and its packaging/build process; it must not be supplied silently by future resource-to-materializer automatic composition.
 
 The installer builds from a disposable copy of the fetched source. The canonical fetched source remains separate and is rehashed/revalidated after the build. Module verification is filesystem-only and does not import the plugin.
@@ -82,7 +84,7 @@ Installations are separated by immutable plugin commit and current Python/runtim
     agora-installation.json
 ```
 
-`agora-installation.json` records the source-tree hash, Python implementation/version/ABI/platform, exact installed distribution names and versions, a distribution/runtime descriptor digest, the full managed-runtime tree hash, pip-report hash, manifest hashes, and a combined execution identity. Reuse re-hashes source and runtime contents and re-reads installed distribution metadata; source or dependency modification invalidates the installation. `--repair` performs a transactional replacement. A per-target exclusive lock prevents concurrent installers from racing.
+`agora-installation.json` records the source-tree hash, Python implementation/version/ABI/platform, exact installed distribution names and versions, a distribution/runtime descriptor digest, the full managed-runtime tree hash, pip-report hash, manifest hashes, and a combined execution identity. Reuse re-hashes source and runtime contents and re-reads installed distribution metadata; source or dependency modification invalidates the installation. `--repair` performs a transactional replacement. A per-target OS-backed exclusive lock prevents concurrent installers from racing, waiting up to 60s for a live holder before failing; because the kernel owns the lock, a killed installer releases it and the leftover `.lock` file is inert — do not delete lock files to "unstick" an install.
 
 The dependency resolver is not yet lockfile-reproducible: Pseudepigrapha-TF currently permits a Text-Fabric version range and its build backend is not hash-pinned. Two fresh installs may therefore resolve different environments. Agora records the resulting environment identity so they are distinguishable; a reviewed lock/constraints-and-hashes policy remains necessary before zero-touch automatic installation is appropriate.
 
