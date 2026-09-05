@@ -123,7 +123,7 @@ Record:
 
 - collection resource ID;
 - member ID returned by `list_collection_members`;
-- resolved collection `source_revision`;
+- resolved upstream source revision (`source_revision`);
 - source-backed author/title when present;
 - `canonical_id` when present;
 - `edition` when explicitly present;
