@@ -285,6 +285,10 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                     errors.append(
                         f"{prefix}: git-tree discovery must not carry a stale committed member list"
                     )
+            if collection["discovery"] == "indexed" and index_doc.get("index_status") != "complete":
+                errors.append(
+                    f"{prefix}: indexed discovery requires collection index_status='complete'"
+                )
             member_ids: set[str] = set()
             for member in index_doc.get("members", []):
                 member_id = member["id"]
