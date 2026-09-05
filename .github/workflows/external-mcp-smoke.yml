@@ -32,6 +32,7 @@ on:
       - "scripts/smoke_mcp_plugin.py"
       - "tests/test_generation.py"
       - "tests/test_mcp_smoke.py"
+      - "tests/test_verification_evidence.py"
       - "tests/test_live_smoke_runtime_environment.py"
       - ".github/workflows/external-mcp-smoke.yml"
 
