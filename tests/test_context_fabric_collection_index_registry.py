@@ -111,6 +111,29 @@ class CollectionIndexRegistryTests(unittest.TestCase):
             errors,
         )
 
+    def test_indexed_discovery_rejects_dynamic_or_partial_index(self):
+        root = self.make_root()
+        resources = self.load_yaml(root / "registry" / "resources.yaml")
+        bible = next(item for item in resources["resources"] if item["id"] == "bible")
+        bible["collection"]["discovery"] = "indexed"
+        self.write_yaml(root / "registry" / "resources.yaml", resources)
+
+        index = self.load_yaml(root / "registry" / "collections" / "bible.yaml")
+        index["source_revision"] = REVISION
+        index["index_status"] = "dynamic"
+        index["members"] = []
+        self.write_yaml(root / "registry" / "collections" / "bible.yaml", index)
+
+        errors = validate_registry(root)
+        self.assertTrue(
+            any(
+                "resource bible" in error
+                and "indexed discovery requires collection index_status='complete'" in error
+                for error in errors
+            ),
+            errors,
+        )
+
     def test_member_verification_evidence_must_reference_existing_check(self):
         root = self.make_root()
         self.make_complete_bible_index(root, evidence="member-live/does-not-exist")
