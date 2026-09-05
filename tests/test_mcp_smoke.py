@@ -48,6 +48,7 @@ class MCPSmokeHarnessTests(unittest.TestCase):
             context_fabric.args,
             (
                 "run",
+                "--locked",
                 "--project",
                 ".",
                 "agora-context-fabric-mcp",
@@ -62,6 +63,8 @@ class MCPSmokeHarnessTests(unittest.TestCase):
         self.assertEqual(
             perseus.args,
             (
+                "--constraint",
+                "runtime-constraints.txt",
                 "--from",
                 "perseus-mcp==1.0.2",
                 "--with",
@@ -73,13 +76,28 @@ class MCPSmokeHarnessTests(unittest.TestCase):
 
         sefaria = load_plugin_launch("sefaria")
         self.assertEqual(sefaria.command, "uvx")
-        self.assertEqual(sefaria.args[-1], "https://mcp.sefaria.org/sse")
+        self.assertEqual(
+            sefaria.args,
+            (
+                "--constraint",
+                "runtime-constraints.txt",
+                "--from",
+                "mcp-proxy==0.12.0",
+                "--with",
+                "mcp>=1.17,<2",
+                "mcp-proxy",
+                "https://mcp.sefaria.org/sse",
+            ),
+        )
         self.assertEqual(sefaria.cwd, ROOT / "plugins/sefaria")
 
         sedra = load_plugin_launch("sedra")
         self.assertEqual(sedra.command, "uv")
         self.assertEqual(sedra.cwd, ROOT / "plugins/sedra")
-        self.assertEqual(sedra.args, ("run", "--project", ".", "agora-sedra-mcp"))
+        self.assertEqual(
+            sedra.args,
+            ("run", "--locked", "--project", ".", "agora-sedra-mcp"),
+        )
 
     def test_real_lookup_specs_are_small_and_deterministic(self):
         self.assertEqual(
