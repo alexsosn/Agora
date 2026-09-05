@@ -1,0 +1,7 @@
+schema_version: 1
+collection_id: patristics
+index_status: dynamic
+notes:
+  - Members are discovered lazily from current upstream Git tree metadata.
+  - The empty committed member list is intentional; stable member IDs are derived from discovered dataset paths at runtime.
+members: []
