@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      PSEUDEPIGRAPHA_TF_COMMIT: a2300b3c5b1a5e859d82691dc28bd53967053a8d
+      PSEUDEPIGRAPHA_TF_COMMIT: 082c6aeae72df8c93c11d8b6bbb1b69ec2b1f544
     steps:
       - name: Check out Agora
         uses: actions/checkout@v4
