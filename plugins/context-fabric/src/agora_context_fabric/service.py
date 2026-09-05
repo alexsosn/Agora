@@ -73,6 +73,15 @@ class ContextFabricService:
                     module for module in registered_modules if module["compatible_with_default"]
                 ]
 
+        verification: dict[str, Any] = {
+            "status": resource.verification_status,
+            "notes": list(resource.verification_notes),
+        }
+        if resource.verification_known_issues:
+            verification["known_issues"] = [
+                dict(issue) for issue in resource.verification_known_issues
+            ]
+
         return {
             "id": resource.id,
             "name": resource.name,
@@ -107,11 +116,7 @@ class ContextFabricService:
                 if resource.kind == "collection"
                 else None
             ),
-            "verification": {
-                "status": resource.verification_status,
-                "notes": list(resource.verification_notes),
-                "known_issues": [dict(issue) for issue in resource.verification_known_issues],
-            },
+            "verification": verification,
             "licenses": dict(resource.licenses),
             "integration_issues": list(resource.integration_issues),
             "source_snapshot": dict(resource.source_snapshot),
@@ -136,6 +141,16 @@ class ContextFabricService:
                     f"for resource {member.resource_id!r}"
                 )
             known_issues.append(dict(issue))
+        verification: dict[str, Any] = {
+            "status": member.verification_status,
+            "evidence": [
+                {"check_id": check_id}
+                for check_id in member.verification_evidence
+            ],
+            "notes": list(member.verification_notes),
+        }
+        if known_issues:
+            verification["known_issues"] = known_issues
         return {
             "id": member.id,
             "resource_id": member.resource_id,
@@ -146,15 +161,7 @@ class ContextFabricService:
             "title": member.title,
             "canonical_id": member.canonical_id,
             "edition": member.edition,
-            "verification": {
-                "status": member.verification_status,
-                "evidence": [
-                    {"check_id": check_id}
-                    for check_id in member.verification_evidence
-                ],
-                "notes": list(member.verification_notes),
-                "known_issues": known_issues,
-            },
+            "verification": verification,
         }
 
     @staticmethod
