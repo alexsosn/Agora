@@ -93,85 +93,75 @@ jobs:
 
           gitstore_path = Path("plugins/context-fabric/src/agora_context_fabric/gitstore.py")
           gitstore = gitstore_path.read_text(encoding="utf-8")
-          marker = '''    def tf_feature_summary(
-              self,
-              repo: Path,
-              relative_path: str,
-              revision: str | None = None,
-          ) -> dict[str, Any]:
-          '''
-          method = '''    def tf_header_metadata(
-              self,
-              repo: Path,
-              relative_path: str,
-              revision: str | None = None,
-          ) -> dict[str, Any]:
-              """Read Text-Fabric metadata header fields without consuming feature rows."""
-              relative = self._safe_relative_path(relative_path)
-              treeish = self._treeish(repo, revision)
-              spec = f"{treeish}:{relative}"
-              command = ["git", "-C", str(repo), "show", spec]
-              process = subprocess.Popen(
-                  command,
-                  text=True,
-                  stdout=subprocess.PIPE,
-                  stderr=subprocess.PIPE,
-              )
-              assert process.stdout is not None
-              metadata: dict[str, Any] = {}
-              header_complete = False
-              try:
-                  for raw_line in process.stdout:
-                      line = raw_line.rstrip("\\r\\n")
-                      if not line or not line.startswith("@"):
-                          header_complete = True
-                          break
-                      if "=" in line:
-                          key, value = line[1:].split("=", 1)
-                          if key:
-                              metadata[key] = value
-              finally:
-                  process.stdout.close()
-                  stderr = process.stderr.read() if process.stderr is not None else ""
-                  returncode = process.wait()
-                  if process.stderr is not None:
-                      process.stderr.close()
-                  if returncode and not header_complete:
-                      raise subprocess.CalledProcessError(
-                          returncode,
-                          command,
-                          stderr=stderr,
-                      )
-              return metadata
-
-          '''
-          if marker not in gitstore:
-              raise SystemExit("tf_feature_summary insertion marker not found")
-          gitstore_path.write_text(gitstore.replace(marker, method + marker, 1), encoding="utf-8")
+          insertion = "    def tf_feature_summary(\n"
+          method_lines = [
+              "    def tf_header_metadata(",
+              "        self,",
+              "        repo: Path,",
+              "        relative_path: str,",
+              "        revision: str | None = None,",
+              "    ) -> dict[str, Any]:",
+              "        \"\"\"Read Text-Fabric metadata header fields without consuming feature rows.\"\"\"",
+              "        relative = self._safe_relative_path(relative_path)",
+              "        treeish = self._treeish(repo, revision)",
+              "        spec = f\"{treeish}:{relative}\"",
+              "        command = [\"git\", \"-C\", str(repo), \"show\", spec]",
+              "        process = subprocess.Popen(",
+              "            command,",
+              "            text=True,",
+              "            stdout=subprocess.PIPE,",
+              "            stderr=subprocess.PIPE,",
+              "        )",
+              "        assert process.stdout is not None",
+              "        metadata: dict[str, Any] = {}",
+              "        header_complete = False",
+              "        try:",
+              "            for raw_line in process.stdout:",
+              "                line = raw_line.rstrip(\"\\r\\n\")",
+              "                if not line or not line.startswith(\"@\"):",
+              "                    header_complete = True",
+              "                    break",
+              "                if \"=\" in line:",
+              "                    key, value = line[1:].split(\"=\", 1)",
+              "                    if key:",
+              "                        metadata[key] = value",
+              "        finally:",
+              "            process.stdout.close()",
+              "            stderr = process.stderr.read() if process.stderr is not None else \"\"",
+              "            returncode = process.wait()",
+              "            if process.stderr is not None:",
+              "                process.stderr.close()",
+              "            if returncode and not header_complete:",
+              "                raise subprocess.CalledProcessError(",
+              "                    returncode,",
+              "                    command,",
+              "                    stderr=stderr,",
+              "                )",
+              "        return metadata",
+              "",
+              "",
+          ]
+          method = "\n".join(method_lines)
+          if insertion not in gitstore or "    def tf_header_metadata(\n" in gitstore:
+              raise SystemExit("tf_feature_summary insertion point not in expected state")
+          gitstore_path.write_text(gitstore.replace(insertion, method + insertion, 1), encoding="utf-8")
 
           index_path = Path("plugins/context-fabric/src/agora_context_fabric/collection_index.py")
           index_text = index_path.read_text(encoding="utf-8")
-          old = '''        try:
-              summary = self.store.tf_feature_summary(repo, relative, revision)
-          except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
-              return {}
-          metadata = summary.get("metadata") or {}
-          '''
-          new = '''        try:
-              metadata = self.store.tf_header_metadata(repo, relative, revision)
-          except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
-              return {}
-          '''
-          if old not in index_text:
-              raise SystemExit("collection metadata replacement marker not found")
-          index_path.write_text(index_text.replace(old, new, 1), encoding="utf-8")
+          old_call = "            summary = self.store.tf_feature_summary(repo, relative, revision)\n"
+          new_call = "            metadata = self.store.tf_header_metadata(repo, relative, revision)\n"
+          old_extract = "        metadata = summary.get(\"metadata\") or {}\n"
+          if old_call not in index_text or old_extract not in index_text:
+              raise SystemExit("collection metadata call not in expected state")
+          index_text = index_text.replace(old_call, new_call, 1).replace(old_extract, "", 1)
+          index_path.write_text(index_text, encoding="utf-8")
 
           workflow_path = Path(".github/workflows/context-fabric-collection-index-generation.yml")
           workflow = workflow_path.read_text(encoding="utf-8")
-          marker = "\n  patch-review-fix:\n"
-          if marker not in workflow:
-              raise SystemExit("temporary review-fix workflow job marker not found")
-          workflow_path.write_text(workflow.split(marker, 1)[0].rstrip() + "\n", encoding="utf-8")
+          helper_marker = "\n  patch-review-fix:\n"
+          if helper_marker not in workflow:
+              raise SystemExit("temporary review-fix job marker not found")
+          workflow_path.write_text(workflow.split(helper_marker, 1)[0].rstrip() + "\n", encoding="utf-8")
 
       - name: Run focused review regressions
         run: |
