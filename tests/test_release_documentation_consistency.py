@@ -16,6 +16,8 @@ SHARED_STATUS_DOCS = (
 )
 SHARED_BEGIN = "<!-- BEGIN AGORA V0.1 STATUS -->"
 SHARED_END = "<!-- END AGORA V0.1 STATUS -->"
+RESOURCE_BEGIN = "<!-- BEGIN AGORA V0.1 RESOURCE RUNTIME FACTS -->"
+RESOURCE_END = "<!-- END AGORA V0.1 RESOURCE RUNTIME FACTS -->"
 
 try:
     from scripts.validate_release_documentation import validate_release_documentation
@@ -54,6 +56,16 @@ class ReleaseDocumentationConsistencyTests(unittest.TestCase):
         )
         return validate_release_documentation
 
+    def mutate_resource(self, root: Path, resource_id: str, mutate) -> None:
+        path = root / "registry/resources.yaml"
+        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        resource = next(item for item in document["resources"] if item["id"] == resource_id)
+        mutate(resource)
+        path.write_text(
+            yaml.safe_dump(document, sort_keys=False, allow_unicode=True),
+            encoding="utf-8",
+        )
+
     def test_high_level_current_status_docs_have_bounded_visible_status_blocks(self):
         for relative in SHARED_STATUS_DOCS:
             text = (ROOT / relative).read_text(encoding="utf-8")
@@ -89,6 +101,53 @@ class ReleaseDocumentationConsistencyTests(unittest.TestCase):
         errors = validate(root)
         self.assertTrue(
             any("README.md" in error and "skill" in error.lower() for error in errors),
+            errors,
+        )
+
+    def test_scope_has_bounded_resource_runtime_facts_block(self):
+        text = (ROOT / "wiki/releases/v0.1-scope-frozen.md").read_text(encoding="utf-8")
+        self.assertIn(RESOURCE_BEGIN, text)
+        self.assertIn(RESOURCE_END, text)
+        self.assertLess(text.index(RESOURCE_BEGIN), text.index(RESOURCE_END))
+
+    def test_tlhdig_tf_path_mutation_changes_expected_scope_documentation(self):
+        validate = self.require_validator()
+        root = self.make_root()
+        self.mutate_resource(root, "TLHdig-TF", lambda resource: resource["upstream"].__setitem__("tf_path", "tf/9.9.9"))
+
+        errors = validate(root)
+        self.assertTrue(
+            any("v0.1-scope-frozen.md" in error and "TLHdig" in error for error in errors),
+            errors,
+        )
+
+    def test_tlhdig_configured_ref_mutation_changes_expected_scope_documentation(self):
+        validate = self.require_validator()
+        root = self.make_root()
+        self.mutate_resource(root, "TLHdig-TF", lambda resource: resource["upstream"].__setitem__("ref", "a" * 40))
+
+        errors = validate(root)
+        self.assertTrue(
+            any("v0.1-scope-frozen.md" in error and "TLHdig" in error for error in errors),
+            errors,
+        )
+
+    def test_collection_discovery_mutation_changes_expected_scope_documentation(self):
+        validate = self.require_validator()
+        root = self.make_root()
+        self.mutate_resource(root, "greek_literature", lambda resource: resource["collection"].__setitem__("discovery", "git-tree"))
+
+        errors = validate(root)
+        self.assertTrue(
+            any("v0.1-scope-frozen.md" in error and "collection" in error.lower() for error in errors),
+            errors,
+        )
+
+    def test_indexed_collections_reject_stale_normal_git_tree_discovery_prose(self):
+        validate = self.require_validator()
+        errors = validate(ROOT)
+        self.assertTrue(
+            any("Git tree" in error and "collection" in error.lower() for error in errors),
             errors,
         )
 
