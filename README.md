@@ -109,6 +109,17 @@ Agora is designed to add more providers without forcing them into Text-Fabric or
 
 ## Verification scope
 
+<!-- BEGIN AGORA V0.1 STATUS -->
+| v0.1 integration | Aggregate plugin status | Claude path | Codex path |
+| --- | --- | --- | --- |
+| Context-Fabric | `community` | `community` | `verified` |
+| Perseus MCP | `community` | `community` | `verified` |
+| Sefaria | `community` | `community` | `verified` |
+| SEDRA | `community` | `community` | `verified` |
+
+Phase 5 baseline: **8 implemented scholarly skills**. Additional resource-specific guidance is follow-up work, not an unstarted phase.
+<!-- END AGORA V0.1 STATUS -->
+
 Agora verification covers installation, launch, transport, resource resolution, and representative integration operations. It does not assess whether an upstream corpus is suitable for a particular research use or maintain a parallel account of upstream data quality.
 
 Agora keeps **provider/service health**, **plugin/client integration evidence**, and **resource/data status** independent. Provider health records that a provider or runtime path was observed operational through traceable live evidence; it does not establish scholarly suitability, prove every client path, or promote the resources behind that provider. Plugin/client evidence describes the tested client and transport path, while resource/data status remains resource-specific.

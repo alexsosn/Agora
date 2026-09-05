@@ -109,6 +109,17 @@ Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mard
 
 ## Current implementation status
 
+<!-- BEGIN AGORA V0.1 STATUS -->
+| v0.1 integration | Aggregate plugin status | Claude path | Codex path |
+| --- | --- | --- | --- |
+| Context-Fabric | `community` | `community` | `verified` |
+| Perseus MCP | `community` | `community` | `verified` |
+| Sefaria | `community` | `community` | `verified` |
+| SEDRA | `community` | `community` | `verified` |
+
+Phase 5 baseline: **8 implemented scholarly skills**. Additional resource-specific guidance is follow-up work, not an unstarted phase.
+<!-- END AGORA V0.1 STATUS -->
+
 - **Phase 0 — foundation:** implemented.
 - **Phase 1 — canonical marketplace/resource model:** implemented.
 - **Phase 2 — deterministic Claude + Codex generation:** implemented.
