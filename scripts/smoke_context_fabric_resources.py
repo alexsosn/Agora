@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
+import tempfile
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_SRC = ROOT / "plugins" / "context-fabric" / "src"
@@ -21,6 +23,8 @@ class LoadCase:
     features: tuple[str, ...]
     member_path_contains: str | None = None
     expected_known_issue: str | None = None
+    expected_upstream_error_type: str | None = None
+    expected_upstream_error_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -43,6 +47,8 @@ LOAD_CASES = {
         (),
         "canonical-greekLit/tlg0001/tlg001/perseus-grc2/1/tf/1.0",
         "context-fabric/duplicate-structure-levels",
+        "ValueError",
+        "not enough values to unpack",
     ),
 }
 
@@ -115,6 +121,43 @@ def check_semantic_expectations(
     return checks
 
 
+def probe_expected_upstream_failure(
+    case_name: str,
+    dataset: Path,
+    *,
+    expected_error_type: str,
+    expected_error_text: str,
+    fabric_factory: Callable[..., Any] | None = None,
+) -> dict[str, Any]:
+    """Reproduce one bounded upstream failure so a future fix retires the marker."""
+    if fabric_factory is None:
+        from cfabric import Fabric
+
+        fabric_factory = Fabric
+
+    try:
+        fabric = fabric_factory(locations=str(dataset), silent="deep")
+        fabric.loadAll(silent="deep")
+    except Exception as exc:
+        error_type = type(exc).__name__
+        error_text = str(exc)
+        if error_type != expected_error_type or expected_error_text not in error_text:
+            raise RuntimeError(
+                f"{case_name}: unexpected upstream failure while probing known issue: "
+                f"{error_type}: {error_text}"
+            ) from exc
+        return {
+            "status": "expected-upstream-failure",
+            "error_type": error_type,
+            "error_text": error_text,
+        }
+
+    raise RuntimeError(
+        f"{case_name}: known issue may be fixed upstream; direct Context-Fabric load "
+        "succeeded. Re-audit the affected set and retire or update the known issue."
+    )
+
+
 def summarize_loaded_corpus(
     case_name: str,
     result: dict[str, Any],
@@ -153,7 +196,8 @@ def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
 
     case = LOAD_CASES[case_name]
     catalog = Catalog.from_registry(ROOT)
-    resolver = ContextFabricResolver(catalog, GitStore(cache_dir))
+    store = GitStore(cache_dir)
+    resolver = ContextFabricResolver(catalog, store)
     service = ContextFabricService(catalog, resolver, corpus_manager)
     member = None
     member_id = None
@@ -168,10 +212,16 @@ def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
     if case.expected_known_issue is not None:
         if member is None:
             raise RuntimeError(f"{case_name}: expected-known-failure case has no selected member")
+        if not source_revision:
+            raise RuntimeError(f"{case_name}: selected member has no resolved source revision")
         if case.expected_known_issue not in member.verification_known_issues:
             raise RuntimeError(
                 f"{case_name}: member {member.id!r} is not marked with expected known issue "
                 f"{case.expected_known_issue!r}"
+            )
+        if not case.expected_upstream_error_type or not case.expected_upstream_error_text:
+            raise RuntimeError(
+                f"{case_name}: expected-known-failure case has no upstream retirement signature"
             )
         try:
             service.prepare(
@@ -190,19 +240,50 @@ def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
                     f"{case_name}: prepare blocked for unexpected known issue(s): "
                     f"{sorted(issue_ids)}"
                 ) from exc
-            return {
-                "case": case_name,
-                "status": "expected-known-failure",
-                "resource_id": case.resource_id,
-                "member_id": member.id,
-                "relative_path": member.relative_path,
-                "source_revision": source_revision,
-                "known_issue": case.expected_known_issue,
-            }
-        raise RuntimeError(
-            f"{case_name}: prepare unexpectedly accepted member {member.id!r} despite "
-            f"known blocking issue {case.expected_known_issue!r}"
+        else:
+            raise RuntimeError(
+                f"{case_name}: prepare unexpectedly accepted member {member.id!r} despite "
+                f"known blocking issue {case.expected_known_issue!r}"
+            )
+
+        # The normal Agora path above must reject before acquisition. For the one
+        # retirement canary only, bypass that guard deliberately, acquire the exact
+        # pinned dataset, and run Context-Fabric on a disposable copy. This observes
+        # upstream behavior without patching it or letting loader caches mutate the
+        # shared revision-addressed Agora snapshot.
+        resource = catalog.get(case.resource_id)
+        repo = store.ensure_metadata(
+            resource.repository,
+            cache_key=resource.id,
+            ref=source_revision,
         )
+        resolved_revision = store.selected_revision(repo)
+        if resolved_revision != source_revision:
+            raise RuntimeError(
+                f"{case_name}: expected source revision {source_revision}, "
+                f"resolved {resolved_revision}"
+            )
+        dataset = store.materialize(repo, member.relative_path, source_revision)
+        with tempfile.TemporaryDirectory(prefix="agora-known-failure-probe-") as tmp:
+            probe_dataset = Path(tmp) / "dataset"
+            shutil.copytree(dataset, probe_dataset)
+            upstream_probe = probe_expected_upstream_failure(
+                case_name,
+                probe_dataset,
+                expected_error_type=case.expected_upstream_error_type,
+                expected_error_text=case.expected_upstream_error_text,
+            )
+
+        return {
+            "case": case_name,
+            "status": "expected-known-failure",
+            "resource_id": case.resource_id,
+            "member_id": member.id,
+            "relative_path": member.relative_path,
+            "source_revision": source_revision,
+            "known_issue": case.expected_known_issue,
+            "upstream_probe": upstream_probe,
+        }
 
     result = service.load(
         case.resource_id,
