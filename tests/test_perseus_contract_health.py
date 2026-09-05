@@ -180,6 +180,22 @@ class PerseusContractHealthTests(unittest.TestCase):
                 tool_name="get_work_resources",
             )
 
+    def test_json_tool_result_parser_accepts_fastmcp_wrapped_string_json(self):
+        parser = getattr(smoke, "_json_object_from_tool_result", None)
+        self.assertTrue(callable(parser), "missing strict JSON tool-result parser")
+
+        result = text_result({"match_count": 0})
+        result.structured_content = {"result": json.dumps({"match_count": 0})}
+
+        self.assertEqual(
+            parser(
+                result,
+                plugin_id="perseus",
+                tool_name="get_work_resources",
+            ),
+            {"match_count": 0},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
