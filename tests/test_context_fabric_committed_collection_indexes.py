@@ -22,6 +22,10 @@ EXPECTED_REVISIONS = {
 }
 
 DUPLICATE_STRUCTURE_ISSUE = "context-fabric/duplicate-structure-levels"
+EXPECTED_UPSTREAM_LINKS = {
+    "Context-Fabric/context-fabric": "https://github.com/Context-Fabric/context-fabric/pull/7",
+    "pthu/greek_literature": "https://github.com/pthu/greek_literature/pull/1",
+}
 BAD_GREEK_PATHS = (
     "canonical-greekLit/tlg0001/tlg001/perseus-grc2/1/tf/1.0",
     "canonical-greekLit/tlg0006/tlg009/perseus-grc2/1/tf/1.0",
@@ -86,15 +90,12 @@ class CommittedCollectionIndexTests(unittest.TestCase):
         issue = issues[DUPLICATE_STRUCTURE_ISSUE]
         self.assertEqual(issue["severity"], "blocking")
         self.assertEqual(issue["signature"], "duplicate-structure-levels")
-        repositories = {
-            upstream["repository"]
+        upstream_links = {
+            upstream["repository"]: upstream.get("url")
             for upstream in issue.get("upstream", [])
             if isinstance(upstream, dict) and isinstance(upstream.get("repository"), str)
         }
-        self.assertEqual(
-            repositories,
-            {"Context-Fabric/context-fabric", "pthu/greek_literature"},
-        )
+        self.assertEqual(upstream_links, EXPECTED_UPSTREAM_LINKS)
 
     def test_greek_snapshot_flags_reproduced_bad_members_but_not_iliad(self):
         catalog = Catalog.from_registry(ROOT)
