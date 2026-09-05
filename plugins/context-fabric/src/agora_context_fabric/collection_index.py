@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Callable, Iterable, Mapping
@@ -242,3 +245,106 @@ def dump_collection_index(index: CollectionIndex) -> str:
         allow_unicode=True,
         width=1000,
     )
+
+
+class CollectionIndexManager:
+    """Resolve installed or locally generated indexes for one exact Git revision."""
+
+    def __init__(self, store) -> None:
+        self.store = store
+        self.cache_dir = Path(store.cache_dir) / "collection-indexes"
+
+    def _cache_path(self, collection_id: str, source_revision: str) -> Path:
+        return (
+            self.cache_dir
+            / self.store.safe_cache_key(collection_id)
+            / f"{source_revision}.yaml"
+        )
+
+    @staticmethod
+    def _matching_index(
+        path: Path,
+        *,
+        collection_id: str,
+        source_revision: str,
+    ) -> CollectionIndex | None:
+        if not path.is_file():
+            return None
+        index = load_collection_index(path)
+        if (
+            index.collection_id != collection_id
+            or index.source_revision != source_revision
+            or index.index_status != "complete"
+        ):
+            return None
+        return index
+
+    def _metadata_for(self, repo: Path, tf_path: str, revision: str) -> Mapping[str, str]:
+        relative = "_book.tf" if tf_path == "." else f"{tf_path}/_book.tf"
+        try:
+            summary = self.store.tf_feature_summary(repo, relative, revision)
+        except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
+            return {}
+        metadata = summary.get("metadata") or {}
+        return {
+            str(key): str(value)
+            for key, value in metadata.items()
+            if isinstance(key, str) and isinstance(value, (str, int, float, bool))
+        }
+
+    @staticmethod
+    def _atomic_write(path: Path, text: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, temporary_name = tempfile.mkstemp(
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            dir=path.parent,
+        )
+        os.close(fd)
+        temporary = Path(temporary_name)
+        try:
+            temporary.write_text(text, encoding="utf-8")
+            os.replace(temporary, path)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+
+    def resolve(
+        self,
+        *,
+        collection_id: str,
+        languages: Iterable[str],
+        repo: Path,
+        source_revision: str,
+        installed_index: str | Path | None = None,
+    ) -> CollectionIndex:
+        if installed_index is not None:
+            installed = self._matching_index(
+                Path(installed_index),
+                collection_id=collection_id,
+                source_revision=source_revision,
+            )
+            if installed is not None:
+                return installed
+
+        cached_path = self._cache_path(collection_id, source_revision)
+        cached = self._matching_index(
+            cached_path,
+            collection_id=collection_id,
+            source_revision=source_revision,
+        )
+        if cached is not None:
+            return cached
+
+        roots = self.store.dataset_roots(repo, source_revision)
+        index = build_collection_index(
+            collection_id=collection_id,
+            source_revision=source_revision,
+            roots=roots,
+            languages=languages,
+            metadata_reader=lambda tf_path: self._metadata_for(
+                repo, tf_path, source_revision
+            ),
+        )
+        self._atomic_write(cached_path, dump_collection_index(index))
+        return index
