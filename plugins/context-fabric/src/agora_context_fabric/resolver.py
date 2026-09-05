@@ -11,7 +11,11 @@ from pathlib import Path, PurePosixPath
 from typing import Iterable
 
 from .catalog import Catalog, ResourceSpec
-from .collection_index import CollectionIndexManager
+from .collection_index import (
+    CollectionIndexManager,
+    member_id_from_identity,
+    member_identity_path,
+)
 from .gitstore import GitStore
 
 
@@ -55,6 +59,11 @@ class PreparedCorpus:
     version: str | None = None
     source_revision: str | None = None
     modules: tuple[PreparedFeatureModule, ...] = ()
+
+
+def member_id_from_path(path: str) -> str:
+    """Preserve the historical public member-ID helper over the shared index logic."""
+    return member_id_from_identity(member_identity_path(path))
 
 
 def _natural_tokens(value: str) -> tuple[tuple[int, int | str], ...]:
@@ -112,7 +121,12 @@ class ContextFabricResolver:
     def __init__(self, catalog: Catalog, store: GitStore):
         self.catalog = catalog
         self.store = store
-        self.collection_indexes = CollectionIndexManager(store)
+        self._collection_indexes: CollectionIndexManager | None = None
+
+    def _collection_index_manager(self) -> CollectionIndexManager:
+        if self._collection_indexes is None:
+            self._collection_indexes = CollectionIndexManager(self.store)
+        return self._collection_indexes
 
     def _repo(self, resource: ResourceSpec) -> tuple[Path, str]:
         kwargs = {"cache_key": resource.id}
@@ -157,12 +171,12 @@ class ContextFabricResolver:
         requested_revision: str | None,
     ):
         try:
-            return self.collection_indexes.resolve(
+            return self._collection_index_manager().resolve(
                 collection_id=resource.id,
                 languages=resource.languages,
                 repo=repo,
                 source_revision=revision,
-                installed_index=resource.member_index,
+                installed_index=resource.member_index_path or resource.member_index,
             )
         except subprocess.CalledProcessError as exc:
             if requested_revision is None:
