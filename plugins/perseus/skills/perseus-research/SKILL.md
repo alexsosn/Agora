@@ -24,17 +24,21 @@ Perseus CTS and Scaife may expose different edition/resource URNs. A URN that wo
 
 Use `find_author_names` when the author/text-group identifier is uncertain.
 
+`find_author_names` merges CTS and Scaife inventory information. A work returned by this merged discovery is therefore not necessarily present in the legacy CTS resource inventory.
+
 For broader browsing, use the provider's text-group listing tools and language filters rather than assuming a CTS namespace from an English name.
 
 If multiple authors match, resolve the ambiguity before proceeding.
 
-### 2. Inspect the author's resources
+### 2. Resolve the work in the service that actually exposes it
 
-Use the author-resource tool to see works, editions, and translations actually advertised by the live service.
+`get_author_resources` and `get_work_resources` are CTS-oriented. Use them when the discovered author or work is available through the legacy CTS inventory.
 
-Then use `get_work_resources` for the specific work when edition choice matters.
+If merged discovery contains a work but CTS resource resolution returns no match, that is not proof that the work is unavailable. Use `get_scaife_library_metadata` for the discovered work URN and, when Scaife advertises an edition or translation, use the corresponding Scaife passage tools.
 
-Prefer an edition returned by discovery over an edition URN copied from an unrelated example or a previous session.
+Prefer an edition or translation URN returned by the service you are about to query over an identifier copied from an unrelated example or a previous session.
+
+Do not infer that CTS and Scaife edition or translation URNs are equivalent. Keep each service's discovered URN exactly as returned; do not map suffixes such as `eng1` and `eng2` by guesswork.
 
 ### 3. Retrieve passages with a discovered CTS URN
 
@@ -89,6 +93,8 @@ Perseus-MCP uses both the legacy Perseus CTS services and Scaife APIs.
 Use CTS-oriented tools for passage addressing and citation navigation when the discovered edition is available there.
 
 Use Scaife-oriented tools for search and Scaife library/passages when the requested operation is backed by Scaife.
+
+A zero CTS resource match after positive merged discovery can mean that the work is Scaife-only. Resolve it through Scaife metadata before concluding that no usable text exists.
 
 If a work appears in one inventory but an edition fails in another service, rediscover the available resources instead of silently substituting a guessed URN.
 

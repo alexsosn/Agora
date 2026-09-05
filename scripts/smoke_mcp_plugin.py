@@ -20,6 +20,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 FILE_BACKED_ENVIRONMENT_KINDS = {"uv-lock", "uv-constraints"}
+PERSEUS_ROUTING_KNOWN_ISSUE_ID = "perseus/cts-scaife-inventory-routing"
+PERSEUS_ROUTING_TARGET_WORK = "urn:cts:greekLit:tlg0006.tlg020"
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,7 @@ class LaunchSpec:
 class SmokeCase:
     expected_tools: set[str]
     tool_call: tuple[str, dict[str, Any]]
+    known_issue_canaries: tuple[str, ...] = ()
 
 
 SMOKE_CASES: dict[str, SmokeCase] = {
@@ -52,6 +55,7 @@ SMOKE_CASES: dict[str, SmokeCase] = {
     "perseus": SmokeCase(
         expected_tools={"get_passage", "search_perseus", "find_author_names"},
         tool_call=("find_author_names", {"query": "Homer", "limit": 1}),
+        known_issue_canaries=(PERSEUS_ROUTING_KNOWN_ISSUE_ID,),
     ),
     "sefaria": SmokeCase(
         expected_tools={"get_text", "text_search", "get_links_between_texts"},
@@ -158,6 +162,27 @@ def _load_live_verification_reference(
             f"found {len(live_references)}"
         )
     return live_references[0]
+
+
+def _load_declared_known_issue(
+    plugin_id: str,
+    issue_id: str,
+    *,
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    plugins_doc = _load_yaml(Path(root) / "registry/plugins.yaml")
+    plugins = {item["id"]: item for item in plugins_doc["plugins"]}
+    plugin = plugins.get(plugin_id)
+    if plugin is None:
+        raise KeyError(f"plugin {plugin_id!r} is not present in registry/plugins.yaml")
+
+    known_issues = plugin.get("verification", {}).get("known_issues", [])
+    for issue in known_issues:
+        if issue.get("id") == issue_id:
+            return issue
+    raise ValueError(
+        f"known issue {issue_id!r} is not declared for plugin {plugin_id!r}"
+    )
 
 
 def _bind_environment_identity(
@@ -397,6 +422,157 @@ def _tool_has_payload(result: Any) -> bool:
     return False
 
 
+def _parse_json_object_text(
+    text: str,
+    *,
+    plugin_id: str,
+    tool_name: str,
+) -> dict[str, Any]:
+    try:
+        parsed = json.loads(text)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
+        ) from exc
+    if not isinstance(parsed, dict):
+        raise RuntimeError(
+            f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
+        )
+    return parsed
+
+
+def _json_object_from_tool_result(
+    result: Any,
+    *,
+    plugin_id: str,
+    tool_name: str,
+) -> dict[str, Any]:
+    if _tool_failed(result):
+        raise RuntimeError(
+            f"{plugin_id} live tool {tool_name!r} returned an MCP error: {result}"
+        )
+
+    structured = getattr(result, "structured_content", None)
+    if structured is None:
+        structured = getattr(result, "structuredContent", None)
+    if isinstance(structured, Mapping):
+        # FastMCP wraps annotated primitive returns as {"result": value} because
+        # MCP structuredContent must have an object at the root. Perseus tools
+        # return JSON serialized as str, so decode exactly that documented shape.
+        if set(structured) == {"result"}:
+            wrapped = structured["result"]
+            if isinstance(wrapped, Mapping):
+                return dict(wrapped)
+            if isinstance(wrapped, str):
+                return _parse_json_object_text(
+                    wrapped,
+                    plugin_id=plugin_id,
+                    tool_name=tool_name,
+                )
+            raise RuntimeError(
+                f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
+            )
+        return dict(structured)
+
+    text_parts: list[str] = []
+    for item in getattr(result, "content", None) or []:
+        text = getattr(item, "text", None)
+        if isinstance(text, str) and text.strip():
+            text_parts.append(text)
+    if len(text_parts) != 1:
+        raise RuntimeError(
+            f"{plugin_id} live tool {tool_name!r} did not return one valid JSON object"
+        )
+    return _parse_json_object_text(
+        text_parts[0],
+        plugin_id=plugin_id,
+        tool_name=tool_name,
+    )
+
+
+def _json_contains_exact_string(value: Any, expected: str) -> bool:
+    if isinstance(value, str):
+        return value == expected
+    if isinstance(value, Mapping):
+        return any(_json_contains_exact_string(item, expected) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_json_contains_exact_string(item, expected) for item in value)
+    return False
+
+
+async def run_known_issue_canary(
+    session: Any,
+    plugin_id: str,
+    issue_id: str,
+    *,
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    _load_declared_known_issue(plugin_id, issue_id, root=root)
+    if plugin_id != "perseus" or issue_id != PERSEUS_ROUTING_KNOWN_ISSUE_ID:
+        raise ValueError(
+            f"no live known-issue canary is implemented for {plugin_id!r} / {issue_id!r}"
+        )
+
+    discovery = _json_object_from_tool_result(
+        await session.call_tool(
+            "find_author_names",
+            arguments={"query": "Euripides", "language": "greek", "limit": 20},
+        ),
+        plugin_id=plugin_id,
+        tool_name="find_author_names",
+    )
+    if not _json_contains_exact_string(discovery, PERSEUS_ROUTING_TARGET_WORK):
+        raise RuntimeError(
+            f"{issue_id} signature changed: merged discovery no longer advertises "
+            f"{PERSEUS_ROUTING_TARGET_WORK}; revise or retire the canonical known issue"
+        )
+
+    cts_resources = _json_object_from_tool_result(
+        await session.call_tool(
+            "get_work_resources",
+            arguments={
+                "urn_or_title": PERSEUS_ROUTING_TARGET_WORK,
+                "language": "greek",
+            },
+        ),
+        plugin_id=plugin_id,
+        tool_name="get_work_resources",
+    )
+    scaife_metadata = _json_object_from_tool_result(
+        await session.call_tool(
+            "get_scaife_library_metadata",
+            arguments={"urn": PERSEUS_ROUTING_TARGET_WORK},
+        ),
+        plugin_id=plugin_id,
+        tool_name="get_scaife_library_metadata",
+    )
+
+    match_count = cts_resources.get("match_count")
+    if type(match_count) is not int or match_count < 0:
+        raise RuntimeError(
+            f"{issue_id} signature changed: CTS get_work_resources returned invalid "
+            f"match_count={match_count!r}"
+        )
+    if not _json_contains_exact_string(scaife_metadata, PERSEUS_ROUTING_TARGET_WORK):
+        raise RuntimeError(
+            f"{issue_id} signature changed: Scaife metadata no longer resolves "
+            f"{PERSEUS_ROUTING_TARGET_WORK}; revise the canonical known issue"
+        )
+    if match_count != 0:
+        raise RuntimeError(
+            f"{issue_id} may have been fixed: CTS get_work_resources now resolves "
+            f"{PERSEUS_ROUTING_TARGET_WORK} with match_count={match_count}; "
+            "retire or revise the canonical known issue and skill workaround"
+        )
+
+    return {
+        "id": issue_id,
+        "status": "observed",
+        "target_urn": PERSEUS_ROUTING_TARGET_WORK,
+        "cts_match_count": match_count,
+    }
+
+
 async def smoke_plugin(
     plugin_id: str,
     *,
@@ -423,6 +599,7 @@ async def smoke_plugin(
         args=list(launch.args),
         env=launch.env,
     )
+    known_issue_evidence: list[dict[str, Any]] = []
 
     async with asyncio.timeout(timeout):
         with _working_directory(launch.cwd):
@@ -449,6 +626,16 @@ async def smoke_plugin(
                             f"{plugin_id} live tool {tool_name!r} returned no payload"
                         )
 
+                    for issue_id in case.known_issue_canaries:
+                        known_issue_evidence.append(
+                            await run_known_issue_canary(
+                                session,
+                                plugin_id,
+                                issue_id,
+                                root=root,
+                            )
+                        )
+
     return {
         **build_trace_metadata(
             plugin_id,
@@ -461,6 +648,7 @@ async def smoke_plugin(
         "tool_count": len(tool_names),
         "expected_tools": sorted(case.expected_tools),
         "called_tool": tool_name,
+        "known_issue_canaries": known_issue_evidence,
         "status": "ok",
     }
 
