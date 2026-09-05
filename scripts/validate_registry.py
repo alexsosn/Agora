@@ -303,6 +303,13 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                     f"{prefix}.member[{member_id}].verification.status",
                     errors,
                 )
+                for reference in member["verification"].get("evidence", []):
+                    check_id = reference.get("check_id")
+                    if check_id not in verification_check_by_id:
+                        errors.append(
+                            f"{prefix}.member[{member_id}].verification.evidence[{check_id}]: "
+                            f"references missing verification check {check_id!r}"
+                        )
         elif resource["acquisition"]["strategy"] == "collection":
             errors.append(f"{prefix}: non-collection resource cannot use acquisition.strategy='collection'")
 
