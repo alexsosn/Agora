@@ -270,7 +270,10 @@ class CollectionIndexManager:
     ) -> CollectionIndex | None:
         if not path.is_file():
             return None
-        index = load_collection_index(path)
+        try:
+            index = load_collection_index(path)
+        except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError):
+            return None
         if (
             index.collection_id != collection_id
             or index.source_revision != source_revision
