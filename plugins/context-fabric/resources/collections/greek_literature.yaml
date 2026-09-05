@@ -13,6 +13,8 @@ members:
   canonical_id: tlg0001.tlg001.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0003-tlg001-perseus-grc2-1-dfdbe730
   path: canonical-greekLit/tlg0003/tlg001/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0003/tlg001/perseus-grc2/1/tf/1.0
@@ -93,6 +95,8 @@ members:
   canonical_id: tlg0006.tlg009.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0006-tlg010-perseus-grc2-1-f50532cb
   path: canonical-greekLit/tlg0006/tlg010/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0006/tlg010/perseus-grc2/1/tf/1.0
@@ -303,6 +307,8 @@ members:
   canonical_id: tlg0007.tlg011.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0007-tlg012-perseus-grc2-1-6b22e364
   path: canonical-greekLit/tlg0007/tlg012/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0007/tlg012/perseus-grc2/1/tf/1.0
@@ -373,6 +379,8 @@ members:
   canonical_id: tlg0007.tlg018.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0007-tlg019-perseus-grc2-1-8fd82160
   path: canonical-greekLit/tlg0007/tlg019/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0007/tlg019/perseus-grc2/1/tf/1.0
@@ -633,6 +641,8 @@ members:
   canonical_id: tlg0007.tlg044.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0007-tlg045-perseus-grc2-1-dc36dcd0
   path: canonical-greekLit/tlg0007/tlg045/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0007/tlg045/perseus-grc2/1/tf/1.0
@@ -643,6 +653,8 @@ members:
   canonical_id: tlg0007.tlg045.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0007-tlg046-perseus-grc2-1-e008a185
   path: canonical-greekLit/tlg0007/tlg046/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0007/tlg046/perseus-grc2/1/tf/1.0
@@ -793,6 +805,8 @@ members:
   canonical_id: tlg0007.tlg060.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0007-tlg061-perseus-grc2-1-cbc6eb41
   path: canonical-greekLit/tlg0007/tlg061/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0007/tlg061/perseus-grc2/1/tf/1.0
@@ -803,6 +817,8 @@ members:
   canonical_id: tlg0007.tlg061.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0007-tlg062-perseus-grc2-1-df4876ae
   path: canonical-greekLit/tlg0007/tlg062/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0007/tlg062/perseus-grc2/1/tf/1.0
@@ -2993,6 +3009,8 @@ members:
   canonical_id: tlg0014.tlg042.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0014-tlg043-perseus-grc2-1-d344f787
   path: canonical-greekLit/tlg0014/tlg043/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0014/tlg043/perseus-grc2/1/tf/1.0
@@ -3123,6 +3141,8 @@ members:
   canonical_id: tlg0014.tlg055.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0014-tlg056-perseus-grc2-1-29482ff0
   path: canonical-greekLit/tlg0014/tlg056/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0014/tlg056/perseus-grc2/1/tf/1.0
@@ -3383,6 +3403,8 @@ members:
   canonical_id: tlg0019.tlg004.perseus-grc1
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0019-tlg005-perseus-grc1-1-834a113a
   path: canonical-greekLit/tlg0019/tlg005/perseus-grc1/1
   tf_path: canonical-greekLit/tlg0019/tlg005/perseus-grc1/1/tf/1.0
@@ -3393,6 +3415,8 @@ members:
   canonical_id: tlg0019.tlg005.perseus-grc1
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0019-tlg006-perseus-grc2-1-0fbdeff3
   path: canonical-greekLit/tlg0019/tlg006/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0019/tlg006/perseus-grc2/1/tf/1.0
@@ -3413,6 +3437,8 @@ members:
   canonical_id: tlg0019.tlg007.perseus-grc1
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0019-tlg007-perseus-grc2-1-37d69864
   path: canonical-greekLit/tlg0019/tlg007/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0019/tlg007/perseus-grc2/1/tf/1.0
@@ -3423,6 +3449,8 @@ members:
   canonical_id: tlg0019.tlg007.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0019-tlg008-perseus-grc1-1-96b61925
   path: canonical-greekLit/tlg0019/tlg008/perseus-grc1/1
   tf_path: canonical-greekLit/tlg0019/tlg008/perseus-grc1/1/tf/1.0
@@ -3433,6 +3461,8 @@ members:
   canonical_id: tlg0019.tlg008.perseus-grc1
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0019-tlg009-perseus-grc2-1-4dd03030
   path: canonical-greekLit/tlg0019/tlg009/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0019/tlg009/perseus-grc2/1/tf/1.0
@@ -3443,6 +3473,8 @@ members:
   canonical_id: tlg0019.tlg009.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0019-tlg010-perseus-grc1-1-ef0da046
   path: canonical-greekLit/tlg0019/tlg010/perseus-grc1/1
   tf_path: canonical-greekLit/tlg0019/tlg010/perseus-grc1/1/tf/1.0
@@ -3473,6 +3505,8 @@ members:
   canonical_id: tlg0019.tlg011.perseus-grc1
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0020-tlg001-perseus-grc2-1-eab84452
   path: canonical-greekLit/tlg0020/tlg001/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0020/tlg001/perseus-grc2/1/tf/1.0
@@ -4323,6 +4357,8 @@ members:
   canonical_id: tlg0059.tlg002.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg003-perseus-grc2-1-a9f6232c
   path: canonical-greekLit/tlg0059/tlg003/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg003/perseus-grc2/1/tf/1.0
@@ -4333,6 +4369,8 @@ members:
   canonical_id: tlg0059.tlg003.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg004-perseus-grc2-1-dc8952ef
   path: canonical-greekLit/tlg0059/tlg004/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg004/perseus-grc2/1/tf/1.0
@@ -4363,6 +4401,8 @@ members:
   canonical_id: tlg0059.tlg006.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg007-perseus-grc2-1-7470bc8e
   path: canonical-greekLit/tlg0059/tlg007/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg007/perseus-grc2/1/tf/1.0
@@ -4373,6 +4413,8 @@ members:
   canonical_id: tlg0059.tlg007.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg008-perseus-grc2-1-04573fbf
   path: canonical-greekLit/tlg0059/tlg008/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg008/perseus-grc2/1/tf/1.0
@@ -4393,6 +4435,8 @@ members:
   canonical_id: tlg0059.tlg009.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg010-perseus-grc2-1-0cbb0a63
   path: canonical-greekLit/tlg0059/tlg010/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg010/perseus-grc2/1/tf/1.0
@@ -4413,6 +4457,8 @@ members:
   canonical_id: tlg0059.tlg011.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg012-perseus-grc2-1-14e3347c
   path: canonical-greekLit/tlg0059/tlg012/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg012/perseus-grc2/1/tf/1.0
@@ -4423,6 +4469,8 @@ members:
   canonical_id: tlg0059.tlg012.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg013-perseus-grc2-1-bba51012
   path: canonical-greekLit/tlg0059/tlg013/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg013/perseus-grc2/1/tf/1.0
@@ -4433,6 +4481,8 @@ members:
   canonical_id: tlg0059.tlg013.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg014-perseus-grc2-1-a2160d0d
   path: canonical-greekLit/tlg0059/tlg014/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg014/perseus-grc2/1/tf/1.0
@@ -4443,6 +4493,8 @@ members:
   canonical_id: tlg0059.tlg014.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg015-perseus-grc2-1-571ebc74
   path: canonical-greekLit/tlg0059/tlg015/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg015/perseus-grc2/1/tf/1.0
@@ -4453,6 +4505,8 @@ members:
   canonical_id: tlg0059.tlg015.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg016-perseus-grc2-1-c90723f2
   path: canonical-greekLit/tlg0059/tlg016/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg016/perseus-grc2/1/tf/1.0
@@ -4463,6 +4517,8 @@ members:
   canonical_id: tlg0059.tlg016.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg017-perseus-grc2-1-1e97cc53
   path: canonical-greekLit/tlg0059/tlg017/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg017/perseus-grc2/1/tf/1.0
@@ -4473,6 +4529,8 @@ members:
   canonical_id: tlg0059.tlg017.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg018-perseus-grc2-1-f5ddf503
   path: canonical-greekLit/tlg0059/tlg018/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg018/perseus-grc2/1/tf/1.0
@@ -4483,6 +4541,8 @@ members:
   canonical_id: tlg0059.tlg018.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg019-perseus-grc2-1-4b09aa51
   path: canonical-greekLit/tlg0059/tlg019/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg019/perseus-grc2/1/tf/1.0
@@ -4493,6 +4553,8 @@ members:
   canonical_id: tlg0059.tlg019.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg020-perseus-grc2-1-def72d4a
   path: canonical-greekLit/tlg0059/tlg020/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg020/perseus-grc2/1/tf/1.0
@@ -4503,6 +4565,8 @@ members:
   canonical_id: tlg0059.tlg020.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg021-perseus-grc2-1-5ff6f482
   path: canonical-greekLit/tlg0059/tlg021/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg021/perseus-grc2/1/tf/1.0
@@ -4513,6 +4577,8 @@ members:
   canonical_id: tlg0059.tlg021.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg022-perseus-grc2-1-99fcee31
   path: canonical-greekLit/tlg0059/tlg022/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg022/perseus-grc2/1/tf/1.0
@@ -4523,6 +4589,8 @@ members:
   canonical_id: tlg0059.tlg022.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg023-perseus-grc2-1-dfbe9507
   path: canonical-greekLit/tlg0059/tlg023/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg023/perseus-grc2/1/tf/1.0
@@ -4533,6 +4601,8 @@ members:
   canonical_id: tlg0059.tlg023.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg024-perseus-grc2-1-a7219a66
   path: canonical-greekLit/tlg0059/tlg024/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg024/perseus-grc2/1/tf/1.0
@@ -4543,6 +4613,8 @@ members:
   canonical_id: tlg0059.tlg024.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg025-perseus-grc2-1-040060c1
   path: canonical-greekLit/tlg0059/tlg025/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg025/perseus-grc2/1/tf/1.0
@@ -4553,6 +4625,8 @@ members:
   canonical_id: tlg0059.tlg025.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg026-perseus-grc2-1-2a83a772
   path: canonical-greekLit/tlg0059/tlg026/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg026/perseus-grc2/1/tf/1.0
@@ -4563,6 +4637,8 @@ members:
   canonical_id: tlg0059.tlg026.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg027-perseus-grc2-1-a563d203
   path: canonical-greekLit/tlg0059/tlg027/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg027/perseus-grc2/1/tf/1.0
@@ -4573,6 +4649,8 @@ members:
   canonical_id: tlg0059.tlg027.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg028-perseus-grc2-1-ef8d1522
   path: canonical-greekLit/tlg0059/tlg028/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg028/perseus-grc2/1/tf/1.0
@@ -4583,6 +4661,8 @@ members:
   canonical_id: tlg0059.tlg028.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg029-perseus-grc2-1-f74c6011
   path: canonical-greekLit/tlg0059/tlg029/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg029/perseus-grc2/1/tf/1.0
@@ -4593,6 +4673,8 @@ members:
   canonical_id: tlg0059.tlg029.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg030-perseus-grc2-1-00480a28
   path: canonical-greekLit/tlg0059/tlg030/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg030/perseus-grc2/1/tf/1.0
@@ -4613,6 +4695,8 @@ members:
   canonical_id: tlg0059.tlg031.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg032-perseus-grc2-1-bd94d774
   path: canonical-greekLit/tlg0059/tlg032/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg032/perseus-grc2/1/tf/1.0
@@ -4623,6 +4707,8 @@ members:
   canonical_id: tlg0059.tlg032.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg033-perseus-grc2-1-a1a55f66
   path: canonical-greekLit/tlg0059/tlg033/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg033/perseus-grc2/1/tf/1.0
@@ -4633,6 +4719,8 @@ members:
   canonical_id: tlg0059.tlg033.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg034-perseus-grc2-1-c0550e8f
   path: canonical-greekLit/tlg0059/tlg034/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg034/perseus-grc2/1/tf/1.0
@@ -4653,6 +4741,8 @@ members:
   canonical_id: tlg0059.tlg035.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0059-tlg036-perseus-grc2-1-85ff9595
   path: canonical-greekLit/tlg0059/tlg036/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0059/tlg036/perseus-grc2/1/tf/1.0
@@ -6683,6 +6773,8 @@ members:
   canonical_id: tlg0540.tlg004.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0540-tlg005-perseus-grc2-1-358cdd45
   path: canonical-greekLit/tlg0540/tlg005/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0540/tlg005/perseus-grc2/1/tf/1.0
@@ -6823,6 +6915,8 @@ members:
   canonical_id: tlg0540.tlg018.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0540-tlg019-perseus-grc2-1-6adbe22b
   path: canonical-greekLit/tlg0540/tlg019/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0540/tlg019/perseus-grc2/1/tf/1.0
@@ -6953,6 +7047,8 @@ members:
   canonical_id: tlg0540.tlg031.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0540-tlg032-perseus-grc2-1-69873c61
   path: canonical-greekLit/tlg0540/tlg032/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0540/tlg032/perseus-grc2/1/tf/1.0
@@ -7053,6 +7149,8 @@ members:
   canonical_id: tlg0551.tlg002.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0551-tlg003-perseus-grc2-1-48aed780
   path: canonical-greekLit/tlg0551/tlg003/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0551/tlg003/perseus-grc2/1/tf/1.0
@@ -7123,6 +7221,8 @@ members:
   canonical_id: tlg0551.tlg009.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0551-tlg010-perseus-grc2-1-5792890b
   path: canonical-greekLit/tlg0551/tlg010/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0551/tlg010/perseus-grc2/1/tf/1.0
@@ -7173,6 +7273,8 @@ members:
   canonical_id: tlg0551.tlg014.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0551-tlg017-perseus-grc2-1-da834835
   path: canonical-greekLit/tlg0551/tlg017/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0551/tlg017/perseus-grc2/1/tf/1.0
@@ -7253,6 +7355,8 @@ members:
   canonical_id: tlg0557.tlg001.perseus-grc2
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: canonical-greeklit-tlg0557-tlg002-perseus-grc2-1-a22960f5
   path: canonical-greekLit/tlg0557/tlg002/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0557/tlg002/perseus-grc2/1/tf/1.0
@@ -8103,6 +8207,8 @@ members:
   canonical_id: tlg0015.tlg001.opp-grc1
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: first1kgreek-tlg0018-tlg001-opp-grc1-1-a0c0080e
   path: First1KGreek/tlg0018/tlg001/opp-grc1/1
   tf_path: First1KGreek/tlg0018/tlg001/opp-grc1/1/tf/1.0
@@ -10013,6 +10119,8 @@ members:
   canonical_id: tlg0068.tlg001.1st1K-grc1
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: first1kgreek-tlg0069-tlg001-1st1k-grc1-1-abc0f785
   path: First1KGreek/tlg0069/tlg001/1st1K-grc1/1
   tf_path: First1KGreek/tlg0069/tlg001/1st1K-grc1/1/tf/1.0
@@ -10893,6 +11001,8 @@ members:
   canonical_id: tlg0090.tlg001.opp-grc7
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: first1kgreek-tlg0090-tlg001-opp-grc9-1-08584276
   path: First1KGreek/tlg0090/tlg001/opp-grc9/1
   tf_path: First1KGreek/tlg0090/tlg001/opp-grc9/1/tf/1.0
@@ -10903,6 +11013,8 @@ members:
   canonical_id: tlg0090.tlg001.opp-grc9
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: first1kgreek-tlg0092-tlg001-1st1k-grc1-1-c54f75bb
   path: First1KGreek/tlg0092/tlg001/1st1K-grc1/1
   tf_path: First1KGreek/tlg0092/tlg001/1st1K-grc1/1/tf/1.0
@@ -11093,6 +11205,8 @@ members:
   canonical_id: tlg0362.tlg001.opp-grc1
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: first1kgreek-tlg0363-tlg001-1st1k-grc1-1-92dd22ea
   path: First1KGreek/tlg0363/tlg001/1st1K-grc1/1
   tf_path: First1KGreek/tlg0363/tlg001/1st1K-grc1/1/tf/1.0
@@ -12343,6 +12457,8 @@ members:
   canonical_id: tlg0610.tlg001.opp-grc1
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: first1kgreek-tlg0614-tlg001-1st1k-grc1-1-255cd970
   path: First1KGreek/tlg0614/tlg001/1st1K-grc1/1
   tf_path: First1KGreek/tlg0614/tlg001/1st1K-grc1/1/tf/1.0
@@ -13483,6 +13599,8 @@ members:
   canonical_id: tlg1409.opp003.1st1K-grc1
   verification:
     status: community
+    known_issues:
+    - issue_id: context-fabric/duplicate-structure-levels
 - id: first1kgreek-tlg1419-tlg001-1st1k-grc1-1-4f3e69c1
   path: First1KGreek/tlg1419/tlg001/1st1K-grc1/1
   tf_path: First1KGreek/tlg1419/tlg001/1st1K-grc1/1/tf/1.0
