@@ -124,13 +124,13 @@ class GitRefreshAndProvenanceTests(unittest.TestCase):
 
 
 class CollectionMetadataTests(unittest.TestCase):
-    def test_service_exposes_dynamic_collection_discovery_contract(self):
+    def test_service_exposes_indexed_collection_discovery_contract(self):
         service = ContextFabricService(Catalog.from_registry(ROOT), _NoopResolver(), _NoopLoader())
         item = service.describe_resource("greek_literature")
         self.assertEqual(
             item["collection"],
             {
-                "discovery": "git-tree",
+                "discovery": "indexed",
                 "member_id_scheme": "stable-relative-id",
                 "lazy_members": True,
                 "member_index": "registry/collections/greek_literature.yaml",
