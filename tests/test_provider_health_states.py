@@ -21,6 +21,17 @@ class ProviderHealthStateTests(unittest.TestCase):
         shutil.copytree(ROOT / ".github/workflows", workflows)
         (root / "tests").mkdir()
         shutil.copy2(ROOT / "tests/test_generation.py", root / "tests/test_generation.py")
+        for relative_path in (
+            "plugins/context-fabric/uv.lock",
+            "plugins/sedra/uv.lock",
+            "plugins/perseus/runtime-constraints.txt",
+            "plugins/sefaria/runtime-constraints.txt",
+            "verification/mcp-smoke/uv.lock",
+        ):
+            source = ROOT / relative_path
+            target = root / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
         return root
 
     def load_yaml(self, root: Path, relative_path: str):
