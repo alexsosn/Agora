@@ -89,7 +89,10 @@ def duplicate_structure_levels(metadata: Mapping[str, str]) -> bool:
     raw = metadata.get("structureTypes")
     if not raw:
         return False
-    levels = [value.strip() for value in raw.split(",") if value.strip()]
+    # Context-Fabric calls itemize(raw, ","), whose comma-separated branch is
+    # exactly raw.strip().split(","): per-item whitespace and empty tokens are
+    # significant to the upstream uniqueness check.
+    levels = raw.strip().split(",")
     return len(levels) != len(set(levels))
 
 
