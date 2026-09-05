@@ -35,6 +35,7 @@ class CollectionMember:
     verification_status: str = "community"
     verification_evidence: tuple[str, ...] = ()
     verification_notes: tuple[str, ...] = ()
+    verification_known_issues: tuple[str, ...] = ()
     source_revision: str | None = None
 
 
@@ -205,6 +206,7 @@ class ContextFabricResolver:
             verification_status=member.verification_status,
             verification_evidence=member.verification_evidence,
             verification_notes=member.verification_notes,
+            verification_known_issues=member.verification_known_issues,
             source_revision=revision,
         )
 
