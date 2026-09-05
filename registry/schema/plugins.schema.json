@@ -106,10 +106,32 @@
         "revision": {"type": "string", "minLength": 1}
       }
     },
+    "dependencyEnvironment": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": {"const": "hosted"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "path", "sha256"],
+          "properties": {
+            "kind": {"enum": ["uv-lock", "uv-constraints"]},
+            "path": {"type": "string", "minLength": 1},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        }
+      ]
+    },
     "verificationInputs": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source", "runtime", "resolution"],
+      "required": ["source", "runtime", "resolution", "environment"],
       "properties": {
         "source": {"$ref": "#/$defs/sourceInput"},
         "runtime": {"type": "string", "minLength": 1},
@@ -118,7 +140,9 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": {"type": "string", "minLength": 1}
-        }
+        },
+        "environment": {"$ref": "#/$defs/dependencyEnvironment"},
+        "harness_environment": {"$ref": "#/$defs/dependencyEnvironment"}
       }
     },
     "checkReference": {

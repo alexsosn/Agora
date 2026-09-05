@@ -47,7 +47,23 @@ A live check definition is not proof that its latest run succeeded. `scripts/smo
 
 Provider health may reference the same stable live check IDs as operational observations, but the check must explicitly name the exact provider it traverses and provider health does not inherit the check's client evidence level. A successful Codex-path check can therefore show that one provider/runtime was observed working on that run without asserting that Claude has equivalent evidence, another provider under the same plugin was tested, or the provider's resources are scholarly-quality.
 
-The current live workflow verifies the generated Codex path. Claude launch/configuration checks are deterministic and remain `community`; broader client/platform coverage belongs to the compatibility work tracked separately. Fully resolved dependency locking is also separate work—the evidence records capture the configured resolution inputs and the observed runtime, while lockfiles/constraints are handled by the reproducibility workstream.
+The current live workflow verifies the generated Codex path. Claude launch/configuration checks are deterministic and remain `community`; broader client/platform coverage belongs to the compatibility work tracked separately.
+
+## Reproducible runtime dependency environments
+
+Verification evidence is bound to the dependency environment it actually describes. File-backed environments in `registry/plugins.yaml` record both a repository-relative path and the SHA-256 digest of that exact lock or constraint snapshot. Live Codex checks additionally record the `verification/mcp-smoke/uv.lock` harness environment, so the evidence-producing process is identified separately from the plugin environment being tested. Sefaria's direct hosted Claude path uses `environment.kind: hosted` because Agora does not resolve a local Python environment for that transport.
+
+Agora uses two dependency strategies according to ownership:
+
+- Agora-owned local Python runtimes (`context-fabric` and `sedra`) commit universal `uv.lock` files next to their `pyproject.toml` files and launch with `uv run --locked`. A changed project declaration with an unchanged lock therefore fails closed instead of silently re-resolving at user launch.
+- Third-party `uvx` integrations (`perseus` and the Sefaria Codex proxy) keep the advertised top-level package pins while shipping full universal transitive snapshots in `runtime-constraints.txt`, generated from the corresponding `runtime-requirements.in`. Their generated launch commands pass those snapshots with `uvx --constraint`. Sefaria's source declaration still explicitly requires `mcp>=1.17,<2`, and the resolved snapshot keeps the proxy on MCP SDK 1.x.
+- The live smoke harness is its own small uv project under `verification/mcp-smoke/`. GitHub Actions runs it with `uv run --project verification/mcp-smoke --locked` rather than dynamically injecting `mcp` or PyYAML at verification time.
+
+The canonical snapshot producer/checker tool version is uv `0.12.10`. Foundation runs `scripts/check_runtime_environment_freshness.py`: project locks are checked with `uv lock --check`, while each `runtime-constraints.txt` is recompiled from its source declaration **under the committed snapshot as a constraint** and byte-compared with the committed result. This distinction is deliberate. A newly published transitive package version on PyPI does not make a frozen, still-valid environment stale; changing the declared dependency contract so that the committed snapshot no longer satisfies or completely represents it does.
+
+`scripts/validate_runtime_environments.py`, invoked by the canonical registry validator, independently verifies that every referenced file exists and that its current SHA-256 matches the registry claim. Together, semantic freshness and digest identity prevent both stale declarations and unrecorded snapshot edits.
+
+The live smoke workflow watches every relevant local `pyproject.toml`/`uv.lock`, every uvx `runtime-requirements.in`/`runtime-constraints.txt`, and the harness project/lock. Changing any of those inputs therefore produces a new live observation instead of silently retaining an unrelated verified run. The JSON smoke artifact records the pinned uv version, generated user launch, plugin dependency snapshot identity, and harness snapshot identity used for that run.
 
 ## Three independent status dimensions
 
@@ -78,7 +94,13 @@ python scripts/generate_marketplaces.py --check
 python -m unittest discover -s tests -v
 ```
 
-Validation checks schema conformance, duplicate IDs, cross-file references, executable verification-check references, exact-provider evidence for every asserted provider-health state, controlled-vocabulary values, collection/index consistency, the exact four-plugin / 37-resource v0.1 contract, materializer registry constraints, and freshness of committed Claude/Codex marketplace artifacts.
+For the networked dependency-snapshot freshness gate, install uv `0.12.10` and run:
+
+```bash
+python scripts/check_runtime_environment_freshness.py
+```
+
+Validation checks schema conformance, duplicate IDs, cross-file references, executable verification-check references, runtime-environment file/digest identity, exact-provider evidence for every asserted provider-health state, controlled-vocabulary values, collection/index consistency, the exact four-plugin / 37-resource v0.1 contract, materializer registry constraints, and freshness of committed Claude/Codex marketplace artifacts. Foundation additionally verifies the semantic freshness of all committed runtime dependency snapshots.
 
 CI also performs a live Pseudepigrapha-TF integration smoke in two phases: passive immutable source fetch/manifest validation, then a separately explicit Python installation that records runtime and dependency identity. Materializer registration and verification do not assess upstream scholarly suitability or converter semantics.
 

@@ -6,6 +6,7 @@
       "command": "uv",
       "args": [
         "run",
+        "--locked",
         "--project",
         ".",
         "agora-context-fabric-mcp",

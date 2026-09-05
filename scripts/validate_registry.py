@@ -19,6 +19,11 @@ try:
 except ModuleNotFoundError:
     from validate_verification_checks import validate_verification_checks
 
+try:
+    from scripts.validate_runtime_environments import validate_runtime_environments
+except ModuleNotFoundError:
+    from validate_runtime_environments import validate_runtime_environments
+
 ROOT = Path(__file__).resolve().parents[1]
 VERIFICATION_RANK = {"experimental": 0, "community": 1, "verified": 2}
 
@@ -337,6 +342,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
             errors.append(f"v0.1.yaml: required resource {resource_id!r} is not owned by context-fabric")
 
     errors += validate_candidate_research(root, vocab)
+    errors += validate_runtime_environments(root)
     return errors
 
 

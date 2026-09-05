@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import shutil
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -22,6 +23,17 @@ class VerificationEvidenceTests(unittest.TestCase):
         shutil.copytree(ROOT / ".github/workflows", workflows)
         (root / "tests").mkdir()
         shutil.copy2(ROOT / "tests/test_generation.py", root / "tests/test_generation.py")
+        for relative_path in (
+            "plugins/context-fabric/uv.lock",
+            "plugins/perseus/runtime-constraints.txt",
+            "plugins/sefaria/runtime-constraints.txt",
+            "plugins/sedra/uv.lock",
+            "verification/mcp-smoke/uv.lock",
+        ):
+            source = ROOT / relative_path
+            target = root / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
         return root
 
     def load_yaml(self, root: Path, relative_path: str):
@@ -145,17 +157,29 @@ class VerificationEvidenceTests(unittest.TestCase):
         ):
             self.assertIn(f'"{path}"', workflow, path)
 
-    def test_isolated_live_harness_installs_and_records_all_direct_dependencies(self):
+    def test_live_harness_is_locked_and_records_all_direct_dependencies(self):
         workflow = (ROOT / ".github/workflows/external-mcp-smoke.yml").read_text(encoding="utf-8")
-        self.assertIn('--with "mcp>=2,<3"', workflow)
-        self.assertIn('--with "PyYAML>=6,<7"', workflow)
+        self.assertIn("uv run --project verification/mcp-smoke --locked", workflow)
+        self.assertNotIn('uv run --with "mcp>=2,<3"', workflow)
+        self.assertNotIn('--with "PyYAML>=6,<7"', workflow)
+
+        with (ROOT / "verification/mcp-smoke/pyproject.toml").open("rb") as fh:
+            dependencies = tomllib.load(fh)["project"]["dependencies"]
+        self.assertIn("mcp>=2,<3", dependencies)
+        self.assertIn("PyYAML>=6,<7", dependencies)
+        self.assertTrue((ROOT / "verification/mcp-smoke/uv.lock").is_file())
 
         plugins = self.load_yaml(ROOT, "registry/plugins.yaml")["plugins"]
         for plugin in plugins:
             live = plugin["verification"]["clients"]["codex"]["checks"]
-            resolution = live[0]["inputs"]["resolution"]
+            inputs = live[0]["inputs"]
+            resolution = inputs["resolution"]
             self.assertIn("mcp>=2,<3 (smoke harness)", resolution, plugin["id"])
             self.assertIn("PyYAML>=6,<7 (smoke harness)", resolution, plugin["id"])
+            harness = inputs["harness_environment"]
+            self.assertEqual(harness["kind"], "uv-lock")
+            self.assertEqual(harness["path"], "verification/mcp-smoke/uv.lock")
+            self.assertRegex(harness["sha256"], r"^[0-9a-f]{64}$")
 
 
 if __name__ == "__main__":
