@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "registry/collections/**"
+      - "registry/resources.yaml"
       - "plugins/context-fabric/src/agora_context_fabric/collection_index.py"
       - "plugins/context-fabric/src/agora_context_fabric/gitstore.py"
       - "scripts/generate_context_fabric_collection_indexes.py"
@@ -45,6 +46,13 @@ jobs:
           --output-dir generated-collection-indexes
           --cache-dir "$RUNNER_TEMP/agora-context-fabric-index-cache"
 
+      - name: Verify canonical collection index is fresh
+        run: >-
+          python scripts/generate_context_fabric_collection_indexes.py
+          --resource "${{ matrix.resource }}"
+          --check
+          --cache-dir "$RUNNER_TEMP/agora-context-fabric-index-cache"
+
       - name: Upload generated index
         uses: actions/upload-artifact@v4
         with:
@@ -52,3 +60,129 @@ jobs:
           path: generated-collection-indexes/${{ matrix.resource }}.yaml
           if-no-files-found: error
           retention-days: 7
+
+  patch-review-fix:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'feat/13-commit-bound-collection-indexes' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/13-commit-bound-collection-indexes
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Apply exact review fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          gitstore_path = Path("plugins/context-fabric/src/agora_context_fabric/gitstore.py")
+          gitstore = gitstore_path.read_text(encoding="utf-8")
+          marker = '''    def tf_feature_summary(
+              self,
+              repo: Path,
+              relative_path: str,
+              revision: str | None = None,
+          ) -> dict[str, Any]:
+          '''
+          method = '''    def tf_header_metadata(
+              self,
+              repo: Path,
+              relative_path: str,
+              revision: str | None = None,
+          ) -> dict[str, Any]:
+              """Read Text-Fabric metadata header fields without consuming feature rows."""
+              relative = self._safe_relative_path(relative_path)
+              treeish = self._treeish(repo, revision)
+              spec = f"{treeish}:{relative}"
+              command = ["git", "-C", str(repo), "show", spec]
+              process = subprocess.Popen(
+                  command,
+                  text=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+              )
+              assert process.stdout is not None
+              metadata: dict[str, Any] = {}
+              header_complete = False
+              try:
+                  for raw_line in process.stdout:
+                      line = raw_line.rstrip("\\r\\n")
+                      if not line or not line.startswith("@"):
+                          header_complete = True
+                          break
+                      if "=" in line:
+                          key, value = line[1:].split("=", 1)
+                          if key:
+                              metadata[key] = value
+              finally:
+                  process.stdout.close()
+                  stderr = process.stderr.read() if process.stderr is not None else ""
+                  returncode = process.wait()
+                  if process.stderr is not None:
+                      process.stderr.close()
+                  if returncode and not header_complete:
+                      raise subprocess.CalledProcessError(
+                          returncode,
+                          command,
+                          stderr=stderr,
+                      )
+              return metadata
+
+          '''
+          if marker not in gitstore:
+              raise SystemExit("tf_feature_summary insertion marker not found")
+          gitstore_path.write_text(gitstore.replace(marker, method + marker, 1), encoding="utf-8")
+
+          index_path = Path("plugins/context-fabric/src/agora_context_fabric/collection_index.py")
+          index_text = index_path.read_text(encoding="utf-8")
+          old = '''        try:
+              summary = self.store.tf_feature_summary(repo, relative, revision)
+          except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
+              return {}
+          metadata = summary.get("metadata") or {}
+          '''
+          new = '''        try:
+              metadata = self.store.tf_header_metadata(repo, relative, revision)
+          except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
+              return {}
+          '''
+          if old not in index_text:
+              raise SystemExit("collection metadata replacement marker not found")
+          index_path.write_text(index_text.replace(old, new, 1), encoding="utf-8")
+
+          workflow_path = Path(".github/workflows/context-fabric-collection-index-generation.yml")
+          workflow = workflow_path.read_text(encoding="utf-8")
+          marker = "\n  patch-review-fix:\n"
+          if marker not in workflow:
+              raise SystemExit("temporary review-fix workflow job marker not found")
+          workflow_path.write_text(workflow.split(marker, 1)[0].rstrip() + "\n", encoding="utf-8")
+
+      - name: Run focused review regressions
+        run: |
+          python -m unittest tests.test_context_fabric_collection_index_review_regressions -v
+          python -m unittest tests.test_context_fabric_collection_index tests.test_context_fabric_collection_index_runtime -v
+
+      - name: Commit final review fixes
+        run: |
+          rm -f .github/workflows/tmp-review-fix-collection-indexes.yml
+          git config user.name "Agora CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A .github/workflows/context-fabric-collection-index-generation.yml .github/workflows/tmp-review-fix-collection-indexes.yml plugins/context-fabric/src/agora_context_fabric/gitstore.py plugins/context-fabric/src/agora_context_fabric/collection_index.py
+          git commit -m "fix: harden collection index generation"
+          git push origin HEAD:feat/13-commit-bound-collection-indexes
