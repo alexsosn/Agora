@@ -18,6 +18,7 @@ class ResourceSpec:
     languages: tuple[str, ...]
     disciplines: tuple[str, ...]
     member_index: str | None = None
+    member_index_path: Path | None = None
     collection_discovery: str | None = None
     member_id_scheme: str | None = None
     lazy_members: bool = False
@@ -52,7 +53,12 @@ class Catalog:
             modules.sort(key=lambda item: item.id.casefold())
 
     @staticmethod
-    def _resources_from_document(doc: dict[str, Any]) -> list[ResourceSpec]:
+    def _resources_from_document(
+        doc: dict[str, Any],
+        *,
+        base_dir: Path,
+        bundled_collection_index_dir: Path | None = None,
+    ) -> list[ResourceSpec]:
         resources: list[ResourceSpec] = []
         for item in doc.get("resources", []):
             if item.get("plugin") != "context-fabric":
@@ -73,6 +79,13 @@ class Catalog:
                         f"Context-Fabric feature module {item.get('id')!r} requires {rendered}"
                     )
             collection = item.get("collection") or {}
+            member_index = collection.get("member_index")
+            member_index_path: Path | None = None
+            if member_index:
+                if bundled_collection_index_dir is not None:
+                    member_index_path = bundled_collection_index_dir / Path(member_index).name
+                else:
+                    member_index_path = base_dir / member_index
             compatibility = item.get("compatibility") or {}
             module = item.get("module") or {}
             verification = item.get("verification") or {}
@@ -89,7 +102,8 @@ class Catalog:
                     repository=repository,
                     languages=tuple(item.get("languages", [])),
                     disciplines=tuple(item.get("disciplines", [])),
-                    member_index=collection.get("member_index"),
+                    member_index=member_index,
+                    member_index_path=member_index_path,
                     collection_discovery=collection.get("discovery"),
                     member_id_scheme=collection.get("member_id_scheme"),
                     lazy_members=bool(collection.get("lazy_members", False)),
@@ -113,14 +127,26 @@ class Catalog:
         return resources
 
     @classmethod
-    def _from_documents(cls, paths: Iterable[Path]) -> "Catalog":
+    def _from_documents(
+        cls,
+        paths: Iterable[Path],
+        *,
+        base_dir: Path,
+        bundled_collection_index_dir: Path | None = None,
+    ) -> "Catalog":
         resources: list[ResourceSpec] = []
         for path in paths:
             if not path.is_file():
                 continue
             with path.open("r", encoding="utf-8") as fh:
                 doc = yaml.safe_load(fh)
-            resources.extend(cls._resources_from_document(doc))
+            resources.extend(
+                cls._resources_from_document(
+                    doc,
+                    base_dir=base_dir,
+                    bundled_collection_index_dir=bundled_collection_index_dir,
+                )
+            )
         return cls(resources)
 
     @classmethod
@@ -130,7 +156,8 @@ class Catalog:
             (
                 root / "registry" / "resources.yaml",
                 root / "registry" / "feature-modules.yaml",
-            )
+            ),
+            base_dir=root,
         )
 
     @classmethod
@@ -140,7 +167,9 @@ class Catalog:
             (
                 plugin_root / "resources" / "catalog.yaml",
                 plugin_root / "resources" / "feature-modules.yaml",
-            )
+            ),
+            base_dir=plugin_root,
+            bundled_collection_index_dir=plugin_root / "resources" / "collections",
         )
 
     def ids(self) -> list[str]:
