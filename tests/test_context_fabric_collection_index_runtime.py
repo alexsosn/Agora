@@ -119,7 +119,8 @@ class CollectionIndexRuntimeTests(unittest.TestCase):
 
             first_store = CountingGitStore(cache)
             first = ContextFabricResolver(self.catalog(source), first_store)
-            first.resolve_members("greek", source_revision=revision)
+            first_result = first.resolve_members("greek")
+            self.assertEqual(first_result.source_revision, revision)
             self.assertEqual(first_store.dataset_root_calls, 1)
 
             second_store = CountingGitStore(cache)
@@ -186,8 +187,12 @@ class CollectionIndexRuntimeTests(unittest.TestCase):
                 self.catalog(source, member_index=str(installed)),
                 store,
             )
-            result_a = resolver.resolve_members("greek", source_revision=revision_a)
+            result_a = resolver.resolve_members("greek")
             self.assertEqual(result_a.source_revision, revision_a)
+            self.assertEqual(store.dataset_root_calls, 0)
+
+            pinned_a = resolver.resolve_members("greek", source_revision=revision_a)
+            self.assertEqual(pinned_a.source_revision, revision_a)
             self.assertEqual(store.dataset_root_calls, 0)
 
             shutil.move(source / "Homer" / "Iliad", source / "Homer" / "Ilias")
