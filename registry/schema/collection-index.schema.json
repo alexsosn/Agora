@@ -50,6 +50,21 @@
                   }
                 }
               },
+              "known_issues": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["issue_id"],
+                  "properties": {
+                    "issue_id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
+                    }
+                  }
+                }
+              },
               "notes": {"type": "array", "items": {"type": "string"}}
             }
           },

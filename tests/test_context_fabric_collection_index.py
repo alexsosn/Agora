@@ -11,6 +11,8 @@ if str(PLUGIN_SRC) not in sys.path:
 
 from agora_context_fabric.collection_index import (
     build_collection_index,
+    index_from_document,
+    index_to_document,
     member_id_from_identity,
     member_identity_path,
     parse_tf_header,
@@ -18,6 +20,7 @@ from agora_context_fabric.collection_index import (
 
 
 REVISION = "a" * 40
+DUPLICATE_STRUCTURE_ISSUE = "context-fabric/duplicate-structure-levels"
 
 
 class CollectionIndexGenerationTests(unittest.TestCase):
@@ -127,6 +130,61 @@ class CollectionIndexGenerationTests(unittest.TestCase):
         for member in index.members:
             self.assertEqual(member.verification_status, "community")
             self.assertEqual(member.verification_evidence, ())
+            self.assertEqual(member.verification_known_issues, ())
+
+    def test_duplicate_structure_types_are_classified_as_known_issue(self):
+        index = build_collection_index(
+            collection_id="greek_literature",
+            source_revision=REVISION,
+            roots=["Homer/Iliad/tf/1.0"],
+            languages=("greek",),
+            metadata_reader=lambda _path: {
+                "author": "Homer",
+                "structureTypes": "_book,book,card,card,_sentence,_phrase",
+            },
+        )
+        self.assertEqual(
+            index.members[0].verification_known_issues,
+            (DUPLICATE_STRUCTURE_ISSUE,),
+        )
+
+    def test_unique_or_missing_structure_types_are_not_classified(self):
+        unique = build_collection_index(
+            collection_id="greek_literature",
+            source_revision=REVISION,
+            roots=["Homer/Iliad/tf/1.0"],
+            languages=("greek",),
+            metadata_reader=lambda _path: {
+                "structureTypes": "_book,book,chapter,_sentence,_phrase",
+            },
+        )
+        missing = build_collection_index(
+            collection_id="greek_literature",
+            source_revision=REVISION,
+            roots=["Homer/Odyssey/tf/1.0"],
+            languages=("greek",),
+            metadata_reader=lambda _path: {},
+        )
+        self.assertEqual(unique.members[0].verification_known_issues, ())
+        self.assertEqual(missing.members[0].verification_known_issues, ())
+
+    def test_member_known_issue_round_trips_through_index_document(self):
+        index = build_collection_index(
+            collection_id="greek_literature",
+            source_revision=REVISION,
+            roots=["Homer/Iliad/tf/1.0"],
+            languages=("greek",),
+            metadata_reader=lambda _path: {"structureTypes": "book,card,card"},
+        )
+        restored = index_from_document(index_to_document(index))
+        self.assertEqual(
+            restored.members[0].verification_known_issues,
+            (DUPLICATE_STRUCTURE_ISSUE,),
+        )
+        self.assertEqual(
+            index_to_document(restored)["members"][0]["verification"]["known_issues"],
+            [{"issue_id": DUPLICATE_STRUCTURE_ISSUE}],
+        )
 
     def test_source_revision_must_be_full_immutable_commit(self):
         with self.assertRaisesRegex(ValueError, "immutable commit"):

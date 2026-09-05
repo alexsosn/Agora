@@ -150,6 +150,69 @@ def _validate_executor(root: Path, check: dict[str, Any]) -> list[str]:
     return []
 
 
+def _validate_resource_known_issue_references(root: Path) -> list[str]:
+    """Ensure compact collection-member issue refs resolve inside their resource."""
+    registry = root / "registry"
+    documents: list[dict[str, Any]] = []
+    for path in (registry / "resources.yaml", registry / "feature-modules.yaml"):
+        if not path.is_file():
+            continue
+        document = _load_yaml(path)
+        if isinstance(document, dict):
+            documents.append(document)
+
+    errors: list[str] = []
+    for document in documents:
+        for resource in document.get("resources", []):
+            if not isinstance(resource, dict):
+                continue
+            resource_id = resource.get("id")
+            if not isinstance(resource_id, str):
+                continue
+            definitions = (resource.get("verification") or {}).get("known_issues", [])
+            issue_ids: set[str] = set()
+            for issue in definitions:
+                if not isinstance(issue, dict) or not isinstance(issue.get("id"), str):
+                    continue
+                issue_id = issue["id"]
+                if issue_id in issue_ids:
+                    errors.append(
+                        f"resource {resource_id}.verification.known_issues: duplicate id {issue_id!r}"
+                    )
+                issue_ids.add(issue_id)
+
+            if resource.get("kind") != "collection":
+                continue
+            member_index_ref = (resource.get("collection") or {}).get("member_index")
+            if not isinstance(member_index_ref, str):
+                continue
+            member_index_path = root / member_index_ref
+            if not member_index_path.is_file():
+                continue
+            index_doc = _load_yaml(member_index_path)
+            if not isinstance(index_doc, dict):
+                continue
+            for member in index_doc.get("members", []):
+                if not isinstance(member, dict):
+                    continue
+                member_id = member.get("id", "<unknown>")
+                verification = member.get("verification") or {}
+                if not isinstance(verification, dict):
+                    continue
+                for reference in verification.get("known_issues", []):
+                    if not isinstance(reference, dict):
+                        continue
+                    issue_id = reference.get("issue_id")
+                    if not isinstance(issue_id, str):
+                        continue
+                    if issue_id not in issue_ids:
+                        errors.append(
+                            f"resource {resource_id}.member[{member_id}].verification.known_issues"
+                            f"[{issue_id}]: references missing resource known issue {issue_id!r}"
+                        )
+    return errors
+
+
 def validate_verification_checks(root: Path, plugins_doc: dict[str, Any]) -> list[str]:
     root = Path(root)
     registry = root / "registry"
@@ -220,4 +283,5 @@ def validate_verification_checks(root: Path, plugins_doc: dict[str, Any]) -> lis
                     f"exceeds strongest executable evidence {strongest_level!r}"
                 )
 
+    errors += _validate_resource_known_issue_references(root)
     return errors

@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import scripts.smoke_context_fabric_resources as smoke
 from scripts.smoke_context_fabric_resources import (
     LOAD_CASES,
     SEMANTIC_EXPECTATIONS,
@@ -27,8 +28,11 @@ class _Feature:
 
 
 class ContextFabricLoadSmokeTests(unittest.TestCase):
-    def test_cases_cover_two_core_corpora_and_one_lazy_greek_member(self):
-        self.assertEqual(set(LOAD_CASES), {"bhsa", "cuc", "greek-iliad"})
+    def test_cases_cover_core_good_greek_and_expected_known_failure(self):
+        self.assertEqual(
+            set(LOAD_CASES),
+            {"bhsa", "cuc", "greek-iliad", "greek-known-bad"},
+        )
 
         self.assertEqual(LOAD_CASES["bhsa"].resource_id, "bhsa")
         self.assertIsNone(LOAD_CASES["bhsa"].member_path_contains)
@@ -45,9 +49,84 @@ class ContextFabricLoadSmokeTests(unittest.TestCase):
             "canonical-greekLit/tlg0012/tlg001/perseus-grc2/1/tf/1.0",
         )
         self.assertEqual(iliad.features, ("orig", "main"))
+        self.assertIsNone(iliad.expected_known_issue)
 
-    def test_each_real_case_has_narrow_semantic_expectations(self):
-        self.assertEqual(set(SEMANTIC_EXPECTATIONS), set(LOAD_CASES))
+        known_bad = LOAD_CASES["greek-known-bad"]
+        self.assertEqual(known_bad.resource_id, "greek_literature")
+        self.assertEqual(
+            known_bad.member_path_contains,
+            "canonical-greekLit/tlg0001/tlg001/perseus-grc2/1/tf/1.0",
+        )
+        self.assertEqual(known_bad.features, ())
+        self.assertEqual(
+            known_bad.expected_known_issue,
+            "context-fabric/duplicate-structure-levels",
+        )
+
+    def test_expected_known_failure_carries_upstream_retirement_canary(self):
+        known_bad = LOAD_CASES["greek-known-bad"]
+        self.assertEqual(
+            getattr(known_bad, "expected_upstream_error_type", None),
+            "ValueError",
+        )
+        self.assertIn(
+            "not enough values to unpack",
+            getattr(known_bad, "expected_upstream_error_text", ""),
+        )
+
+    def test_upstream_retirement_probe_accepts_only_the_reproduced_failure(self):
+        probe = getattr(smoke, "probe_expected_upstream_failure", None)
+        self.assertTrue(callable(probe), "smoke must probe the upstream failure directly")
+
+        class BrokenFabric:
+            def __init__(self, *, locations, silent):
+                self.locations = locations
+                self.silent = silent
+
+            def loadAll(self, *, silent):
+                raise ValueError("not enough values to unpack (expected 6, got 2)")
+
+        result = probe(
+            "greek-known-bad",
+            Path("/tmp/dataset"),
+            expected_error_type="ValueError",
+            expected_error_text="not enough values to unpack",
+            fabric_factory=BrokenFabric,
+        )
+        self.assertEqual(result["status"], "expected-upstream-failure")
+        self.assertEqual(result["error_type"], "ValueError")
+
+        class FixedFabric(BrokenFabric):
+            def loadAll(self, *, silent):
+                return {"loaded": True}
+
+        with self.assertRaisesRegex(RuntimeError, "known issue may be fixed upstream"):
+            probe(
+                "greek-known-bad",
+                Path("/tmp/dataset"),
+                expected_error_type="ValueError",
+                expected_error_text="not enough values to unpack",
+                fabric_factory=FixedFabric,
+            )
+
+        class DifferentFailureFabric(BrokenFabric):
+            def loadAll(self, *, silent):
+                raise RuntimeError("different upstream failure")
+
+        with self.assertRaisesRegex(RuntimeError, "unexpected upstream failure"):
+            probe(
+                "greek-known-bad",
+                Path("/tmp/dataset"),
+                expected_error_type="ValueError",
+                expected_error_text="not enough values to unpack",
+                fabric_factory=DifferentFailureFabric,
+            )
+
+    def test_each_real_load_case_has_narrow_semantic_expectations(self):
+        self.assertEqual(
+            set(SEMANTIC_EXPECTATIONS),
+            set(LOAD_CASES) - {"greek-known-bad"},
+        )
         self.assertEqual(
             [(item.feature, item.node) for item in SEMANTIC_EXPECTATIONS["bhsa"]],
             [("g_cons", 1), ("g_cons", 2), ("sp", 1), ("sp", 2)],
@@ -192,7 +271,7 @@ class ContextFabricLoadSmokeTests(unittest.TestCase):
             result["corpus"] = {"name": "example", "loaded": True}
             result["source_revision"] = None
             with self.assertRaisesRegex(RuntimeError, "source revision"):
-                summarize_loaded_corpus("example", result, checks)
+                summarize_loaded_corpus("example", result, [])
 
             result["source_revision"] = "a" * 40
             with self.assertRaisesRegex(RuntimeError, "semantic checks"):

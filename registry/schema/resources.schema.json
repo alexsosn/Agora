@@ -109,7 +109,38 @@
             "required": ["status"],
             "properties": {
               "status": {"type": "string"},
-              "notes": {"type": "array", "items": {"type": "string"}}
+              "notes": {"type": "array", "items": {"type": "string"}},
+              "known_issues": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "severity", "signature", "summary"],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
+                    },
+                    "severity": {"enum": ["advisory", "blocking"]},
+                    "signature": {"type": "string", "minLength": 1},
+                    "summary": {"type": "string", "minLength": 1},
+                    "upstream": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["repository"],
+                        "properties": {
+                          "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+                          "issue": {"type": "integer", "minimum": 1},
+                          "url": {"type": "string", "format": "uri"}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           },
           "integration_issues": {"type": "array", "items": {"type": "string"}},

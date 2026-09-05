@@ -35,6 +35,7 @@ class ResourceSpec:
     period: str | None = None
     verification_status: str = "community"
     verification_notes: tuple[str, ...] = ()
+    verification_known_issues: tuple[dict[str, Any], ...] = ()
     licenses: dict[str, str] = field(default_factory=dict)
     integration_issues: tuple[str, ...] = ()
     source_snapshot: dict[str, Any] = field(default_factory=dict)
@@ -121,6 +122,11 @@ class Catalog:
                     period=item.get("period"),
                     verification_status=verification.get("status", "community"),
                     verification_notes=tuple(notes),
+                    verification_known_issues=tuple(
+                        dict(value)
+                        for value in verification.get("known_issues", [])
+                        if isinstance(value, dict)
+                    ),
                     licenses=dict(item.get("licenses") or {}),
                     integration_issues=tuple(item.get("integration_issues") or ()),
                     source_snapshot=dict(item.get("source_snapshot") or {}),
