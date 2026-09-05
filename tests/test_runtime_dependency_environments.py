@@ -227,12 +227,16 @@ class RuntimeDependencyEnvironmentContractTests(unittest.TestCase):
                 command for command in calls if command[:3] == ["uv", "pip", "compile"]
             ]
             self.assertEqual(len(compile_calls), 2)
-            for command in compile_calls:
+            for (source, snapshot), command in zip(checker.CONSTRAINT_SNAPSHOTS, compile_calls):
                 self.assertIn("--universal", command)
                 self.assertIn("--python-version", command)
                 self.assertIn("3.13", command)
                 self.assertIn("--no-header", command)
                 self.assertIn("--no-annotate", command)
+                self.assertIn("--constraint", command)
+                constraint_index = command.index("--constraint")
+                self.assertEqual(command[constraint_index + 1], snapshot)
+                self.assertIn(source, command)
 
     def test_foundation_runs_networked_snapshot_freshness_gate(self):
         workflow = (ROOT / ".github/workflows/foundation.yml").read_text(encoding="utf-8")
