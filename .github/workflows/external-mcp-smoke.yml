@@ -14,16 +14,25 @@ on:
       - "registry/schema/verification-checks.schema.json"
       - "plugins/context-fabric/.codex-plugin/mcp.json"
       - "plugins/context-fabric/pyproject.toml"
+      - "plugins/context-fabric/uv.lock"
       - "plugins/context-fabric/src/**"
       - "plugins/perseus/.codex-plugin/mcp.json"
+      - "plugins/perseus/runtime-requirements.in"
+      - "plugins/perseus/runtime-constraints.txt"
       - "plugins/sefaria/.codex-plugin/mcp.json"
+      - "plugins/sefaria/runtime-requirements.in"
+      - "plugins/sefaria/runtime-constraints.txt"
       - "plugins/sedra/.codex-plugin/mcp.json"
       - "plugins/sedra/pyproject.toml"
+      - "plugins/sedra/uv.lock"
       - "plugins/sedra/src/**"
+      - "verification/mcp-smoke/pyproject.toml"
+      - "verification/mcp-smoke/uv.lock"
       - "scripts/generate_marketplaces.py"
       - "scripts/smoke_mcp_plugin.py"
       - "tests/test_generation.py"
       - "tests/test_mcp_smoke.py"
+      - "tests/test_live_smoke_runtime_environment.py"
       - ".github/workflows/external-mcp-smoke.yml"
 
 permissions:
@@ -50,12 +59,14 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.10"
 
       - name: Initialize MCP and execute one live scholarly lookup
         shell: bash
         run: |
           set -o pipefail
-          uv run --with "mcp>=2,<3" --with "PyYAML>=6,<7" \
+          uv run --project verification/mcp-smoke --locked \
             python scripts/smoke_mcp_plugin.py "${{ matrix.plugin }}" --timeout 180 \
             | tee "mcp-smoke-${{ matrix.plugin }}.json"
 
