@@ -223,7 +223,9 @@ class RuntimeDependencyEnvironmentContractTests(unittest.TestCase):
                 any(command[:3] == ["uv", "lock", "--check"] for command in calls),
                 calls,
             )
-            compile_calls = [command for command in calls if command[:3] == ["uv", "pip", "compile"]
+            compile_calls = [
+                command for command in calls if command[:3] == ["uv", "pip", "compile"]
+            ]
             self.assertEqual(len(compile_calls), 2)
             for command in compile_calls:
                 self.assertIn("--universal", command)
