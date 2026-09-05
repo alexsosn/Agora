@@ -180,6 +180,13 @@ plugins:
               kind: uv-lock
               path: verification/mcp-smoke/uv.lock
               sha256: 02ee919d9bd8ff909f090463c563a425ab614ea77dc410eeddbd23bb7a330838
+    known_issues:
+    - id: perseus/cts-scaife-inventory-routing
+      severity: advisory
+      signature: find_author_names can include Scaife-only works while CTS get_work_resources returns match_count 0
+      summary: Merged CTS/Scaife author discovery may return Scaife-only works; CTS get_author_resources/get_work_resources can report no match even when Scaife-native tools can retrieve the work.
+      upstream:
+      - repository: tonyjurg/Perseus-mcp
     notes:
     - Both clients use the pinned upstream perseus-mcp 1.0.2 package.
     - The live workflow currently exercises the Codex stdio path and performs an upstream author-discovery lookup for Homer.
