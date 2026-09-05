@@ -1,0 +1,52 @@
+name: Temporary runtime dependency snapshot hashing
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/tmp-hash-runtime-snapshots.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  hash:
+    if: >-
+      github.head_ref == 'feat/14-reproducible-runtime-dependencies' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/14-reproducible-runtime-dependencies
+          fetch-depth: 0
+
+      - name: Record SHA-256 digests
+        shell: python
+        run: |
+          from hashlib import sha256
+          from pathlib import Path
+          import yaml
+
+          paths = [
+              "plugins/context-fabric/uv.lock",
+              "plugins/sedra/uv.lock",
+              "verification/mcp-smoke/uv.lock",
+              "plugins/perseus/runtime-constraints.txt",
+              "plugins/sefaria/runtime-constraints.txt",
+          ]
+          document = {
+              path: sha256(Path(path).read_bytes()).hexdigest()
+              for path in paths
+          }
+          target = Path("verification/runtime-environment-digests.yaml")
+          target.parent.mkdir(parents=True, exist_ok=True)
+          target.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+      - name: Commit digest manifest
+        run: |
+          git add verification/runtime-environment-digests.yaml
+          git config user.name "Agora CI"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "build: record temporary runtime snapshot digests"
+          git push origin HEAD:feat/14-reproducible-runtime-dependencies
