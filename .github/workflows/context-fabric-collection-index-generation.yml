@@ -16,6 +16,14 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        resource:
+          - bible
+          - patristics
+          - greek_literature
+          - translatin-manif
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -30,16 +38,17 @@ jobs:
       - name: Install generation dependencies
         run: python -m pip install -r requirements-dev.txt
 
-      - name: Generate commit-bound collection indexes
+      - name: Generate commit-bound collection index
         run: >-
           python scripts/generate_context_fabric_collection_indexes.py
+          --resource "${{ matrix.resource }}"
           --output-dir generated-collection-indexes
           --cache-dir "$RUNNER_TEMP/agora-context-fabric-index-cache"
 
-      - name: Upload generated indexes
+      - name: Upload generated index
         uses: actions/upload-artifact@v4
         with:
-          name: context-fabric-collection-indexes
-          path: generated-collection-indexes/*.yaml
+          name: context-fabric-collection-index-${{ matrix.resource }}
+          path: generated-collection-indexes/${{ matrix.resource }}.yaml
           if-no-files-found: error
           retention-days: 7
