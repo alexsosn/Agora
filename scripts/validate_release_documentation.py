@@ -17,6 +17,9 @@ SHARED_STATUS_DOCS = (
 )
 SHARED_BEGIN = "<!-- BEGIN AGORA V0.1 STATUS -->"
 SHARED_END = "<!-- END AGORA V0.1 STATUS -->"
+RESOURCE_BEGIN = "<!-- BEGIN AGORA V0.1 RESOURCE RUNTIME FACTS -->"
+RESOURCE_END = "<!-- END AGORA V0.1 RESOURCE RUNTIME FACTS -->"
+SCOPE_DOC = "wiki/releases/v0.1-scope-frozen.md"
 
 
 @dataclass(frozen=True)
@@ -29,9 +32,24 @@ class PluginVerificationFact:
 
 
 @dataclass(frozen=True)
+class ResourceRuntimeFact:
+    repository: str
+    configured_ref: str | None
+    tf_path: str | None
+
+
+@dataclass(frozen=True)
+class CollectionDiscoveryFact:
+    resource_id: str
+    discovery: str
+
+
+@dataclass(frozen=True)
 class ReleaseDocumentationFacts:
     plugins: tuple[PluginVerificationFact, ...]
     skills: tuple[str, ...]
+    tlhdig: ResourceRuntimeFact
+    collections: tuple[CollectionDiscoveryFact, ...]
 
 
 def _load_yaml(path: Path) -> Any:
@@ -39,11 +57,21 @@ def _load_yaml(path: Path) -> Any:
         return yaml.safe_load(fh)
 
 
+def _require_one(resources: list[dict[str, Any]], resource_id: str) -> dict[str, Any]:
+    matches = [item for item in resources if item.get("id") == resource_id]
+    if len(matches) != 1:
+        raise ValueError(f"expected exactly one resource {resource_id!r}; found {len(matches)}")
+    return matches[0]
+
+
 def derive_release_documentation_facts(root: Path = ROOT) -> ReleaseDocumentationFacts:
     root = Path(root)
     plugins_path = root / "registry/plugins.yaml"
+    resources_path = root / "registry/resources.yaml"
     if not plugins_path.is_file():
         raise FileNotFoundError("registry/plugins.yaml")
+    if not resources_path.is_file():
+        raise FileNotFoundError("registry/resources.yaml")
 
     plugin_doc = _load_yaml(plugins_path)
     plugin_facts: list[PluginVerificationFact] = []
@@ -59,21 +87,50 @@ def derive_release_documentation_facts(root: Path = ROOT) -> ReleaseDocumentatio
             )
         )
 
-    skills = tuple(
-        sorted(
-            path.parent.name.join(("",))
-            for path in []
-        )
-    )
     skill_ids = tuple(
         sorted(
             f"{path.parents[2].name}/{path.parent.name}"
             for path in (root / "plugins").glob("*/skills/*/SKILL.md")
         )
     )
+
+    resource_doc = _load_yaml(resources_path)
+    resources = resource_doc.get("resources", [])
+    if not isinstance(resources, list):
+        raise TypeError("registry/resources.yaml resources must be a list")
+    tlhdig_resource = _require_one(resources, "TLHdig-TF")
+    tlhdig_upstream = tlhdig_resource["upstream"]
+    tlhdig = ResourceRuntimeFact(
+        repository=str(tlhdig_upstream["repository"]),
+        configured_ref=(
+            str(tlhdig_upstream["ref"]) if tlhdig_upstream.get("ref") is not None else None
+        ),
+        tf_path=(
+            str(tlhdig_upstream["tf_path"])
+            if tlhdig_upstream.get("tf_path") is not None
+            else None
+        ),
+    )
+
+    collections = tuple(
+        sorted(
+            (
+                CollectionDiscoveryFact(
+                    resource_id=str(resource["id"]),
+                    discovery=str(resource["collection"]["discovery"]),
+                )
+                for resource in resources
+                if resource.get("kind") == "collection"
+            ),
+            key=lambda fact: fact.resource_id,
+        )
+    )
+
     return ReleaseDocumentationFacts(
         plugins=tuple(plugin_facts),
         skills=skill_ids,
+        tlhdig=tlhdig,
+        collections=collections,
     )
 
 
@@ -100,6 +157,29 @@ def render_shared_status_block(facts: ReleaseDocumentationFacts) -> str:
     return "\n".join(lines)
 
 
+def render_resource_runtime_block(facts: ReleaseDocumentationFacts) -> str:
+    configured_ref = (
+        f"`{facts.tlhdig.configured_ref}`"
+        if facts.tlhdig.configured_ref is not None
+        else "default branch / no configured ref"
+    )
+    tf_path = f"`{facts.tlhdig.tf_path}`" if facts.tlhdig.tf_path is not None else "none"
+    collection_summary = ", ".join(
+        f"`{fact.resource_id}`=`{fact.discovery}`" for fact in facts.collections
+    )
+    return "\n".join(
+        [
+            RESOURCE_BEGIN,
+            (
+                f"- TLHdig-TF upstream: `{facts.tlhdig.repository}`; configured ref: "
+                f"{configured_ref}; TF path: {tf_path}."
+            ),
+            f"- Collection discovery: {collection_summary}.",
+            RESOURCE_END,
+        ]
+    )
+
+
 def _extract_block(text: str, begin: str, end: str) -> str | None:
     if text.count(begin) != 1 or text.count(end) != 1:
         return None
@@ -113,11 +193,14 @@ def validate_release_documentation(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     try:
         facts = derive_release_documentation_facts(root)
-    except (KeyError, TypeError, FileNotFoundError) as exc:
+    except (KeyError, TypeError, ValueError, FileNotFoundError) as exc:
         return [f"release documentation facts: cannot derive canonical state: {exc}"]
 
     if not facts.plugins:
         errors.append("release documentation facts: no plugins found in registry/plugins.yaml")
+        return errors
+    if not facts.collections:
+        errors.append("release documentation facts: no collection resources found in registry/resources.yaml")
         return errors
 
     expected = render_shared_status_block(facts)
@@ -135,6 +218,30 @@ def validate_release_documentation(root: Path = ROOT) -> list[str]:
             errors.append(
                 f"{relative}: v0.1 status/skill summary block is stale relative to canonical registry/skill tree"
             )
+
+    scope_path = root / SCOPE_DOC
+    if not scope_path.is_file():
+        errors.append(f"{SCOPE_DOC}: missing frozen release-scope document")
+        return errors
+    scope_text = scope_path.read_text(encoding="utf-8")
+    expected_resource_block = render_resource_runtime_block(facts)
+    actual_resource_block = _extract_block(scope_text, RESOURCE_BEGIN, RESOURCE_END)
+    if actual_resource_block is None:
+        errors.append(
+            f"{SCOPE_DOC}: missing or ambiguous TLHdig/collection resource runtime facts block"
+        )
+    elif actual_resource_block != expected_resource_block:
+        errors.append(
+            f"{SCOPE_DOC}: TLHdig/collection resource runtime facts are stale relative to registry/resources.yaml"
+        )
+
+    all_indexed = all(fact.discovery == "indexed" for fact in facts.collections)
+    stale_git_tree_phrase = "discovers current members lazily from upstream git tree metadata"
+    if all_indexed and stale_git_tree_phrase in scope_text.lower():
+        errors.append(
+            f"{SCOPE_DOC}: collection prose still describes normal Git tree discovery although canonical collections are indexed"
+        )
+
     return errors
 
 
