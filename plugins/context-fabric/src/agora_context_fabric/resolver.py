@@ -30,6 +30,11 @@ class CollectionMember:
     identity_path: str
     author: str | None = None
     title: str | None = None
+    canonical_id: str | None = None
+    edition: str | None = None
+    verification_status: str = "community"
+    verification_evidence: tuple[str, ...] = ()
+    verification_notes: tuple[str, ...] = ()
     source_revision: str | None = None
 
 
@@ -195,6 +200,11 @@ class ContextFabricResolver:
             identity_path=member.path,
             author=member.author,
             title=member.title,
+            canonical_id=member.canonical_id,
+            edition=member.edition,
+            verification_status=member.verification_status,
+            verification_evidence=member.verification_evidence,
+            verification_notes=member.verification_notes,
             source_revision=revision,
         )
 
@@ -276,6 +286,8 @@ class ContextFabricResolver:
                         member.identity_path,
                         member.author,
                         member.title,
+                        member.canonical_id,
+                        member.edition,
                     )
                     if part
                 ).casefold()
