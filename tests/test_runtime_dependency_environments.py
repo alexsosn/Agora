@@ -6,6 +6,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -163,6 +164,78 @@ class RuntimeDependencyEnvironmentContractTests(unittest.TestCase):
                 any("sha256" in error and "plugins/demo/uv.lock" in error for error in errors),
                 errors,
             )
+
+    def test_snapshot_freshness_checker_defines_all_resolution_inputs(self):
+        checker = importlib.import_module("scripts.check_runtime_environment_freshness")
+        self.assertEqual(
+            checker.LOCK_PROJECTS,
+            (
+                "plugins/context-fabric",
+                "plugins/sedra",
+                "verification/mcp-smoke",
+            ),
+        )
+        self.assertEqual(
+            checker.CONSTRAINT_SNAPSHOTS,
+            (
+                (
+                    "plugins/perseus/runtime-requirements.in",
+                    "plugins/perseus/runtime-constraints.txt",
+                ),
+                (
+                    "plugins/sefaria/runtime-requirements.in",
+                    "plugins/sefaria/runtime-constraints.txt",
+                ),
+            ),
+        )
+
+    def test_snapshot_freshness_checker_fails_when_regenerated_constraints_differ(self):
+        checker = importlib.import_module("scripts.check_runtime_environment_freshness")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for project in checker.LOCK_PROJECTS:
+                project_root = root / project
+                project_root.mkdir(parents=True, exist_ok=True)
+                (project_root / "pyproject.toml").write_text("[project]\nname='x'\nversion='0'\n", encoding="utf-8")
+                (project_root / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+            for source, snapshot in checker.CONSTRAINT_SNAPSHOTS:
+                source_path = root / source
+                source_path.parent.mkdir(parents=True, exist_ok=True)
+                source_path.write_text("demo==1\n", encoding="utf-8")
+                snapshot_path = root / snapshot
+                snapshot_path.write_text("demo==1\n", encoding="utf-8")
+
+            calls: list[list[str]] = []
+
+            def fake_run(command, **kwargs):
+                calls.append(list(command))
+                if command[:3] == ["uv", "pip", "compile"]:
+                    output = Path(command[command.index("-o") + 1])
+                    output.write_text("demo==2\n", encoding="utf-8")
+                return mock.Mock(returncode=0, stdout="", stderr="")
+
+            errors = checker.check_runtime_environment_freshness(root, runner=fake_run)
+            self.assertTrue(
+                any("plugins/perseus/runtime-constraints.txt" in error for error in errors),
+                errors,
+            )
+            self.assertTrue(
+                any(command[:3] == ["uv", "lock", "--check"] for command in calls),
+                calls,
+            )
+            compile_calls = [command for command in calls if command[:3] == ["uv", "pip", "compile"]
+            self.assertEqual(len(compile_calls), 2)
+            for command in compile_calls:
+                self.assertIn("--universal", command)
+                self.assertIn("--python-version", command)
+                self.assertIn("3.13", command)
+                self.assertIn("--no-header", command)
+                self.assertIn("--no-annotate", command)
+
+    def test_foundation_runs_networked_snapshot_freshness_gate(self):
+        workflow = (ROOT / ".github/workflows/foundation.yml").read_text(encoding="utf-8")
+        self.assertIn("astral-sh/setup-uv@v6", workflow)
+        self.assertIn("python scripts/check_runtime_environment_freshness.py", workflow)
 
 
 if __name__ == "__main__":
