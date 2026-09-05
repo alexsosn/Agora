@@ -46,13 +46,6 @@ jobs:
           --output-dir generated-collection-indexes
           --cache-dir "$RUNNER_TEMP/agora-context-fabric-index-cache"
 
-      - name: Verify canonical collection index is fresh
-        run: >-
-          python scripts/generate_context_fabric_collection_indexes.py
-          --resource "${{ matrix.resource }}"
-          --check
-          --cache-dir "$RUNNER_TEMP/agora-context-fabric-index-cache"
-
       - name: Upload generated index
         uses: actions/upload-artifact@v4
         with:
@@ -60,3 +53,10 @@ jobs:
           path: generated-collection-indexes/${{ matrix.resource }}.yaml
           if-no-files-found: error
           retention-days: 7
+
+      - name: Verify canonical collection index is fresh
+        run: >-
+          python scripts/generate_context_fabric_collection_indexes.py
+          --resource "${{ matrix.resource }}"
+          --check
+          --cache-dir "$RUNNER_TEMP/agora-context-fabric-index-cache"
