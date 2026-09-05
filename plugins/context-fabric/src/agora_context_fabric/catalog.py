@@ -19,6 +19,7 @@ class ResourceSpec:
     disciplines: tuple[str, ...]
     member_index: str | None = None
     member_index_path: Path | None = None
+    member_index_reference: str | None = None
     collection_discovery: str | None = None
     member_id_scheme: str | None = None
     lazy_members: bool = False
@@ -79,13 +80,13 @@ class Catalog:
                         f"Context-Fabric feature module {item.get('id')!r} requires {rendered}"
                     )
             collection = item.get("collection") or {}
-            member_index = collection.get("member_index")
+            member_index_reference = collection.get("member_index")
             member_index_path: Path | None = None
-            if member_index:
+            if member_index_reference:
                 if bundled_collection_index_dir is not None:
-                    member_index_path = bundled_collection_index_dir / Path(member_index).name
+                    member_index_path = bundled_collection_index_dir / Path(member_index_reference).name
                 else:
-                    member_index_path = base_dir / member_index
+                    member_index_path = base_dir / member_index_reference
             compatibility = item.get("compatibility") or {}
             module = item.get("module") or {}
             verification = item.get("verification") or {}
@@ -102,8 +103,9 @@ class Catalog:
                     repository=repository,
                     languages=tuple(item.get("languages", [])),
                     disciplines=tuple(item.get("disciplines", [])),
-                    member_index=member_index,
+                    member_index=str(member_index_path) if member_index_path is not None else None,
                     member_index_path=member_index_path,
+                    member_index_reference=member_index_reference,
                     collection_discovery=collection.get("discovery"),
                     member_id_scheme=collection.get("member_id_scheme"),
                     lazy_members=bool(collection.get("lazy_members", False)),
