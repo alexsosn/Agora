@@ -1,0 +1,51 @@
+name: Promote PR61 Greek index artifact
+
+on:
+  push:
+    branches:
+      - fix/47-greek-member-known-failures
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  promote:
+    if: github.repository == 'alexsosn/Agora'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/47-greek-member-known-failures
+
+      - name: Download audited generated index
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          repository: alexsosn/Agora
+          run-id: 33977087177
+          name: context-fabric-collection-index-greek_literature
+          path: generated-index
+
+      - name: Promote exact generated document
+        run: |
+          set -euo pipefail
+          source_file=generated-index/greek_literature.yaml
+          test -f "$source_file"
+          cp "$source_file" registry/collections/greek_literature.yaml
+          cp "$source_file" plugins/context-fabric/resources/collections/greek_literature.yaml
+          cmp registry/collections/greek_literature.yaml plugins/context-fabric/resources/collections/greek_literature.yaml
+
+      - name: Commit generated evidence when stale
+        run: |
+          set -euo pipefail
+          git add registry/collections/greek_literature.yaml plugins/context-fabric/resources/collections/greek_literature.yaml
+          if git diff --cached --quiet; then
+            echo 'Generated Greek index is already current.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: regenerate Greek collection issue evidence'
+          git push origin HEAD:fix/47-greek-member-known-failures
