@@ -17,6 +17,20 @@ from agora_context_fabric.catalog import Catalog, ResourceSpec
 from agora_context_fabric.gitstore import GitStore
 from agora_context_fabric.network import NetworkUnavailableError
 from agora_context_fabric.resolver import ContextFabricResolver
+from agora_context_fabric.service import ContextFabricService
+
+
+class RecordingLoader:
+    def __init__(self) -> None:
+        self.loads: list[tuple[str, str | None, object]] = []
+        self.unloads: list[str] = []
+
+    def load(self, path: str, name: str | None = None, features=None):
+        self.loads.append((path, name, features))
+        return {"path": path, "name": name, "features": features}
+
+    def unload(self, logical_name: str) -> None:
+        self.unloads.append(logical_name)
 
 
 class ProductionOfflineIntegrationTests(unittest.TestCase):
@@ -108,6 +122,20 @@ class ProductionOfflineIntegrationTests(unittest.TestCase):
             self.assertEqual(second.source_revision, first.source_revision)
             self.assertEqual(second.resolution, "cached")
             self.assertFalse(second.source_revision_verified)
+
+            loader = RecordingLoader()
+            service = ContextFabricService(resolver.catalog, resolver, loader)
+            loaded = service.load("fixture")
+            self.assertEqual(loaded["path"], str(first.path))
+            self.assertEqual(loaded["source_revision"], first.source_revision)
+            self.assertEqual(loaded["resolution"], "cached")
+            self.assertFalse(loaded["source_revision_verified"])
+            self.assertEqual(loaded["cache_residency"], "leased")
+            self.assertEqual(loader.loads, [(str(first.path), "fixture", None)])
+
+            unloaded = service.unload(loaded["logical_name"])
+            self.assertTrue(unloaded["was_loaded"])
+            self.assertEqual(loader.unloads, ["fixture"])
 
             uncached = GitStore(root / "empty-cache")
             with self.assertRaises(NetworkUnavailableError):
