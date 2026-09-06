@@ -28,11 +28,11 @@ For a historical path such as `.source.lock`:
 
 1. Ensure the parent directory exists and record one monotonic deadline.
 2. Inspect the pathname with `stat`, without reading file contents.
-3. If the path is absent, create it with `O_CREAT|O_EXCL` and write the fixed marker `agora-materializer-lock-v3\n`, then restart classification.
+3. If the path is absent, create it with `O_CREAT|O_EXCL` and write the fixed ASCII marker bytes `agora-materializer-lock-v3` with `os.write`. The marker contains no newline, so its byte length is invariant across platforms.
 4. If the file is not the marker's exact byte length, treat it as ambiguous pre-v3 state. Do not delete, rewrite, or advisory-lock it. Poll until it disappears or the deadline expires.
 5. If the file has the marker's byte length, treat it only as a **candidate** modern lock object; do not read it yet.
-6. Acquire an exclusive `portalocker.Lock` on that historical path using the remaining timeout. Open the lock handle in a readable binary mode.
-7. Through the already acquired handle, read and verify the exact marker. Also compare the locked handle's filesystem identity (`fstat`) with the pathname's current identity (`stat`). If content or identity differs, release and fail closed.
+6. Acquire an exclusive `portalocker.Lock` on that historical path using the remaining timeout. Open the lock handle in readable binary append mode.
+7. Through the already acquired handle, read and verify the exact marker bytes. Compare the locked handle's filesystem identity (`fstat`) with both the pre-acquire candidate identity and the pathname's current identity (`stat`). If content or identity differs, release and fail closed.
 8. Enter the critical section.
 9. On normal release or exception, release only the OS advisory lock. Do **not** unlink the historical path.
 
@@ -69,11 +69,13 @@ Metadata classification and post-acquire verification do not create a second wai
 
 ## Marker initialization
 
-The marker is a protocol discriminator, not an owner record. If the process crashes while creating/writing the marker, a partial or empty file may remain. Its size is then non-candidate (unless a failure happens after writing exactly the expected byte count), so ordinary current code treats it conservatively as ambiguous and requires the same manual recovery as historical stale state.
+The marker is a protocol discriminator, not an owner record. It is written as fixed ASCII bytes with no line terminator. This avoids text-mode newline translation and makes the candidate-length test portable.
+
+If the process crashes while creating/writing the marker, a partial or empty file may remain. Its size is then non-candidate (unless a failure happens after writing exactly the expected byte count), so ordinary current code treats it conservatively as ambiguous and requires the same manual recovery as historical stale state.
 
 Do not unlink a partially initialized path automatically: a #62 process may already have opened that inode.
 
-If a file has the expected marker length but wrong bytes, current code may acquire its advisory lock, but exact post-acquire verification fails before entering the protected section. The locked-handle/path identity check additionally rejects a pathname replacement that occurred while waiting.
+If a file has the expected marker length but wrong bytes, current code may acquire its advisory lock, but exact post-acquire verification fails before entering the protected section. The locked-handle/path identity checks additionally reject a pathname replacement that occurred while waiting.
 
 ## TDD sequence
 
@@ -90,18 +92,17 @@ Those findings remain documented in the PR review history.
 
 ### RED 5 — Windows mandatory-read timeout
 
-The first one-way implementation called `_lock_marker(path)` before advisory acquisition. Exact-head Windows CI showed the installation-lock step remaining active far beyond Linux/macOS because a separate read can block under Windows mandatory locking.
+The first one-way implementation called `_lock_marker(path)` before advisory acquisition. Exact-head Windows CI showed the installation-lock step remaining active far beyond Linux/macOS because a separate read can block under Windows mandatory locking. The same run also misclassified the newline-bearing marker repeatedly, demonstrating that the protocol discriminator should not depend on text line-ending behavior.
 
-Add a regression in which one current process holds a marked lock and a second calls `_lock(timeout=short)`. Assert the contender returns/raises within a bounded margin substantially below the holder's emergency wait. This test passes quickly on POSIX but exposes the pre-lock read on Windows.
-
-Retain the existing live-holder release test to prove a waiter still succeeds when the holder releases within the caller's budget.
+A regression holds a marked current lock in one process while a second calls `_lock(timeout=short)`. The contender must return or raise within a bounded margin substantially below the holder's emergency wait. Retain the existing live-holder release test to prove a waiter still succeeds when the holder releases within the caller's budget.
 
 ### GREEN 5
 
+- use a newline-free ASCII byte marker written with `os.write`;
 - classify missing/legacy/candidate state using `stat` only;
 - use a readable binary portalocker handle for candidate files;
 - verify marker bytes through that acquired handle;
-- verify locked inode/path identity before entering;
+- verify pre-acquire candidate, locked-handle, and current-path identity before entering;
 - preserve the persistent pathname and all fail-closed migration rules.
 
 ### Documentation
@@ -138,6 +139,7 @@ Review without relying on the implementation rationale and try to falsify:
 - Can any code path unlink or replace a pathname while a #62 waiter may already have it open?
 - Can Windows block in marker inspection before the timeout machinery is active?
 - Does the locked handle actually verify the exact marker and current pathname identity before entry?
+- Does marker byte representation remain identical across supported platforms?
 - Does partial marker initialization fail closed rather than being guessed stale?
 - Is the timeout still one budget?
 - Are backend lock failures still distinguished from ordinary contention?
