@@ -40,6 +40,26 @@ class _ImmediateProcess:
         self.killed = True
 
 
+class _LiveProcess(_ImmediateProcess):
+    def __init__(self):
+        super().__init__(0)
+        self.returncode = None
+
+    def wait(self, timeout=None):
+        self.waited = True
+        if self.returncode is None:
+            self.returncode = 0
+        return self.returncode
+
+    def terminate(self):
+        self.terminated = True
+        self.returncode = -15
+
+    def kill(self):
+        self.killed = True
+        self.returncode = -9
+
+
 class _Clock:
     def __init__(self, values):
         self._values = iter(values)
@@ -145,6 +165,62 @@ class TerminalObservationSafetyTests(unittest.TestCase):
         self.assertTrue(process.waited)
         self.assertFalse(process.terminated)
         self.assertFalse(process.killed)
+
+    def test_observation_failure_stops_and_reaps_live_worker_before_propagating(self):
+        process = _LiveProcess()
+        calls = 0
+
+        def disk_usage(_path):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return _DiskUsage(free=10_000)
+            raise OSError("simulated observation failure")
+
+        supervisor = self._supervisor(
+            popen=lambda *_args, **_kwargs: process,
+            disk_usage=disk_usage,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(OSError, "observation failure"):
+                supervisor.run(
+                    path=Path(tmp),
+                    logical_name="fixture",
+                    features=None,
+                    compile_budget_bytes=1_000,
+                    timeout_seconds=60,
+                    min_free_bytes=10,
+                    cancel_event=threading.Event(),
+                )
+
+        self.assertTrue(process.terminated or process.killed)
+        self.assertTrue(process.waited)
+
+    def test_progress_callback_failure_stops_and_reaps_live_worker_before_propagating(self):
+        process = _LiveProcess()
+        supervisor = self._supervisor(
+            popen=lambda *_args, **_kwargs: process,
+            disk_usage=lambda _path: _DiskUsage(free=10_000),
+        )
+
+        def broken_progress(_observation):
+            raise RuntimeError("simulated progress failure")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(RuntimeError, "progress failure"):
+                supervisor.run(
+                    path=Path(tmp),
+                    logical_name="fixture",
+                    features=None,
+                    compile_budget_bytes=1_000,
+                    timeout_seconds=60,
+                    min_free_bytes=10,
+                    cancel_event=threading.Event(),
+                    progress=broken_progress,
+                )
+
+        self.assertTrue(process.terminated or process.killed)
+        self.assertTrue(process.waited)
 
 
 if __name__ == "__main__":
