@@ -21,6 +21,19 @@ class ContextFabricLoadSmokeWorkflowTests(unittest.TestCase):
                 f"{watched_path} must trigger both pull_request and push smoke runs",
             )
 
+    def test_cold_load_smoke_is_executed_and_retriggers_on_changes(self):
+        text = WORKFLOW.read_text(encoding="utf-8")
+        watched = "      - 'scripts/smoke_context_fabric_cold_load.py'"
+        self.assertEqual(
+            text.count(watched),
+            2,
+            "the contained cold-load smoke must retrigger both pull_request and push runs",
+        )
+        self.assertIn(
+            "run: python scripts/smoke_context_fabric_cold_load.py",
+            text,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
