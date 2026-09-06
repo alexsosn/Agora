@@ -7,7 +7,7 @@ This directory is the durable project knowledge base. It is intentionally organi
 | Directory | Purpose | Naming convention |
 |---|---|---|
 | `architecture/` | Stable architecture and design references | `ref-<topic>.md` |
-| `releases/` | Release scope and active implementation plans | `v<version>-<document>-<state>.md` |
+| `releases/` | Release scope and active implementation plans | `v<version>-<document>-state>.md` |
 | `guides/` | End-user and contributor-facing procedures | `<topic>.md` |
 | `backlog/` | Prioritized research/integration work | `P0|P1|P2-<state>-<topic>.md` |
 | `reviews/` | Immutable independent reviews and audits | `YYYY-MM-DD-review-<topic>.md` |
@@ -58,6 +58,7 @@ When older planning/research language is broader than the plugin boundary, `ref-
 ### Guides
 
 - [`guides/installation.md`](guides/installation.md) — Claude Code and ChatGPT/Codex installation flows.
+- [`guides/context-fabric-cache.md`](guides/context-fabric-cache.md) — Context-Fabric managed cache, cold-compilation guardrails, status, cancellation, and cleanup behavior.
 
 ### Backlog
 
