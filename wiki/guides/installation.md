@@ -127,6 +127,37 @@ Network access is needed for:
 
 Context-Fabric corpus data remains external to Agora and is acquired lazily only when selected.
 
+#### Context-Fabric network modes
+
+Context-Fabric source resolution has three modes:
+
+- `auto` is the default. Agora attempts the configured upstream source and, only when that attempt fails because network connectivity is unavailable, may reuse a compatible complete local snapshot.
+- `offline` performs no remote acquisition. The requested repository selection and all required corpus or feature-module bytes must already be present in Agora's cache.
+- `require-fresh` requires the normal upstream resolution to succeed and never degrades to a cached selection after a connectivity failure.
+
+`prepare_corpus`, `load_corpus`, and current-state `list_collection_members` accept an optional `network_mode` argument. The override is scoped to that single MCP call. For a longer offline session, set the process default before launching the Context-Fabric MCP server:
+
+```bash
+export AGORA_CORPUS_NETWORK_MODE=offline
+```
+
+Use `auto`, `offline`, or `require-fresh` as the environment value. A per-call `network_mode` overrides that default for the duration of the call.
+
+A successful offline or degraded `auto` request requires the exact previously materialized snapshot, not merely a cached Git repository or collection index. If the metadata exists but the requested corpus/member/module bytes were never materialized, Agora reports an offline cache miss instead of silently contacting the remote.
+
+Prepared/load results expose source-resolution provenance:
+
+- `resolution: "fresh"` means the configured upstream was successfully consulted for that resolution;
+- `resolution: "cached"` means compatible local state was used without a successful current refresh;
+- `source_revision_verified: false` on a floating or mutable cached selection means its current upstream freshness was not verified;
+- an immutable configured commit may remain `source_revision_verified: true` offline when the cached selected commit exactly matches it.
+
+These fields describe source-selection freshness, not scholarly/data-quality verification.
+
+Cached fallback is deliberately limited to connectivity failures. Authentication or authorization failures, missing repositories, missing configured refs, malformed source metadata, and other unrecognized Git errors are surfaced as remote-resolution errors and do not cause Agora to serve stale state. Likewise, a cached selection is rejected when its repository/ref identity no longer matches the current resource configuration.
+
+For collection workflows, reuse the immutable `source_revision` returned by `list_collection_members` when preparing or loading a member. Agora will not substitute a different current upstream revision if that exact cached revision or member snapshot is unavailable.
+
 ## What to install for a task
 
 You do not need all four plugins for every project.
