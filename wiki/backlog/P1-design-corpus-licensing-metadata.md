@@ -195,7 +195,9 @@ Implementation starts with focused failing tests in `tests/test_resource_license
 - [ ] `data: component-specific` requires component-specific evidence;
 - [ ] `member-specific` is rejected on a corpus;
 - [ ] a member-specific collection with notes is accepted;
-- [ ] empty/malformed evidence source lists and invalid dates are rejected.
+- [ ] empty/malformed evidence source lists and invalid dates are rejected;
+- [ ] the installed Context-Fabric catalog is a lossless projection of the canonical licence evidence;
+- [ ] `describe_available_corpus` exposes nested `licenses.evidence` unchanged for a representative resource.
 
 The RED commit should contain only the tests (plus test fixtures/helpers if needed). A CI failure caused by these new expectations is expected and should be recorded before implementation proceeds.
 
@@ -208,8 +210,10 @@ After the RED gate:
 3. implement the semantic invariants in `scripts/validate_registry.py`;
 4. populate all 37 corpus/collection records from the completed audit;
 5. update `registry/README.md` to explain data licence vs software licence, redistribution, evidence statuses, and researched `unknown`;
-6. verify Context-Fabric's `describe_available_corpus` exposes the complete `licenses` object; if it maps fields explicitly, update only the Agora-owned serialization needed to surface evidence;
-7. do not change corpus acquisition or third-party corpus behavior.
+6. update the Context-Fabric catalog model annotation from `dict[str, str]` to a nested-value-safe type (`dict[str, Any]`) so the new evidence shape is represented accurately;
+7. regenerate the self-contained Context-Fabric runtime catalog with `python scripts/generate_context_fabric_catalog.py`; the generator is intentionally lossless, so nested evidence must survive unchanged;
+8. verify `describe_available_corpus` exposes the complete `licenses` object; its current shallow dict copy preserves nested evidence, so no behavior change should be needed beyond accurate model typing unless the RED test proves otherwise;
+9. do not change corpus acquisition or third-party corpus behavior.
 
 ## Test gate
 
@@ -218,11 +222,12 @@ The implementation PR is green only when all of these pass:
 ```bash
 pytest -q tests/test_resource_license_evidence.py
 python scripts/validate_registry.py
+python scripts/generate_context_fabric_catalog.py --check
 python scripts/generate_marketplaces.py --check
 pytest -q
 ```
 
-If licence metadata affects generated artifacts unexpectedly, inspect and regenerate only through the canonical generator.
+The runtime catalog is a committed generated artifact and must be regenerated from the canonical registry rather than hand-edited.
 
 ## Independent review gate
 
@@ -234,7 +239,7 @@ Before merge, perform a logically independent adversarial review against the imp
 - one unresolved modern/copyright-sensitive corpus (`banks` or a DBNL/Huygens-derived corpus);
 - one cuneiform corpus (`TLHdig-TF`, CDLI-derived corpus, or `ninmed`).
 
-The reviewer should actively look for accidental software→data licence copying, over-permissive redistribution values, missing component restrictions, unsupported public-domain assumptions, and evidence URLs that do not actually support the recorded claim.
+The reviewer should actively look for accidental software→data licence copying, over-permissive redistribution values, missing component restrictions, unsupported public-domain assumptions, evidence URLs that do not actually support the recorded claim, and stale generated runtime metadata.
 
 ## Non-goals
 
