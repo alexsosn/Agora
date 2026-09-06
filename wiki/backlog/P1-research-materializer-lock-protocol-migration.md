@@ -6,12 +6,13 @@ Checked: 2026-09-06
 
 ## Question
 
-How can the materializer installer remain safe when two Agora checkouts sharing the default install root straddle the lock change merged in #62?
+How can the materializer installer remain safe when Agora checkouts sharing one install root use any of the lock protocols that existed around #62?
 
-The installer must preserve two properties that pull in opposite directions:
+The installer must preserve three properties:
 
 1. a current installer must not enter while a pre-#62 sentinel-file installer is live;
-2. a current installer must not recreate #62's permanent lock-file residue, because an older installer treats file existence itself as ownership.
+2. a current installer must not enter beside the advisory-only implementation introduced by #62, and that #62 implementation must not enter beside a current installer;
+3. current clean runs must not recreate #62's permanent visible lock-file residue, because pre-#62 code treats file existence itself as ownership.
 
 This is Agora-owned installation behavior, so the fix belongs here rather than upstream.
 
@@ -23,80 +24,91 @@ The old `_lock` won an `O_CREAT|O_EXCL` create race on the visible lock path, ke
 
 Consequences:
 
-- another old process is excluded by file existence;
-- a current advisory-lock-only process is **not** excluded by the old holder on POSIX, because advisory locks only coordinate participants that also lock;
+- another pre-#62 process is excluded by file existence;
+- an advisory-lock-only process is **not** excluded by the old holder on POSIX, because advisory locks only coordinate participants that also lock;
 - process death can leave an empty sentinel behind indefinitely.
 
-### #62 / current `main` before this ticket
+### #62
 
-The replacement uses `portalocker.Lock(path, mode="a", EXCLUSIVE|NON_BLOCKING)`. The OS lock is released on process death, but `portalocker.Lock` deliberately leaves the file on disk.
+The replacement uses `portalocker.Lock(path, mode="a", EXCLUSIVE|NON_BLOCKING)`. The OS lock is released on process death, but `portalocker.Lock` leaves the visible file on disk.
 
 Portalocker 4.3 documents both relevant semantics:
 
 - POSIX locking is advisory, so a process that merely creates/opens a file without taking the advisory lock is not excluded: https://portalocker.readthedocs.io/en/latest/platforms.html
 - `Lock` releases the OS lock but leaves the lock file in place: https://portalocker.readthedocs.io/en/latest/lock-types.html#lock
 
-That explains both #63 failures directly.
+This creates two interoperability hazards: pre-#62 holders do not exclude #62 arrivals, and #62 residue permanently wedges later pre-#62 arrivals.
 
 ## State analysis
 
-For the visible legacy path, there are four important states:
+For the historical visible path:
 
 | Visible path | Advisory lock on that path | Possible meaning |
 |---|---|---|
 | absent | no | idle |
 | present, empty | no | live pre-#62 holder **or** stale pre-#62 crash **or** stale #62 residue |
-| present, empty | yes | live #62 holder |
-| present, current-protocol marker | sidecar lock decides | current-protocol live/crashed holder |
+| present, empty | yes | live #62 holder, possibly alongside a pre-#62 holder because those protocols do not coordinate |
+| present, current marker | no | current-protocol crash residue, unless a #62 client is racing to acquire it |
+| present, current marker | yes | live current holder **or** a #62 client attached to current crash residue |
 
-The second row is the migration boundary. A stale #62 file and a live pre-#62 holder are indistinguishable using only portable filesystem and advisory-lock observations. The live pre-#62 process takes no advisory lock and writes no owner metadata. Therefore a current process cannot safely auto-delete an empty, unlocked legacy path: doing so may delete the live old holder's sentinel and admit concurrent installers.
+An empty, unlocked historical path is the irreducible migration ambiguity. A stale #62 file and a live pre-#62 holder are indistinguishable using portable filesystem and advisory-lock observations. The pre-#62 process writes no owner metadata and takes no advisory lock. A current process therefore cannot safely auto-delete an empty, unlocked legacy path.
 
-This is not fixed by checking PID liveness unless the old protocol had written a PID, which it did not. It is not fixed by locking the same path: a current process can successfully take an advisory lock on a file owned by a live pre-#62 sentinel holder on POSIX. It is not fixed by leaving a current advisory lock file in place: that is exactly what wedges older arrivals after #62.
+Taking only a new sidecar plus an `O_EXCL` sentinel is also insufficient. That excludes pre-#62 clients, but a #62 checkout ignores file existence and can advisory-lock the visible sentinel unless current code also holds the historical-path advisory lock. Conversely, a marked current crash residue cannot be reused merely because the current sidecar is free: a #62 process may have opened that residue and be holding its advisory lock.
 
 ## Viable choices
 
 ### A. Transparent deletion of unlocked legacy files
 
-Reject. It makes #62 residue convenient to migrate but can violate mutual exclusion with a live pre-#62 installer.
+Reject. It makes stale #62 residue convenient to migrate but can delete the sentinel of a live pre-#62 installer.
 
 ### B. Revert completely to sentinel locking
 
-Reject. It restores mixed-version exclusion but also restores the process-death stale-file wedge that #62 intentionally fixed.
+Reject. It restores pre-#62 compatibility but neither excludes #62 advisory-only clients nor preserves process-death release.
 
-### C. One-way conservative migration with a hybrid protocol
+### C. One-way conservative migration with a three-part bridge
 
 Selected.
 
 A current installer should:
 
 1. serialize current versions on a separate OS-backed sidecar advisory lock;
-2. while holding that sidecar, create the **legacy visible path** with `O_EXCL` so pre-#62 arrivals stay out;
+2. while holding that sidecar, create the **historical visible path** with `O_EXCL` so pre-#62 arrivals stay out;
 3. put a current-protocol marker in that visible sentinel;
-4. remove the visible sentinel on normal release before releasing the sidecar;
-5. when the visible sentinel contains the current marker but the sidecar lock is free, treat it as crash residue from the current protocol and remove it safely;
-6. when the visible sentinel is empty/unrecognized, wait for it to disappear and then fail closed with an actionable migration error if it persists.
+4. acquire and hold an OS advisory lock on that **same visible path** before entering the critical section, so #62 arrivals stay out;
+5. if the visible path already contains the current marker, treat it as potentially recoverable current crash residue but acquire the visible-path advisory lock before reusing it; this prevents recovery through a live #62 holder;
+6. on clean release, unlink the owned visible sentinel while still holding both advisory locks, then release the visible-path advisory lock and finally the sidecar;
+7. if the visible sentinel is empty/unrecognized, wait for it to disappear and fail closed with actionable migration guidance if it persists.
 
-The sidecar preserves #62's important property for current-version crashes: the OS releases ownership automatically. The marker makes current-protocol crash residue distinguishable from old ambiguous state. Clean release removes the legacy-visible path, so normal current use does not wedge an older checkout later.
+The three mechanisms cover distinct generations: visible existence excludes pre-#62, the historical-path advisory lock excludes #62, and the sidecar serializes current versions while giving current crash residue an OS-owned liveness channel independent of the historical path.
 
-A process killed after creating the current marker can be recovered automatically by a later current installer. The tiny create-before-marker-write interval remains a conservative ambiguous state if the process is killed at exactly that point; it fails closed rather than risking overlap. That is preferable to unsafe recovery.
+There is a safe race if #62 opens the newly created current sentinel before current code acquires the historical advisory lock: current waits for #62 to release that lock and does not enter until it owns it. Because current already created the visible sentinel, pre-#62 arrivals remain excluded during that wait.
+
+A current process killed after writing its marker leaves a distinguishable sentinel; later current code may reuse it only after acquiring both the sidecar and historical-path advisory lock. The tiny create-before-marker-write interval remains conservative ambiguous state if killed exactly there and therefore fails closed.
 
 ## Downgrade/migration rule
 
-An empty/unrecognized legacy lock file may be a live pre-#62 holder, so Agora must not delete it automatically. If a user knows no old installer is running, removing that file is the one-time recovery from stale pre-#62/#62 state. The error and installation documentation should say this explicitly.
+An empty/unrecognized historical lock file may be a live pre-#62 holder, so Agora must not delete it automatically even when its advisory lock is free. A stale #62 file therefore may require one-time manual removal. The user must first confirm that no older materializer operation is running.
 
-After one successful current-protocol operation, clean releases do not leave the legacy path behind, so ordinary later use of a pre-#62 checkout is no longer permanently wedged by current-version residue.
+After one successful current-protocol operation, clean release removes the historical visible path. Ordinary later use of pre-#62 code is therefore not permanently wedged by current-version residue.
 
 ## Required regression evidence
 
 The implementation should prove:
 
-- a simulated pre-#62 holder blocks a current `_lock` and a current waiter enters only after the old holder unlinks the sentinel;
-- while a current `_lock` is held, a simulated pre-#62 `O_EXCL` acquire fails;
-- current clean release removes the visible sentinel;
-- current process death releases the sidecar lock, and a subsequent current `_lock` recovers its marked stale sentinel;
-- an empty/unrecognized preexisting sentinel is never auto-deleted and produces an actionable failure after the configured timeout;
-- existing current-current contention/wait behavior remains intact on Linux, macOS, and Windows.
+- a simulated pre-#62 holder blocks current code, and current waits successfully when a brief pre-#62 holder unlinks its sentinel;
+- a current holder excludes a simulated pre-#62 `O_EXCL` client;
+- a simulated #62 advisory-only holder blocks current code;
+- a current holder excludes a simulated #62 advisory-only client;
+- a marked current crash sentinel is not reused through a live #62 advisory holder, but is recoverable after that holder releases;
+- current clean release removes the historical visible sentinel;
+- current process death releases OS ownership and a later current operation recovers marked residue;
+- an empty/unrecognized preexisting sentinel is never auto-deleted and produces actionable failure;
+- all current-current, pre-#62/current, and #62/current process tests pass on Linux, macOS, and Windows.
+
+## Review correction
+
+The first implementation draft used only the current sidecar plus the historical `O_EXCL` sentinel. Independent adversarial review rejected it because a #62 advisory-only checkout could still lock the historical path and enter concurrently. The corrected protocol therefore holds the historical-path advisory lock as an explicit third bridge and tests both directions.
 
 ## Conclusion
 
-There is no portable, safe automatic way to distinguish a stale #62 empty lock file from a live pre-#62 sentinel holder. The correct migration policy is fail-closed for ambiguous old state and self-identifying cleanup for the new hybrid protocol. This trades one-time manual recovery of ambiguous legacy residue for preservation of the installer's primary safety invariant: never run two materializer mutations concurrently against the same install root.
+No portable observation can safely distinguish stale empty #62 residue from a live pre-#62 holder. Safe migration consequently requires fail-closed handling for ambiguous empty state and simultaneous cooperation with both historical exclusion mechanisms while current code is active. This deliberately accepts one-time manual recovery of ambiguous old residue in exchange for the core invariant: two materializer mutations must never run concurrently against the same install root.
