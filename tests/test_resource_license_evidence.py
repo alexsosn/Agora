@@ -260,7 +260,7 @@ class ResourceLicenseEvidenceTests(unittest.TestCase):
         errors = self.validate_resource_mutation("bhsa", mutate)
         self.assert_error_contains(errors, "sources", "should be non-empty")
 
-    def test_evidence_source_must_be_uri(self):
+    def test_evidence_source_must_be_http_url(self):
         def mutate(resource):
             evidence = self.evidence("unresolved")
             evidence["sources"] = ["not a uri"]
@@ -272,7 +272,7 @@ class ResourceLicenseEvidenceTests(unittest.TestCase):
             }
 
         errors = self.validate_resource_mutation("bhsa", mutate)
-        self.assert_error_contains(errors, "not a uri", "is not a 'uri'")
+        self.assert_error_contains(errors, "not a uri", "does not match")
 
     def test_evidence_checked_at_must_be_date(self):
         def mutate(resource):
