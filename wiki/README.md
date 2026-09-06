@@ -65,7 +65,8 @@ When older planning/research language is broader than the plugin boundary, `ref-
 - [`backlog/P0-research-egyptology.md`](backlog/P0-research-egyptology.md) — Egyptology-specific integration research.
 - [`backlog/P0-research-germanic-philology.md`](backlog/P0-research-germanic-philology.md) — Old Norse/Icelandic/Gothic integration research.
 - [`backlog/P1-design-local-materialization-composition.md`](backlog/P1-design-local-materialization-composition.md) — bind the exercised materialization primitive to installation approval, resources, artifact caching, and consumers.
-- [`backlog/P1-research-corpus-licensing-audit.md`](backlog/P1-research-corpus-licensing-audit.md) — evidence-first audit of corpus data licences, redistribution terms, component/member-specific restrictions, and provenance for #17.
+- [`backlog/P1-research-corpus-licensing-audit.md`](backlog/P1-research-corpus-licensing-audit.md) — completed evidence-first audit of corpus data licences, redistribution terms, component/member-specific restrictions, and provenance for #17.
+- [`backlog/P1-design-corpus-licensing-metadata.md`](backlog/P1-design-corpus-licensing-metadata.md) — structured licence-evidence model and TDD implementation gate derived from the #17 audit.
 
 The three P0 research files are research backlogs, not promises that every candidate inside them is P0 implementation work. Candidate-level priorities remain documented inside each survey until the backlog is normalized into structured candidate records.
 
