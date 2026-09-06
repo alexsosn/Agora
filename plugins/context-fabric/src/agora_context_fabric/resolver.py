@@ -79,6 +79,8 @@ class PreparedFeatureModule:
     relative_path: str
     path: Path
     source_revision: str | None = None
+    source_revision_verified: bool = True
+    resolution: str = "fresh"
 
 
 @dataclass(frozen=True)
@@ -90,6 +92,8 @@ class PreparedCorpus:
     path: Path
     version: str | None = None
     source_revision: str | None = None
+    source_revision_verified: bool = True
+    resolution: str = "fresh"
     modules: tuple[PreparedFeatureModule, ...] = ()
 
 
