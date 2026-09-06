@@ -44,7 +44,7 @@ A repository-level software licence is not treated as a corpus-data licence unle
 | `quran` | q-ran/quran | component-specific | resulting TF corpus `CC-BY-4.0`, but QAC/Tanzil components carry stricter no-change/BY-ND/attribution conditions |
 | `fusus` | among/fusus | unresolved | repository MIT covers software; corpus is OCR/alignment of modern printed editions and no data licence was found |
 | `nena_tf` | CambridgeSemiticsLab/nena_tf | resolved | TF repo software MIT; underlying `nena_corpus` is `CC-BY-4.0`, which governs corpus data |
-| `uruk` | Nino-cunei/uruk | component-specific | TF transliterations derive from CDLI textual data; repository also contains images governed by separate restrictions |
+| `uruk` | Nino-cunei/uruk | resolved | Agora loads the `tf/<version>` dataset only; latest TF tree contains textual/metadata `.tf` files and no image assets; CDLI permits transliteration/translation reuse under normal academic practice with attribution requested for substantial reuse |
 | `oldassyrian` | Nino-cunei/oldassyrian | resolved | transliterations derive from CDLI; current CDLI terms permit textual reuse with normal academic attribution |
 | `oldbabylonian` | Nino-cunei/oldbabylonian | resolved | transliterations derive from CDLI; current CDLI terms permit textual reuse with normal academic attribution |
 | `ninmed` | Nino-cunei/ninmed | unresolved | JSON source was supplied by personal communication and contains NinMed/BabMed/eBL material; no data redistribution licence is stated |
@@ -144,7 +144,7 @@ Primary evidence:
 - https://cdli.earth/terms-of-use
 - https://github.com/alexsosn/TLHdig-TF/blob/main/README.md#licensing
 
-Current CDLI terms permit textual transliterations/translations to be copied, aggregated, and reused under normal academic practice with attribution requested for substantial reuse; images/line art have separate ownership/reuse restrictions. `uruk` bundles both categories, whereas the TF paths of Old Assyrian/Old Babylonian are textual conversions. `ninmed` is different: its source JSON came by personal communication and combines NinMed/BabMed/eBL work, so CDLI terms cannot be assumed. TLHdig-TF expressly licenses source and generated TF data `CC BY 4.0` and code/docs MIT.
+Current CDLI terms permit textual transliterations/translations to be copied, aggregated, and reused under normal academic practice with attribution requested for substantial reuse; images/line art have separate ownership/reuse restrictions. The latest `uruk` TF dataset tree (`tf/1.0`) contains only `.tf` textual/metadata feature files plus a checkout marker, with no image assets, so Agora's materialized Uruk resource falls under the textual-data terms just like Old Assyrian/Old Babylonian. Repository-level image restrictions remain relevant to the upstream repository but not to the `tf/<version>` payload Agora loads. `ninmed` is different: its source JSON came by personal communication and combines NinMed/BabMed/eBL work, so CDLI terms cannot be assumed. TLHdig-TF expressly licenses source and generated TF data `CC BY 4.0` and code/docs MIT.
 
 ### Pali and historical/modern European corpora
 
