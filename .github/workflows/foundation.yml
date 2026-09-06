@@ -178,7 +178,10 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
 
       # Installation locking is per-OS behaviour, like the Context-Fabric cache
-      # locks above: process-death release and bounded waiting have to hold on
-      # every platform Agora installs on, not only on the Ubuntu unit-test job.
-      - name: Run cross-process installation lock regressions
+      # locks above: process-death release, bounded waiting, and mixed-version
+      # migration semantics have to hold everywhere Agora installs.
+      - name: Run installation lock regressions
         run: python -m unittest discover -s tests -p 'test_materializer_installation.py' -v
+
+      - name: Run lock migration regressions
+        run: python -m unittest discover -s tests -p 'test_materializer_lock_migration.py' -v

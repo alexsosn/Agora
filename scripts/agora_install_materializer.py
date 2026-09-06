@@ -13,6 +13,7 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,6 +38,9 @@ GIT_TIMEOUT_SECONDS = 120
 PIP_TIMEOUT_SECONDS = 600
 PIP_PROBE_TIMEOUT_SECONDS = 60
 LOCK_WAIT_SECONDS = 60
+LOCK_POLL_SECONDS = 0.05
+LOCK_PROTOCOL_MARKER = "agora-materializer-lock-v3"
+_LOCK_PROTOCOL_MARKER_BYTES = LOCK_PROTOCOL_MARKER.encode("ascii")
 RUNTIME_TREE_EXCLUDES = {
     ".git", ".hg", ".svn", "__pycache__", ".pytest_cache", ".mypy_cache",
     ".ruff_cache", ".tox", ".nox", ".venv", "venv",
@@ -161,42 +165,146 @@ def _release_quietly(lock: portalocker.Lock) -> None:
         pass
 
 
-@contextmanager
-def _lock(path: Path, *, timeout: float = LOCK_WAIT_SECONDS) -> Iterator[None]:
-    """Hold an OS-backed exclusive advisory lock for the duration of the block.
-
-    The lock is owned by the operating system rather than by the existence of a
-    lock file, so an installer that is killed or crashes releases it. A leftover
-    lock file therefore never wedges later installations.
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    lock = portalocker.Lock(
+def _new_advisory_lock(path: Path, *, timeout: float) -> portalocker.Lock:
+    return portalocker.Lock(
         str(path),
-        mode="a",
-        timeout=timeout,
-        check_interval=0.05,
+        mode="a+b",
+        timeout=max(0.0, timeout),
+        check_interval=LOCK_POLL_SECONDS,
         flags=portalocker.LockFlags.EXCLUSIVE | portalocker.LockFlags.NON_BLOCKING,
     )
+
+
+def _acquire_advisory_lock(
+    lock_path: Path, *, timeout: float, display_path: Path
+) -> tuple[portalocker.Lock, Any]:
+    lock = _new_advisory_lock(lock_path, timeout=timeout)
     try:
-        lock.acquire()
+        fh = lock.acquire()
     except portalocker.exceptions.AlreadyLocked as exc:
-        # Contention: portalocker retried until the timeout expired.
         _release_quietly(lock)
         raise MaterializerInstallError(
-            f"another materializer operation is holding {path} after waiting {timeout:g}s"
+            f"another materializer operation is holding {display_path} after waiting {max(0.0, timeout):g}s"
         ) from exc
     except portalocker.exceptions.LockException as exc:
-        # A permanent backend failure (no locking support, refused flags).
-        # portalocker raises it immediately, so no waiting happened and no
-        # other installer is implied.
         _release_quietly(lock)
         raise MaterializerInstallError(
-            f"could not acquire the materializer lock {path}: {exc}"
+            f"could not acquire the materializer lock {display_path}: {exc}"
         ) from exc
+    return lock, fh
+
+
+def _identity(stat: os.stat_result) -> tuple[int, int]:
+    return stat.st_dev, stat.st_ino
+
+
+def _create_lock_marker(path: Path) -> tuple[int, int]:
+    """Create and initialize the permanent modern lock object atomically.
+
+    Once the pathname exists, a #62 process may already have opened it. If
+    initialization fails or the process dies mid-write, leave the ambiguous
+    file in place so later runs fail closed instead of replacing an inode a
+    #62 process may already be waiting on.
+    """
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
-        yield
+        offset = 0
+        while offset < len(_LOCK_PROTOCOL_MARKER_BYTES):
+            written = os.write(fd, _LOCK_PROTOCOL_MARKER_BYTES[offset:])
+            if written <= 0:
+                raise OSError("short write while initializing materializer lock marker")
+            offset += written
+        os.fsync(fd)
+        return _identity(os.fstat(fd))
     finally:
-        lock.release()
+        os.close(fd)
+
+
+def _legacy_lock_error(path: Path, timeout: float) -> MaterializerInstallError:
+    return MaterializerInstallError(
+        f"legacy or pre-migration materializer lock file {path} is still present "
+        f"after waiting {timeout:g}s; it may belong to an older Agora checkout or be "
+        "stale pre-v3 state. Confirm no older materializer operation is running before "
+        "removing this file once to migrate. A v3 marker should remain in place during "
+        "normal operation."
+    )
+
+
+@contextmanager
+def _lock(path: Path, *, timeout: float = LOCK_WAIT_SECONDS) -> Iterator[None]:
+    """Hold the persistent one-way materializer installation lock.
+
+    Before migration, ``O_EXCL`` creation coordinates with pre-#62 sentinel
+    clients. Once the v3 marker exists it is never automatically removed:
+    pathname existence deliberately excludes pre-#62 code, while current and
+    #62 implementations serialize on the advisory lock of that same file.
+
+    Candidate modern files are classified without reading their bytes before
+    advisory ownership. That matters on Windows, where reading a file already
+    held by another process can itself block outside portalocker's timeout.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    timeout = max(0.0, float(timeout))
+    deadline = time.monotonic() + timeout
+
+    while True:
+        try:
+            stat = path.stat()
+        except FileNotFoundError:
+            try:
+                candidate_identity = _create_lock_marker(path)
+            except FileExistsError:
+                continue
+        except OSError as exc:
+            raise MaterializerInstallError(
+                f"could not inspect materializer lock path {path}: {exc}"
+            ) from exc
+        else:
+            if stat.st_size != len(_LOCK_PROTOCOL_MARKER_BYTES):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise _legacy_lock_error(path, timeout)
+                time.sleep(min(LOCK_POLL_SECONDS, remaining))
+                continue
+            candidate_identity = _identity(stat)
+
+        remaining = max(0.0, deadline - time.monotonic())
+        lock, fh = _acquire_advisory_lock(path, timeout=remaining, display_path=path)
+        keep_lock = True
+        try:
+            locked_identity = _identity(os.fstat(fh.fileno()))
+            if locked_identity != candidate_identity:
+                raise MaterializerInstallError(
+                    f"materializer lock path {path} changed while acquiring the lock; refusing to proceed"
+                )
+
+            fh.seek(0)
+            marker = fh.read(len(_LOCK_PROTOCOL_MARKER_BYTES) + 1)
+            if marker != _LOCK_PROTOCOL_MARKER_BYTES:
+                keep_lock = False
+                lock.release()
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise _legacy_lock_error(path, timeout)
+                time.sleep(min(LOCK_POLL_SECONDS, remaining))
+                continue
+
+            try:
+                path_identity = _identity(path.stat())
+            except FileNotFoundError as exc:
+                raise MaterializerInstallError(
+                    f"materializer lock path {path} disappeared while acquiring the lock; refusing to proceed"
+                ) from exc
+            if path_identity != locked_identity:
+                raise MaterializerInstallError(
+                    f"materializer lock path {path} changed while acquiring the lock; refusing to proceed"
+                )
+
+            yield
+            return
+        finally:
+            if keep_lock:
+                lock.release()
 
 
 def _write_json(path: Path, value: Any) -> None:
