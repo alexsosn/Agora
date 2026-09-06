@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 from contextlib import contextmanager
@@ -294,6 +295,14 @@ def _repository_selection_transaction(
     key = store.safe_cache_key(resource_id)
     repo = store.repositories_dir / key
     with store._repository_lock(key):
+        if (repo / ".git").is_dir() and not _repository_matches(store, repo, repository):
+            # The metadata directory is keyed by stable Agora resource id, so a
+            # registry repository transition can otherwise keep fetching the old
+            # origin and then mislabel that commit as a fresh selection of the
+            # new source. Existing revision-addressed corpus/module snapshots are
+            # separate cache objects and remain intact; only mismatched Git
+            # metadata is discarded here.
+            shutil.rmtree(repo)
         if not (repo / ".git").is_dir():
             source = store.repository_url(repository)
             store._run(
