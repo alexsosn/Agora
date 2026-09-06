@@ -5,7 +5,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_SRC = ROOT / "plugins" / "context-fabric" / "src"
@@ -17,30 +19,41 @@ from agora_context_fabric.network import resolve_repository
 
 
 class InterleavingGitStore(GitStore):
-    """Force the old post-ensure/pre-selected-revision race deterministically."""
+    """Force a competing ref selection immediately after our repository lock exits."""
 
-    def __init__(self, *args, interfering_ref: str, **kwargs):
+    def __init__(
+        self,
+        *args,
+        interfering_repository: str,
+        interfering_ref: str,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
+        self.interfering_repository = interfering_repository
         self.interfering_ref = interfering_ref
         self.interleaved = False
 
-    def ensure_metadata(self, repository: str, *, cache_key=None, ref=None):
-        repo = super().ensure_metadata(repository, cache_key=cache_key, ref=ref)
-        # At this point the historical API has released its repository lock. A
-        # different process/version may now select another ref in the same cache
-        # before resolve_repository() reads refs/agora/selected.
+    @contextmanager
+    def _repository_lock(self, key: str, timeout: float = 30.0) -> Iterator[None]:
+        # Wrap the actual cross-process lock rather than ensure_metadata(). This
+        # keeps the regression valid if the implementation introduces a new
+        # atomic selection helper instead of calling ensure_metadata directly.
+        with super()._repository_lock(key, timeout=timeout):
+            yield
+
+        if self.interleaved:
+            return
         other = GitStore(
             self.cache_dir,
             snapshot_soft_limit_bytes=self.snapshot_soft_limit_bytes,
             min_free_bytes=self.min_free_bytes,
         )
         other.ensure_metadata(
-            repository,
-            cache_key=cache_key,
+            self.interfering_repository,
+            cache_key=key,
             ref=self.interfering_ref,
         )
         self.interleaved = True
-        return repo
 
 
 class RepositorySelectionAtomicityTests(unittest.TestCase):
@@ -90,6 +103,7 @@ class RepositorySelectionAtomicityTests(unittest.TestCase):
             source, revision_a, revision_b = self._make_source(root)
             store = InterleavingGitStore(
                 root / "cache",
+                interfering_repository=str(source),
                 interfering_ref="branch-b",
                 snapshot_soft_limit_bytes=0,
                 min_free_bytes=0,
