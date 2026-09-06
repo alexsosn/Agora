@@ -179,7 +179,7 @@ These repositories document provenance well but generally use MIT for conversion
 - [x] Identified member-specific and component-specific cases.
 - [x] Preserved genuine ambiguity instead of choosing the most permissive plausible licence.
 - [x] Recorded primary evidence sufficient for another reviewer to reproduce each conclusion.
-- [ ] Independent adversarial cross-section review (performed after the design document is added, before this PR is finalized).
+- [x] Independent adversarial cross-section review completed across biblical, classical, Syriac/Aramaic, Arabic, modern-copyright, and cuneiform cases.
 
 ## Handoff to design
 
