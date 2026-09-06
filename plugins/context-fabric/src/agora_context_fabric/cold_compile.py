@@ -242,6 +242,35 @@ class ColdCompileSupervisor:
                 free = int(observation["observed_free_bytes"])
                 elapsed = float(observation["elapsed_seconds"])
 
+                reason: str | None = None
+                if compiled > compile_budget_bytes:
+                    reason = "compiled-output-budget"
+                elif free < min_free_bytes:
+                    reason = "observed-free-space"
+                elif elapsed >= timeout_seconds:
+                    reason = "timeout"
+
+                if reason is not None:
+                    if return_code is None:
+                        self._wait_after_stop(process)
+                    else:
+                        process.wait()
+                    raise ColdCompileLimitError(
+                        self._limit_message(
+                            reason,
+                            compiled=compiled,
+                            budget=compile_budget_bytes,
+                            free=free,
+                            reserve=min_free_bytes,
+                            elapsed=elapsed,
+                            timeout=timeout_seconds,
+                        ),
+                        reason=reason,
+                        observed_compiled_bytes=compiled,
+                        observed_free_bytes=free,
+                        elapsed_seconds=elapsed,
+                    )
+
                 if return_code is not None:
                     process.wait()
                     if return_code == 0:
@@ -276,32 +305,6 @@ class ColdCompileSupervisor:
                     raise ColdCompileCancelled(
                         "Context-Fabric cold compilation cancelled; worker death was confirmed",
                         reason="cancelled",
-                        observed_compiled_bytes=compiled,
-                        observed_free_bytes=free,
-                        elapsed_seconds=elapsed,
-                    )
-
-                reason: str | None = None
-                if compiled > compile_budget_bytes:
-                    reason = "compiled-output-budget"
-                elif free < min_free_bytes:
-                    reason = "observed-free-space"
-                elif elapsed >= timeout_seconds:
-                    reason = "timeout"
-
-                if reason is not None:
-                    self._wait_after_stop(process)
-                    raise ColdCompileLimitError(
-                        self._limit_message(
-                            reason,
-                            compiled=compiled,
-                            budget=compile_budget_bytes,
-                            free=free,
-                            reserve=min_free_bytes,
-                            elapsed=elapsed,
-                            timeout=timeout_seconds,
-                        ),
-                        reason=reason,
                         observed_compiled_bytes=compiled,
                         observed_free_bytes=free,
                         elapsed_seconds=elapsed,
