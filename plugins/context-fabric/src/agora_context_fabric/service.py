@@ -544,17 +544,14 @@ class ContextFabricService:
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
 
-        if self.store is None or self.cold_compiler is None:
+        if self.store is None:
             prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
             info = self.loader.load(
                 str(prepared.path),
                 name=prepared.logical_name,
                 features=features,
             )
-            result = self._prepared_dict(
-                prepared,
-                cache_residency="unmanaged" if self.store is None else "evictable",
-            )
+            result = self._prepared_dict(prepared, cache_residency="unmanaged")
             result["corpus"] = self._corpus_info(info)
             return result
 
@@ -563,6 +560,13 @@ class ContextFabricService:
             new_lease = self.store.acquire_cache_lease(
                 prepared.path,
                 transition_held=True,
+            )
+
+        if self.cold_compiler is None:
+            return self._parent_warm_load(
+                prepared,
+                new_lease,
+                features=features,
             )
 
         active_id: str | None = None
@@ -585,60 +589,57 @@ class ContextFabricService:
                 )
 
                 try:
-                    try:
-                        compile_context = self.store.compile_lock(
-                            prepared.path,
-                            timeout=self._COMPILE_LOCK_TIMEOUT_SECONDS,
-                        )
-                        with compile_context:
-                            # Another process can finish between the initial warm
-                            # check and our acquisition of the exact-object lock.
-                            if not self._is_warm(prepared.path):
-                                # Remove only stale/incomplete current-format
-                                # output before assigning this attempt ownership.
-                                self._cleanup_incomplete_current_cfm(prepared.path)
-                                self._update_active(active_id, phase="compiling")
+                    compile_context = self.store.compile_lock(
+                        prepared.path,
+                        timeout=self._COMPILE_LOCK_TIMEOUT_SECONDS,
+                    )
+                    with compile_context:
+                        # Another process can finish between the initial warm
+                        # check and our acquisition of the exact-object lock.
+                        if not self._is_warm(prepared.path):
+                            # Remove only stale/incomplete current-format output
+                            # before assigning this attempt ownership.
+                            self._cleanup_incomplete_current_cfm(prepared.path)
+                            self._update_active(active_id, phase="compiling")
+                            try:
+                                self.cold_compiler.run(
+                                    path=prepared.path,
+                                    logical_name=prepared.logical_name,
+                                    features=features,
+                                    compile_budget_bytes=budget_bytes,
+                                    timeout_seconds=timeout_seconds,
+                                    min_free_bytes=int(self.store.min_free_bytes),
+                                    cancel_event=cancel_event,
+                                    progress=lambda observation: self._progress_active(
+                                        active_id,
+                                        observation,
+                                    ),
+                                )
+                            except BaseException:
                                 try:
-                                    self.cold_compiler.run(
-                                        path=prepared.path,
-                                        logical_name=prepared.logical_name,
-                                        features=features,
-                                        compile_budget_bytes=budget_bytes,
-                                        timeout_seconds=timeout_seconds,
-                                        min_free_bytes=int(self.store.min_free_bytes),
-                                        cancel_event=cancel_event,
-                                        progress=lambda observation: self._progress_active(
-                                            active_id,
-                                            observation,
-                                        ),
-                                    )
-                                except BaseException as exc:
-                                    try:
-                                        self._cleanup_incomplete_current_cfm(prepared.path)
-                                    except BaseException as cleanup_exc:
-                                        raise RuntimeError(
-                                            "Context-Fabric cold load failed and cleanup also failed; "
-                                            f"residual compiled output may remain under "
-                                            f"{cfm_version_dir(prepared.path, self.cfm_version)}"
-                                        ) from cleanup_exc
-                                    raise exc
-
-                                marker = self._warm_marker(prepared.path)
-                                if marker is None or not marker.is_file():
                                     self._cleanup_incomplete_current_cfm(prepared.path)
+                                except BaseException as cleanup_exc:
                                     raise RuntimeError(
-                                        "contained Context-Fabric cold-load worker exited successfully "
-                                        "without the current-format completion marker; refusing to "
-                                        "fall back to an in-process cold compile"
-                                    )
-                            self._update_active(active_id, phase="warm-load")
-                    except TimeoutError as exc:
-                        raise RuntimeError(
-                            "another Agora process is already compiling this exact Context-Fabric "
-                            f"cache object for {prepared.logical_name!r}; retry after it completes"
-                        ) from exc
-                except BaseException:
-                    raise
+                                        "Context-Fabric cold load failed and cleanup also failed; "
+                                        f"residual compiled output may remain under "
+                                        f"{cfm_version_dir(prepared.path, self.cfm_version)}"
+                                    ) from cleanup_exc
+                                raise
+
+                            marker = self._warm_marker(prepared.path)
+                            if marker is None or not marker.is_file():
+                                self._cleanup_incomplete_current_cfm(prepared.path)
+                                raise RuntimeError(
+                                    "contained Context-Fabric cold-load worker exited successfully "
+                                    "without the current-format completion marker; refusing to "
+                                    "fall back to an in-process cold compile"
+                                )
+                        self._update_active(active_id, phase="warm-load")
+                except TimeoutError as exc:
+                    raise RuntimeError(
+                        "another Agora process is already compiling this exact Context-Fabric "
+                        f"cache object for {prepared.logical_name!r}; retry after it completes"
+                    ) from exc
 
             result = self._parent_warm_load(
                 prepared,
