@@ -244,6 +244,19 @@ class MaterializerLockMigrationTests(unittest.TestCase):
             self.assertTrue(path.exists(), "ambiguous legacy state must never be auto-deleted")
             self.assertEqual(path.read_text(encoding="utf-8"), "")
 
+    def test_marker_sized_unrecognized_file_fails_closed_and_is_not_rewritten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / ".source.lock"
+            unknown = "x" * len(LOCK_PROTOCOL_MARKER)
+            self.assertNotEqual(unknown, LOCK_PROTOCOL_MARKER)
+            path.write_text(unknown, encoding="ascii")
+
+            with self.assertRaisesRegex(MaterializerInstallError, "legacy|pre-migration"):
+                with _lock(path, timeout=0.15):
+                    pass
+
+            self.assertEqual(path.read_text(encoding="ascii"), unknown)
+
 
 if __name__ == "__main__":
     unittest.main()
