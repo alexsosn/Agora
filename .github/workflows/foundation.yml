@@ -155,6 +155,9 @@ jobs:
       - name: Run conservative cache discovery regressions
         run: python tests/test_context_fabric_cache_discovery.py
 
+      - name: Run source-resolution provenance regressions
+        run: python tests/test_context_fabric_resolution_service.py
+
   materializer-install-locks:
     name: Materializer install locks (${{ matrix.os }})
     strategy:
