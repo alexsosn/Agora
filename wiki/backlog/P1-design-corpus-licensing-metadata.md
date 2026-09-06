@@ -84,7 +84,7 @@ licenses:
 
 ### Researched unresolved resources
 
-Use the existing scalar `unknown`, but require reproducible evidence:
+Use the existing scalar `unknown`, but require reproducible evidence and an explanation of what remains unknown:
 
 ```yaml
 licenses:
@@ -99,7 +99,7 @@ licenses:
       - https://github.com/example/corpus/blob/main/LICENSE
 ```
 
-An unresolved value without evidence is invalid.
+An unresolved value without evidence or explanatory notes is invalid.
 
 ### Component-specific resources
 
@@ -119,10 +119,11 @@ When no safe top-level licence exists (for example composite Greek corpora), use
 licenses:
   data: component-specific
   redistribution: unknown
+  notes: Text, morphology, syntax, and lexical features come from differently licensed sources; see evidence.
   evidence: {status: component-specific, checked_at: "2026-09-06", sources: [...]}
 ```
 
-`component-specific` is a descriptive registry value, not a licence identifier.
+`component-specific` is a descriptive registry value, not a licence identifier. Component-specific records require non-empty `licenses.notes` explaining the split at a level useful to a caller; a status plus source URLs alone is not sufficient.
 
 ### Member-specific collections
 
@@ -136,7 +137,7 @@ licenses:
   evidence: {status: member-specific, checked_at: "2026-09-06", sources: [...]}
 ```
 
-`member-specific` is valid only for `kind: collection`.
+`member-specific` is valid only for `kind: collection` and requires non-empty `licenses.notes` stating where member-level rights information lives.
 
 This issue does not require Agora to ingest or normalize every member licence into the collection index. It records the collection-level truth without inventing one uniform licence.
 
@@ -174,8 +175,10 @@ Require `licenses.evidence` for `kind: corpus` and `kind: collection`. Do not re
 4. `data == component-specific` requires `status == component-specific`.
 5. `data == member-specific` requires `status == member-specific` and `kind == collection`.
 6. `status == member-specific` requires `data == member-specific` and `kind == collection`.
-7. Every canonical corpus/collection has at least one evidence source and a valid check date through schema validation.
-8. Evidence must describe upstream licensing/provenance sources, not merely Agora's historical catalog snapshot.
+7. `component-specific`, `member-specific`, and `unresolved` require non-empty `licenses.notes` explaining the condition or uncertainty.
+8. Every canonical corpus/collection has at least one evidence source and a valid check date through schema validation.
+
+Evidence-source quality is a contributor/reviewer requirement, not a string-level validator rule. Review must reject records whose `sources` merely point back to Agora's catalog snapshot or to irrelevant software metadata when the claim concerns corpus data; the validator cannot reliably determine semantic relevance from a URL.
 
 ## TDD gate
 
@@ -186,11 +189,12 @@ Implementation starts with focused failing tests in `tests/test_resource_license
 - [ ] feature module without licence evidence remains valid for this migration;
 - [ ] `resolved` + `data: unknown` is rejected;
 - [ ] `resolved` + `redistribution: unknown` is rejected;
-- [ ] `unresolved` with `unknown` values, date, and primary source URLs is accepted;
+- [ ] `unresolved` with `unknown` values, explanation, date, and primary source URLs is accepted;
+- [ ] unresolved/component/member-specific evidence without explanatory `licenses.notes` is rejected;
 - [ ] `component-specific` top-level licence (Quran shape) is accepted;
 - [ ] `data: component-specific` requires component-specific evidence;
 - [ ] `member-specific` is rejected on a corpus;
-- [ ] a member-specific collection is accepted;
+- [ ] a member-specific collection with notes is accepted;
 - [ ] empty/malformed evidence source lists and invalid dates are rejected.
 
 The RED commit should contain only the tests (plus test fixtures/helpers if needed). A CI failure caused by these new expectations is expected and should be recorded before implementation proceeds.
@@ -230,7 +234,7 @@ Before merge, perform a logically independent adversarial review against the imp
 - one unresolved modern/copyright-sensitive corpus (`banks` or a DBNL/Huygens-derived corpus);
 - one cuneiform corpus (`TLHdig-TF`, CDLI-derived corpus, or `ninmed`).
 
-The reviewer should actively look for accidental software→data licence copying, over-permissive redistribution values, missing component restrictions, and unsupported public-domain assumptions.
+The reviewer should actively look for accidental software→data licence copying, over-permissive redistribution values, missing component restrictions, unsupported public-domain assumptions, and evidence URLs that do not actually support the recorded claim.
 
 ## Non-goals
 
