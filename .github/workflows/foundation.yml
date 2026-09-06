@@ -158,6 +158,9 @@ jobs:
       - name: Run source-resolution provenance regressions
         run: python tests/test_context_fabric_resolution_service.py
 
+      - name: Run offline source-resolution regressions
+        run: python tests/test_context_fabric_offline.py
+
   materializer-install-locks:
     name: Materializer install locks (${{ matrix.os }})
     strategy:
