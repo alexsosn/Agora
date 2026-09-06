@@ -12,6 +12,7 @@ on:
       - 'plugins/context-fabric/resources/collections/**'
       - 'plugins/context-fabric/pyproject.toml'
       - 'plugins/context-fabric/src/**'
+      - 'scripts/smoke_context_fabric_cold_load.py'
       - 'scripts/smoke_context_fabric_resources.py'
       - 'tests/test_context_fabric_load_smoke.py'
       - 'tests/test_context_fabric_load_smoke_workflow.py'
@@ -24,6 +25,7 @@ on:
       - 'plugins/context-fabric/resources/collections/**'
       - 'plugins/context-fabric/pyproject.toml'
       - 'plugins/context-fabric/src/**'
+      - 'scripts/smoke_context_fabric_cold_load.py'
       - 'scripts/smoke_context_fabric_resources.py'
       - 'tests/test_context_fabric_load_smoke.py'
       - 'tests/test_context_fabric_load_smoke_workflow.py'
@@ -63,6 +65,9 @@ jobs:
 
       - name: Install Context-Fabric runtime
         run: python -m pip install -e plugins/context-fabric
+
+      - name: Exercise contained cold-load subprocess
+        run: python scripts/smoke_context_fabric_cold_load.py
 
       - name: Load real corpora and assert representative semantics
         shell: bash
