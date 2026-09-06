@@ -36,7 +36,7 @@ Portalocker documents the relevant platform behavior:
 
 - POSIX locking is advisory: https://portalocker.readthedocs.io/en/latest/platforms.html
 - Windows exclusive locking is mandatory and uses `msvcrt` by default: https://portalocker.readthedocs.io/en/latest/platforms.html
-- `Lock` releases/ closes its handle but leaves the file in place: https://portalocker.readthedocs.io/en/latest/lock-types.html#lock
+- `Lock` releases/closes its handle but leaves the file in place: https://portalocker.readthedocs.io/en/latest/lock-types.html#lock
 
 ## Irreducible ambiguity
 
@@ -71,11 +71,13 @@ The safe protocol is intentionally asymmetric.
 
 ### Before the boundary
 
-If the historical path is absent, current code creates it with `O_CREAT|O_EXCL` and writes a fixed marker:
+If the historical path is absent, current code creates it with `O_CREAT|O_EXCL` and writes the fixed ASCII byte marker:
 
 ```text
-agora-materializer-lock-v3\n
+agora-materializer-lock-v3
 ```
+
+The marker deliberately contains no newline. It is written with `os.write` rather than a text stream so its byte representation and byte length are identical on POSIX and Windows; text newline translation must not change the protocol discriminator.
 
 The create race coordinates with pre-#62: whichever creates the pathname first keeps the other generation out. If current code encounters an empty or unrecognized existing path, it waits for a live pre-#62 holder to remove it and otherwise fails closed with manual-recovery guidance. It never guesses that an empty unlocked file is stale.
 
@@ -91,13 +93,13 @@ Pre-#62 `O_EXCL` clients cannot run after the marker has been established. That 
 
 The first one-way implementation still read the v3 marker through a fresh file handle **before** calling `portalocker.Lock.acquire()`. That is harmless on ordinary POSIX filesystems because the lock is advisory, but it is wrong on Windows: portalocker's exclusive Windows lock is mandatory, so a separate read of a byte range owned by a live modern holder can block before Agora's timeout/retry machinery runs.
 
-The exact-head Windows CI exposed this as an installation-lock step that remained in progress far longer than Linux/macOS. A bounded lock API cannot perform any potentially mandatory read before it has acquired ownership.
+Exact-head Windows CI exposed both consequences of the first one-way implementation: lock tests spent repeated full timeout windows misclassifying the current marker, and live holder processes could not enter reliably. The newline-bearing text marker also introduced an avoidable platform-specific representation risk. A bounded lock API cannot perform any potentially mandatory read before it has acquired ownership, and the protocol marker must have one byte representation on every supported OS.
 
 The safe acquisition order on a migrated root is therefore:
 
 1. use pathname metadata that does not read the locked bytes (specifically regular-file size) to distinguish the known empty legacy state from a candidate v3 marker object;
-2. for a candidate marker-sized file, acquire the advisory lock on that historical path using the remaining timeout budget;
-3. verify the exact marker through the **already acquired readable lock handle**, not a second handle;
+2. for a candidate marker-sized file, acquire the advisory lock on that historical path using the remaining timeout budget and a readable binary handle;
+3. verify the exact marker through the **already acquired lock handle**, not a second handle;
 4. compare the locked handle's filesystem identity with the current pathname before entering, so a replacement while waiting cannot silently split ownership across two inodes.
 
 A zero-length or other non-candidate legacy file remains in the pre-migration waiting/fail-closed path and is never advisory-locked by current code; that matters on Windows because locking such a live pre-#62 file could prevent the old holder from unlinking it on normal release.
