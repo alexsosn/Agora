@@ -65,6 +65,7 @@ class RemoteResolutionError(RuntimeError):
 class RepositoryResolution:
     path: Path
     revision: str
+    source: str
     source_revision_verified: bool
     resolution: str
     allow_network: bool = True
@@ -365,6 +366,7 @@ def _cached_resolution(
         return RepositoryResolution(
             path=repo,
             revision=revision,
+            source=store.repository_url(repository),
             source_revision_verified=immutable,
             resolution="cached",
             allow_network=False,
@@ -418,6 +420,7 @@ def resolve_repository(
     return RepositoryResolution(
         path=repo,
         revision=revision,
+        source=store.repository_url(repository),
         source_revision_verified=True,
         resolution="fresh",
         allow_network=True,
@@ -463,7 +466,12 @@ def materialize_corpus(
             kind="corpus-snapshot",
         )
     try:
-        return store.materialize(resolution.path, relative_path, resolution.revision)
+        return store.materialize(
+            resolution.path,
+            relative_path,
+            resolution.revision,
+            source=resolution.source,
+        )
     except subprocess.CalledProcessError as exc:
         if is_connectivity_failure(exc):
             raise _network_error(resource_id) from exc
@@ -490,6 +498,7 @@ def materialize_feature_module(
             resolution.path,
             relative_path,
             resolution.revision,
+            source=resolution.source,
         )
     except subprocess.CalledProcessError as exc:
         if is_connectivity_failure(exc):
