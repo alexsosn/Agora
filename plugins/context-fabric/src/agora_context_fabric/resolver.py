@@ -22,6 +22,7 @@ from .network import (
     current_network_mode,
     materialize_corpus,
     materialize_feature_module,
+    repository_matches,
     resolve_repository,
 )
 
@@ -191,19 +192,26 @@ class ContextFabricResolver:
                 "source_revision must be an immutable commit id "
                 "(40 or 64 hexadecimal characters)"
             )
-        repo = self.store.repositories_dir / self.store.safe_cache_key(resource.id)
-        if not (repo / ".git").is_dir():
-            raise ValueError(
-                f"source revision {source_revision!r} is not available in the cached repository "
-                f"for collection {resource.id!r}; omit source_revision to resolve current upstream state"
-            )
-        try:
-            resolved = self.store._resolved_revision(repo, source_revision)
-        except subprocess.CalledProcessError as exc:
-            raise ValueError(
-                f"source revision {source_revision!r} is not available in the cached repository "
-                f"for collection {resource.id!r}; no fallback to current upstream state was attempted"
-            ) from exc
+        key = self.store.safe_cache_key(resource.id)
+        repo = self.store.repositories_dir / key
+        with self.store._repository_lock(key):
+            if not (repo / ".git").is_dir():
+                raise ValueError(
+                    f"source revision {source_revision!r} is not available in the cached repository "
+                    f"for collection {resource.id!r}; omit source_revision to resolve current upstream state"
+                )
+            if not repository_matches(self.store, repo, resource.repository):
+                raise ValueError(
+                    f"cached repository for collection {resource.id!r} does not match its configured "
+                    "repository; no fallback to obsolete repository state was attempted"
+                )
+            try:
+                resolved = self.store._resolved_revision(repo, source_revision)
+            except subprocess.CalledProcessError as exc:
+                raise ValueError(
+                    f"source revision {source_revision!r} is not available in the cached repository "
+                    f"for collection {resource.id!r}; no fallback to current upstream state was attempted"
+                ) from exc
         return RepositoryResolution(
             path=repo,
             revision=resolved,
