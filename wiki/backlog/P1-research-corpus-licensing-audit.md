@@ -2,287 +2,185 @@
 
 Tracks [#17](https://github.com/alexsosn/Agora/issues/17).
 
-Status: **research in progress**. This document records evidence before any registry licensing value is changed.
+Status: **research complete**. This document records the evidence gate before registry licensing values are changed.
 
 ## Scope snapshot
 
-Audit baseline: Agora `main` at `c7bd2b7d0f08ba4ace4a15218bff76d24726f701`, checked 2026-09-06.
+Audit baseline: Agora `main` at `c7bd2b7d0f08ba4ace4a15218bff76d24726f701`, checked 2026-09-06. A later comparison through current `main` (`302178da1f85c6097950d1bb4c0986bd10c3c141`) found no intervening changes to `registry/resources.yaml`, so the inventory remains current.
 
-The current `registry/resources.yaml` contains **37** `corpus`/`collection` resources for which licensing is unknown, partially unknown, upstream-dependent, or otherwise insufficiently evidenced. The old fixed count in #17 is therefore obsolete; this inventory is generated from the current canonical registry.
+The canonical registry contains **37** `corpus`/`collection` resources whose licensing was unknown, partially unknown, upstream-dependent, or insufficiently evidenced.
 
 ### Status vocabulary
 
-- `resolved` — primary upstream evidence states terms that can be represented in Agora.
-- `component-specific` — the distributed corpus combines components under materially different terms; a single scalar without notes would be misleading.
-- `member-specific` — a collection explicitly carries licensing at member/file level.
-- `unresolved` — authoritative evidence checked so far does not establish the data/redistribution terms.
-- `pending` — not yet researched in this audit.
+- `resolved` — primary upstream evidence states terms that Agora can represent directly.
+- `component-specific` — materially different embedded components have different terms.
+- `member-specific` — collection licensing is carried at member/file level.
+- `unresolved` — authoritative sources were checked but do not establish a defensible data/redistribution licence.
 
-A repository-level software license is not treated as a corpus-data license unless upstream documentation explicitly applies it to the dataset.
+A repository-level software licence is not treated as a corpus-data licence unless upstream documentation explicitly applies it to the dataset.
 
-## Inventory
+## Complete evidence matrix
 
-| Resource | Upstream | Research status | Current conclusion |
+| Resource | Upstream | Status | Registry conclusion |
 |---|---|---|---|
-| `bhsa` | ETCBC/bhsa | resolved | CC BY-NC 4.0 data; redistribution allowed under licence, attribution required; commercial use requires separate consent |
-| `dss` | ETCBC/dss | resolved | CC BY-NC 4.0 dataset |
-| `sp` | DT-UCPH/sp | resolved | CC BY-NC 4.0 dataset; citation requested |
-| `extrabiblical` | ETCBC/extrabiblical | resolved | CC BY-NC 4.0 dataset |
-| `targum` | ETCBC/targum | unresolved | README shows an MIT badge but no corpus-data licence statement was found; do not infer data=MIT |
-| `lxx` | CenterBLC/LXX | component-specific | repository software is MIT; corpus derives Rahlfs/CATSS material and BibleOL features whose terms must be checked separately |
-| `n1904` | CenterBLC/N1904 | component-specific | dataset docs point to MIT, but source layers come from MACULA/Clear-Bible and other projects; source terms still need reconciliation |
-| `SBLGNT` | CenterBLC/SBLGNT | component-specific | derives MorphGNT SBLGNT plus BibleOL features; source licences still need reconciliation |
-| `nestle1904` | ETCBC/nestle1904 | unresolved | historical/moved dataset based on Clear-Bible/MACULA LowFat; current authoritative terms need following upstream |
-| `Nestle1904GBI` | tonyjurg/Nestle1904GBI | pending | — |
-| `tischendorf_tf` | codykingham/tischendorf_tf | pending | — |
-| `bible` | pthu/bible | unresolved | root Unlicense explicitly describes software; no evidence yet that it licenses the collection data |
-| `patristics` | pthu/patristics | pending | — |
-| `greek_literature` | pthu/greek_literature | member-specific | repository LICENSE says licence notes, when available, are copied from TEI metadata into each `.tf` file's `@availability` metadata |
-| `athenaeus` | pthu/athenaeus | unresolved | root Unlicense explicitly describes software; corpus-data source/terms still need checking |
-| `peshitta` | ETCBC/peshitta | resolved | plain text + TF conversion CC BY-NC 4.0; MIT applies to converter; Brill critical apparatus is copyrighted and excluded |
-| `syrnt` | ETCBC/syrnt | unresolved | source is a SEDRA export; repository LICENSE is MIT software text; corpus docs checked so far contain no data licence |
-| `syriac` | ETCBC/syriac | resolved | CC BY-NC 4.0 dataset; source editions acknowledged separately |
-| `quran` | q-ran/quran | component-specific | resulting TF corpus declared CC BY 4.0, but source components include GPL/no-change and Tanzil CC BY-ND/no-change terms; redistribution must preserve source restrictions |
-| `fusus` | among/fusus | pending | — |
-| `nena_tf` | CambridgeSemiticsLab/nena_tf | pending | — |
-| `uruk` | Nino-cunei/uruk | component-specific | TF material derives from CDLI; current CDLI terms permit textual reuse with academic attribution, while images have separate non-commercial/owner restrictions; Agora's loaded TF path must be distinguished from images |
-| `oldassyrian` | Nino-cunei/oldassyrian | component-specific | transliterations derive from CDLI; apply CDLI textual-data terms, not repository software licence |
-| `oldbabylonian` | Nino-cunei/oldbabylonian | component-specific | transliterations derive from CDLI; apply CDLI textual-data terms, not repository software licence |
-| `ninmed` | Nino-cunei/ninmed | unresolved | corpus provenance still needs tracing to its textual source/terms; README alone does not state a data licence |
-| `cuc` | DT-UCPH/cuc | resolved | CC BY-NC 4.0 dataset |
-| `dhammapada` | ETCBC/dhammapada | pending | — |
-| `translatin-manif` | HuygensING/translatin-manif | pending | — |
-| `wp6-missieven` | CLARIAH/wp6-missieven | pending | — |
-| `wp6-daghregisters` | CLARIAH/wp6-daghregisters | pending | — |
-| `wp6-ferdinandhuyck` | CLARIAH/wp6-ferdinandhuyck | pending | — |
-| `mondriaan` | annotation/mondriaan | pending | — |
-| `descartes-tf` | CLARIAH/descartes-tf | pending | — |
-| `suriano` | HuygensING/suriano | pending | — |
-| `mobydick` | annotation/mobydick | pending | — |
-| `banks` | annotation/banks | pending | — |
-| `TLHdig-TF` | alexsosn/TLHdig-TF | resolved | upstream source and generated TF datasets CC BY 4.0; converter/code/docs MIT |
+| `bhsa` | ETCBC/bhsa | resolved | data `CC-BY-NC-4.0`; non-commercial redistribution with attribution/DOI |
+| `dss` | ETCBC/dss | resolved | data `CC-BY-NC-4.0` |
+| `sp` | DT-UCPH/sp | resolved | data `CC-BY-NC-4.0`; preserve dataset/publication citation |
+| `extrabiblical` | ETCBC/extrabiblical | resolved | data `CC-BY-NC-4.0` |
+| `targum` | ETCBC/targum | resolved | repository ships full `CC-BY-NC-4.0` licence text |
+| `lxx` | CenterBLC/LXX | component-specific | MIT is software-only; Rahlfs/CATSS-derived text and BibleOL-derived features require component notes; no single data licence established |
+| `n1904` | CenterBLC/N1904 | component-specific | repository labels TF dataset MIT but source layers include MACULA/Clear-Bible, Berean glosses and UBS MARBLE; preserve component provenance/terms |
+| `SBLGNT` | CenterBLC/SBLGNT | component-specific | SBLGNT text subject to SBLGNT EULA; MorphGNT morphology/lemmatization `CC-BY-SA-3.0`; BibleOL-derived features separately sourced |
+| `nestle1904` | ETCBC/nestle1904 | component-specific | historical repo is superseded by CenterBLC/N1904 and derives from MACULA LowFat; treat with the same component caveat, not repository MIT |
+| `Nestle1904GBI` | tonyjurg/Nestle1904GBI | resolved | repository explicitly licenses **software and data** `CC-BY-4.0`; MACULA source data also `CC-BY-4.0` with attribution |
+| `tischendorf_tf` | codykingham/tischendorf_tf | resolved | root licence states text and analysis are public domain and may be copied freely |
+| `bible` | pthu/bible | unresolved | root Unlicense expressly covers software/source code; heterogeneous biblical editions have no collection-data licence statement |
+| `patristics` | pthu/patristics | unresolved | heterogeneous collection has no root data licence/rights statement found; do not infer terms from public availability |
+| `greek_literature` | pthu/greek_literature | member-specific | repository says TEI licence notes are propagated to each `.tf` file as `@availability`; collection-wide scalar would be misleading |
+| `athenaeus` | pthu/athenaeus | unresolved | root Unlicense is software text; README identifies conversion but no corpus-data licence |
+| `peshitta` | ETCBC/peshitta | resolved | plain text + TF conversion `CC-BY-NC-4.0`; converter MIT; Brill critical apparatus excluded |
+| `syrnt` | ETCBC/syrnt | unresolved | SEDRA III export provenance is clear; SEDRA describes III as non-commercial open source but gives no formal licence; current site is all-rights-reserved |
+| `syriac` | ETCBC/syriac | resolved | data `CC-BY-NC-4.0`; preserve source-edition acknowledgements |
+| `quran` | q-ran/quran | component-specific | resulting TF corpus `CC-BY-4.0`, but QAC/Tanzil components carry stricter no-change/BY-ND/attribution conditions |
+| `fusus` | among/fusus | unresolved | repository MIT covers software; corpus is OCR/alignment of modern printed editions and no data licence was found |
+| `nena_tf` | CambridgeSemiticsLab/nena_tf | resolved | TF repo software MIT; underlying `nena_corpus` is `CC-BY-4.0`, which governs corpus data |
+| `uruk` | Nino-cunei/uruk | component-specific | TF transliterations derive from CDLI textual data; repository also contains images governed by separate restrictions |
+| `oldassyrian` | Nino-cunei/oldassyrian | resolved | transliterations derive from CDLI; current CDLI terms permit textual reuse with normal academic attribution |
+| `oldbabylonian` | Nino-cunei/oldbabylonian | resolved | transliterations derive from CDLI; current CDLI terms permit textual reuse with normal academic attribution |
+| `ninmed` | Nino-cunei/ninmed | unresolved | JSON source was supplied by personal communication and contains NinMed/BabMed/eBL material; no data redistribution licence is stated |
+| `cuc` | DT-UCPH/cuc | resolved | data `CC-BY-NC-4.0` with dataset DOI |
+| `dhammapada` | ETCBC/dhammapada | unresolved | source is Fausböll 1900 edition/transcription; repository MIT is software-only and no TF-data licence statement was found |
+| `translatin-manif` | HuygensING/translatin-manif | unresolved | repository distributes processed manifestations and says publication has no legal obstacle, but states no explicit data licence |
+| `wp6-missieven` | CLARIAH/wp6-missieven | unresolved | repository MIT covers software; TF/XML data derive from supplied TEI/PDF sources with no corpus-data licence stated |
+| `wp6-daghregisters` | CLARIAH/wp6-daghregisters | unresolved | repository MIT covers software; TF derives from archive.org/Google digitization/OCR with no data licence stated |
+| `wp6-ferdinandhuyck` | CLARIAH/wp6-ferdinandhuyck | unresolved | TF derives from DBNL TEI; repository MIT does not establish DBNL/corpus data terms |
+| `mondriaan` | annotation/mondriaan | unresolved | Huygens TEI and RKD thumbnails have explicit provenance but no corpus-data licence in the TF repository |
+| `descartes-tf` | CLARIAH/descartes-tf | unresolved | 1998 ASCII → 2011 TEI → 2023 TF provenance is documented; repository software licence does not establish source-data rights |
+| `suriano` | HuygensING/suriano | unresolved | transcriptions/thumbnails are publicly distributed with detailed provenance, but no corpus-data licence statement was found |
+| `mobydick` | annotation/mobydick | unresolved | TF derives from DBNL TEI; repository licence is software-only and DBNL data terms are not stated in the corpus repo |
+| `banks` | annotation/banks | unresolved | 99-word excerpt from a 1987 copyrighted novel; repository MIT is software-only and no content permission/licence is stated |
+| `TLHdig-TF` | alexsosn/TLHdig-TF | resolved | upstream source and generated TF/TF-provenance data `CC-BY-4.0`; code/docs MIT |
 
-## Evidence gathered
+## Evidence by family
 
-### `bhsa` — resolved
+### ETCBC / CACCHT corpora
 
 Primary evidence:
 
 - https://github.com/ETCBC/bhsa/blob/master/README.md
-- https://github.com/ETCBC/bhsa/blob/master/LICENSE
-
-The repository `LICENSE` is MIT and expressly speaks about "Software". The README separately states that the BHSA work/data are licensed under **CC BY-NC 4.0**, permits processing/copying/modification/research publication, requires attribution via DOI `10.17026/dans-z6y-skyh`, and requires consent for commercial applications. This is a direct example of why GitHub's repository licence cannot be copied into `licenses.data`.
-
-Recommended registry direction:
-
-- `licenses.data: CC-BY-NC-4.0`
-- redistribution: permitted under CC BY-NC 4.0
-- notes: preserve attribution DOI and commercial-use condition
-
-### `dss` — resolved
-
-Primary evidence:
-
 - https://github.com/ETCBC/dss/blob/master/README.md
-
-The README explicitly states: "This dataset is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0)." It also identifies the CACCHT project and credits Martin Abegg for source data.
-
-Recommended registry direction: `CC-BY-NC-4.0`, with redistribution subject to licence attribution/non-commercial terms.
-
-### `sp` — resolved
-
-Primary evidence:
-
 - https://github.com/DT-UCPH/sp/blob/main/README.md
-
-The README carries a **CC BY-NC 4.0** badge, says the dataset may be used freely for research and education, and requests citation of the dataset DOI `10.5281/zenodo.7734632` and the associated publications. It also records that the text was provided by the Samaritanus project and identifies the manuscript/editorial basis.
-
-Recommended registry direction: `CC-BY-NC-4.0`; preserve dataset citation/attribution in notes.
-
-### `extrabiblical` — resolved
-
-Primary evidence:
-
 - https://github.com/ETCBC/extrabiblical/blob/master/README.md
-
-The README explicitly states that the **dataset** is licensed under **CC BY-NC 4.0**.
-
-### `peshitta` — resolved
-
-Primary evidence:
-
+- https://github.com/ETCBC/targum/blob/main/LICENSE.md
 - https://github.com/ETCBC/peshitta/blob/master/docs/about.md
-- https://github.com/ETCBC/peshitta/blob/master/README.md
-
-The corpus documentation distinguishes layers:
-
-- plain Peshitta text and its TF conversion: **CC BY-NC 4.0**;
-- conversion program: **MIT**;
-- Brill/VTS critical apparatus: copyrighted by Brill and **not included** in the repository.
-
-The docs request citation of the archived repository and direct commercial users to ETCBC/Brill.
-
-Recommended registry direction: `CC-BY-NC-4.0`; notes should preserve the exclusion of the critical apparatus and the commercial-use contact statement.
-
-### `syrnt` — unresolved
-
-Primary evidence checked:
-
-- https://github.com/ETCBC/syrnt/blob/master/README.md
-- https://github.com/ETCBC/syrnt/blob/master/docs/about.md
-- https://github.com/ETCBC/syrnt/blob/master/LICENSE
-
-The docs establish that the corpus source is a **SEDRA database export** made by George A. Kiraz and James W. Bennett, based on ABMC manuscripts. The repository `LICENSE` is MIT and expressly covers "Software". Unlike the Peshitta `about.md`, the SyrNT `about.md` section checked here contains no data licensing statement. Until SEDRA/ABMC terms or another authoritative corpus-specific statement are established, `data` and redistribution should remain unresolved rather than being set to MIT.
-
-Follow-up: check SEDRA's current licence/terms and archived documentation applicable to the exported database version used here.
-
-### `syriac` — resolved
-
-Primary evidence:
-
 - https://github.com/ETCBC/syriac/blob/master/README.md
-
-The README explicitly licenses the work under **CC BY-NC 4.0** and states that users may download, process, copy, modify, and use it for research. It separately lists the editions on which component texts are based and thanks editors for permission. Those source acknowledgements should remain in notes/provenance rather than being erased by the top-level CC identifier.
-
-### `cuc` — resolved
-
-Primary evidence:
-
 - https://github.com/DT-UCPH/cuc/blob/main/README.md
 
-The Copenhagen Ugaritic Corpus README carries an explicit **CC BY-NC 4.0** dataset licence badge and a Zenodo DOI (`10.5281/zenodo.10695308`).
+These sources explicitly license the named datasets. BHSA is the clearest software/data split: its root `LICENSE` is MIT software while the README assigns the corpus data `CC BY-NC 4.0`. Peshitta likewise separates `CC BY-NC 4.0` textual/TF data from MIT conversion code and excludes Brill's critical apparatus. Targum ships the full `CC BY-NC 4.0` licence despite a misleading historical README badge.
 
-Recommended registry direction: `CC-BY-NC-4.0`, with DOI/citation retained in notes.
+For `syrnt`, the repository documents a SEDRA database export but only ships MIT software text. SEDRA's authoritative history describes SEDRA III as a **non-commercial open-source database** without naming a formal licence, while current SEDRA pages are copyright Beth Mardutho / All Rights Reserved. That is insufficient to invent a licence identifier or exact redistribution rule.
 
-### `quran` — component-specific
+### Greek biblical corpora
 
 Primary evidence:
-
-- https://github.com/q-ran/quran/blob/master/README.md
-- https://github.com/q-ran/quran/blob/master/docs/about.md
-
-The README declares the TF-format corpus **CC BY 4.0**. The detailed provenance file then records materially different source terms:
-
-- Quranic Arabic Corpus morphology: GPL-labelled source plus explicit verbatim/no-change and attribution/link requirements;
-- Tanzil Uthmani text and translations: CC BY-ND / no-change terms in the source notices;
-- the generated corpus: CC BY 4.0, with the explicit warning that modified TF redistribution is permitted only while respecting source licences.
-
-Recommended registry direction: top-level `CC-BY-4.0` only with `licenses.notes` recording the component/source restrictions. A bare `CC-BY-4.0` value without those notes would overstate modification rights over every embedded component.
-
-### `lxx` — component-specific, not yet resolved
-
-Primary evidence checked:
 
 - https://github.com/CenterBLC/LXX/blob/main/README.md
 - https://github.com/CenterBLC/LXX/blob/main/LICENSE
-
-The repository `LICENSE` is MIT software text. The README states that the TF data derive from Rahlfs 1935 via Eliran Wong/CATSS and that dictionary entry forms and English features come from BibleOL, explicitly directing readers to BibleOL for licences. The data licence therefore cannot be inferred from the MIT repository licence.
-
-Follow-up: establish the exact CATSS/Rahlfs-derived source terms used by Eliran Wong and the BibleOL terms that apply to the copied features.
-
-### `SBLGNT` — component-specific, not yet resolved
-
-Primary evidence:
-
 - https://github.com/CenterBLC/SBLGNT/blob/main/README.md
-
-The TF corpus is derived from `morphgnt/sblgnt` and enriched with BibleOL dictionary/gloss features. The README itself directs users to BibleOL for those feature licences. Follow both upstream chains before choosing a scalar licence.
-
-### `n1904` / `nestle1904` — component-specific, research continuing
-
-Primary evidence:
-
+- https://github.com/morphgnt/sblgnt/blob/master/README.md
 - https://github.com/CenterBLC/N1904/blob/main/docs/about.md
 - https://github.com/CenterBLC/N1904/blob/main/LICENSE.md
 - https://github.com/ETCBC/nestle1904/blob/master/README.md
+- https://github.com/tonyjurg/Nestle1904GBI/blob/main/LICENSE.md
+- https://github.com/tonyjurg/Nestle1904GBI/blob/main/resources/sourcedata/README.md
+- https://github.com/codykingham/tischendorf_tf/blob/master/LICENSE
+- https://github.com/EzerIT/BibleOL/blob/master/LICENSE
 
-CenterBLC's current `N1904` documentation labels the **Text-Fabric dataset** with a licence link to its MIT `LICENSE.md`, but also states that the TF files were produced from MACULA Greek LowFat data and enumerate source layers including Nestle1904 transcription/morphology, Clear Bible syntax, Berean Study Bible glosses, UBS MARBLE word-sense data, semantic roles, and participant referents. The historical ETCBC repository points users to CenterBLC/N1904 and to Clear-Bible/MACULA as the source.
+`LXX`, `SBLGNT`, and `N1904` are composites. CenterBLC repository MIT files do not automatically relicense external text/annotation layers. MorphGNT explicitly separates the SBLGNT EULA from `CC BY-SA 3.0` morphology/lemmatization. BibleOL's root licence explicitly covers software, not the extracted lexical data. `Nestle1904GBI` is different: its licence expressly covers “software and data” under `CC BY 4.0`, and its MACULA source notice gives the same CC licence plus attribution. Tischendorf's root licence places text and analysis in the public domain.
 
-Follow-up: check the MACULA Greek source licence and the terms on the listed third-party layers before treating the whole TF dataset as unqualified MIT.
-
-### `greek_literature` — member-specific
+### PTHU collections
 
 Primary evidence:
 
 - https://github.com/pthu/greek_literature/blob/master/LICENSE
 - https://github.com/pthu/greek_literature/blob/master/README.md
-
-The repository's `LICENSE` does not assign one collection-wide licence. It says that, when available, original TEI licence notes are copied into the metadata `@availability` attribute of each `.tf` file, and asks for modules that violate original rules to be reported/removed. The collection is built from Perseus and OpenGreekAndLatin TEI corpora.
-
-Recommended registry direction: represent the data/redistribution state as **member-specific** (or extend the schema to model collection-member licences) rather than `unknown` or a guessed collection-wide Creative Commons licence.
-
-### `bible` / `athenaeus` — unresolved software/data conflation
-
-Primary evidence:
-
 - https://github.com/pthu/bible/blob/master/LICENSE
 - https://github.com/pthu/bible/blob/master/README.md
 - https://github.com/pthu/athenaeus/blob/master/LICENSE
 - https://github.com/pthu/athenaeus/blob/master/README.md
+- https://github.com/pthu/patristics
 
-Both repositories carry the Unlicense text, but it explicitly describes **software/source code**. Their READMEs do not establish that the underlying Greek editions/textual datasets are placed in the public domain. Do not set `licenses.data: Unlicense` on this evidence alone.
+`greek_literature` explicitly delegates rights metadata to individual converted TEI files through `@availability`; it is therefore member-specific. `bible` and `athenaeus` use an Unlicense text that explicitly describes software/source code and do not state a data licence. `patristics` is a large heterogeneous collection for which no root data-rights statement was found. Public-domain authorship is not enough to infer rights in modern transcriptions/editions.
 
-### Nino-cunei / CDLI family
+### Arabic corpora
+
+Primary evidence:
+
+- https://github.com/q-ran/quran/blob/master/README.md
+- https://github.com/q-ran/quran/blob/master/docs/about.md
+- https://github.com/among/fusus/blob/master/README.md
+- https://github.com/among/fusus/blob/master/LICENSE
+
+The Quran TF corpus is declared `CC BY 4.0`, while its provenance file preserves source-specific restrictions including no-change/BY-ND requirements. `fusus` is generated from OCR and alignment of printed editions; its MIT licence covers software and no corpus-data licence is stated.
+
+### Neo-Aramaic
+
+Primary evidence:
+
+- https://github.com/CambridgeSemiticsLab/nena_tf/blob/master/README.md
+- https://github.com/CambridgeSemiticsLab/nena_tf/blob/master/LICENSE
+- https://github.com/CambridgeSemiticsLab/nena_corpus/blob/master/LICENSE
+
+The TF repository points to `nena_corpus` as its underlying corpus. The TF repository's MIT text governs software; `nena_corpus` supplies `CC BY 4.0` for the data.
+
+### Cuneiform corpora
 
 Primary evidence:
 
 - https://github.com/Nino-cunei/uruk/blob/master/README.md
 - https://github.com/Nino-cunei/oldassyrian/blob/master/README.md
 - https://github.com/Nino-cunei/oldbabylonian/blob/master/README.md
+- https://github.com/Nino-cunei/ninmed/blob/master/docs/about.md
 - https://cdli.earth/terms-of-use
+- https://github.com/alexsosn/TLHdig-TF/blob/main/README.md#licensing
 
-`uruk`, `oldassyrian`, and `oldbabylonian` identify CDLI as the source of the transliterations. Current CDLI terms distinguish content types:
+Current CDLI terms permit textual transliterations/translations to be copied, aggregated, and reused under normal academic practice with attribution requested for substantial reuse; images/line art have separate ownership/reuse restrictions. `uruk` bundles both categories, whereas the TF paths of Old Assyrian/Old Babylonian are textual conversions. `ninmed` is different: its source JSON came by personal communication and combines NinMed/BabMed/eBL work, so CDLI terms cannot be assumed. TLHdig-TF expressly licenses source and generated TF data `CC BY 4.0` and code/docs MIT.
 
-- transliterations/translations may be freely copied, aggregated, and reused under normal academic practice, with CDLI attribution requested for substantial reuse;
-- photographs and line art carry separate ownership/non-commercial restrictions.
-
-Agora loads the TF corpus path, not the repository's image assets, so the registry should describe the terms governing the **material actually acquired/loaded** while preserving the source distinction. A generic repository MIT licence would be wrong for the corpus data.
-
-`ninmed` still needs its direct textual provenance established before it can inherit any CDLI conclusion.
-
-### `TLHdig-TF` — resolved
+### Pali and historical/modern European corpora
 
 Primary evidence:
 
-- https://github.com/alexsosn/TLHdig-TF/blob/main/README.md#licensing
+- https://github.com/ETCBC/dhammapada/blob/master/docs/about.md
+- https://github.com/HuygensING/translatin-manif/blob/main/README.md
+- https://github.com/CLARIAH/wp6-missieven/blob/master/README.md
+- https://github.com/CLARIAH/wp6-daghregisters/blob/master/README.md
+- https://github.com/CLARIAH/wp6-ferdinandhuyck/blob/main/docs/about.md
+- https://github.com/annotation/mondriaan/blob/master/docs/about.md
+- https://github.com/CLARIAH/descartes-tf/blob/main/docs/about.md
+- https://github.com/HuygensING/suriano/blob/main/README.md
+- https://github.com/annotation/mobydick/blob/main/README.md
+- https://github.com/annotation/banks/blob/master/README.md
 
-The repository explicitly distinguishes:
+These repositories document provenance well but generally use MIT for conversion/software and omit corpus-data terms. The correct audit result is `unknown` with those sources recorded. This is particularly important for `banks`, whose tiny test corpus quotes a modern copyrighted novel, and for DBNL/Huygens-derived datasets where public GitHub availability is not evidence of a specific redistribution licence.
 
-- `corpus/**`: **CC BY 4.0** upstream TLHdig source data;
-- `tf/**` and `tf-provenance/**`: **CC BY 4.0** generated adaptations;
-- converter code/repository documentation: **MIT**.
+## Research conclusions
 
-It also states that each `.tf` file carries source attribution/licence metadata and provides the upstream TLHdig citation (`10.5281/zenodo.20328284`).
+1. **Software licence detection is unsafe for corpus rights.** MIT/Unlicense files repeatedly apply to converters or repository software while data terms differ or remain unstated.
+2. **`unknown` is a legitimate researched state.** Sixteen resources still lack a defensible data/redistribution licence after their authoritative repository/provenance documentation was checked.
+3. **Collections can require member-level semantics.** `greek_literature` explicitly carries rights metadata in individual TF files.
+4. **Some corpora require component-level semantics.** Quran and several Greek biblical corpora combine layers with materially different terms.
+5. **Agora needs durable licence evidence.** `source_snapshot` records catalog provenance, not the evidence supporting `licenses`, so it should not be overloaded for this purpose.
 
-Recommended registry direction: `licenses.data: CC-BY-4.0`; redistribution permitted under CC BY 4.0; notes/citation point to the upstream TLHdig release.
+## Research gate
 
-## Pending families
+- [x] Enumerated all current corpus/collection resources from the canonical registry (37).
+- [x] Checked every resource against its upstream repository/provenance documentation.
+- [x] Separated software licences from corpus data/content terms.
+- [x] Identified member-specific and component-specific cases.
+- [x] Preserved genuine ambiguity instead of choosing the most permissive plausible licence.
+- [x] Recorded primary evidence sufficient for another reviewer to reproduce each conclusion.
+- [ ] Independent adversarial cross-section review (performed after the design document is added, before this PR is finalized).
 
-The following remain to be researched before the implementation gate:
+## Handoff to design
 
-1. `targum` — reconcile the README's MIT badge with the actual Targum text/edition sources and any dataset-specific terms.
-2. Greek/New Testament family — finish MorphGNT, SBLGNT, MACULA/Clear-Bible, BibleOL, Nestle1904GBI, and Tischendorf source-term tracing.
-3. PTHU collections — inspect `patristics` member metadata and establish whether `bible`/`athenaeus` carry data-level rights beyond software Unlicense.
-4. Arabic/Aramaic — `fusus`, `nena_tf`.
-5. Cuneiform — establish `ninmed` provenance/terms and verify whether any TF modules include restricted CDLI image-derived material (expected not, but must be checked).
-6. `dhammapada`.
-7. Huygens/CLARIAH/annotation modern-text family: `translatin-manif`, `wp6-missieven`, `wp6-daghregisters`, `wp6-ferdinandhuyck`, `mondriaan`, `descartes-tf`, `suriano`, `mobydick`, `banks`.
-
-## Implementation constraints discovered so far
-
-The current schema permits only scalar `licenses.data`, `licenses.redistribution`, plus free-form `licenses.notes`. The audit already contains two cases where that is barely sufficient:
-
-- heterogeneous collections (`greek_literature`);
-- composite corpora with source-specific restrictions (`quran`, LXX/SBLGNT family).
-
-Before registry edits, decide whether `member-specific` / `component-specific` scalar values plus notes are acceptable canonical vocabulary, or whether the licence model needs a small structured extension. Do not force these cases into a misleading single SPDX-style identifier merely to avoid a schema change.
-
-## Research gate progress
-
-- [x] Enumerate all current corpus/collection resources from the canonical registry.
-- [x] Establish the software-vs-data distinction with concrete upstream examples.
-- [x] Identify at least one heterogeneous collection (`greek_literature`).
-- [x] Identify derived/composite corpora where a single top-level licence is misleading (`quran`, LXX/SBLGNT/N1904 family).
-- [ ] Complete primary-source evidence for all 37 resources.
-- [ ] Independently review the required cross-section before implementation.
-- [ ] Only then edit `registry/resources.yaml` and validation/schema behavior.
+The implementation must support four evidence outcomes (`resolved`, `component-specific`, `member-specific`, `unresolved`) and must make future unexamined `unknown` values invalid. The design and TDD plan are tracked in [`P1-design-corpus-licensing-metadata.md`](P1-design-corpus-licensing-metadata.md).
