@@ -13,7 +13,22 @@ if str(PLUGIN_SRC) not in sys.path:
     sys.path.insert(0, str(PLUGIN_SRC))
 
 from agora_context_fabric.gitstore import GitStore
-from agora_context_fabric.network import resolve_repository
+from agora_context_fabric.network import NetworkUnavailableError, resolve_repository
+
+
+class ControlledFetchGitStore(GitStore):
+    def __init__(self, cache_dir: Path) -> None:
+        super().__init__(cache_dir, snapshot_soft_limit_bytes=0, min_free_bytes=0)
+        self.fail_fetches = False
+
+    def _run(self, *args: str, cwd: Path | None = None) -> str:
+        if args and args[0] == "fetch" and self.fail_fetches:
+            raise subprocess.CalledProcessError(
+                128,
+                ["git", *args],
+                stderr="fatal: unable to access upstream: Could not resolve host: example.invalid",
+            )
+        return super()._run(*args, cwd=cwd)
 
 
 class RepositoryTransitionTests(unittest.TestCase):
@@ -81,6 +96,37 @@ class RepositoryTransitionTests(unittest.TestCase):
             )
             self.assertEqual(record["repository"], str(source_b))
             self.assertEqual(record["revision"], revision_b)
+
+    def test_auto_repository_transition_does_not_fall_back_to_old_repository_on_network_loss(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source_a, revision_a = self._make_repository(root, "source-a", "a")
+            source_b, _ = self._make_repository(root, "source-b", "b")
+            store = ControlledFetchGitStore(root / "cache")
+
+            first = resolve_repository(
+                store,
+                resource_id="fixture",
+                repository=str(source_a),
+                configured_ref=None,
+            )
+            self.assertEqual(first.revision, revision_a)
+
+            store.fail_fetches = True
+            with self.assertRaisesRegex(NetworkUnavailableError, "network access is unavailable"):
+                resolve_repository(
+                    store,
+                    resource_id="fixture",
+                    repository=str(source_b),
+                    configured_ref=None,
+                )
+
+            repo = store.repositories_dir / "fixture"
+            actual_origin = store._run("remote", "get-url", "origin", cwd=repo)
+            self.assertEqual(Path(actual_origin).resolve(), source_b.resolve())
+            self.assertFalse((repo / ".git" / "agora-selection.json").exists())
+            with self.assertRaises(subprocess.CalledProcessError):
+                store.selected_revision(repo)
 
 
 if __name__ == "__main__":
