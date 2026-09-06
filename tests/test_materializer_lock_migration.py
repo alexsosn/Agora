@@ -71,6 +71,13 @@ def _attempt_post62_lock(path: str, result) -> None:
         lock.release()
 
 
+def _hold_current_lock(path: str, ready, release) -> None:
+    with _lock(Path(path), timeout=5):
+        ready.set()
+        # A bounded fallback prevents a failed timeout regression from wedging CI.
+        release.wait(3)
+
+
 def _crash_holding_current_lock(path: str, ready) -> None:
     with _lock(Path(path), timeout=5):
         ready.set()
@@ -149,6 +156,28 @@ class MaterializerLockMigrationTests(unittest.TestCase):
                 holder.join(10)
             self.assertEqual(holder.exitcode, 0)
             self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
+
+    def test_short_timeout_against_live_current_holder_is_bounded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / ".source.lock"
+            ctx = multiprocessing.get_context("spawn")
+            ready, release = ctx.Event(), ctx.Event()
+            holder = ctx.Process(target=_hold_current_lock, args=(str(path), ready, release))
+            holder.start()
+            elapsed = None
+            try:
+                self.assertTrue(ready.wait(10))
+                started = time.monotonic()
+                with self.assertRaises(MaterializerInstallError):
+                    with _lock(path, timeout=0.2):
+                        pass
+                elapsed = time.monotonic() - started
+            finally:
+                release.set()
+                holder.join(10)
+            self.assertEqual(holder.exitcode, 0)
+            self.assertIsNotNone(elapsed)
+            self.assertLess(elapsed, 1.5, "lock timeout was bypassed by pre-acquire marker inspection")
 
     def test_current_holder_excludes_post62_advisory_client(self):
         with tempfile.TemporaryDirectory() as tmp:
