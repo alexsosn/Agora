@@ -11,6 +11,7 @@ PLUGIN_SRC = ROOT / "plugins" / "context-fabric" / "src"
 if str(PLUGIN_SRC) not in sys.path:
     sys.path.insert(0, str(PLUGIN_SRC))
 
+from agora_context_fabric.catalog import Catalog, ResourceSpec
 from agora_context_fabric.gitstore import GitStore
 from agora_context_fabric.network import (
     NetworkUnavailableError,
@@ -21,6 +22,7 @@ from agora_context_fabric.network import (
     use_network_mode,
     validate_network_mode,
 )
+from agora_context_fabric.resolver import ContextFabricResolver
 
 
 class ControlledNetworkGitStore(GitStore):
@@ -257,6 +259,196 @@ class OfflineRepositoryResolutionTests(unittest.TestCase):
             with self.assertRaisesRegex(OfflineCacheMissError, "repository/ref"):
                 with use_network_mode("offline"):
                     self._resolve(store, source, configured_ref="main")
+
+
+class ResolverOfflineIntegrationTests(unittest.TestCase):
+    @staticmethod
+    def _git(source: Path, *args: str) -> str:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=source,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        return result.stdout.strip()
+
+    def _init_corpus(self, source: Path) -> str:
+        self._git(source, "init", "-q", "-b", "main")
+        self._git(source, "config", "user.email", "tests@example.invalid")
+        self._git(source, "config", "user.name", "Agora Tests")
+        tf = source / "tf" / "1.0"
+        tf.mkdir(parents=True)
+        (tf / "otype.tf").write_text("@node\n", encoding="utf-8")
+        (tf / "word.tf").write_text("fixture\n", encoding="utf-8")
+        self._git(source, "add", ".")
+        self._git(source, "commit", "-qm", "fixture corpus")
+        return self._git(source, "rev-parse", "HEAD")
+
+    def _init_collection(self, source: Path) -> str:
+        self._git(source, "init", "-q", "-b", "main")
+        self._git(source, "config", "user.email", "tests@example.invalid")
+        self._git(source, "config", "user.name", "Agora Tests")
+        tf = source / "Author" / "Work" / "tf" / "1.0"
+        tf.mkdir(parents=True)
+        (tf / "otype.tf").write_text("@node\n", encoding="utf-8")
+        (tf / "word.tf").write_text("collection fixture\n", encoding="utf-8")
+        self._git(source, "add", ".")
+        self._git(source, "commit", "-qm", "fixture collection")
+        return self._git(source, "rev-parse", "HEAD")
+
+    @staticmethod
+    def _corpus_resolver(
+        source: Path,
+        store: GitStore,
+        *,
+        ref: str | None = None,
+    ) -> ContextFabricResolver:
+        resource = ResourceSpec(
+            id="fixture",
+            name="Fixture corpus",
+            plugin="context-fabric",
+            provider="context-fabric",
+            kind="corpus",
+            repository=str(source),
+            ref=ref,
+            languages=("test",),
+            disciplines=("testing",),
+        )
+        return ContextFabricResolver(Catalog([resource]), store)
+
+    @staticmethod
+    def _collection_resolver(source: Path, store: GitStore) -> ContextFabricResolver:
+        resource = ResourceSpec(
+            id="collection",
+            name="Fixture collection",
+            plugin="context-fabric",
+            provider="context-fabric",
+            kind="collection",
+            repository=str(source),
+            languages=("test",),
+            disciplines=("testing",),
+        )
+        return ContextFabricResolver(Catalog([resource]), store)
+
+    def test_auto_and_offline_reuse_complete_corpus_snapshot_with_honest_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source"
+            source.mkdir()
+            revision = self._init_corpus(source)
+            store = ControlledNetworkGitStore(root / "cache")
+            resolver = self._corpus_resolver(source, store)
+
+            first = resolver.prepare("fixture")
+            self.assertEqual(first.source_revision, revision)
+            self.assertEqual(first.resolution, "fresh")
+            self.assertTrue(first.source_revision_verified)
+            self.assertTrue((first.path / "otype.tf").is_file())
+
+            store.fail_fetches = True
+            attempts = store.fetch_attempts
+            with use_network_mode("auto"):
+                automatic = resolver.prepare("fixture")
+            self.assertEqual(automatic.path, first.path)
+            self.assertEqual(automatic.source_revision, revision)
+            self.assertEqual(automatic.resolution, "cached")
+            self.assertFalse(automatic.source_revision_verified)
+            self.assertEqual(store.fetch_attempts, attempts + 1)
+
+            attempts = store.fetch_attempts
+            with use_network_mode("offline"):
+                offline = resolver.prepare("fixture")
+            self.assertEqual(offline.path, first.path)
+            self.assertEqual(offline.resolution, "cached")
+            self.assertEqual(store.fetch_attempts, attempts)
+
+    def test_offline_metadata_only_cache_fails_without_snapshot_export_fetch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source"
+            source.mkdir()
+            self._init_corpus(source)
+            store = ControlledNetworkGitStore(root / "cache")
+            # Establish the pre-#44 metadata-only state without a source snapshot.
+            store.ensure_metadata(str(source), cache_key="fixture")
+            attempts = store.fetch_attempts
+            store.fail_fetches = True
+            resolver = self._corpus_resolver(source, store)
+
+            with self.assertRaisesRegex(OfflineCacheMissError, "materialized.*fixture"):
+                with use_network_mode("offline"):
+                    resolver.prepare("fixture")
+            self.assertEqual(store.fetch_attempts, attempts)
+
+    def test_immutable_pinned_corpus_snapshot_remains_verifiable_offline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source"
+            source.mkdir()
+            revision = self._init_corpus(source)
+            store = ControlledNetworkGitStore(root / "cache")
+            resolver = self._corpus_resolver(source, store, ref=revision)
+            first = resolver.prepare("fixture")
+            store.fail_fetches = True
+            attempts = store.fetch_attempts
+
+            with use_network_mode("offline"):
+                second = resolver.prepare("fixture")
+            self.assertEqual(second.path, first.path)
+            self.assertEqual(second.source_revision, revision)
+            self.assertEqual(second.resolution, "cached")
+            self.assertTrue(second.source_revision_verified)
+            self.assertEqual(store.fetch_attempts, attempts)
+
+    def test_current_collection_resolution_reuses_same_commit_bound_member_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source"
+            source.mkdir()
+            revision = self._init_collection(source)
+            store = ControlledNetworkGitStore(root / "cache")
+            resolver = self._collection_resolver(source, store)
+
+            listing = resolver.resolve_members("collection")
+            self.assertEqual(listing.source_revision, revision)
+            member = listing.members[0]
+            first = resolver.prepare("collection", member_id=member.id)
+            self.assertEqual(first.source_revision, revision)
+
+            store.fail_fetches = True
+            attempts = store.fetch_attempts
+            with use_network_mode("auto"):
+                second = resolver.prepare("collection", member_id=member.id)
+            self.assertEqual(second.path, first.path)
+            self.assertEqual(second.source_revision, revision)
+            self.assertEqual(second.resolution, "cached")
+            self.assertFalse(second.source_revision_verified)
+            self.assertEqual(store.fetch_attempts, attempts + 1)
+
+    def test_exact_collection_revision_missing_member_bytes_fails_offline_without_fetch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source"
+            source.mkdir()
+            revision = self._init_collection(source)
+            store = ControlledNetworkGitStore(root / "cache")
+            resolver = self._collection_resolver(source, store)
+            listing = resolver.resolve_members("collection")
+            member = listing.members[0]
+            self.assertEqual(listing.source_revision, revision)
+            attempts = store.fetch_attempts
+            store.fail_fetches = True
+
+            with self.assertRaisesRegex(OfflineCacheMissError, "materialized.*collection"):
+                with use_network_mode("offline"):
+                    resolver.prepare(
+                        "collection",
+                        member_id=member.id,
+                        source_revision=revision,
+                    )
+            self.assertEqual(store.fetch_attempts, attempts)
 
 
 if __name__ == "__main__":
