@@ -1,11 +1,23 @@
 from __future__ import annotations
 
+import shutil
 import threading
+import time
+import uuid
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
 from .catalog import Catalog, ResourceSpec
+from .load_safety import (
+    cfm_marker,
+    cfm_version_dir,
+    compile_budget_bytes,
+    compile_timeout_seconds,
+    current_cfm_version,
+    directory_bytes,
+    source_tf_bytes,
+)
 from .resolver import (
     CollectionMember,
     ContextFabricResolver,
@@ -19,17 +31,35 @@ class ContextFabricService:
     """Client-neutral operations behind Agora's Context-Fabric MCP tools."""
 
     _LIFECYCLE_LOCK_STRIPES = 64
+    _COMPILE_LOCK_TIMEOUT_SECONDS = 0.25
 
-    def __init__(self, catalog: Catalog, resolver: ContextFabricResolver, loader: Any):
+    def __init__(
+        self,
+        catalog: Catalog,
+        resolver: ContextFabricResolver,
+        loader: Any,
+        *,
+        cold_compiler: Any | None = None,
+        cfm_version: str | None = None,
+    ):
         self.catalog = catalog
         self.resolver = resolver
         self.loader = loader
         self.store = getattr(resolver, "store", None)
+        self.cold_compiler = cold_compiler
+        self.cfm_version = (
+            cfm_version
+            if cfm_version is not None
+            else (current_cfm_version() if cold_compiler is not None else None)
+        )
         self._loaded_leases: dict[str, Any] = {}
         self._loaded_names_lock = threading.RLock()
         self._lifecycle_locks = tuple(
             threading.RLock() for _ in range(self._LIFECYCLE_LOCK_STRIPES)
         )
+        self._active_loads: dict[str, dict[str, Any]] = {}
+        self._active_by_path: dict[str, str] = {}
+        self._active_loads_lock = threading.RLock()
 
     @staticmethod
     def _module_dict(module: ResourceSpec, default_version: str | None = None) -> dict[str, Any]:
@@ -188,6 +218,138 @@ class ContextFabricService:
     def _lifecycle_lock(self, logical_name: str) -> threading.RLock:
         return self._lifecycle_locks[hash(logical_name) % len(self._lifecycle_locks)]
 
+    def _warm_marker(self, path: Path) -> Path | None:
+        if self.cold_compiler is None:
+            return None
+        if self.cfm_version is None:
+            raise RuntimeError("Context-Fabric CFM version is unavailable for cold-load safety")
+        return cfm_marker(path, self.cfm_version)
+
+    def _is_warm(self, path: Path) -> bool:
+        marker = self._warm_marker(path)
+        return marker is not None and marker.is_file()
+
+    def _reserve_active_load(
+        self,
+        prepared: PreparedCorpus,
+        *,
+        source_bytes: int,
+        budget_bytes: int,
+        timeout_seconds: float,
+    ) -> tuple[str, threading.Event]:
+        path_key = str(Path(prepared.path).resolve())
+        with self._active_loads_lock:
+            existing_id = self._active_by_path.get(path_key)
+            if existing_id is not None:
+                raise RuntimeError(
+                    f"Context-Fabric cold load is already active for {prepared.logical_name!r} "
+                    f"(load_id={existing_id}); inspect corpus_cache_status instead of retrying"
+                )
+            load_id = uuid.uuid4().hex
+            cancel_event = threading.Event()
+            try:
+                free_bytes = int(shutil.disk_usage(prepared.path).free)
+            except OSError:
+                free_bytes = None
+            self._active_loads[load_id] = {
+                "load_id": load_id,
+                "path_key": path_key,
+                "resource_id": prepared.resource_id,
+                "member_id": prepared.member_id,
+                "logical_name": prepared.logical_name,
+                "path": str(prepared.path),
+                "phase": "preflight",
+                "started_monotonic": time.monotonic(),
+                "source_bytes": source_bytes,
+                "observed_compiled_bytes": (
+                    directory_bytes(cfm_version_dir(prepared.path, self.cfm_version))
+                    if self.cfm_version is not None
+                    else 0
+                ),
+                "compile_budget_bytes": budget_bytes,
+                "observed_free_bytes": free_bytes,
+                "min_free_bytes": int(getattr(self.store, "min_free_bytes", 0)),
+                "timeout_seconds": timeout_seconds,
+                "cancel_event": cancel_event,
+            }
+            self._active_by_path[path_key] = load_id
+            return load_id, cancel_event
+
+    def _update_active(self, load_id: str, **values: Any) -> None:
+        with self._active_loads_lock:
+            record = self._active_loads.get(load_id)
+            if record is not None:
+                record.update(values)
+
+    def _progress_active(self, load_id: str, observation: dict[str, Any]) -> None:
+        allowed = {
+            key: observation[key]
+            for key in (
+                "observed_compiled_bytes",
+                "observed_free_bytes",
+                "elapsed_seconds",
+            )
+            if key in observation
+        }
+        if allowed:
+            self._update_active(load_id, **allowed)
+
+    def _clear_active(self, load_id: str) -> None:
+        with self._active_loads_lock:
+            record = self._active_loads.pop(load_id, None)
+            if record is None:
+                return
+            path_key = str(record["path_key"])
+            if self._active_by_path.get(path_key) == load_id:
+                self._active_by_path.pop(path_key, None)
+
+    def _active_snapshot(self) -> list[dict[str, Any]]:
+        now = time.monotonic()
+        with self._active_loads_lock:
+            records = [dict(record) for record in self._active_loads.values()]
+        result: list[dict[str, Any]] = []
+        for record in records:
+            event = record.pop("cancel_event")
+            started = float(record.pop("started_monotonic"))
+            record.pop("path_key", None)
+            record["elapsed_seconds"] = max(
+                float(record.get("elapsed_seconds", 0.0)),
+                max(0.0, now - started),
+            )
+            record["cancellation_capable"] = record.get("phase") in {
+                "preflight",
+                "compiling",
+            }
+            record["cancellation_requested"] = bool(event.is_set())
+            result.append(record)
+        return sorted(result, key=lambda item: str(item["load_id"]))
+
+    def _cleanup_incomplete_current_cfm(self, path: Path) -> None:
+        if self.cfm_version is None:
+            return
+        marker = cfm_marker(path, self.cfm_version)
+        if marker.is_file():
+            return
+        current = cfm_version_dir(path, self.cfm_version)
+        if not current.exists():
+            return
+        if current.is_symlink() or current.parent.is_symlink():
+            raise RuntimeError(
+                f"refusing to clean unsafe incomplete Context-Fabric cache path: {current}"
+            )
+        try:
+            shutil.rmtree(current)
+        except Exception as exc:
+            raise RuntimeError(
+                "failed to clean incomplete Context-Fabric compiled output; residual path "
+                f"remains at {current}"
+            ) from exc
+        if current.exists():
+            raise RuntimeError(
+                "failed to clean incomplete Context-Fabric compiled output; residual path "
+                f"remains at {current}"
+            )
+
     def list_resources(
         self,
         query: str = "",
@@ -333,40 +495,13 @@ class ContextFabricService:
             ],
         }
 
-    def load(
+    def _parent_warm_load(
         self,
-        resource_id: str,
+        prepared: PreparedCorpus,
+        new_lease: Any,
         *,
-        member_id: str | None = None,
-        version: str | None = None,
-        source_revision: str | None = None,
-        features: str | list[str] | None = None,
-        modules: list[str] | None = None,
+        features: str | list[str] | None,
     ) -> dict[str, Any]:
-        kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
-        if version is not None:
-            kwargs["version"] = version
-        if source_revision is not None:
-            kwargs["source_revision"] = source_revision
-
-        if self.store is None:
-            prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
-            info = self.loader.load(
-                str(prepared.path),
-                name=prepared.logical_name,
-                features=features,
-            )
-            result = self._prepared_dict(prepared, cache_residency="unmanaged")
-            result["corpus"] = self._corpus_info(info)
-            return result
-
-        with self.store.cache_transition():
-            prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
-            new_lease = self.store.acquire_cache_lease(
-                prepared.path,
-                transition_held=True,
-            )
-
         logical_name = prepared.logical_name
         with self._lifecycle_lock(logical_name):
             with self._loaded_names_lock:
@@ -390,6 +525,157 @@ class ContextFabricService:
             result = self._prepared_dict(prepared, cache_residency="leased")
             result["corpus"] = self._corpus_info(info)
             return result
+
+    def load(
+        self,
+        resource_id: str,
+        *,
+        member_id: str | None = None,
+        version: str | None = None,
+        source_revision: str | None = None,
+        features: str | list[str] | None = None,
+        modules: list[str] | None = None,
+        max_compile_gb: float | None = None,
+        max_compile_minutes: float | None = None,
+    ) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
+        if version is not None:
+            kwargs["version"] = version
+        if source_revision is not None:
+            kwargs["source_revision"] = source_revision
+
+        if self.store is None or self.cold_compiler is None:
+            prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
+            info = self.loader.load(
+                str(prepared.path),
+                name=prepared.logical_name,
+                features=features,
+            )
+            result = self._prepared_dict(
+                prepared,
+                cache_residency="unmanaged" if self.store is None else "evictable",
+            )
+            result["corpus"] = self._corpus_info(info)
+            return result
+
+        with self.store.cache_transition():
+            prepared = self.resolver.prepare_with_modules(resource_id, **kwargs)
+            new_lease = self.store.acquire_cache_lease(
+                prepared.path,
+                transition_held=True,
+            )
+
+        active_id: str | None = None
+        installed_lease = False
+        try:
+            if not self._is_warm(prepared.path):
+                source_bytes = source_tf_bytes(prepared.path)
+                budget_bytes = compile_budget_bytes(
+                    source_bytes,
+                    max_compile_gb=max_compile_gb,
+                )
+                timeout_seconds = compile_timeout_seconds(
+                    max_compile_minutes=max_compile_minutes,
+                )
+                active_id, cancel_event = self._reserve_active_load(
+                    prepared,
+                    source_bytes=source_bytes,
+                    budget_bytes=budget_bytes,
+                    timeout_seconds=timeout_seconds,
+                )
+
+                try:
+                    try:
+                        compile_context = self.store.compile_lock(
+                            prepared.path,
+                            timeout=self._COMPILE_LOCK_TIMEOUT_SECONDS,
+                        )
+                        with compile_context:
+                            # Another process can finish between the initial warm
+                            # check and our acquisition of the exact-object lock.
+                            if not self._is_warm(prepared.path):
+                                # Remove only stale/incomplete current-format
+                                # output before assigning this attempt ownership.
+                                self._cleanup_incomplete_current_cfm(prepared.path)
+                                self._update_active(active_id, phase="compiling")
+                                try:
+                                    self.cold_compiler.run(
+                                        path=prepared.path,
+                                        logical_name=prepared.logical_name,
+                                        features=features,
+                                        compile_budget_bytes=budget_bytes,
+                                        timeout_seconds=timeout_seconds,
+                                        min_free_bytes=int(self.store.min_free_bytes),
+                                        cancel_event=cancel_event,
+                                        progress=lambda observation: self._progress_active(
+                                            active_id,
+                                            observation,
+                                        ),
+                                    )
+                                except BaseException as exc:
+                                    try:
+                                        self._cleanup_incomplete_current_cfm(prepared.path)
+                                    except BaseException as cleanup_exc:
+                                        raise RuntimeError(
+                                            "Context-Fabric cold load failed and cleanup also failed; "
+                                            f"residual compiled output may remain under "
+                                            f"{cfm_version_dir(prepared.path, self.cfm_version)}"
+                                        ) from cleanup_exc
+                                    raise exc
+
+                                marker = self._warm_marker(prepared.path)
+                                if marker is None or not marker.is_file():
+                                    self._cleanup_incomplete_current_cfm(prepared.path)
+                                    raise RuntimeError(
+                                        "contained Context-Fabric cold-load worker exited successfully "
+                                        "without the current-format completion marker; refusing to "
+                                        "fall back to an in-process cold compile"
+                                    )
+                            self._update_active(active_id, phase="warm-load")
+                    except TimeoutError as exc:
+                        raise RuntimeError(
+                            "another Agora process is already compiling this exact Context-Fabric "
+                            f"cache object for {prepared.logical_name!r}; retry after it completes"
+                        ) from exc
+                except BaseException:
+                    raise
+
+            result = self._parent_warm_load(
+                prepared,
+                new_lease,
+                features=features,
+            )
+            installed_lease = True
+            return result
+        finally:
+            if active_id is not None:
+                self._clear_active(active_id)
+            if not installed_lease:
+                # _parent_warm_load releases on loader failure. CacheLease.release
+                # is idempotent, so this also covers every pre-warm failure.
+                new_lease.release()
+
+    def cancel_load(self, load_id: str) -> dict[str, Any]:
+        with self._active_loads_lock:
+            record = self._active_loads.get(load_id)
+            if record is None:
+                return {
+                    "found": False,
+                    "load_id": load_id,
+                    "cancellation_requested": False,
+                    "phase": None,
+                }
+            phase = str(record["phase"])
+            event = record["cancel_event"]
+            cancellation_capable = phase in {"preflight", "compiling"}
+            if cancellation_capable:
+                event.set()
+            return {
+                "found": True,
+                "load_id": load_id,
+                "cancellation_requested": bool(event.is_set()) if cancellation_capable else False,
+                "phase": phase,
+            }
 
     def unload(self, logical_name: str) -> dict[str, Any]:
         """Unload one Agora-loaded corpus by the logical name returned by load."""
@@ -428,6 +714,7 @@ class ContextFabricService:
             {"logical_name": name, "path": str(lease.path)}
             for name, lease in sorted(loaded.items())
         ]
+        result["active_loads"] = self._active_snapshot()
         return result
 
     def prune_cache(self, *, target_bytes: int | None = None) -> dict[str, Any]:
@@ -483,11 +770,15 @@ class ContextFabricService:
         source_revision: str | None = None,
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
+        max_compile_gb: float | None = None,
+        max_compile_minutes: float | None = None,
     ) -> dict[str, Any]:
         kwargs: dict[str, Any] = {
             "member_id": member_id,
             "features": features,
             "modules": modules,
+            "max_compile_gb": max_compile_gb,
+            "max_compile_minutes": max_compile_minutes,
         }
         if version is not None:
             kwargs["version"] = version
