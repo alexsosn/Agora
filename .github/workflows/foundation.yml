@@ -170,6 +170,9 @@ jobs:
       - name: Run repository selection atomicity regression
         run: python tests/test_context_fabric_selection_atomicity.py
 
+      - name: Run repository identity transition regression
+        run: python tests/test_context_fabric_repository_transition.py
+
   materializer-install-locks:
     name: Materializer install locks (${{ matrix.os }})
     strategy:
