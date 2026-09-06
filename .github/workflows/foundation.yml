@@ -167,6 +167,9 @@ jobs:
       - name: Run feature-module offline reuse regressions
         run: python tests/test_context_fabric_offline_modules.py
 
+      - name: Run repository selection atomicity regression
+        run: python tests/test_context_fabric_selection_atomicity.py
+
   materializer-install-locks:
     name: Materializer install locks (${{ matrix.os }})
     strategy:
