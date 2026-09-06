@@ -10,6 +10,7 @@ Research: [`P1-research-materializer-lock-protocol-migration.md`](P1-research-ma
 - Preserve mutual exclusion with the #62 advisory-only implementation in both arrival orders.
 - Preserve OS-backed process-death release for modern code.
 - Avoid unlink/recreate races on the historical lock pathname.
+- Preserve the caller's bounded timeout on Windows as well as POSIX.
 - Fail closed for ambiguous empty/unrecognized historical files.
 - Document the migration as intentionally one-way until an explicit quiescent downgrade step is performed.
 
@@ -25,14 +26,15 @@ Research: [`P1-research-materializer-lock-protocol-migration.md`](P1-research-ma
 
 For a historical path such as `.source.lock`:
 
-1. Ensure the parent directory exists.
-2. If the path is absent, create it with `O_CREAT|O_EXCL` and write the fixed marker `agora-materializer-lock-v3\n`.
-3. If the path exists with the exact marker, reuse it as the permanent modern lock object.
-4. If the path exists empty or with unrecognized contents, do not delete or rewrite it. Poll until it disappears or the timeout expires. A persistent state raises actionable migration guidance.
-5. Acquire `portalocker.Lock` on the historical path itself using only the remaining timeout budget.
-6. Re-read the marker after advisory acquisition. If it is no longer the exact v3 marker, release and fail closed.
-7. Enter the critical section.
-8. On normal release or exception, release only the OS advisory lock. Do **not** unlink the historical path.
+1. Ensure the parent directory exists and record one monotonic deadline.
+2. Inspect the pathname with `stat`, without reading file contents.
+3. If the path is absent, create it with `O_CREAT|O_EXCL` and write the fixed marker `agora-materializer-lock-v3\n`, then restart classification.
+4. If the file is not the marker's exact byte length, treat it as ambiguous pre-v3 state. Do not delete, rewrite, or advisory-lock it. Poll until it disappears or the deadline expires.
+5. If the file has the marker's byte length, treat it only as a **candidate** modern lock object; do not read it yet.
+6. Acquire an exclusive `portalocker.Lock` on that historical path using the remaining timeout. Open the lock handle in a readable binary mode.
+7. Through the already acquired handle, read and verify the exact marker. Also compare the locked handle's filesystem identity (`fstat`) with the pathname's current identity (`stat`). If content or identity differs, release and fail closed.
+8. Enter the critical section.
+9. On normal release or exception, release only the OS advisory lock. Do **not** unlink the historical path.
 
 There is no current-only sidecar and no automatic sentinel cleanup.
 
@@ -40,15 +42,17 @@ There is no current-only sidecar and no automatic sentinel cleanup.
 
 ### Pre-#62 → current
 
-If pre-#62 owns the pathname first, current sees an empty/unrecognized file and waits. If the old holder releases and unlinks it, current can create the v3 marker. If current wins the `O_EXCL` creation race, later pre-#62 callers remain excluded by file existence.
+A pre-#62 sentinel is empty. Current code classifies its zero length without opening/locking its bytes and waits. If the old holder releases and unlinks it, current can create the v3 marker. If current wins the `O_EXCL` creation race, later pre-#62 callers remain excluded by file existence.
+
+Avoiding an advisory lock on the live empty sentinel is important on Windows: current code must not hold an open mandatory lock that prevents the pre-#62 holder from unlinking its own sentinel during normal release.
 
 ### #62 ↔ current
 
-Both protocols advisory-lock the same historical pathname. Once the marker has been established, they exclude each other correctly. #62 opens the file in append mode and does not need the file to be empty, so the marker remains compatible with its locking behavior.
+Both protocols advisory-lock the same historical pathname after the v3 marker exists. Once current sees the marker-sized candidate, it lets portalocker perform bounded contention handling before reading the bytes. #62 opens the file in append mode and does not alter existing marker contents, so the persistent marker remains compatible with its locking behavior.
 
 ### Current ↔ current
 
-All current processes advisory-lock the same persistent historical file. Process death releases the OS lock; no cleanup is required.
+All current processes advisory-lock the same persistent historical file. Process death releases the OS lock; no cleanup is required. A contender does not separately read locked bytes before acquisition, so Windows mandatory locking cannot bypass the configured timeout.
 
 ### Downgrade to pre-#62
 
@@ -59,15 +63,17 @@ Pre-#62 cannot run while the v3 marker exists. This is deliberate. A user who in
 The caller's `timeout` is one monotonic budget covering:
 
 - waiting for a pre-v3 ambiguous pathname to disappear; and
-- advisory-lock acquisition on the persistent historical path.
+- advisory-lock acquisition on a candidate persistent historical path.
 
-No phase receives a second full timeout window.
+Metadata classification and post-acquire verification do not create a second wait budget. No potentially mandatory byte read occurs before portalocker owns the candidate file.
 
 ## Marker initialization
 
-The marker is a protocol discriminator, not an owner record. If the process crashes while creating/writing the marker, a partial or empty file may remain. That state is treated conservatively as ambiguous and requires the same manual recovery as historical stale state.
+The marker is a protocol discriminator, not an owner record. If the process crashes while creating/writing the marker, a partial or empty file may remain. Its size is then non-candidate (unless a failure happens after writing exactly the expected byte count), so ordinary current code treats it conservatively as ambiguous and requires the same manual recovery as historical stale state.
 
 Do not unlink a partially initialized path automatically: a #62 process may already have opened that inode.
+
+If a file has the expected marker length but wrong bytes, current code may acquire its advisory lock, but exact post-acquire verification fails before entering the protected section. The locked-handle/path identity check additionally rejects a pathname replacement that occurred while waiting.
 
 ## TDD sequence
 
@@ -77,47 +83,49 @@ Earlier slices established:
 
 - pre-#62/current incompatibility on main;
 - #62/current incompatibility in the first bridge draft;
-- the unsafe unlink/waiter race in the second bridge draft.
+- the unsafe unlink/waiter race in the second bridge draft;
+- one-way persistence semantics in RED/GREEN 4.
 
 Those findings remain documented in the PR review history.
 
-### RED 4 — one-way persistence
+### RED 5 — Windows mandatory-read timeout
 
-Revise/add regressions before simplifying production code:
+The first one-way implementation called `_lock_marker(path)` before advisory acquisition. Exact-head Windows CI showed the installation-lock step remaining active far beyond Linux/macOS because a separate read can block under Windows mandatory locking.
 
-- clean current release leaves the exact v3 marker in place;
-- a pre-#62 `O_EXCL` client remains blocked after current release;
-- a second current operation reuses the same persistent marker;
-- a current crash leaves the marker and later current code reuses it without deleting it;
-- a #62 acquire/release against an established marker preserves the marker;
-- empty/unrecognized legacy state still fails closed.
+Add a regression in which one current process holds a marked lock and a second calls `_lock(timeout=short)`. Assert the contender returns/raises within a bounded margin substantially below the holder's emergency wait. This test passes quickly on POSIX but exposes the pre-lock read on Windows.
 
-These tests must fail against the current three-part bridge because it deletes the historical path after each current operation.
+Retain the existing live-holder release test to prove a waiter still succeeds when the holder releases within the caller's budget.
 
-### GREEN 4
+### GREEN 5
 
-Simplify `_lock` to one persistent historical pathname plus advisory ownership. Remove the sidecar and all clean-release unlink logic. Keep public call sites unchanged.
+- classify missing/legacy/candidate state using `stat` only;
+- use a readable binary portalocker handle for candidate files;
+- verify marker bytes through that acquired handle;
+- verify locked inode/path identity before entering;
+- preserve the persistent pathname and all fail-closed migration rules.
 
 ### Documentation
 
-Update the architecture reference and installer guidance to say:
+The architecture reference and installer guidance must state:
 
 - the marked lock file is permanent modern protocol state, not stale residue;
 - empty/unrecognized pre-v3 files require one-time manual cleanup only after confirming no older operation is running;
-- deliberate downgrade to pre-#62 requires manual marker removal only after confirming no #62/current operation is running.
+- deliberate downgrade to pre-#62 requires manual marker removal only after confirming no #62/current operation is running;
+- modern lock liveness is OS advisory ownership, and marker inspection after migration occurs only after lock acquisition where Windows requires it.
 
 ## Verification gate
 
 Run at minimum:
 
 ```bash
-python -m unittest discover -s tests -p 'test_materializer_install*.py' -v
+python -m unittest discover -s tests -p 'test_materializer_installation.py' -v
+python -m unittest discover -s tests -p 'test_materializer_lock_migration.py' -v
 python scripts/validate_registry.py
 python scripts/generate_marketplaces.py --check
 python scripts/generate_context_fabric_catalog.py --check
 ```
 
-The Foundation `materializer-install-locks` matrix must pass on Ubuntu, macOS, and Windows at the exact PR head.
+The Foundation `materializer-install-locks` matrix must explicitly run both materializer lock test files and pass on Ubuntu, macOS, and Windows at the exact PR head.
 
 ## Independent adversarial review checklist
 
@@ -128,6 +136,8 @@ Review without relying on the implementation rationale and try to falsify:
 - Can current and #62 ever hold the critical section concurrently?
 - Can two current processes enter concurrently after a crash?
 - Can any code path unlink or replace a pathname while a #62 waiter may already have it open?
+- Can Windows block in marker inspection before the timeout machinery is active?
+- Does the locked handle actually verify the exact marker and current pathname identity before entry?
 - Does partial marker initialization fail closed rather than being guessed stale?
 - Is the timeout still one budget?
 - Are backend lock failures still distinguished from ordinary contention?
