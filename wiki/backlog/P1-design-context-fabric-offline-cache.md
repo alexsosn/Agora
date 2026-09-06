@@ -139,13 +139,14 @@ For `source_revision is None`, resolve the collection repository through the nor
 For explicit immutable `source_revision`:
 
 - keep current local cached-repository lookup;
-- verify the commit exists locally;
+- under the per-resource repository lock, verify that the cached Git `origin` still matches the collection's currently configured repository;
+- verify the commit exists locally only after repository identity passes;
 - bind the configured repository URL/path to the exact-revision resolution for any later online snapshot export;
 - do not call current-state remote resolution;
 - prepare the exact member from that commit-bound index;
 - in explicit `offline` mode, require the member snapshot already exists instead of exporting/fetching it.
 
-The caller-selected exact revision is not substituted on cache miss.
+The caller-selected exact revision is not substituted on cache miss, and a commit left in the object database by an obsolete repository configuration is not accepted under a new repository identity.
 
 ### Feature modules
 
@@ -284,6 +285,12 @@ The logically independent final pass then checked the boundary after repository 
 
 Add a deterministic regression that resolves A, resolves B for the same resource id, then materializes A and requires A's payload. The RED result must fail with Git `not our ref` from B. GREEN captures the normalized source URL/path in `RepositoryResolution` and passes it explicitly through `materialize_corpus` / `materialize_feature_module` to the Git snapshot exporter. The GitStore source argument remains optional for backward compatibility, while resolver-owned paths always bind it; explicit collection revisions bind their configured repository too.
 
+### RED/GREEN 8 — exact collection revision cannot cross repository identity
+
+The final identity audit checked the explicit `source_revision` collection path, which deliberately bypasses current-state remote resolution. A stale metadata repository could still contain commit A after the catalog changed the same collection id from repository A to B; resolving that exact SHA succeeded locally and exposed A's collection index under B's resource configuration.
+
+Add a public resolver regression that discovers collection A, reconfigures the same collection id to repository B, and requests A's prior immutable `source_revision`. The RED result must accept the obsolete commit. GREEN takes the per-resource repository lock and verifies the cached Git `origin` against the current configured repository before resolving the SHA. This check remains local and does not turn exact-revision requests into freshness fetches.
+
 ## Test gates
 
 Focused tests must pass before repository-wide tests:
@@ -319,7 +326,7 @@ The final review must re-derive the behavior from current `main` and check:
 4. stale fallback cannot cross repository/ref identity changes;
 5. malformed selection metadata fails closed;
 6. legacy mutable refs are accepted only with unambiguous local evidence;
-7. exact collection `source_revision` is never substituted;
+7. exact collection `source_revision` is never substituted and cannot be accepted from an obsolete repository identity;
 8. module and collection source provenance remains independent and honest;
 9. cache-object lookup respects current sidecar/lease/eviction rules;
 10. `ContextVar` mode scoping cannot leak across requests;
