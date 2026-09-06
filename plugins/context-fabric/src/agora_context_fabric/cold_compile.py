@@ -138,25 +138,31 @@ class ColdCompileSupervisor:
         reserve: int,
         elapsed: float,
         timeout: float,
+        worker_was_running: bool,
     ) -> str:
+        action = (
+            "the worker was stopped"
+            if worker_was_running
+            else "the completed worker result was rejected"
+        )
         if reason == "compiled-output-budget":
             return (
                 "observed Context-Fabric compiled output crossed the configured cold-load "
-                f"threshold ({compiled} > {budget} bytes); the worker was stopped. "
+                f"threshold ({compiled} > {budget} bytes); {action}. "
                 "This is a polling guardrail, so writes may occur between observations. "
                 "Inspect corpus_cache_status and prune_corpus_cache before retrying."
             )
         if reason == "observed-free-space":
             return (
                 "observed free space fell below the configured Context-Fabric host reserve "
-                f"({free} < {reserve} bytes); the worker was stopped. This is an observed "
-                "polling threshold, not a byte-perfect filesystem limit. Inspect "
-                "corpus_cache_status and prune_corpus_cache before retrying."
+                f"({free} < {reserve} bytes); {action}. This is an observed polling "
+                "threshold, not a byte-perfect filesystem limit. Inspect corpus_cache_status "
+                "and prune_corpus_cache before retrying."
             )
         if reason == "timeout":
             return (
                 "observed Context-Fabric cold-load elapsed time crossed the configured "
-                f"threshold ({elapsed:.3f} >= {timeout:.3f} seconds); the worker was stopped."
+                f"threshold ({elapsed:.3f} >= {timeout:.3f} seconds); {action}."
             )
         return f"Context-Fabric cold-load safety limit triggered: {reason}"
 
@@ -232,82 +238,89 @@ class ColdCompileSupervisor:
                 stderr=subprocess.DEVNULL,
             )
 
-            while True:
-                return_code = process.poll()
-                observation = self._observations(path, started)
-                if progress is not None:
-                    progress(dict(observation))
+            try:
+                while True:
+                    return_code = process.poll()
+                    observation = self._observations(path, started)
+                    if progress is not None:
+                        progress(dict(observation))
 
-                compiled = int(observation["observed_compiled_bytes"])
-                free = int(observation["observed_free_bytes"])
-                elapsed = float(observation["elapsed_seconds"])
+                    compiled = int(observation["observed_compiled_bytes"])
+                    free = int(observation["observed_free_bytes"])
+                    elapsed = float(observation["elapsed_seconds"])
 
-                reason: str | None = None
-                if compiled > compile_budget_bytes:
-                    reason = "compiled-output-budget"
-                elif free < min_free_bytes:
-                    reason = "observed-free-space"
-                elif elapsed >= timeout_seconds:
-                    reason = "timeout"
+                    reason: str | None = None
+                    if compiled > compile_budget_bytes:
+                        reason = "compiled-output-budget"
+                    elif free < min_free_bytes:
+                        reason = "observed-free-space"
+                    elif elapsed >= timeout_seconds:
+                        reason = "timeout"
 
-                if reason is not None:
-                    if return_code is None:
-                        self._wait_after_stop(process)
-                    else:
-                        process.wait()
-                    raise ColdCompileLimitError(
-                        self._limit_message(
-                            reason,
-                            compiled=compiled,
-                            budget=compile_budget_bytes,
-                            free=free,
-                            reserve=min_free_bytes,
-                            elapsed=elapsed,
-                            timeout=timeout_seconds,
-                        ),
-                        reason=reason,
-                        observed_compiled_bytes=compiled,
-                        observed_free_bytes=free,
-                        elapsed_seconds=elapsed,
-                    )
-
-                if return_code is not None:
-                    process.wait()
-                    if return_code == 0:
-                        return ColdCompileResult(
-                            elapsed_seconds=elapsed,
+                    if reason is not None:
+                        worker_was_running = return_code is None
+                        if worker_was_running:
+                            self._wait_after_stop(process)
+                        else:
+                            process.wait()
+                        raise ColdCompileLimitError(
+                            self._limit_message(
+                                reason,
+                                compiled=compiled,
+                                budget=compile_budget_bytes,
+                                free=free,
+                                reserve=min_free_bytes,
+                                elapsed=elapsed,
+                                timeout=timeout_seconds,
+                                worker_was_running=worker_was_running,
+                            ),
+                            reason=reason,
                             observed_compiled_bytes=compiled,
                             observed_free_bytes=free,
+                            elapsed_seconds=elapsed,
                         )
-                    diagnostic = self._read_diagnostic(diagnostic_path)
-                    detail = ""
-                    if diagnostic:
-                        kind = diagnostic.get("type")
-                        message = diagnostic.get("message")
-                        rendered = ": ".join(
-                            str(value) for value in (kind, message) if value
-                        )
-                        if rendered:
-                            detail = f" ({rendered})"
-                    raise ColdCompileWorkerError(
-                        f"contained Context-Fabric cold-load worker exited with code "
-                        f"{return_code}{detail}",
-                        reason="worker-error",
-                        observed_compiled_bytes=compiled,
-                        observed_free_bytes=free,
-                        elapsed_seconds=elapsed,
-                        worker_exit_code=int(return_code),
-                        diagnostic=diagnostic,
-                    )
 
-                if cancel_event.is_set():
+                    if return_code is not None:
+                        process.wait()
+                        if return_code == 0:
+                            return ColdCompileResult(
+                                elapsed_seconds=elapsed,
+                                observed_compiled_bytes=compiled,
+                                observed_free_bytes=free,
+                            )
+                        diagnostic = self._read_diagnostic(diagnostic_path)
+                        detail = ""
+                        if diagnostic:
+                            kind = diagnostic.get("type")
+                            message = diagnostic.get("message")
+                            rendered = ": ".join(
+                                str(value) for value in (kind, message) if value
+                            )
+                            if rendered:
+                                detail = f" ({rendered})"
+                        raise ColdCompileWorkerError(
+                            f"contained Context-Fabric cold-load worker exited with code "
+                            f"{return_code}{detail}",
+                            reason="worker-error",
+                            observed_compiled_bytes=compiled,
+                            observed_free_bytes=free,
+                            elapsed_seconds=elapsed,
+                            worker_exit_code=int(return_code),
+                            diagnostic=diagnostic,
+                        )
+
+                    if cancel_event.is_set():
+                        self._wait_after_stop(process)
+                        raise ColdCompileCancelled(
+                            "Context-Fabric cold compilation cancelled; worker death was confirmed",
+                            reason="cancelled",
+                            observed_compiled_bytes=compiled,
+                            observed_free_bytes=free,
+                            elapsed_seconds=elapsed,
+                        )
+
+                    self._sleep(self.poll_interval)
+            except BaseException:
+                if process.poll() is None:
                     self._wait_after_stop(process)
-                    raise ColdCompileCancelled(
-                        "Context-Fabric cold compilation cancelled; worker death was confirmed",
-                        reason="cancelled",
-                        observed_compiled_bytes=compiled,
-                        observed_free_bytes=free,
-                        elapsed_seconds=elapsed,
-                    )
-
-                self._sleep(self.poll_interval)
+                raise
