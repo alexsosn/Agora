@@ -369,3 +369,76 @@ def resolve_repository(
         resolution="fresh",
         allow_network=True,
     )
+
+
+def _cached_object(
+    store: GitStore,
+    *,
+    resource_id: str,
+    revision: str,
+    relative_path: str,
+    kind: str,
+) -> Path:
+    for entry in store.cache_entries(resource_id):
+        if (
+            entry.get("kind") == kind
+            and entry.get("revision") == revision
+            and entry.get("relative_path") == relative_path
+        ):
+            path = Path(str(entry["path"]))
+            store.touch_cache_object(path)
+            return path
+    raise OfflineCacheMissError(
+        f"materialized cache for Context-Fabric resource {resource_id!r} at revision {revision} "
+        "is not available; network access is required to acquire the missing corpus bytes"
+    )
+
+
+def materialize_corpus(
+    store: GitStore,
+    resolution: RepositoryResolution,
+    *,
+    resource_id: str,
+    relative_path: str,
+) -> Path:
+    if current_network_mode() == "offline" or not resolution.allow_network:
+        return _cached_object(
+            store,
+            resource_id=resource_id,
+            revision=resolution.revision,
+            relative_path=relative_path,
+            kind="corpus-snapshot",
+        )
+    try:
+        return store.materialize(resolution.path, relative_path, resolution.revision)
+    except subprocess.CalledProcessError as exc:
+        if is_connectivity_failure(exc):
+            raise _network_error(resource_id) from exc
+        raise _remote_error(resource_id, exc) from exc
+
+
+def materialize_feature_module(
+    store: GitStore,
+    resolution: RepositoryResolution,
+    *,
+    resource_id: str,
+    relative_path: str,
+) -> Path:
+    if current_network_mode() == "offline" or not resolution.allow_network:
+        return _cached_object(
+            store,
+            resource_id=resource_id,
+            revision=resolution.revision,
+            relative_path=relative_path,
+            kind="feature-module-snapshot",
+        )
+    try:
+        return store.materialize_feature_module(
+            resolution.path,
+            relative_path,
+            resolution.revision,
+        )
+    except subprocess.CalledProcessError as exc:
+        if is_connectivity_failure(exc):
+            raise _network_error(resource_id) from exc
+        raise _remote_error(resource_id, exc) from exc
