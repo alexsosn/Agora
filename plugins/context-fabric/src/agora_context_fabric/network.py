@@ -276,6 +276,40 @@ def _selection_matches(
     return _legacy_fetch_head_matches(repo, configured_ref, revision)
 
 
+@contextmanager
+def _repository_selection_transaction(
+    store: GitStore,
+    *,
+    resource_id: str,
+    repository: str,
+    configured_ref: str | None,
+) -> Iterator[tuple[Path, str]]:
+    """Select one upstream revision while holding the repository mutation lock.
+
+    GitStore.ensure_metadata() historically releases this lock before callers can
+    read refs/agora/selected. Freshness provenance must bind to the exact revision
+    chosen by this request, so clone/fetch/select, revision capture, and selection
+    record persistence are kept inside one cross-process critical section here.
+    """
+    key = store.safe_cache_key(resource_id)
+    repo = store.repositories_dir / key
+    with store._repository_lock(key):
+        if not (repo / ".git").is_dir():
+            source = store.repository_url(repository)
+            store._run(
+                "clone",
+                "--quiet",
+                "--filter=blob:none",
+                "--no-checkout",
+                "--depth",
+                "1",
+                source,
+                str(repo),
+            )
+        revision = store._select(repo, configured_ref)
+        yield repo, revision
+
+
 def _cached_resolution(
     store: GitStore,
     *,
@@ -283,40 +317,42 @@ def _cached_resolution(
     repository: str,
     configured_ref: str | None,
 ) -> RepositoryResolution:
-    repo = store.repositories_dir / store.safe_cache_key(resource_id)
-    if not (repo / ".git").is_dir():
-        raise OfflineCacheMissError(
-            f"Context-Fabric resource {resource_id!r} is not cached; network access is required for acquisition"
+    key = store.safe_cache_key(resource_id)
+    repo = store.repositories_dir / key
+    with store._repository_lock(key):
+        if not (repo / ".git").is_dir():
+            raise OfflineCacheMissError(
+                f"Context-Fabric resource {resource_id!r} is not cached; network access is required for acquisition"
+            )
+        try:
+            revision = store.selected_revision(repo)
+        except subprocess.CalledProcessError as exc:
+            raise OfflineCacheMissError(
+                f"Context-Fabric resource {resource_id!r} has no cached selected revision; network access is required"
+            ) from exc
+        if not _selection_matches(
+            store,
+            repo,
+            repository=repository,
+            configured_ref=configured_ref,
+            revision=revision,
+        ):
+            raise OfflineCacheMissError(
+                f"cached metadata for Context-Fabric resource {resource_id!r} does not match its configured "
+                "repository/ref; network access is required"
+            )
+        immutable = bool(
+            configured_ref
+            and _IMMUTABLE_REVISION_RE.fullmatch(configured_ref)
+            and configured_ref.casefold() == revision.casefold()
         )
-    try:
-        revision = store.selected_revision(repo)
-    except subprocess.CalledProcessError as exc:
-        raise OfflineCacheMissError(
-            f"Context-Fabric resource {resource_id!r} has no cached selected revision; network access is required"
-        ) from exc
-    if not _selection_matches(
-        store,
-        repo,
-        repository=repository,
-        configured_ref=configured_ref,
-        revision=revision,
-    ):
-        raise OfflineCacheMissError(
-            f"cached metadata for Context-Fabric resource {resource_id!r} does not match its configured "
-            "repository/ref; network access is required"
+        return RepositoryResolution(
+            path=repo,
+            revision=revision,
+            source_revision_verified=immutable,
+            resolution="cached",
+            allow_network=False,
         )
-    immutable = bool(
-        configured_ref
-        and _IMMUTABLE_REVISION_RE.fullmatch(configured_ref)
-        and configured_ref.casefold() == revision.casefold()
-    )
-    return RepositoryResolution(
-        path=repo,
-        revision=revision,
-        source_revision_verified=immutable,
-        resolution="cached",
-        allow_network=False,
-    )
 
 
 def resolve_repository(
@@ -336,11 +372,18 @@ def resolve_repository(
         )
 
     try:
-        kwargs: dict[str, Any] = {"cache_key": resource_id}
-        if configured_ref is not None:
-            kwargs["ref"] = configured_ref
-        repo = store.ensure_metadata(repository, **kwargs)
-        revision = store.selected_revision(repo)
+        with _repository_selection_transaction(
+            store,
+            resource_id=resource_id,
+            repository=repository,
+            configured_ref=configured_ref,
+        ) as (repo, revision):
+            _write_selection_record(
+                repo,
+                repository=repository,
+                configured_ref=configured_ref,
+                revision=revision,
+            )
     except subprocess.CalledProcessError as exc:
         if not is_connectivity_failure(exc):
             raise _remote_error(resource_id, exc) from exc
@@ -356,12 +399,6 @@ def resolve_repository(
                 pass
         raise _network_error(resource_id) from exc
 
-    _write_selection_record(
-        repo,
-        repository=repository,
-        configured_ref=configured_ref,
-        revision=revision,
-    )
     return RepositoryResolution(
         path=repo,
         revision=revision,
