@@ -113,13 +113,15 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
             "member_id": member_id,
             "features": features,
             "modules": modules,
-            "max_compile_gb": max_compile_gb,
-            "max_compile_minutes": max_compile_minutes,
         }
         if version is not None:
             kwargs["version"] = version
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
+        if max_compile_gb is not None:
+            kwargs["max_compile_gb"] = max_compile_gb
+        if max_compile_minutes is not None:
+            kwargs["max_compile_minutes"] = max_compile_minutes
         return service.load(resource_id, **kwargs)
 
     @mcp.tool()
