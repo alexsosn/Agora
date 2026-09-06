@@ -13,6 +13,7 @@ import subprocess
 import sys
 import sysconfig
 import tempfile
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,6 +38,9 @@ GIT_TIMEOUT_SECONDS = 120
 PIP_TIMEOUT_SECONDS = 600
 PIP_PROBE_TIMEOUT_SECONDS = 60
 LOCK_WAIT_SECONDS = 60
+LOCK_POLL_SECONDS = 0.05
+LOCK_PROTOCOL_MARKER = "agora-materializer-lock-v3\n"
+LOCK_CURRENT_SUFFIX = ".current"
 RUNTIME_TREE_EXCLUDES = {
     ".git", ".hg", ".svn", "__pycache__", ".pytest_cache", ".mypy_cache",
     ".ruff_cache", ".tox", ".nox", ".venv", "venv",
@@ -161,40 +165,129 @@ def _release_quietly(lock: portalocker.Lock) -> None:
         pass
 
 
+def _lock_sidecar(path: Path) -> Path:
+    return path.with_name(path.name + LOCK_CURRENT_SUFFIX)
+
+
+def _sentinel_snapshot(path: Path) -> tuple[str | None, tuple[int, int] | None]:
+    """Read a visible sentinel and bind the read to its filesystem identity."""
+    try:
+        with path.open("rb") as fh:
+            stat = os.fstat(fh.fileno())
+            raw = fh.read(len(LOCK_PROTOCOL_MARKER.encode("ascii")) + 1)
+    except FileNotFoundError:
+        return None, None
+    except OSError:
+        return "", None
+    try:
+        text = raw.decode("ascii")
+    except UnicodeDecodeError:
+        text = ""
+    return text, (stat.st_dev, stat.st_ino)
+
+
+def _unlink_matching_sentinel(path: Path, identity: tuple[int, int] | None) -> bool:
+    """Best-effort guard against unlinking a sentinel replaced after inspection."""
+    if identity is None:
+        return False
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        return True
+    if (stat.st_dev, stat.st_ino) != identity:
+        return False
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+    return True
+
+
+def _create_current_sentinel(path: Path) -> tuple[int, int]:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    identity: tuple[int, int] | None = None
+    try:
+        stat = os.fstat(fd)
+        identity = (stat.st_dev, stat.st_ino)
+        with os.fdopen(fd, "w", encoding="ascii", closefd=False) as fh:
+            fh.write(LOCK_PROTOCOL_MARKER)
+            fh.flush()
+        os.close(fd)
+        fd = -1
+        return identity
+    except Exception:
+        if fd >= 0:
+            os.close(fd)
+        _unlink_matching_sentinel(path, identity)
+        raise
+
+
 @contextmanager
 def _lock(path: Path, *, timeout: float = LOCK_WAIT_SECONDS) -> Iterator[None]:
-    """Hold an OS-backed exclusive advisory lock for the duration of the block.
+    """Hold a mixed-version-safe materializer installation lock.
 
-    The lock is owned by the operating system rather than by the existence of a
-    lock file, so an installer that is killed or crashes releases it. A leftover
-    lock file therefore never wedges later installations.
+    Current installers serialize on a separate OS-backed advisory lock and also
+    create the legacy-visible ``O_EXCL`` sentinel while mutating. The visible
+    sentinel keeps pre-#62 installers out; removing it on clean release prevents
+    current runs from permanently wedging those older checkouts.
+
+    A marked visible sentinel can only be stale current-protocol crash residue
+    once this process owns the sidecar. Empty or unrecognized sentinels are
+    ambiguous with a live pre-migration holder, so they are never auto-deleted.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
+    timeout = max(0.0, float(timeout))
+    started = time.monotonic()
+    deadline = started + timeout
     lock = portalocker.Lock(
-        str(path),
+        str(_lock_sidecar(path)),
         mode="a",
         timeout=timeout,
-        check_interval=0.05,
+        check_interval=LOCK_POLL_SECONDS,
         flags=portalocker.LockFlags.EXCLUSIVE | portalocker.LockFlags.NON_BLOCKING,
     )
     try:
         lock.acquire()
     except portalocker.exceptions.AlreadyLocked as exc:
-        # Contention: portalocker retried until the timeout expired.
         _release_quietly(lock)
         raise MaterializerInstallError(
             f"another materializer operation is holding {path} after waiting {timeout:g}s"
         ) from exc
     except portalocker.exceptions.LockException as exc:
-        # A permanent backend failure (no locking support, refused flags).
-        # portalocker raises it immediately, so no waiting happened and no
-        # other installer is implied.
         _release_quietly(lock)
         raise MaterializerInstallError(
             f"could not acquire the materializer lock {path}: {exc}"
         ) from exc
+
+    sentinel_identity: tuple[int, int] | None = None
     try:
-        yield
+        while sentinel_identity is None:
+            try:
+                sentinel_identity = _create_current_sentinel(path)
+                break
+            except FileExistsError:
+                marker, identity = _sentinel_snapshot(path)
+                if marker is None:
+                    continue
+                if marker == LOCK_PROTOCOL_MARKER and _unlink_matching_sentinel(path, identity):
+                    continue
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise MaterializerInstallError(
+                        f"legacy or pre-migration materializer lock file {path} is still present "
+                        f"after waiting {timeout:g}s; it may belong to an older Agora checkout. "
+                        "Confirm no older materializer operation is running before removing this "
+                        "lock file once to recover stale pre-#63/#62 state."
+                    )
+                time.sleep(min(LOCK_POLL_SECONDS, remaining))
+
+        try:
+            yield
+        finally:
+            if sentinel_identity is not None and not _unlink_matching_sentinel(path, sentinel_identity):
+                raise MaterializerInstallError(
+                    f"materializer lock sentinel {path} changed while held; refusing to remove a replacement"
+                )
     finally:
         lock.release()
 
