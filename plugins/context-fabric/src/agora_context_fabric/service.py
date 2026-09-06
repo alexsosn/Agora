@@ -321,6 +321,8 @@ class ContextFabricService:
             "version": prepared.version,
             "path": str(prepared.path),
             "source_revision": prepared.source_revision,
+            "source_revision_verified": prepared.source_revision_verified,
+            "resolution": prepared.resolution,
             "cache_residency": cache_residency,
             "modules": [
                 {
@@ -328,6 +330,8 @@ class ContextFabricService:
                     "module": module.module_path,
                     "relative_path": module.relative_path,
                     "source_revision": module.source_revision,
+                    "source_revision_verified": module.source_revision_verified,
+                    "resolution": module.resolution,
                 }
                 for module in prepared.modules
             ],
