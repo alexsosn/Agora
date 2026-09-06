@@ -40,7 +40,6 @@ PIP_PROBE_TIMEOUT_SECONDS = 60
 LOCK_WAIT_SECONDS = 60
 LOCK_POLL_SECONDS = 0.05
 LOCK_PROTOCOL_MARKER = "agora-materializer-lock-v3\n"
-LOCK_CURRENT_SUFFIX = ".current"
 RUNTIME_TREE_EXCLUDES = {
     ".git", ".hg", ".svn", "__pycache__", ".pytest_cache", ".mypy_cache",
     ".ruff_cache", ".tox", ".nox", ".venv", "venv",
@@ -165,10 +164,6 @@ def _release_quietly(lock: portalocker.Lock) -> None:
         pass
 
 
-def _lock_sidecar(path: Path) -> Path:
-    return path.with_name(path.name + LOCK_CURRENT_SUFFIX)
-
-
 def _new_advisory_lock(path: Path, *, timeout: float) -> portalocker.Lock:
     return portalocker.Lock(
         str(path),
@@ -198,122 +193,87 @@ def _acquire_advisory_lock(
     return lock
 
 
-def _sentinel_snapshot(path: Path) -> tuple[str | None, tuple[int, int] | None]:
-    """Read a visible sentinel and bind the read to its filesystem identity."""
+def _lock_marker(path: Path) -> str | None:
     try:
         with path.open("rb") as fh:
-            stat = os.fstat(fh.fileno())
             raw = fh.read(len(LOCK_PROTOCOL_MARKER.encode("ascii")) + 1)
     except FileNotFoundError:
-        return None, None
+        return None
     except OSError:
-        return "", None
+        return ""
     try:
-        text = raw.decode("ascii")
+        return raw.decode("ascii")
     except UnicodeDecodeError:
-        text = ""
-    return text, (stat.st_dev, stat.st_ino)
+        return ""
 
 
-def _unlink_matching_sentinel(path: Path, identity: tuple[int, int] | None) -> bool:
-    """Best-effort guard against unlinking a sentinel replaced after inspection."""
-    if identity is None:
-        return False
-    try:
-        stat = path.stat()
-    except FileNotFoundError:
-        return True
-    if (stat.st_dev, stat.st_ino) != identity:
-        return False
-    try:
-        path.unlink()
-    except FileNotFoundError:
-        pass
-    return True
+def _create_lock_marker(path: Path) -> None:
+    """Create the permanent modern lock object without unsafe cleanup on failure.
 
-
-def _create_current_sentinel(path: Path) -> tuple[int, int]:
+    Once the pathname exists, a #62 process may already have opened its inode.
+    If marker initialization fails or the process dies mid-write, leave the
+    resulting ambiguous file in place so later runs fail closed instead of
+    unlinking an inode another generation may be waiting on.
+    """
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    identity: tuple[int, int] | None = None
     try:
-        stat = os.fstat(fd)
-        identity = (stat.st_dev, stat.st_ino)
-        with os.fdopen(fd, "w", encoding="ascii", closefd=False) as fh:
-            fh.write(LOCK_PROTOCOL_MARKER)
-            fh.flush()
+        payload = LOCK_PROTOCOL_MARKER.encode("ascii")
+        offset = 0
+        while offset < len(payload):
+            written = os.write(fd, payload[offset:])
+            if written <= 0:
+                raise OSError("short write while initializing materializer lock marker")
+            offset += written
+    finally:
         os.close(fd)
-        fd = -1
-        return identity
-    except Exception:
-        if fd >= 0:
-            os.close(fd)
-        _unlink_matching_sentinel(path, identity)
-        raise
 
 
 @contextmanager
 def _lock(path: Path, *, timeout: float = LOCK_WAIT_SECONDS) -> Iterator[None]:
-    """Hold a mixed-version-safe materializer installation lock.
+    """Hold the persistent one-way materializer installation lock.
 
-    Current installers serialize on an OS-backed sidecar, create the historical
-    ``O_EXCL`` sentinel to exclude pre-#62 clients, and advisory-lock that same
-    visible path to exclude the advisory-only implementation introduced by #62.
-    Marked current-protocol crash residue can be reused after both advisory locks
-    are acquired; empty or unrecognized historical sentinels remain ambiguous
-    with a live pre-#62 holder and are never auto-deleted.
+    Before migration, ``O_EXCL`` creation coordinates with pre-#62 sentinel
+    clients. Once the v3 marker exists it is never automatically removed:
+    pathname existence deliberately excludes pre-#62 code, while current and
+    #62 implementations serialize on the advisory lock of that same file.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     timeout = max(0.0, float(timeout))
     deadline = time.monotonic() + timeout
-    sidecar = _acquire_advisory_lock(
-        _lock_sidecar(path), timeout=timeout, display_path=path
-    )
-    visible_lock: portalocker.Lock | None = None
-    sentinel_identity: tuple[int, int] | None = None
-    try:
-        while sentinel_identity is None:
+
+    while True:
+        marker = _lock_marker(path)
+        if marker == LOCK_PROTOCOL_MARKER:
+            break
+        if marker is None:
             try:
-                sentinel_identity = _create_current_sentinel(path)
+                _create_lock_marker(path)
             except FileExistsError:
-                marker, identity = _sentinel_snapshot(path)
-                if marker is None:
-                    continue
-                if marker == LOCK_PROTOCOL_MARKER:
-                    sentinel_identity = identity
-                else:
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise MaterializerInstallError(
-                            f"legacy or pre-migration materializer lock file {path} is still present "
-                            f"after waiting {timeout:g}s; it may belong to an older Agora checkout. "
-                            "Confirm no older materializer operation is running before removing this "
-                            "lock file once to recover stale pre-#63/#62 state."
-                        )
-                    time.sleep(min(LOCK_POLL_SECONDS, remaining))
-                    continue
-
-        remaining = max(0.0, deadline - time.monotonic())
-        visible_lock = _acquire_advisory_lock(path, timeout=remaining, display_path=path)
-        marker, identity = _sentinel_snapshot(path)
-        if marker != LOCK_PROTOCOL_MARKER or identity != sentinel_identity:
+                continue
+            marker = _lock_marker(path)
+            if marker == LOCK_PROTOCOL_MARKER:
+                break
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
             raise MaterializerInstallError(
-                f"materializer lock sentinel {path} changed while acquiring the lock; refusing to proceed"
+                f"legacy or pre-migration materializer lock file {path} is still present "
+                f"after waiting {timeout:g}s; it may belong to an older Agora checkout or be "
+                "stale pre-v3 state. Confirm no older materializer operation is running before "
+                "removing this file once to migrate. A v3 marker should remain in place during "
+                "normal operation."
             )
+        time.sleep(min(LOCK_POLL_SECONDS, remaining))
 
-        try:
-            yield
-        finally:
-            cleanup_ok = _unlink_matching_sentinel(path, sentinel_identity)
-            _release_quietly(visible_lock)
-            visible_lock = None
-            if not cleanup_ok:
-                raise MaterializerInstallError(
-                    f"materializer lock sentinel {path} changed while held; refusing to remove a replacement"
-                )
+    remaining = max(0.0, deadline - time.monotonic())
+    lock = _acquire_advisory_lock(path, timeout=remaining, display_path=path)
+    try:
+        if _lock_marker(path) != LOCK_PROTOCOL_MARKER:
+            raise MaterializerInstallError(
+                f"materializer lock marker {path} changed while acquiring the lock; refusing to proceed"
+            )
+        yield
     finally:
-        if visible_lock is not None:
-            _release_quietly(visible_lock)
-        sidecar.release()
+        lock.release()
 
 
 def _write_json(path: Path, value: Any) -> None:
