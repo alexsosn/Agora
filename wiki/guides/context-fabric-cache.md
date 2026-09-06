@@ -1,0 +1,51 @@
+# Context-Fabric cache and cold-load safety
+
+Agora acquires registered Text-Fabric corpora lazily into its managed Context-Fabric cache. A first load can require Context-Fabric to compile `.tf` source files into its current `.cfm` format; later loads of a valid current-format cache use the normal warm upstream loader path.
+
+## Cold compilation guardrails
+
+Agora runs cold Context-Fabric compilation in a separate worker process. The worker calls the pinned public `cfabric_mcp.corpus_manager.load(...)` operation with the same corpus path, logical name, and requested features. Agora does not replace or modify Context-Fabric's corpus semantics.
+
+Before starting a cold worker, Agora measures the direct `*.tf` files in the prepared corpus directory and requires enough free space for the selected compile budget while preserving the configured host reserve. While the worker runs, Agora polls compiled output size, free disk space, elapsed time, and cancellation state. If an observed threshold is crossed, Agora stops and reaps the worker before cleaning incomplete current-format derived output.
+
+These are polling guardrails, not filesystem quotas. Writes can occur between observations. The minimum-free-space reserve is retained as safety headroom rather than advertised as an exact residual-byte guarantee.
+
+## Defaults
+
+The server-side defaults are:
+
+- `AGORA_CORPUS_MIN_FREE_GB=6` — minimum host free-space reserve. Per-load options cannot disable it.
+- `AGORA_CORPUS_COMPILE_MAX_MULTIPLIER=16` — default compiled-output budget multiplier applied to direct prepared `.tf` bytes.
+- `AGORA_CORPUS_COMPILE_MIN_GB=0.25` — minimum default compiled-output budget.
+- `AGORA_CORPUS_COMPILE_MAX_MINUTES=60` — default cold-worker wall-time limit.
+
+The default compiled-output budget is `max(0.25 GiB, source_tf_bytes × 16)`. All configured multiplier/minimum/time values must be positive finite numbers. `AGORA_CORPUS_MIN_FREE_GB` follows the cache lifecycle configuration and may be set to zero only through explicit server configuration; a `load_corpus` call cannot reduce it.
+
+## Per-load controls
+
+`load_corpus` accepts two optional positive values for cold loads:
+
+- `max_compile_gb` — override the observed compiled-output budget for this load.
+- `max_compile_minutes` — override the cold-worker wall-time limit for this load.
+
+Omitting these fields keeps the server defaults. Warm current-format loads do not pay the cold-worker/preflight path.
+
+## Status and cancellation
+
+`corpus_cache_status` includes `active_loads` for cold work owned by the current Agora server process. Active records include the load ID, resource/member/logical name, phase, elapsed time, source bytes, observed compiled bytes, compile budget, observed free bytes, configured reserve, and cancellation state.
+
+Call `cancel_corpus_load(load_id)` with a reported ID to request cancellation. Cancellation is process-local and idempotent while the load is cancellable. A separate Agora process cannot cancel another process's worker, but an OS-backed compile lock prevents it from starting a second cold compiler for the same exact managed cache object.
+
+If a client disconnects or times out, the worker does not become unbounded background work: server-side disk and time monitoring continues until the worker exits or is stopped.
+
+## Failure cleanup
+
+After a failed, cancelled, or limited cold worker has died, Agora removes only incomplete `.cfm/<current-format-version>` derived output for that exact prepared cache object. It does not remove direct `.tf` source files or other `.cfm` format versions. A successful worker must leave the current-format `meta.json` completion marker before Agora invokes the normal in-process loader.
+
+If the completion marker exists but the compiled cache is corrupt, the pinned Context-Fabric warm loader raises its own load error; Agora does not silently fall back to a main-process cold compile.
+
+## Reclaiming cache space
+
+Use `corpus_cache_status` to inspect cache usage and active leases. `prune_corpus_cache` reclaims unused managed cache objects while respecting active leases and the configured free-space guardrail. `remove_cached_corpus` removes matching unused objects for a selected registered resource.
+
+Agora's cache is deliberately managed independently from conventional user Text-Fabric data directories. Clearing Agora's cache therefore discards Agora-managed compiled artifacts; another Text-Fabric installation does not implicitly share them.
