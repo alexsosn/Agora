@@ -24,7 +24,7 @@ Consequences:
 
 ### #62
 
-PR #62 replaced sentinel ownership with `portalocker.Lock(path, mode="a", EXCLUSIVE|NON_BLOCKING)`. The OS releases ownership on process death, while the pathname remains.
+PR #62 replaced sentinel ownership with `portalocker.Lock(path, mode="a", EXCLUSIVE|NONBLOCKING)`. The OS releases ownership on process death, while the pathname remains.
 
 Consequences:
 
@@ -32,10 +32,11 @@ Consequences:
 - a live pre-#62 holder does not exclude a #62 process because the old holder takes no advisory lock;
 - an empty #62 lock file permanently excludes a later pre-#62 `O_EXCL` client.
 
-Portalocker documents that POSIX locks are advisory and that `Lock` leaves the lock file in place:
+Portalocker documents the relevant platform behavior:
 
-- https://portalocker.readthedocs.io/en/latest/platforms.html
-- https://portalocker.readthedocs.io/en/latest/lock-types.html#lock
+- POSIX locking is advisory: https://portalocker.readthedocs.io/en/latest/platforms.html
+- Windows exclusive locking is mandatory and uses `msvcrt` by default: https://portalocker.readthedocs.io/en/latest/platforms.html
+- `Lock` releases/ closes its handle but leaves the file in place: https://portalocker.readthedocs.io/en/latest/lock-types.html#lock
 
 ## Irreducible ambiguity
 
@@ -86,6 +87,21 @@ Current code and #62 both acquire the OS advisory lock on that same historical p
 
 Pre-#62 `O_EXCL` clients cannot run after the marker has been established. That is deliberate. A downgrade across the boundary requires manual removal of the marker only after confirming that no #62/current materializer operation is running.
 
+## Windows verification constraint
+
+The first one-way implementation still read the v3 marker through a fresh file handle **before** calling `portalocker.Lock.acquire()`. That is harmless on ordinary POSIX filesystems because the lock is advisory, but it is wrong on Windows: portalocker's exclusive Windows lock is mandatory, so a separate read of a byte range owned by a live modern holder can block before Agora's timeout/retry machinery runs.
+
+The exact-head Windows CI exposed this as an installation-lock step that remained in progress far longer than Linux/macOS. A bounded lock API cannot perform any potentially mandatory read before it has acquired ownership.
+
+The safe acquisition order on a migrated root is therefore:
+
+1. use pathname metadata that does not read the locked bytes (specifically regular-file size) to distinguish the known empty legacy state from a candidate v3 marker object;
+2. for a candidate marker-sized file, acquire the advisory lock on that historical path using the remaining timeout budget;
+3. verify the exact marker through the **already acquired readable lock handle**, not a second handle;
+4. compare the locked handle's filesystem identity with the current pathname before entering, so a replacement while waiting cannot silently split ownership across two inodes.
+
+A zero-length or other non-candidate legacy file remains in the pre-migration waiting/fail-closed path and is never advisory-locked by current code; that matters on Windows because locking such a live pre-#62 file could prevent the old holder from unlinking it on normal release.
+
 ## Race analysis
 
 ### Pre-#62 wins creation first
@@ -119,6 +135,8 @@ The implementation should prove:
 - once the marker exists, a pre-#62 `O_EXCL` client remains excluded even after current releases;
 - a live #62 advisory holder blocks current code;
 - a live current holder blocks a #62 advisory client;
+- a short current timeout remains short on Windows rather than blocking in marker inspection;
+- a current waiter succeeds after a live holder releases within its timeout;
 - current clean release leaves the exact v3 marker in place;
 - a current crash leaves the same marker and a later current operation reuses it without deleting/replacing it;
 - a #62 acquire/release against an established marker leaves the marker intact;
@@ -127,4 +145,4 @@ The implementation should prove:
 
 ## Conclusion
 
-A safe transparent bridge back to pre-#62 after modern code has used the root is impossible because queued #62 advisory waiters cannot be observed before pathname deletion. The robust policy is a one-way migration: establish a persistent self-identifying historical path, serialize #62/current processes with its advisory lock, and deliberately exclude pre-#62 clients until a user performs an explicit quiescent downgrade step.
+A safe transparent bridge back to pre-#62 after modern code has used the root is impossible because queued #62 advisory waiters cannot be observed before pathname deletion. The robust policy is a one-way migration: establish a persistent self-identifying historical path, serialize #62/current processes with its advisory lock, deliberately exclude pre-#62 clients until an explicit quiescent downgrade, and perform marker verification only through the acquired lock handle so Windows mandatory locking cannot bypass the timeout contract.
