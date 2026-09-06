@@ -17,6 +17,13 @@ from .collection_index import (
     member_identity_path,
 )
 from .gitstore import GitStore
+from .network import (
+    RepositoryResolution,
+    current_network_mode,
+    materialize_corpus,
+    materialize_feature_module,
+    resolve_repository,
+)
 
 
 _IMMUTABLE_REVISION_RE = re.compile(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\Z")
@@ -164,18 +171,19 @@ class ContextFabricResolver:
             self._collection_indexes = CollectionIndexManager(self.store)
         return self._collection_indexes
 
-    def _repo(self, resource: ResourceSpec) -> tuple[Path, str]:
-        kwargs = {"cache_key": resource.id}
-        if resource.ref is not None:
-            kwargs["ref"] = resource.ref
-        repo = self.store.ensure_metadata(resource.repository, **kwargs)
-        return repo, self.store.selected_revision(repo)
+    def _repo(self, resource: ResourceSpec) -> RepositoryResolution:
+        return resolve_repository(
+            self.store,
+            resource_id=resource.id,
+            repository=resource.repository,
+            configured_ref=resource.ref,
+        )
 
     def _collection_repo(
         self,
         resource: ResourceSpec,
         source_revision: str | None,
-    ) -> tuple[Path, str]:
+    ) -> RepositoryResolution:
         if source_revision is None:
             return self._repo(resource)
         if not _IMMUTABLE_REVISION_RE.fullmatch(source_revision):
@@ -196,7 +204,13 @@ class ContextFabricResolver:
                 f"source revision {source_revision!r} is not available in the cached repository "
                 f"for collection {resource.id!r}; no fallback to current upstream state was attempted"
             ) from exc
-        return repo, resolved
+        return RepositoryResolution(
+            path=repo,
+            revision=resolved,
+            source_revision_verified=True,
+            resolution="cached",
+            allow_network=current_network_mode() != "offline",
+        )
 
     def _collection_index(
         self,
@@ -287,8 +301,8 @@ class ContextFabricResolver:
         resource = self.catalog.get(resource_id)
         if resource.kind != "corpus":
             raise ValueError(f"resource {resource_id!r} is not a corpus")
-        repo, revision = self._repo(resource)
-        roots = self.store.dataset_roots(repo, revision)
+        resolution = self._repo(resource)
+        roots = self.store.dataset_roots(resolution.path, resolution.revision)
         if resource.tf_path is not None:
             relative = self._select_resource_root(resource, roots)
             return (dataset_version(relative),)
@@ -298,8 +312,11 @@ class ContextFabricResolver:
         resource = self.catalog.get(resource_id)
         if resource.kind != "corpus":
             raise ValueError(f"resource {resource_id!r} is not a corpus")
-        repo, revision = self._repo(resource)
-        relative = self._select_resource_root(resource, self.store.dataset_roots(repo, revision))
+        resolution = self._repo(resource)
+        relative = self._select_resource_root(
+            resource,
+            self.store.dataset_roots(resolution.path, resolution.revision),
+        )
         return dataset_version(relative)
 
     def resolve_members(
@@ -312,15 +329,15 @@ class ContextFabricResolver:
         resource = self.catalog.get(resource_id)
         if resource.kind != "collection":
             raise ValueError(f"resource {resource_id!r} is not a collection")
-        repo, revision = self._collection_repo(resource, source_revision)
+        resolution = self._collection_repo(resource, source_revision)
         index = self._collection_index(
             resource,
-            repo,
-            revision,
+            resolution.path,
+            resolution.revision,
             requested_revision=source_revision,
         )
         members = [
-            self._member_from_index(resource, member, revision)
+            self._member_from_index(resource, member, resolution.revision)
             for member in index.members
         ]
         needle = query.casefold().strip()
@@ -343,7 +360,10 @@ class ContextFabricResolver:
                     if part
                 ).casefold()
             ]
-        return CollectionMemberListing(source_revision=revision, members=tuple(members))
+        return CollectionMemberListing(
+            source_revision=resolution.revision,
+            members=tuple(members),
+        )
 
     def list_members(
         self,
@@ -388,11 +408,11 @@ class ContextFabricResolver:
                 raise ValueError("version selection is supported only for corpus resources")
             if not member_id:
                 raise ValueError(f"member_id is required for collection resource {resource_id!r}")
-            repo, revision = self._collection_repo(resource, source_revision)
+            resolution = self._collection_repo(resource, source_revision)
             index = self._collection_index(
                 resource,
-                repo,
-                revision,
+                resolution.path,
+                resolution.revision,
                 requested_revision=source_revision,
             )
             members = {member.id: member for member in index.members}
@@ -405,10 +425,15 @@ class ContextFabricResolver:
                 raise KnownMemberIssueError(
                     resource_id=resource.id,
                     member_id=member.id,
-                    source_revision=revision,
+                    source_revision=resolution.revision,
                     issues=blocking_issues,
                 )
-            local = self.store.materialize(repo, member.tf_path, revision)
+            local = materialize_corpus(
+                self.store,
+                resolution,
+                resource_id=resource.id,
+                relative_path=member.tf_path,
+            )
             resolved_version = dataset_version(member.tf_path)
             return PreparedCorpus(
                 resource_id=resource.id,
@@ -417,20 +442,27 @@ class ContextFabricResolver:
                 relative_path=member.tf_path,
                 path=local,
                 version=resolved_version,
-                source_revision=revision,
+                source_revision=resolution.revision,
+                source_revision_verified=resolution.source_revision_verified,
+                resolution=resolution.resolution,
             )
         if source_revision is not None:
             raise ValueError("source_revision selection is supported only for collection resources")
         if member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
-        repo, revision = self._repo(resource)
+        resolution = self._repo(resource)
         relative = self._select_resource_root(
             resource,
-            self.store.dataset_roots(repo, revision),
+            self.store.dataset_roots(resolution.path, resolution.revision),
             version,
         )
         resolved_version = dataset_version(relative)
-        local = self.store.materialize(repo, relative, revision)
+        local = materialize_corpus(
+            self.store,
+            resolution,
+            resource_id=resource.id,
+            relative_path=relative,
+        )
         logical_name = resource.id if version is None else f"{resource.id}@{resolved_version}"
         return PreparedCorpus(
             resource_id=resource.id,
@@ -439,7 +471,9 @@ class ContextFabricResolver:
             relative_path=relative,
             path=local,
             version=resolved_version,
-            source_revision=revision,
+            source_revision=resolution.revision,
+            source_revision_verified=resolution.source_revision_verified,
+            resolution=resolution.resolution,
         )
 
     def _prepare_feature_modules(
@@ -472,8 +506,13 @@ class ContextFabricResolver:
                 )
             if not module.tf_path or not module.module_path:
                 raise ValueError(f"feature module {module_id!r} has incomplete upstream path metadata")
-            repo, revision = self._repo(module)
-            local = self.store.materialize_feature_module(repo, module.tf_path, revision)
+            resolution = self._repo(module)
+            local = materialize_feature_module(
+                self.store,
+                resolution,
+                resource_id=module.id,
+                relative_path=module.tf_path,
+            )
             selected.append(
                 PreparedFeatureModule(
                     resource_id=module.id,
@@ -481,7 +520,9 @@ class ContextFabricResolver:
                     module_path=module.module_path,
                     relative_path=module.tf_path,
                     path=local,
-                    source_revision=revision,
+                    source_revision=resolution.revision,
+                    source_revision_verified=resolution.source_revision_verified,
+                    resolution=resolution.resolution,
                 )
             )
         return tuple(selected)
