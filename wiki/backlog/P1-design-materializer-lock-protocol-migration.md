@@ -6,98 +6,105 @@ Research: [`P1-research-materializer-lock-protocol-migration.md`](P1-research-ma
 
 ## Goals
 
-- Preserve mutual exclusion with pre-#62 sentinel-file installers.
-- Preserve mutual exclusion with the advisory-only implementation introduced by #62, in both directions.
-- Preserve OS-backed current-current exclusion and process-death release.
-- Stop current clean runs from leaving the historical visible lock path behind.
-- Recover current-protocol crash residue only when neither current nor #62 code owns it.
-- Fail closed, with actionable guidance, for ambiguous empty/unrecognized historical lock files.
+- Preserve mutual exclusion when first crossing from pre-#62 sentinel locking into the current protocol.
+- Preserve mutual exclusion with the #62 advisory-only implementation in both arrival orders.
+- Preserve OS-backed process-death release for modern code.
+- Avoid unlink/recreate races on the historical lock pathname.
+- Fail closed for ambiguous empty/unrecognized historical files.
+- Document the migration as intentionally one-way until an explicit quiescent downgrade step is performed.
 
 ## Non-goals
 
-- Automatically deleting every stale pre-#62/#62 lock file. A live pre-#62 holder produces the same observable empty/unlocked state.
-- Making old versions mutually safe with each other; pre-#62 and #62 already fail to coordinate if run directly together.
-- Coordinating different machines that do not share the same filesystem.
+- Transparent concurrent interoperability among all three generations after migration.
+- Automatically deciding that an empty legacy file is stale.
+- Making pre-#62 and #62 safe when run directly together; those released protocols do not coordinate.
+- Coordinating machines that do not share one filesystem.
 - Changing materializer execution, source integrity, packaging, or registry semantics.
 
 ## Protocol
 
-For a historical visible path such as `.source.lock`:
+For a historical path such as `.source.lock`:
 
-1. Current code acquires an OS-backed advisory lock on a stable sidecar such as `.source.lock.current`. This serializes current versions and supplies current-protocol liveness independent of historical semantics.
-2. While holding the sidecar, current code attempts `O_CREAT|O_EXCL` on the original visible path.
-3. On successful creation it writes the fixed current-protocol marker. File existence now excludes pre-#62 clients.
-4. Before entering the critical section, current code also acquires an exclusive advisory lock on that same original visible path. This excludes #62 clients.
-5. If the visible path already contains the exact current marker, do not unlink it first. Treat it as current crash residue, acquire the visible-path advisory lock, re-read/verify marker plus filesystem identity, and reuse that sentinel. A #62 process that attached to the residue therefore blocks recovery until it releases its advisory lock.
-6. If the visible path is empty or unrecognized, do not delete or rewrite it. Poll until it disappears or the remaining timeout expires. The state may be a live pre-#62 holder even when no advisory lock exists.
-7. During clean release, verify that the visible sentinel is still the owned filesystem object, unlink it while both advisory locks are still held, then release the visible advisory lock and finally the sidecar.
+1. Ensure the parent directory exists.
+2. If the path is absent, create it with `O_CREAT|O_EXCL` and write the fixed marker `agora-materializer-lock-v3\n`.
+3. If the path exists with the exact marker, reuse it as the permanent modern lock object.
+4. If the path exists empty or with unrecognized contents, do not delete or rewrite it. Poll until it disappears or the timeout expires. A persistent state raises actionable migration guidance.
+5. Acquire `portalocker.Lock` on the historical path itself using only the remaining timeout budget.
+6. Re-read the marker after advisory acquisition. If it is no longer the exact v3 marker, release and fail closed.
+7. Enter the critical section.
+8. On normal release or exception, release only the OS advisory lock. Do **not** unlink the historical path.
 
-A #62 client may win the visible advisory lock in the small interval after current code creates the marker and before current code locks the visible path. That race is safe: current code waits and does not enter its critical section until #62 releases. The visible marker already exists during the wait, so pre-#62 arrivals remain excluded.
+There is no current-only sidecar and no automatic sentinel cleanup.
+
+## Compatibility properties
+
+### Pre-#62 → current
+
+If pre-#62 owns the pathname first, current sees an empty/unrecognized file and waits. If the old holder releases and unlinks it, current can create the v3 marker. If current wins the `O_EXCL` creation race, later pre-#62 callers remain excluded by file existence.
+
+### #62 ↔ current
+
+Both protocols advisory-lock the same historical pathname. Once the marker has been established, they exclude each other correctly. #62 opens the file in append mode and does not need the file to be empty, so the marker remains compatible with its locking behavior.
+
+### Current ↔ current
+
+All current processes advisory-lock the same persistent historical file. Process death releases the OS lock; no cleanup is required.
+
+### Downgrade to pre-#62
+
+Pre-#62 cannot run while the v3 marker exists. This is deliberate. A user who intentionally downgrades must first confirm that no #62/current operation is active, then remove the marker manually. That manual quiescent transition is the only safe way to cross back over the boundary.
 
 ## Timeout semantics
 
-The caller's `timeout` is one budget across all phases. Record one monotonic deadline before sidecar acquisition. Waiting for an ambiguous historical sentinel and acquiring the historical advisory lock use only the remaining budget.
+The caller's `timeout` is one monotonic budget covering:
 
-A current process that acquires the sidecar near the deadline can still take an immediately available historical advisory lock with zero remaining wait; it must not gain a second full timeout window.
+- waiting for a pre-v3 ambiguous pathname to disappear; and
+- advisory-lock acquisition on the persistent historical path.
 
-## Marker and ownership
+No phase receives a second full timeout window.
 
-Use the fixed ASCII marker:
+## Marker initialization
 
-```text
-agora-materializer-lock-v3\n
-```
+The marker is a protocol discriminator, not an owner record. If the process crashes while creating/writing the marker, a partial or empty file may remain. That state is treated conservatively as ambiguous and requires the same manual recovery as historical stale state.
 
-The marker is a protocol discriminator, not proof of liveness. Liveness/ownership comes from OS locks. In particular, a marked sentinel is not safe to recover until the current process owns the sidecar **and** the historical-path advisory lock.
-
-Capture `(st_dev, st_ino)` from the sentinel object and re-check that identity before cleanup. This is a best-effort refusal to unlink a replacement path if the sentinel was externally changed.
-
-If marker initialization itself fails after `O_EXCL`, remove only the just-created matching filesystem object before propagating the error.
+Do not unlink a partially initialized path automatically: a #62 process may already have opened that inode.
 
 ## TDD sequence
 
-### RED 1 — pre-#62 interoperability
+### Existing RED/GREEN history
 
-Emulate pre-#62 with `os.open(... O_CREAT|O_EXCL ...)` plus unlink-on-release.
+Earlier slices established:
 
-Prove:
+- pre-#62/current incompatibility on main;
+- #62/current incompatibility in the first bridge draft;
+- the unsafe unlink/waiter race in the second bridge draft.
 
-- a live pre-#62 holder blocks current code;
-- current waits for a brief pre-#62 holder and enters only after it unlinks;
-- a current holder causes a pre-#62 `O_EXCL` attempt to fail.
+Those findings remain documented in the PR review history.
 
-These tests fail against #62/current `main`, whose advisory-only lock does not coordinate with the old sentinel protocol.
+### RED 4 — one-way persistence
 
-### RED 2 — no downgrade residue and crash identity
+Revise/add regressions before simplifying production code:
 
-Prove:
+- clean current release leaves the exact v3 marker in place;
+- a pre-#62 `O_EXCL` client remains blocked after current release;
+- a second current operation reuses the same persistent marker;
+- a current crash leaves the marker and later current code reuses it without deleting it;
+- a #62 acquire/release against an established marker preserves the marker;
+- empty/unrecognized legacy state still fails closed.
 
-- the historical visible sentinel exists while current code owns the critical section and is absent after clean release;
-- current crash residue contains the current marker and is recoverable by later current code;
-- an empty/unrecognized historical sentinel is not auto-deleted and produces migration guidance.
+These tests must fail against the current three-part bridge because it deletes the historical path after each current operation.
 
-### Review-driven RED 3 — #62 advisory interoperability
+### GREEN 4
 
-Independent review of the first GREEN draft found that sidecar + `O_EXCL` alone still allowed #62 advisory-only code to enter concurrently. Add a direct emulator of #62 using `portalocker.Lock` on the historical visible path.
-
-Prove:
-
-- a live #62 advisory holder blocks current code;
-- a current holder blocks a #62 advisory-only arrival;
-- a marked current crash sentinel is not recovered through a live #62 holder, but becomes recoverable after that holder releases.
-
-### GREEN
-
-Implement the sidecar + historical sentinel + historical advisory-lock bridge only in `scripts/agora_install_materializer.py`. Keep all public installer call sites unchanged.
+Simplify `_lock` to one persistent historical pathname plus advisory ownership. Remove the sidecar and all clean-release unlink logic. Keep public call sites unchanged.
 
 ### Documentation
 
-Document:
+Update the architecture reference and installer guidance to say:
 
-- the three-part migration bridge;
-- clean current runs no longer leave the historical visible sentinel;
-- marked current crash residue is automatically recoverable only after historical advisory ownership is available;
-- empty stale state from pre-#63 may require one-time manual removal **only after verifying no older installer process is running**.
+- the marked lock file is permanent modern protocol state, not stale residue;
+- empty/unrecognized pre-v3 files require one-time manual cleanup only after confirming no older operation is running;
+- deliberate downgrade to pre-#62 requires manual marker removal only after confirming no #62/current operation is running.
 
 ## Verification gate
 
@@ -110,20 +117,20 @@ python scripts/generate_marketplaces.py --check
 python scripts/generate_context_fabric_catalog.py --check
 ```
 
-The Foundation `materializer-install-locks` matrix must exercise both installation and migration test files and pass on Ubuntu, macOS, and Windows at the exact PR head.
+The Foundation `materializer-install-locks` matrix must pass on Ubuntu, macOS, and Windows at the exact PR head.
 
 ## Independent adversarial review checklist
 
-Review from a clean assumption set and try to falsify these points:
+Review without relying on the implementation rationale and try to falsify:
 
-- Can a live pre-#62 holder and current holder ever both enter?
-- Can a #62 advisory-only holder and current holder ever both enter, in either arrival order?
-- Can a #62 process attach to marked current crash residue while current code deletes/replaces that path underneath it?
-- Can current crash residue be confused with ambiguous empty historical state?
-- Does any cooperative cleanup unlink a path owned by another protocol generation?
-- Does a normal current release leave a historical visible sentinel that wedges pre-#62 clients?
-- Is the timeout still one budget across sidecar, sentinel wait, and historical advisory acquisition?
-- Does backend lock failure remain distinct from contention?
-- Do Windows path/unlink semantics preserve the same protocol behavior?
+- Can current enter while a live pre-#62 holder still owns an empty sentinel?
+- Can pre-#62 enter after current has established the persistent marker?
+- Can current and #62 ever hold the critical section concurrently?
+- Can two current processes enter concurrently after a crash?
+- Can any code path unlink or replace a pathname while a #62 waiter may already have it open?
+- Does partial marker initialization fail closed rather than being guessed stale?
+- Is the timeout still one budget?
+- Are backend lock failures still distinguished from ordinary contention?
+- Does the protocol rely on POSIX-only unlink semantics or fail on Windows?
 
-Any blocker starts a fix → retest → fresh independent review loop before the PR is finalized.
+Any blocker starts another fix → retest → fresh independent review loop before the PR is finalized.
