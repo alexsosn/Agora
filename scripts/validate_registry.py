@@ -100,6 +100,18 @@ def validate_license_evidence(
             f"{prefix}: resolved evidence requires known data and redistribution"
         )
 
+    if status == "unresolved" and (
+        data not in {None, "unknown"} and redistribution not in {None, "unknown"}
+    ):
+        errors.append(
+            f"{prefix}: unresolved evidence requires an unknown licensing dimension"
+        )
+
+    if status == "component-specific" and data in {None, "unknown"}:
+        errors.append(
+            f"{prefix}.data: component-specific evidence requires known or component-specific data"
+        )
+
     if data == "component-specific" and status != "component-specific":
         errors.append(
             f"{prefix}.data: component-specific requires evidence.status='component-specific'"
