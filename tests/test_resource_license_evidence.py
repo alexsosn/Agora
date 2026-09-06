@@ -19,10 +19,29 @@ from agora_context_fabric.service import ContextFabricService
 
 
 class ResourceLicenseEvidenceTests(unittest.TestCase):
+    VALIDATION_DEPENDENCIES = (
+        "tests/test_generation.py",
+        ".github/workflows/external-mcp-smoke.yml",
+        "plugins/context-fabric/uv.lock",
+        "plugins/perseus/runtime-constraints.txt",
+        "plugins/sefaria/runtime-constraints.txt",
+        "plugins/sedra/uv.lock",
+        "verification/mcp-smoke/uv.lock",
+    )
+
+    @classmethod
+    def copy_validation_dependencies(cls, tmp_root: Path) -> None:
+        for relative in cls.VALIDATION_DEPENDENCIES:
+            source = ROOT / relative
+            target = tmp_root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+
     def validate_resource_mutation(self, resource_id: str, mutate) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_root = Path(tmp)
             shutil.copytree(ROOT / "registry", tmp_root / "registry")
+            self.copy_validation_dependencies(tmp_root)
             path = tmp_root / "registry" / "resources.yaml"
             doc = yaml.safe_load(path.read_text(encoding="utf-8"))
             resource = next(item for item in doc["resources"] if item["id"] == resource_id)
