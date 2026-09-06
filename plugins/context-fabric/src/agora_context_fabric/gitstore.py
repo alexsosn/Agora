@@ -666,6 +666,8 @@ class GitStore:
         relative: str,
         destination: Path,
         validate: Callable[[Path], None],
+        *,
+        source: str | None = None,
     ) -> None:
         self._ensure_free_reserve()
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -676,10 +678,10 @@ class GitStore:
         extracted.mkdir()
         process: subprocess.Popen[bytes] | None = None
         try:
-            source = self._run("remote", "get-url", "origin", cwd=repo)
+            export_source = source or self._run("remote", "get-url", "origin", cwd=repo)
             self._run("init", "-q", str(export_repo))
             self._disable_archive_transformations(export_repo)
-            self._run("remote", "add", "origin", source, cwd=export_repo)
+            self._run("remote", "add", "origin", export_source, cwd=export_repo)
             self._ensure_free_reserve()
             self._run(
                 "fetch",
@@ -750,6 +752,7 @@ class GitStore:
         *,
         kind: str,
         validate: Callable[[Path], None],
+        source: str | None = None,
     ) -> Path:
         relative = self._safe_relative_path(relative_path)
         resolved_revision = self._resolved_revision(repo, revision)
@@ -772,6 +775,7 @@ class GitStore:
                         relative,
                         destination,
                         validate,
+                        source=source,
                     )
             validate(destination)
             self.touch_cache_object(destination)
@@ -1203,6 +1207,8 @@ class GitStore:
         repo: Path,
         relative_path: str,
         revision: str | None = None,
+        *,
+        source: str | None = None,
     ) -> Path:
         return self._materialize_snapshot(
             repo,
@@ -1210,6 +1216,7 @@ class GitStore:
             revision,
             kind="corpora",
             validate=self._validate_corpus_snapshot,
+            source=source,
         )
 
     def materialize_feature_module(
@@ -1217,6 +1224,8 @@ class GitStore:
         repo: Path,
         relative_path: str,
         revision: str | None = None,
+        *,
+        source: str | None = None,
     ) -> Path:
         files = tuple(self.feature_files(repo, relative_path, revision))
         if not files:
@@ -1229,4 +1238,5 @@ class GitStore:
             revision,
             kind="feature-modules",
             validate=lambda path: self._validate_module_snapshot(path, files),
+            source=source,
         )
