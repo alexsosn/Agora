@@ -28,6 +28,35 @@ Experimental materializer plugins are registered separately from the frozen v0.1
 
 Collection indexes are complete, commit-bound discovery snapshots. Each index records an immutable `source_revision`; indexed members are discovered from that snapshot and acquired lazily only when selected. Member `verification.known_issues` entries are compact references to structured issue definitions on the parent resource, so snapshot-specific integration limitations can be surfaced before acquisition without rewriting upstream data.
 
+## Corpus licensing evidence
+
+`resources.yaml` records the licence or terms governing the **corpus data Agora actually exposes**, not merely the licence of the repository, converter, or other software around it. A root MIT/Unlicense file must not be copied into `licenses.data` unless upstream evidence explicitly applies it to the dataset. Public availability, open-access wording, or an ancient/public-domain source author likewise does not establish rights in a modern edition, transcription, translation, annotation layer, or database arrangement.
+
+Every canonical `corpus` and `collection` therefore carries a reproducible `licenses.evidence` block:
+
+```yaml
+licenses:
+  data: CC-BY-NC-4.0
+  redistribution: restricted
+  notes: Attribution and non-commercial conditions apply.
+  evidence:
+    status: resolved
+    checked_at: "2026-09-06"
+    sources:
+      - https://github.com/ETCBC/bhsa/blob/master/README.md
+```
+
+The evidence status describes the state of the licensing research:
+
+- `resolved` — upstream evidence supports a defensible top-level data licence/terms and redistribution conclusion;
+- `component-specific` — materially different embedded components have different terms, so callers must read `licenses.notes` and the cited evidence;
+- `member-specific` — a collection delegates rights information to individual members/files rather than one collection-wide licence;
+- `unresolved` — authoritative sources were checked but no defensible top-level data licence or redistribution conclusion could be established.
+
+`licenses.redistribution` remains deliberately small: `permitted` means redistribution is allowed by the recorded terms (possibly with attribution); `restricted` means a material restriction such as non-commercial or no-derivatives/source-specific conditions applies; `unknown` means research did not establish a safe conclusion or a heterogeneous resource cannot be summarized truthfully.
+
+An `unknown` value is therefore a **researched unresolved state**, not a placeholder for work that has not been done. `unresolved`, `component-specific`, and `member-specific` records require explanatory notes plus dated evidence URLs. `member-specific` is valid only for collections. Feature modules are intentionally not required to carry separate evidence in this migration; a module whose terms materially differ from, or cannot safely inherit from, its parent corpus needs a later focused audit rather than an invented inheritance rule.
+
 A materializer registry entry pins an immutable repository commit, expected upstream plugin identity/version, manifest path, package type/path, install-time trust class, and the exact materializer IDs expected in that manifest. `scripts/validate_registry.py` validates `materializers.yaml` alongside the other canonical files, including duplicate IDs and shared discipline/verification controlled vocabularies.
 
 Registration supports passive source discovery. It does not mean Agora may automatically execute packaging code: Python materializer installation is an explicit trust action because PEP 517/build backends are executable third-party code. Resource → materializer → consumer composition remains a separate architecture step and must preserve that approval boundary.
@@ -102,7 +131,7 @@ For the networked dependency-snapshot freshness gate, install uv `0.12.10` and r
 python scripts/check_runtime_environment_freshness.py
 ```
 
-Validation checks schema conformance, duplicate IDs, cross-file references, executable verification-check references, runtime-environment file/digest identity, exact-provider evidence for every asserted provider-health state, controlled-vocabulary values, collection/index consistency, the exact four-plugin / 37-resource v0.1 contract, materializer registry constraints, and freshness of committed Claude/Codex marketplace artifacts. Foundation additionally verifies the semantic freshness of all committed runtime dependency snapshots.
+Validation checks schema conformance, duplicate IDs, cross-file references, executable verification-check references, runtime-environment file/digest identity, exact-provider evidence for every asserted provider-health state, controlled-vocabulary values, collection/index consistency, the exact four-plugin / 37-resource v0.1 contract, materializer registry constraints, corpus licensing evidence invariants, and freshness of committed Claude/Codex marketplace artifacts. Foundation additionally verifies the semantic freshness of all committed runtime dependency snapshots.
 
 CI also performs a live Pseudepigrapha-TF integration smoke in two phases: passive immutable source fetch/manifest validation, then a separately explicit Python installation that records runtime and dependency identity. Materializer registration and verification do not assess upstream scholarly suitability or converter semantics.
 

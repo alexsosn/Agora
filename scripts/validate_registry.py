@@ -70,6 +70,74 @@ def ensure_vocab_list(values: Iterable[str], allowed: set[str], where: str, erro
         ensure_vocab(value, allowed, where, errors)
 
 
+def validate_license_evidence(
+    resource: dict[str, Any],
+    allowed_statuses: set[str],
+    errors: list[str],
+) -> None:
+    """Validate semantic combinations that are awkward to express clearly in JSON Schema."""
+    prefix = f"resource {resource['id']}.licenses"
+    licenses = resource.get("licenses") or {}
+    evidence = licenses.get("evidence")
+    if not isinstance(evidence, dict):
+        # Presence/shape is enforced by JSON Schema for corpus/collection records.
+        return
+
+    status = evidence.get("status")
+    if not isinstance(status, str):
+        return
+    ensure_vocab(status, allowed_statuses, f"{prefix}.evidence.status", errors)
+
+    data = licenses.get("data")
+    redistribution = licenses.get("redistribution")
+    notes = licenses.get("notes")
+    has_notes = isinstance(notes, str) and bool(notes.strip())
+
+    if status == "resolved" and (
+        data in {None, "unknown"} or redistribution in {None, "unknown"}
+    ):
+        errors.append(
+            f"{prefix}: resolved evidence requires known data and redistribution"
+        )
+
+    if status == "unresolved" and (
+        data not in {None, "unknown"} and redistribution not in {None, "unknown"}
+    ):
+        errors.append(
+            f"{prefix}: unresolved evidence requires an unknown licensing dimension"
+        )
+
+    if status == "component-specific" and data in {None, "unknown"}:
+        errors.append(
+            f"{prefix}.data: component-specific evidence requires known or component-specific data"
+        )
+
+    if data == "component-specific" and status != "component-specific":
+        errors.append(
+            f"{prefix}.data: component-specific requires evidence.status='component-specific'"
+        )
+
+    if data == "member-specific" and status != "member-specific":
+        errors.append(
+            f"{prefix}.data: member-specific requires evidence.status='member-specific'"
+        )
+
+    if status == "member-specific" and data != "member-specific":
+        errors.append(
+            f"{prefix}: member-specific evidence requires data='member-specific'"
+        )
+
+    if (data == "member-specific" or status == "member-specific") and resource.get("kind") != "collection":
+        errors.append(
+            f"{prefix}: member-specific licensing is only valid for collections"
+        )
+
+    if status in {"component-specific", "member-specific", "unresolved"} and not has_notes:
+        errors.append(
+            f"{prefix}.notes: {status} evidence requires explanatory notes"
+        )
+
+
 def validate_registry(root: Path = ROOT) -> list[str]:
     root = Path(root)
     registry = root / "registry"
@@ -141,6 +209,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     collection_discovery = set(vocab["collection_discovery_modes"])
     collection_index_status = set(vocab["collection_index_statuses"])
     redistribution = set(vocab["redistribution_statuses"])
+    license_evidence_statuses = set(vocab.get("license_evidence_statuses", []))
     languages = set(vocab["languages"])
     disciplines = set(vocab["disciplines"])
     capabilities = set(vocab["capabilities"])
@@ -238,7 +307,15 @@ def validate_registry(root: Path = ROOT) -> list[str]:
         ensure_vocab_list(resource["languages"], languages, f"{prefix}.languages", errors)
         ensure_vocab_list(resource["disciplines"], disciplines, f"{prefix}.disciplines", errors)
         ensure_vocab(resource["acquisition"]["strategy"], acquisition, f"{prefix}.acquisition.strategy", errors)
-        ensure_vocab(resource["licenses"]["redistribution"], redistribution, f"{prefix}.licenses.redistribution", errors)
+        redistribution_value = resource["licenses"].get("redistribution")
+        if redistribution_value is not None:
+            ensure_vocab(
+                redistribution_value,
+                redistribution,
+                f"{prefix}.licenses.redistribution",
+                errors,
+            )
+        validate_license_evidence(resource, license_evidence_statuses, errors)
         ensure_vocab(resource["verification"]["status"], verification, f"{prefix}.verification.status", errors)
 
         if resource["kind"] == "feature-module":

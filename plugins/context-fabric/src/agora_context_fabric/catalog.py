@@ -36,7 +36,7 @@ class ResourceSpec:
     verification_status: str = "community"
     verification_notes: tuple[str, ...] = ()
     verification_known_issues: tuple[dict[str, Any], ...] = ()
-    licenses: dict[str, str] = field(default_factory=dict)
+    licenses: dict[str, Any] = field(default_factory=dict)
     integration_issues: tuple[str, ...] = ()
     source_snapshot: dict[str, Any] = field(default_factory=dict)
 

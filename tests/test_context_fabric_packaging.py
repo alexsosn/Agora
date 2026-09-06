@@ -61,7 +61,9 @@ class ContextFabricPackagingTests(unittest.TestCase):
     def test_bundled_catalog_preserves_resource_integration_metadata(self):
         resource = Catalog.from_plugin_root(PLUGIN_ROOT).get("TLHdig-TF")
         self.assertEqual(resource.verification_status, "community")
-        self.assertEqual(resource.licenses["data"], "upstream-dependent")
+        self.assertEqual(resource.licenses["data"], "CC-BY-4.0")
+        self.assertEqual(resource.licenses["redistribution"], "permitted")
+        self.assertEqual(resource.licenses["evidence"]["status"], "resolved")
         self.assertEqual(resource.integration_issues, ())
         self.assertEqual(resource.source_snapshot["source"], "alexsosn/TLHdig-TF")
 
