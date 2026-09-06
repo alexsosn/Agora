@@ -42,7 +42,7 @@ class RepositoryResolution:
     allow_network: bool
 ```
 
-The resolver asks this layer to resolve a repository. Normal fresh resolution delegates to the existing `GitStore.ensure_metadata()` and `selected_revision()` paths. Cached resolution reads only local Git state and existing cache-object metadata.
+The resolver asks this layer to resolve a repository. Fresh resolution uses the existing `GitStore` repository lock and Git selection primitives, but it keeps clone/fetch/select, exact revision capture, and selection-provenance persistence in one cross-process critical section. This is stronger than calling `GitStore.ensure_metadata()` followed by `selected_revision()`, because that historical API releases the repository lock before a caller can bind provenance to the selected ref. Cached resolution reads the selected ref and persisted provenance under the same repository lock, then uses only local Git state and existing cache-object metadata.
 
 ### Errors
 
@@ -68,6 +68,8 @@ at `.git/agora-selection.json`.
 
 The record is Agora metadata, not upstream repository state.
 
+The selected Git ref, captured commit id, and record write are one repository transaction. Another process may select a different ref only after that transaction releases the repository lock. A request therefore never labels another process's selected commit as its own fresh result. Cached readers take the same lock while reading `refs/agora/selected` plus the record so they cannot observe a half-transition.
+
 ### Matching rules
 
 Before cached fallback:
@@ -91,7 +93,7 @@ Parse only Git's tab-separated `FETCH_HEAD` records. Accept a record when:
 - its description has one of the recognized forms for the exact configured ref (branch or tag) and repository;
 - exactly one record satisfies the condition.
 
-Do not accept substring matches, abbreviated commit ids, or an unknown description form. This is a migration bridge, not a general parser. Tests must construct the legacy cache through the pre-record Git selection sequence so the evidence represents real Git output on CI platforms.
+Do not accept substring matches, abbreviated commit ids, or an unknown description form. This is a migration bridge, not a general parser. Tests must construct the legacy cache through the pre-record Git selection sequence so the evidence represents real Git output on CI platforms. A real transport-failure regression also removes the new selection record from a mutable-ref cache before breaking the remote, so default `auto` migration is exercised against Git's actual `FETCH_HEAD` behavior rather than only mocked failures.
 
 ## Resolver integration
 
@@ -243,8 +245,16 @@ Use temporary real repositories / `git daemon` to prove:
 
 - online prepare creates real metadata/snapshot;
 - daemon/network loss in `auto` reuses the exact snapshot;
+- warm-cache `ContextFabricService.load()` still resolves, leases, loads, reports cached provenance, and unloads after the daemon disappears;
 - explicit offline makes no remote attempt;
-- uncached/offline and uncached/connectivity errors are actionable.
+- uncached/offline and uncached/connectivity errors are actionable;
+- a pre-record mutable-ref cache still has sufficient real Git evidence for default `auto` fallback after the transport fails.
+
+### RED/GREEN 5 — adversarial repository-selection atomicity
+
+The first logically independent review found a race between `ensure_metadata()` returning and the caller reading `refs/agora/selected`: another process could select ref B in that gap, causing a request for ref A to return and persist B's commit as fresh A provenance.
+
+Add a deterministic regression whose `GitStore` wrapper performs the competing selection immediately after the repository lock exits. The RED result must show the request returning the competing commit. GREEN keeps clone/fetch/select, exact revision capture, and selection-record persistence under one repository lock and also locks the cached selected-ref/record read. Run this regression on Ubuntu, macOS, and Windows.
 
 ## Test gates
 
@@ -254,6 +264,7 @@ Focused tests must pass before repository-wide tests:
 python -m unittest tests.test_context_fabric_offline -v
 python -m unittest tests.test_context_fabric_offline_integration -v
 python -m unittest tests.test_context_fabric_resolution_service -v
+python -m unittest tests.test_context_fabric_selection_atomicity -v
 ```
 
 Then run all existing Context-Fabric resolver/service/cache tests and the Foundation workflow. Because mode scoping and filesystem/Git behavior are cross-platform concerns, the final relevant test set must run on Ubuntu, macOS, and Windows or be covered by an existing cross-platform Foundation matrix.
@@ -284,4 +295,5 @@ The final review must re-derive the behavior from current `main` and check:
 9. cache-object lookup respects current sidecar/lease/eviction rules;
 10. `ContextVar` mode scoping cannot leak across requests;
 11. errors distinguish network loss from remote/configuration failures;
-12. CI is green on the exact final head.
+12. fresh selection plus provenance persistence is atomic across competing processes and cached readers cannot observe a half-transition;
+13. CI is green on the exact final head.
