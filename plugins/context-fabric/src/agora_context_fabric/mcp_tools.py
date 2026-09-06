@@ -3,11 +3,18 @@ from __future__ import annotations
 from typing import Any
 
 from .gitstore import GIB
+from .network import use_network_mode
 from .service import ContextFabricService
 
 
 def register_tools(mcp: Any, service: ContextFabricService) -> None:
     """Register Agora resource-management tools on a FastMCP-compatible server."""
+
+    def with_network_mode(network_mode: str | None, operation: Any) -> Any:
+        if network_mode is None:
+            return operation()
+        with use_network_mode(network_mode):
+            return operation()
 
     @mcp.tool()
     def list_available_corpora(
@@ -43,6 +50,7 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         source_revision: str | None = None,
         offset: int = 0,
         limit: int = 100,
+        network_mode: str | None = None,
     ) -> dict[str, Any]:
         """Discover separately loadable corpora inside one collection snapshot.
 
@@ -50,6 +58,8 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         Pass it back for later pages and then to prepare_corpus/load_corpus to
         keep the entire workflow on the same upstream collection revision. If it
         is omitted, discovery follows the collection's current configured state.
+        `network_mode` may be `auto`, `offline`, or `require-fresh`; the override
+        applies only to this call.
         """
         kwargs: dict[str, Any] = {
             "query": query,
@@ -58,7 +68,10 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         }
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
-        return service.list_members(resource_id, **kwargs)
+        return with_network_mode(
+            network_mode,
+            lambda: service.list_members(resource_id, **kwargs),
+        )
 
     @mcp.tool()
     def prepare_corpus(
@@ -67,6 +80,7 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         version: str | None = None,
         source_revision: str | None = None,
         modules: list[str] | None = None,
+        network_mode: str | None = None,
     ) -> dict[str, Any]:
         """Acquire/cache a corpus version and optional registered feature modules.
 
@@ -75,13 +89,18 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         upstream commit. Omitting it preserves floating/current collection
         behavior. Prepared paths are cache-resident but evictable after this call
         returns; use load_corpus when a corpus must stay protected for active use.
+        `network_mode` may be `auto`, `offline`, or `require-fresh`; the override
+        applies only to this call.
         """
         kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
         if version is not None:
             kwargs["version"] = version
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
-        return service.prepare(resource_id, **kwargs)
+        return with_network_mode(
+            network_mode,
+            lambda: service.prepare(resource_id, **kwargs),
+        )
 
     @mcp.tool()
     def load_corpus(
@@ -91,13 +110,16 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         source_revision: str | None = None,
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
+        network_mode: str | None = None,
     ) -> dict[str, Any]:
         """Acquire and load a corpus; its final cache path is leased until unload.
 
         For a collection member, reuse the discovery `source_revision` to load
         exactly that cached collection snapshot. The response includes
         `logical_name`; pass that value to unload_corpus. Module-enabled loads
-        lease the composed overlay, not every source input.
+        lease the composed overlay, not every source input. `network_mode` may be
+        `auto`, `offline`, or `require-fresh`; the override applies only to this
+        call.
         """
         kwargs: dict[str, Any] = {
             "member_id": member_id,
@@ -108,7 +130,10 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
             kwargs["version"] = version
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
-        return service.load(resource_id, **kwargs)
+        return with_network_mode(
+            network_mode,
+            lambda: service.load(resource_id, **kwargs),
+        )
 
     @mcp.tool()
     def unload_corpus(logical_name: str) -> dict[str, Any]:
