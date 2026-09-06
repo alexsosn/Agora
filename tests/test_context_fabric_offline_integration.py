@@ -47,7 +47,12 @@ class ProductionOfflineIntegrationTests(unittest.TestCase):
         subprocess.run(["git", "commit", "-qm", "fixture"], cwd=source, check=True)
 
     @staticmethod
-    def _resolver(repository: str, store: GitStore) -> ContextFabricResolver:
+    def _resolver(
+        repository: str,
+        store: GitStore,
+        *,
+        ref: str | None = None,
+    ) -> ContextFabricResolver:
         resource = ResourceSpec(
             id="fixture",
             name="Fixture corpus",
@@ -55,6 +60,7 @@ class ProductionOfflineIntegrationTests(unittest.TestCase):
             provider="context-fabric",
             kind="corpus",
             repository=repository,
+            ref=ref,
             languages=("test",),
             disciplines=("testing",),
         )
@@ -77,6 +83,31 @@ class ProductionOfflineIntegrationTests(unittest.TestCase):
                 time.sleep(0.05)
         raise RuntimeError("git daemon did not start")
 
+    @staticmethod
+    def _daemon(root: Path, port: int) -> subprocess.Popen[str]:
+        return subprocess.Popen(
+            [
+                "git",
+                "daemon",
+                "--reuseaddr",
+                "--export-all",
+                f"--base-path={root}",
+                "--listen=127.0.0.1",
+                f"--port={port}",
+                str(root),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+    @staticmethod
+    def _stop_daemon(daemon: subprocess.Popen[str]) -> None:
+        daemon.terminate()
+        daemon.wait(timeout=5)
+        if daemon.stderr is not None:
+            daemon.stderr.close()
+
     def test_auto_fallback_handles_real_git_connectivity_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -87,21 +118,7 @@ class ProductionOfflineIntegrationTests(unittest.TestCase):
             subprocess.run(["git", "clone", "-q", "--bare", str(work), str(remote)], check=True)
 
             port = self._free_port()
-            daemon = subprocess.Popen(
-                [
-                    "git",
-                    "daemon",
-                    "--reuseaddr",
-                    "--export-all",
-                    f"--base-path={root}",
-                    "--listen=127.0.0.1",
-                    f"--port={port}",
-                    str(root),
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
+            daemon = self._daemon(root, port)
             try:
                 self._wait_for_listener(port)
                 repository = f"git://127.0.0.1:{port}/remote.git"
@@ -112,10 +129,7 @@ class ProductionOfflineIntegrationTests(unittest.TestCase):
                 self.assertTrue(first.source_revision_verified)
                 self.assertTrue((first.path / "otype.tf").is_file())
             finally:
-                daemon.terminate()
-                daemon.wait(timeout=5)
-                if daemon.stderr is not None:
-                    daemon.stderr.close()
+                self._stop_daemon(daemon)
 
             second = resolver.prepare("fixture")
             self.assertEqual(second.path, first.path)
@@ -140,6 +154,35 @@ class ProductionOfflineIntegrationTests(unittest.TestCase):
             uncached = GitStore(root / "empty-cache")
             with self.assertRaises(NetworkUnavailableError):
                 self._resolver(repository, uncached).prepare("fixture")
+
+    def test_auto_fallback_preserves_legacy_mutable_ref_evidence_after_real_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            work = root / "work"
+            work.mkdir()
+            self._init_repo(work)
+            remote = root / "remote.git"
+            subprocess.run(["git", "clone", "-q", "--bare", str(work), str(remote)], check=True)
+
+            port = self._free_port()
+            daemon = self._daemon(root, port)
+            try:
+                self._wait_for_listener(port)
+                repository = f"git://127.0.0.1:{port}/remote.git"
+                store = GitStore(root / "cache")
+                resolver = self._resolver(repository, store, ref="main")
+                first = resolver.prepare("fixture")
+                record = store.repositories_dir / "fixture" / ".git" / "agora-selection.json"
+                self.assertTrue(record.is_file())
+                record.unlink()
+            finally:
+                self._stop_daemon(daemon)
+
+            second = resolver.prepare("fixture")
+            self.assertEqual(second.path, first.path)
+            self.assertEqual(second.source_revision, first.source_revision)
+            self.assertEqual(second.resolution, "cached")
+            self.assertFalse(second.source_revision_verified)
 
 
 if __name__ == "__main__":
