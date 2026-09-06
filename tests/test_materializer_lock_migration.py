@@ -17,7 +17,7 @@ from scripts.agora_install_materializer import (
 
 
 def _hold_pre62_lock(path: str, ready, release) -> None:
-    """Emulate the pre-#62 sentinel protocol."""
+    """Emulate the pre-#62 O_EXCL sentinel protocol."""
     lock_path = Path(path)
     fd = os.open(lock_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
@@ -95,7 +95,7 @@ class MaterializerLockMigrationTests(unittest.TestCase):
                 holder.join(10)
             self.assertEqual(holder.exitcode, 0)
 
-    def test_current_waits_for_brief_pre62_holder_then_enters(self):
+    def test_current_waits_for_brief_pre62_holder_then_establishes_persistent_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / ".source.lock"
             ctx = multiprocessing.get_context("spawn")
@@ -111,6 +111,7 @@ class MaterializerLockMigrationTests(unittest.TestCase):
                 holder.join(10)
             self.assertEqual(holder.exitcode, 0)
             self.assertGreater(waited, 0.2, "current installer ignored the pre-#62 sentinel")
+            self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
 
     def test_current_holder_excludes_pre62_o_excl_client(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -120,9 +121,20 @@ class MaterializerLockMigrationTests(unittest.TestCase):
                     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
                     os.close(fd)
 
+    def test_pre62_remains_excluded_after_current_release(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / ".environment.lock"
+            with _lock(path, timeout=1):
+                pass
+            self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
+            with self.assertRaises(FileExistsError):
+                fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                os.close(fd)
+
     def test_live_post62_holder_blocks_current_installer(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / ".source.lock"
+            path.write_text(LOCK_PROTOCOL_MARKER, encoding="ascii")
             ctx = multiprocessing.get_context("spawn")
             ready, release = ctx.Event(), ctx.Event()
             holder = ctx.Process(target=_hold_post62_lock, args=(str(path), ready, release))
@@ -136,6 +148,7 @@ class MaterializerLockMigrationTests(unittest.TestCase):
                 release.set()
                 holder.join(10)
             self.assertEqual(holder.exitcode, 0)
+            self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
 
     def test_current_holder_excludes_post62_advisory_client(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -149,37 +162,34 @@ class MaterializerLockMigrationTests(unittest.TestCase):
                 self.assertEqual(contender.exitcode, 0)
                 self.assertEqual(result.get(timeout=2), "blocked")
 
-    def test_marked_current_residue_is_not_recovered_through_live_post62_holder(self):
+    def test_post62_acquire_release_preserves_established_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / ".source.lock"
-            path.write_text(LOCK_PROTOCOL_MARKER, encoding="ascii")
-            ctx = multiprocessing.get_context("spawn")
-            ready, release = ctx.Event(), ctx.Event()
-            holder = ctx.Process(target=_hold_post62_lock, args=(str(path), ready, release))
-            holder.start()
-            try:
-                self.assertTrue(ready.wait(10))
-                with self.assertRaises(MaterializerInstallError):
-                    with _lock(path, timeout=0.15):
-                        pass
-                self.assertTrue(path.exists())
-            finally:
-                release.set()
-                holder.join(10)
-            self.assertEqual(holder.exitcode, 0)
-
             with _lock(path, timeout=1):
                 pass
-            self.assertFalse(path.exists())
+            self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
 
-    def test_clean_current_release_removes_legacy_visible_sentinel(self):
+            historical = _post62_lock(str(path), timeout=1)
+            historical.acquire()
+            historical.release()
+
+            self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
+            with _lock(path, timeout=1):
+                pass
+            self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
+
+    def test_clean_current_release_keeps_exact_persistent_marker(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / ".source.lock"
             with _lock(path, timeout=1):
-                self.assertTrue(path.exists())
-            self.assertFalse(path.exists(), "clean current runs must not wedge older installers")
+                self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
+            self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
 
-    def test_current_crash_residue_is_self_identifying_and_recoverable(self):
+            with _lock(path, timeout=1):
+                self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
+            self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
+
+    def test_current_crash_keeps_marker_and_later_current_reuses_it(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / ".source.lock"
             ctx = multiprocessing.get_context("spawn")
@@ -190,11 +200,10 @@ class MaterializerLockMigrationTests(unittest.TestCase):
             crashed.join(10)
             self.assertEqual(crashed.exitcode, 0)
 
-            self.assertTrue(path.exists())
             self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
             with _lock(path, timeout=1):
-                pass
-            self.assertFalse(path.exists())
+                self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
+            self.assertEqual(path.read_text(encoding="ascii"), LOCK_PROTOCOL_MARKER)
 
     def test_ambiguous_empty_legacy_sentinel_fails_closed_and_is_not_deleted(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -204,6 +213,7 @@ class MaterializerLockMigrationTests(unittest.TestCase):
                 with _lock(path, timeout=0.15):
                     pass
             self.assertTrue(path.exists(), "ambiguous legacy state must never be auto-deleted")
+            self.assertEqual(path.read_text(encoding="utf-8"), "")
 
 
 if __name__ == "__main__":
