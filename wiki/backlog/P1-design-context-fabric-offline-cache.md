@@ -42,7 +42,7 @@ class RepositoryResolution:
     allow_network: bool
 ```
 
-The resolver asks this layer to resolve a repository. Fresh resolution uses the existing `GitStore` repository lock and Git selection primitives, but it keeps clone/fetch/select, exact revision capture, and selection-provenance persistence in one cross-process critical section. This is stronger than calling `GitStore.ensure_metadata()` followed by `selected_revision()`, because that historical API releases the repository lock before a caller can bind provenance to the selected ref. Cached resolution reads the selected ref and persisted provenance under the same repository lock, then uses only local Git state and existing cache-object metadata.
+The resolver asks this layer to resolve a repository. Fresh resolution uses the existing `GitStore` repository lock and Git selection primitives, but it keeps repository-identity validation, clone/fetch/select, exact revision capture, and selection-provenance persistence in one cross-process critical section. This is stronger than calling `GitStore.ensure_metadata()` followed by `selected_revision()`, because that historical API releases the repository lock before a caller can bind provenance to the selected ref. Cached resolution reads the selected ref and persisted provenance under the same repository lock, then uses only local Git state and existing cache-object metadata.
 
 ### Errors
 
@@ -83,6 +83,18 @@ Before cached fallback:
    - mutable non-SHA ref: require legacy `FETCH_HEAD` evidence binding the selected revision to that exact configured ref; otherwise fail closed.
 
 A malformed record is not treated as “record absent”; it is incompatible state and fails closed. This prevents corruption from silently re-enabling broad legacy fallback.
+
+### Fresh repository identity transitions
+
+The metadata repository is keyed by stable Agora resource id, so the configured upstream repository can change while the cache directory name stays the same. Fresh resolution must verify the existing Git `origin` before fetching. If it no longer matches the configured repository, perform the transition under the repository lock in this order:
+
+1. delete `refs/agora/selected`;
+2. delete `.git/agora-selection.json` if present;
+3. `git remote set-url origin <configured source>`;
+4. fetch/select the requested ref from the new origin;
+5. persist the new selection record before releasing the lock.
+
+Identity evidence is invalidated before the origin is repointed. Therefore a crash, failed `set-url`, or failed fetch cannot make the old repository's selected revision eligible as a cache hit for the new repository. Keep old Git objects in the metadata repository instead of recursively deleting `.git`: they are unreachable from `refs/agora/selected`, and this avoids Windows read-only object-file deletion failures. Revision-addressed corpus/module snapshots are separate managed cache objects and are not removed by a repository-origin transition.
 
 ### Legacy `FETCH_HEAD` inference
 
@@ -256,6 +268,12 @@ The first logically independent review found a race between `ensure_metadata()` 
 
 Add a deterministic regression whose `GitStore` wrapper performs the competing selection immediately after the repository lock exits. The RED result must show the request returning the competing commit. GREEN keeps clone/fetch/select, exact revision capture, and selection-record persistence under one repository lock and also locks the cached selected-ref/record read. Run this regression on Ubuntu, macOS, and Windows.
 
+### RED/GREEN 6 — fresh repository identity transition
+
+The final adversarial pass found that an existing metadata repository could retain origin A after the same resource id was reconfigured to repository B. Fresh resolution then fetched A again and persisted A's commit as though it were a fresh B selection.
+
+Add a regression that warms repository A, resolves the same resource id against repository B, and requires B's exact revision, B as the actual Git origin, and B in the persisted selection record. The RED result must show A's revision returned for B. GREEN invalidates selected identity evidence before repointing `origin`, then fetches/selects B under the same repository lock. The cross-platform gate must include Windows specifically; recursively deleting the old `.git` is not an acceptable implementation because Git object files can be read-only there.
+
 ## Test gates
 
 Focused tests must pass before repository-wide tests:
@@ -265,6 +283,7 @@ python -m unittest tests.test_context_fabric_offline -v
 python -m unittest tests.test_context_fabric_offline_integration -v
 python -m unittest tests.test_context_fabric_resolution_service -v
 python -m unittest tests.test_context_fabric_selection_atomicity -v
+python -m unittest tests.test_context_fabric_repository_transition -v
 ```
 
 Then run all existing Context-Fabric resolver/service/cache tests and the Foundation workflow. Because mode scoping and filesystem/Git behavior are cross-platform concerns, the final relevant test set must run on Ubuntu, macOS, and Windows or be covered by an existing cross-platform Foundation matrix.
@@ -296,4 +315,5 @@ The final review must re-derive the behavior from current `main` and check:
 10. `ContextVar` mode scoping cannot leak across requests;
 11. errors distinguish network loss from remote/configuration failures;
 12. fresh selection plus provenance persistence is atomic across competing processes and cached readers cannot observe a half-transition;
-13. CI is green on the exact final head.
+13. fresh resolution cannot keep fetching an obsolete Git origin after a resource's configured repository changes, and failed transitions cannot fall back to the old identity;
+14. CI is green on the exact final head.
