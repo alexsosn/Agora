@@ -93,7 +93,9 @@ def validate_license_evidence(
     notes = licenses.get("notes")
     has_notes = isinstance(notes, str) and bool(notes.strip())
 
-    if status == "resolved" and (data == "unknown" or redistribution == "unknown"):
+    if status == "resolved" and (
+        data in {None, "unknown"} or redistribution in {None, "unknown"}
+    ):
         errors.append(
             f"{prefix}: resolved evidence requires known data and redistribution"
         )
@@ -293,7 +295,14 @@ def validate_registry(root: Path = ROOT) -> list[str]:
         ensure_vocab_list(resource["languages"], languages, f"{prefix}.languages", errors)
         ensure_vocab_list(resource["disciplines"], disciplines, f"{prefix}.disciplines", errors)
         ensure_vocab(resource["acquisition"]["strategy"], acquisition, f"{prefix}.acquisition.strategy", errors)
-        ensure_vocab(resource["licenses"]["redistribution"], redistribution, f"{prefix}.licenses.redistribution", errors)
+        redistribution_value = resource["licenses"].get("redistribution")
+        if redistribution_value is not None:
+            ensure_vocab(
+                redistribution_value,
+                redistribution,
+                f"{prefix}.licenses.redistribution",
+                errors,
+            )
         validate_license_evidence(resource, license_evidence_statuses, errors)
         ensure_vocab(resource["verification"]["status"], verification, f"{prefix}.verification.status", errors)
 
