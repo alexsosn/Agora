@@ -410,7 +410,7 @@ class MaterializerInstallerTests(unittest.TestCase):
 
 
 class MaterializerInstallLockTests(unittest.TestCase):
-    """Installation locks combine OS ownership with a legacy-visible sentinel."""
+    """Installation locks use a persistent marker plus OS advisory ownership."""
 
     def test_live_holder_blocks_and_process_death_releases_install_lock(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -437,12 +437,11 @@ class MaterializerInstallLockTests(unittest.TestCase):
             crashed.join(10)
             self.assertEqual(crashed.exitcode, 0)
 
-            # The visible marker survives the dead holder, but the OS sidecar lock does not.
-            self.assertTrue(path.exists())
+            # The permanent marker survives; process death releases only OS ownership.
             self.assertEqual(path.read_text(encoding="utf-8"), LOCK_PROTOCOL_MARKER)
             with _lock(path, timeout=0.5):
                 pass
-            self.assertFalse(path.exists())
+            self.assertEqual(path.read_text(encoding="utf-8"), LOCK_PROTOCOL_MARKER)
 
     def test_lock_waits_for_a_live_holder_within_its_timeout(self):
         """Failing fast would pass the contention test above; waiting is the contract."""
@@ -464,7 +463,7 @@ class MaterializerInstallLockTests(unittest.TestCase):
 
     @mock.patch("scripts.agora_install_materializer._install_python", side_effect=_fake_install)
     @mock.patch("scripts.agora_install_materializer._checkout")
-    def test_marked_current_crash_lock_file_does_not_wedge_installation(self, checkout, _install_python):
+    def test_marked_current_lock_file_does_not_wedge_installation(self, checkout, _install_python):
         checkout.side_effect = MaterializerInstallerTests._populate_checkout
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -474,7 +473,8 @@ class MaterializerInstallLockTests(unittest.TestCase):
             commit = _registry()["plugins"][0]["ref"]
             base = install_root / "example-converter" / commit
             base.mkdir(parents=True)
-            (base / ".source.lock").write_text(LOCK_PROTOCOL_MARKER, encoding="utf-8")
+            lock_path = base / ".source.lock"
+            lock_path.write_text(LOCK_PROTOCOL_MARKER, encoding="utf-8")
 
             target = install_materializer(
                 "example-converter",
@@ -483,6 +483,7 @@ class MaterializerInstallLockTests(unittest.TestCase):
                 approve_code_execution=True,
             )
             self.assertTrue((target / INSTALLATION_RECEIPT).is_file())
+            self.assertEqual(lock_path.read_text(encoding="utf-8"), LOCK_PROTOCOL_MARKER)
 
 
 class MaterializerPipPreflightTests(unittest.TestCase):
