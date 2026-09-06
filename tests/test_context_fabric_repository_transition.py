@@ -12,12 +12,14 @@ PLUGIN_SRC = ROOT / "plugins" / "context-fabric" / "src"
 if str(PLUGIN_SRC) not in sys.path:
     sys.path.insert(0, str(PLUGIN_SRC))
 
+from agora_context_fabric.catalog import Catalog, ResourceSpec
 from agora_context_fabric.gitstore import GitStore
 from agora_context_fabric.network import (
     NetworkUnavailableError,
     materialize_corpus,
     resolve_repository,
 )
+from agora_context_fabric.resolver import ContextFabricResolver
 
 
 class ControlledFetchGitStore(GitStore):
@@ -61,6 +63,39 @@ class RepositoryTransitionTests(unittest.TestCase):
         self._git(source, "add", ".")
         self._git(source, "commit", "-qm", f"{name} fixture")
         return source, self._git(source, "rev-parse", "HEAD")
+
+    def _make_collection_repository(
+        self,
+        root: Path,
+        name: str,
+        payload: str,
+    ) -> tuple[Path, str]:
+        source = root / name
+        source.mkdir()
+        self._git(source, "init", "-q", "-b", "main")
+        self._git(source, "config", "user.email", "tests@example.invalid")
+        self._git(source, "config", "user.name", "Agora Tests")
+        tf = source / "Author" / "Work" / "tf" / "1.0"
+        tf.mkdir(parents=True)
+        (tf / "otype.tf").write_text("@node\n", encoding="utf-8")
+        (tf / "word.tf").write_text(payload + "\n", encoding="utf-8")
+        self._git(source, "add", ".")
+        self._git(source, "commit", "-qm", f"{name} collection")
+        return source, self._git(source, "rev-parse", "HEAD")
+
+    @staticmethod
+    def _collection_resolver(source: Path, store: GitStore) -> ContextFabricResolver:
+        resource = ResourceSpec(
+            id="collection",
+            name="Fixture collection",
+            plugin="context-fabric",
+            provider="context-fabric",
+            kind="collection",
+            repository=str(source),
+            languages=("test",),
+            disciplines=("testing",),
+        )
+        return ContextFabricResolver(Catalog([resource]), store)
 
     def test_fresh_resolution_repoints_metadata_cache_when_repository_changes(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -167,6 +202,26 @@ class RepositoryTransitionTests(unittest.TestCase):
                 relative_path="tf/1.0",
             )
             self.assertEqual((materialized_a / "word.tf").read_text(encoding="utf-8"), "a\n")
+
+    def test_exact_collection_revision_rejects_cached_commit_from_obsolete_repository(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source_a, revision_a = self._make_collection_repository(root, "collection-a", "a")
+            source_b, revision_b = self._make_collection_repository(root, "collection-b", "b")
+            self.assertNotEqual(revision_a, revision_b)
+            store = GitStore(
+                root / "cache",
+                snapshot_soft_limit_bytes=0,
+                min_free_bytes=0,
+            )
+
+            resolver_a = self._collection_resolver(source_a, store)
+            listing = resolver_a.resolve_members("collection")
+            self.assertEqual(listing.source_revision, revision_a)
+
+            resolver_b = self._collection_resolver(source_b, store)
+            with self.assertRaisesRegex(ValueError, "repository"):
+                resolver_b.resolve_members("collection", source_revision=revision_a)
 
 
 if __name__ == "__main__":
