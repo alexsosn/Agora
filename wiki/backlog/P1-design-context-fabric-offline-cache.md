@@ -37,12 +37,15 @@ Add a small `network.py` module owning only source-acquisition policy and errors
 class RepositoryResolution:
     path: Path
     revision: str
+    source: str
     source_revision_verified: bool
     resolution: Literal["fresh", "cached"]
     allow_network: bool
 ```
 
-The resolver asks this layer to resolve a repository. Fresh resolution uses the existing `GitStore` repository lock and Git selection primitives, but it keeps repository-identity validation, clone/fetch/select, exact revision capture, and selection-provenance persistence in one cross-process critical section. This is stronger than calling `GitStore.ensure_metadata()` followed by `selected_revision()`, because that historical API releases the repository lock before a caller can bind provenance to the selected ref. Cached resolution reads the selected ref and persisted provenance under the same repository lock, then uses only local Git state and existing cache-object metadata.
+The resolver asks this layer to resolve a repository. Fresh resolution uses the existing `GitStore` repository lock and Git selection primitives, but it keeps repository-identity validation, clone/fetch/select, exact revision capture, source capture, and selection-provenance persistence in one cross-process critical section. This is stronger than calling `GitStore.ensure_metadata()` followed by `selected_revision()`, because that historical API releases the repository lock before a caller can bind provenance to the selected ref. Cached resolution reads the selected ref and persisted provenance under the same repository lock, then uses only local Git state and existing cache-object metadata.
+
+`source` is the normalized repository URL/path bound to that resolution. Any later network-backed snapshot export uses this captured source rather than rereading mutable `origin`, so a concurrent repository transition cannot redirect an already-resolved request to another upstream.
 
 ### Errors
 
@@ -122,10 +125,10 @@ Defaults preserve existing call sites/tests that construct these dataclasses dir
 
 Materialization uses a policy helper:
 
-- when `allow_network=True`, call existing `GitStore.materialize*()`;
+- when `allow_network=True`, call `GitStore.materialize*()` with the source URL/path captured by the resolution;
 - when `allow_network=False`, locate the exact indexed existing cache object and touch/validate it without calling snapshot export.
 
-Propagate resolution/freshness fields into prepared results.
+The optional bound-source argument added to `GitStore.materialize*()` preserves the old API for unrelated callers. Resolver-owned materialization always supplies it. Propagate resolution/freshness fields into prepared results.
 
 ### Collections
 
@@ -137,6 +140,7 @@ For explicit immutable `source_revision`:
 
 - keep current local cached-repository lookup;
 - verify the commit exists locally;
+- bind the configured repository URL/path to the exact-revision resolution for any later online snapshot export;
 - do not call current-state remote resolution;
 - prepare the exact member from that commit-bound index;
 - in explicit `offline` mode, require the member snapshot already exists instead of exporting/fetching it.
@@ -270,9 +274,15 @@ Add a deterministic regression whose `GitStore` wrapper performs the competing s
 
 ### RED/GREEN 6 — fresh repository identity transition
 
-The final adversarial pass found that an existing metadata repository could retain origin A after the same resource id was reconfigured to repository B. Fresh resolution then fetched A again and persisted A's commit as though it were a fresh B selection.
+The next adversarial pass found that an existing metadata repository could retain origin A after the same resource id was reconfigured to repository B. Fresh resolution then fetched A again and persisted A's commit as though it were a fresh B selection.
 
-Add a regression that warms repository A, resolves the same resource id against repository B, and requires B's exact revision, B as the actual Git origin, and B in the persisted selection record. The RED result must show A's revision returned for B. GREEN invalidates selected identity evidence before repointing `origin`, then fetches/selects B under the same repository lock. The cross-platform gate must include Windows specifically; recursively deleting the old `.git` is not an acceptable implementation because Git object files can be read-only there.
+Add a regression that warms repository A, resolves the same resource id against repository B, and requires B's exact revision, B as the actual Git origin, and B in the persisted selection record. A complementary regression makes B unreachable after the transition starts and requires `auto` to raise rather than falling back to A. The RED result must show A's revision returned for B. GREEN invalidates selected identity evidence before repointing `origin`, then fetches/selects B under the same repository lock. The cross-platform gate must include Windows specifically; recursively deleting the old `.git` is not an acceptable implementation because Git object files can be read-only there.
+
+### RED/GREEN 7 — bind later snapshot export to the selected source
+
+The logically independent final pass then checked the boundary after repository selection. `GitStore._materialize_snapshot()` serializes export under the repository lock, but `_export_snapshot()` historically reread the metadata repository's current `origin`. Request A could therefore resolve repository A, release the selection lock, request B could repoint the same resource id to repository B, and A's later materialization would try to fetch A's immutable commit from B.
+
+Add a deterministic regression that resolves A, resolves B for the same resource id, then materializes A and requires A's payload. The RED result must fail with Git `not our ref` from B. GREEN captures the normalized source URL/path in `RepositoryResolution` and passes it explicitly through `materialize_corpus` / `materialize_feature_module` to the Git snapshot exporter. The GitStore source argument remains optional for backward compatibility, while resolver-owned paths always bind it; explicit collection revisions bind their configured repository too.
 
 ## Test gates
 
@@ -316,4 +326,5 @@ The final review must re-derive the behavior from current `main` and check:
 11. errors distinguish network loss from remote/configuration failures;
 12. fresh selection plus provenance persistence is atomic across competing processes and cached readers cannot observe a half-transition;
 13. fresh resolution cannot keep fetching an obsolete Git origin after a resource's configured repository changes, and failed transitions cannot fall back to the old identity;
-14. CI is green on the exact final head.
+14. later snapshot export is bound to the source captured by its resolution and cannot be redirected by a concurrent repository transition;
+15. CI is green on the exact final head.
