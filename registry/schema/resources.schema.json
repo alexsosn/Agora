@@ -96,7 +96,7 @@
           "licenses": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["data", "redistribution"],
+            "required": ["data"],
             "properties": {
               "data": {"type": "string"},
               "redistribution": {"type": "string"},
@@ -188,7 +188,7 @@
           },
           {
             "if": {"properties": {"kind": {"enum": ["corpus", "collection"]}}},
-            "then": {"properties": {"licenses": {"required": ["evidence"]}}}
+            "then": {"properties": {"licenses": {"required": ["redistribution", "evidence"]}}}
           }
         ]
       }
