@@ -207,6 +207,7 @@ class ContextFabricResolver:
         return RepositoryResolution(
             path=repo,
             revision=resolved,
+            source=self.store.repository_url(resource.repository),
             source_revision_verified=True,
             resolution="cached",
             allow_network=current_network_mode() != "offline",
