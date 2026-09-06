@@ -161,6 +161,9 @@ jobs:
       - name: Run offline source-resolution regressions
         run: python tests/test_context_fabric_offline.py
 
+      - name: Run request-scoped network-mode regressions
+        run: python tests/test_context_fabric_network_mode_tools.py
+
   materializer-install-locks:
     name: Materializer install locks (${{ matrix.os }})
     strategy:
