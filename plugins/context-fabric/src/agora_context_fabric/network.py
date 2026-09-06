@@ -199,7 +199,8 @@ def _repository_identity(value: str) -> str:
     return value.rstrip("/\\")
 
 
-def _repository_matches(store: GitStore, repo: Path, repository: str) -> bool:
+def repository_matches(store: GitStore, repo: Path, repository: str) -> bool:
+    """Return whether cached Git metadata still belongs to the configured source."""
     try:
         actual = store._run("remote", "get-url", "origin", cwd=repo)
     except subprocess.CalledProcessError:
@@ -256,7 +257,7 @@ def _selection_matches(
     configured_ref: str | None,
     revision: str,
 ) -> bool:
-    if not _repository_matches(store, repo, repository):
+    if not repository_matches(store, repo, repository):
         return False
 
     record = _read_selection_record(repo)
@@ -295,7 +296,7 @@ def _repository_selection_transaction(
     key = store.safe_cache_key(resource_id)
     repo = store.repositories_dir / key
     with store._repository_lock(key):
-        if (repo / ".git").is_dir() and not _repository_matches(store, repo, repository):
+        if (repo / ".git").is_dir() and not repository_matches(store, repo, repository):
             # Invalidate identity evidence before repointing origin. If the new
             # source cannot be reached, auto mode must fail instead of treating
             # the old repository's selected ref as a cache hit for the new one.
