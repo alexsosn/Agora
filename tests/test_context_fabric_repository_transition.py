@@ -13,7 +13,11 @@ if str(PLUGIN_SRC) not in sys.path:
     sys.path.insert(0, str(PLUGIN_SRC))
 
 from agora_context_fabric.gitstore import GitStore
-from agora_context_fabric.network import NetworkUnavailableError, resolve_repository
+from agora_context_fabric.network import (
+    NetworkUnavailableError,
+    materialize_corpus,
+    resolve_repository,
+)
 
 
 class ControlledFetchGitStore(GitStore):
@@ -127,6 +131,42 @@ class RepositoryTransitionTests(unittest.TestCase):
             self.assertFalse((repo / ".git" / "agora-selection.json").exists())
             with self.assertRaises(subprocess.CalledProcessError):
                 store.selected_revision(repo)
+
+    def test_materialization_uses_repository_bound_to_the_resolution(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source_a, revision_a = self._make_repository(root, "source-a", "a")
+            source_b, revision_b = self._make_repository(root, "source-b", "b")
+            self.assertNotEqual(revision_a, revision_b)
+            store = GitStore(
+                root / "cache",
+                snapshot_soft_limit_bytes=0,
+                min_free_bytes=0,
+            )
+
+            resolution_a = resolve_repository(
+                store,
+                resource_id="fixture",
+                repository=str(source_a),
+                configured_ref=None,
+            )
+            self.assertEqual(resolution_a.revision, revision_a)
+
+            resolution_b = resolve_repository(
+                store,
+                resource_id="fixture",
+                repository=str(source_b),
+                configured_ref=None,
+            )
+            self.assertEqual(resolution_b.revision, revision_b)
+
+            materialized_a = materialize_corpus(
+                store,
+                resolution_a,
+                resource_id="fixture",
+                relative_path="tf/1.0",
+            )
+            self.assertEqual((materialized_a / "word.tf").read_text(encoding="utf-8"), "a\n")
 
 
 if __name__ == "__main__":
