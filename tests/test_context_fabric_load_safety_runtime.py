@@ -8,6 +8,7 @@ import threading
 import time
 import types
 import unittest
+import unittest.mock
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -372,7 +373,7 @@ class ServiceColdCompileRuntimeTests(unittest.TestCase):
 
     def _fixture(self, root: Path):
         store = GitStore(root / "cache", snapshot_soft_limit_bytes=10_000, min_free_bytes=0)
-        path = store.snapshots_dir / "fixture" / "a" * 40 / "corpora" / "tf" / "1.0"
+        path = store.snapshots_dir / "fixture" / ("a" * 40) / "corpora" / "tf" / "1.0"
         path.mkdir(parents=True)
         (path / "otype.tf").write_text("@node\n", encoding="utf-8")
         (path / "word.tf").write_text("abc", encoding="utf-8")
