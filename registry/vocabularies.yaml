@@ -52,6 +52,12 @@ redistribution_statuses:
   - permitted
   - restricted
 
+license_evidence_statuses:
+  - resolved
+  - component-specific
+  - member-specific
+  - unresolved
+
 languages:
   - akkadian
   - aramaic
