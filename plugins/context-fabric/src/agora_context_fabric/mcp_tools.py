@@ -41,6 +41,7 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         resource_id: str,
         query: str = "",
         source_revision: str | None = None,
+        source_mode: str | None = None,
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
@@ -48,8 +49,12 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
 
         The response contains the immutable `source_revision` used for discovery.
         Pass it back for later pages and then to prepare_corpus/load_corpus to
-        keep the entire workflow on the same upstream collection revision. If it
-        is omitted, discovery follows the collection's current configured state.
+        keep the workflow on the same upstream collection revision.
+
+        `source_mode` may be `prefer-fresh`, `offline`, or `require-fresh`.
+        Omit it for the default prefer-fresh behavior. `offline` performs no
+        network acquisition and requires the relevant revision/index to be
+        resident. `require-fresh` refuses cached fallback.
         """
         kwargs: dict[str, Any] = {
             "query": query,
@@ -58,6 +63,8 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         }
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
+        if source_mode is not None:
+            kwargs["source_mode"] = source_mode
         return service.list_members(resource_id, **kwargs)
 
     @mcp.tool()
@@ -66,21 +73,28 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         member_id: str | None = None,
         version: str | None = None,
         source_revision: str | None = None,
+        source_mode: str | None = None,
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
         """Acquire/cache a corpus version and optional registered feature modules.
 
         For collection members, pass the `source_revision` returned by
-        list_collection_members to resolve the member at exactly that cached
-        upstream commit. Omitting it preserves floating/current collection
-        behavior. Prepared paths are cache-resident but evictable after this call
-        returns; use load_corpus when a corpus must stay protected for active use.
+        list_collection_members to resolve the member at exactly that upstream
+        commit. `source_mode='offline'` guarantees no acquisition network path
+        and succeeds only when the exact source snapshots/index are resident.
+        `source_mode='require-fresh'` requires a successful remote refresh and is
+        incompatible with an explicit immutable `source_revision`.
+
+        Prepared paths are cache-resident but evictable after this call returns;
+        use load_corpus when a corpus must stay protected for active use.
         """
         kwargs: dict[str, Any] = {"member_id": member_id, "modules": modules}
         if version is not None:
             kwargs["version"] = version
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
+        if source_mode is not None:
+            kwargs["source_mode"] = source_mode
         return service.prepare(resource_id, **kwargs)
 
     @mcp.tool()
@@ -89,6 +103,7 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         member_id: str | None = None,
         version: str | None = None,
         source_revision: str | None = None,
+        source_mode: str | None = None,
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
         max_compile_gb: float | None = None,
@@ -97,9 +112,11 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         """Acquire and load a corpus; its final cache path is leased until unload.
 
         For a collection member, reuse the discovery `source_revision` to load
-        exactly that cached collection snapshot. The response includes
-        `logical_name`; pass that value to unload_corpus. Module-enabled loads
-        lease the composed overlay, not every source input.
+        exactly that collection snapshot. `source_mode='offline'` guarantees no
+        acquisition network path; `source_mode='require-fresh'` refuses cached
+        fallback. Responses report the immutable revision plus source-resolution
+        freshness provenance. The response also includes `logical_name`; pass
+        that value to unload_corpus.
 
         A genuinely warm current-format cache follows the normal upstream loader
         path. Cold compilation runs in a contained worker with Agora-owned
@@ -118,6 +135,8 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
             kwargs["version"] = version
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
+        if source_mode is not None:
+            kwargs["source_mode"] = source_mode
         if max_compile_gb is not None:
             kwargs["max_compile_gb"] = max_compile_gb
         if max_compile_minutes is not None:
