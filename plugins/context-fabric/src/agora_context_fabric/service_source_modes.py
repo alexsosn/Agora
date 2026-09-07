@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
-from pathlib import Path
 from typing import Any
 
 from . import service as _service_module
@@ -40,14 +39,20 @@ class ContextFabricService(_BaseContextFabricService):
                     f"source_mode={mode!r} requires the managed Context-Fabric Git cache"
                 )
             return nullcontext(None)
-        return self.store.source_policy(mode)
+        source_policy = getattr(self.store, "source_policy", None)
+        if not callable(source_policy):
+            if mode != "prefer-fresh":
+                raise RuntimeError(
+                    f"source_mode={mode!r} requires the managed Context-Fabric Git cache"
+                )
+            return nullcontext(None)
+        return source_policy(mode)
 
     def _managed_collection_resolution(self, resource) -> bool:
         return (
             resource.kind == "collection"
             and self.store is not None
             and callable(getattr(self.resolver, "_collection_repo", None))
-            and callable(getattr(self.resolver, "_collection_index_manager", None))
         )
 
     @staticmethod
@@ -109,37 +114,12 @@ class ContextFabricService(_BaseContextFabricService):
             annotated["modules"] = annotated_modules
         return annotated
 
-    def _matching_cached_collection_index(self, resource, revision: str) -> bool:
-        manager = self.resolver._collection_index_manager()
-        installed_path = resource.member_index_path or resource.member_index
-        if installed_path is not None:
-            installed = manager._matching_index(
-                Path(installed_path),
-                collection_id=resource.id,
-                source_revision=revision,
-            )
-            if installed is not None:
-                return True
-        cached = manager._matching_index(
-            manager._cache_path(resource.id, revision),
-            collection_id=resource.id,
-            source_revision=revision,
-        )
-        return cached is not None
-
     def _resolve_collection_revision(
         self,
         resource,
         source_revision: str | None,
-        policy: SourcePolicyState | None,
     ) -> str:
         _repo, revision = self.resolver._collection_repo(resource, source_revision)
-        if policy is not None and not policy.allow_network:
-            if not self._matching_cached_collection_index(resource, revision):
-                raise RuntimeError(
-                    f"collection {resource.id!r} index for revision {revision} is not cached "
-                    "for offline use; network-enabled discovery is required first"
-                )
         return revision
 
     def list_members(
@@ -167,7 +147,6 @@ class ContextFabricService(_BaseContextFabricService):
                 effective_revision = self._resolve_collection_revision(
                     resource,
                     source_revision,
-                    policy,
                 )
             result = _BaseContextFabricService.list_members(
                 self,
@@ -224,7 +203,6 @@ class ContextFabricService(_BaseContextFabricService):
                 effective_revision = self._resolve_collection_revision(
                     resource,
                     source_revision,
-                    policy,
                 )
             result = _BaseContextFabricService.prepare(
                 self,
@@ -262,7 +240,6 @@ class ContextFabricService(_BaseContextFabricService):
                 effective_revision = self._resolve_collection_revision(
                     resource,
                     source_revision,
-                    policy,
                 )
             result = _BaseContextFabricService.load(
                 self,
