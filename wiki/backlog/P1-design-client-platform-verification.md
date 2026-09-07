@@ -36,12 +36,34 @@ platform:
 
 Both fields are required when `platform` is present. Keep this environment identity on the check, not in prose or the check ID.
 
-For GitHub Actions platform checks:
+### Structural workflow binding
 
-- the executor still names the workflow/job/matrix selector;
-- the selected job must assert `platform.system()` and `platform.machine()` before exercising the MCP path;
-- registry validation must reject a platform check whose workflow/job/matrix binding cannot be found;
-- tests must reject a mismatch between declared platform metadata and the runner selector/runtime assertion contract.
+Do **not** infer OS/architecture from GitHub runner labels and do not parse shell snippets in registry validation.
+
+Platform workflow jobs must use explicit `strategy.matrix.include` cells carrying the semantic identity that the runtime assertion consumes, for example:
+
+```yaml
+include:
+  - plugin: context-fabric
+    runner: ubuntu-latest
+    platform_os: linux
+    platform_arch: x86_64
+```
+
+The job runs on `${{ matrix.runner }}` and its preflight assertion receives `matrix.platform_os` / `matrix.platform_arch` as the expected values.
+
+Extend `scripts/validate_verification_checks.py` so GitHub Actions executor selectors can match either:
+
+- the existing simple list-valued matrix form; or
+- one exact `matrix.include` cell.
+
+For a check with `platform`, validation must require:
+
+1. its executor selector resolves to exactly one executable include cell;
+2. the selected cell's `platform_os` equals `check.platform.os`;
+3. the selected cell's `platform_arch` equals `check.platform.arch`.
+
+Structural workflow tests—not registry parsing of shell—must ensure the job actually asserts `platform.system()` and `platform.machine()` against those matrix values before MCP launch.
 
 Do not infer platform semantics from IDs such as `*-windows` or `*-macos`.
 
@@ -53,7 +75,7 @@ Keep the current `live-mcp` Ubuntu matrix for all four v0.1 plugins. These remai
 
 ### 2. Bounded local-runtime platform startup matrix
 
-Add one job to `external-mcp-smoke.yml`, for example `local-runtime-platform`, with a six-cell include matrix:
+Add one job to `external-mcp-smoke.yml`, for example `local-runtime-platform`, with exactly six `matrix.include` cells:
 
 - Context-Fabric × Ubuntu x86_64
 - Context-Fabric × Intel macOS x86_64
@@ -62,11 +84,13 @@ Add one job to `external-mcp-smoke.yml`, for example `local-runtime-platform`, w
 - SEDRA × Intel macOS x86_64
 - SEDRA × Windows x86_64
 
+Each include cell carries `plugin`, `runner`, `platform_os`, and `platform_arch` explicitly.
+
 Each cell must:
 
 - use the committed smoke harness environment;
 - load the **generated Codex launch metadata**, not duplicate the command in workflow YAML;
-- assert actual OS and architecture before launch;
+- assert actual OS and architecture against `matrix.platform_os` / `matrix.platform_arch` before launch;
 - start the server, initialize MCP, and enumerate the expected tool set;
 - avoid corpus acquisition and avoid requiring a real SEDRA HTTP lookup;
 - upload a separate JSON trace artifact even on failure;
@@ -103,7 +127,7 @@ For the platform startup checks, use `kind: deterministic` and `evidence_level: 
 
 Reference the new checks from the relevant `registry/plugins.yaml` client evidence without changing current statuses solely because more checks exist.
 
-The validator must continue enforcing plugin/client/transport binding and add platform binding validation.
+The validator must continue enforcing plugin/client/transport binding, support exact `matrix.include` selector binding, and add explicit platform-to-cell consistency validation.
 
 ## Compatibility guide
 
@@ -131,9 +155,11 @@ Commit failing tests before schema/validator implementation:
 1. verification-check schema accepts explicit `platform.os` + `platform.arch` only from controlled values;
 2. partial/unknown platform metadata is rejected;
 3. platform metadata is not inferred from check ID;
-4. a referenced GitHub Actions platform check must bind to an executable workflow/job/matrix selector;
-5. a declared platform inconsistent with the selected runner/assertion contract is rejected;
-6. current registry remains valid only after canonical checks are updated coherently.
+4. the existing simple-list Actions selector behavior remains valid;
+5. a GitHub Actions executor selector can bind one exact `matrix.include` cell;
+6. missing, non-unique, or partially matching include selectors fail closed;
+7. a platform check whose declared OS/arch disagrees with the selected cell's `platform_os`/`platform_arch` is rejected;
+8. current registry remains valid only after canonical checks are updated coherently.
 
 ### RED 2 — harness client/transport selection
 
@@ -150,14 +176,15 @@ Before implementation, add tests proving:
 
 Add structural tests that fail until the workflow exists:
 
-1. exactly the intended six local-runtime cells are present;
-2. Ubuntu, Intel macOS, and Windows are all represented for both Agora-owned local runtimes;
-3. each cell asserts OS/architecture at runtime;
-4. each cell invokes the smoke harness against generated launch metadata and does not hand-code plugin server commands;
-5. artifacts are unique and uploaded with `if: always()`;
-6. timeouts are bounded;
-7. dependency/launch/harness changes retrigger the matrix;
-8. removing any OS/plugin cell fails the contract.
+1. exactly the intended six `matrix.include` cells are present;
+2. Ubuntu, Intel macOS, and Windows are represented for both Agora-owned local runtimes;
+3. each cell declares `runner`, `platform_os`, and `platform_arch` explicitly;
+4. the job consumes those exact matrix values for `runs-on` and runtime OS/architecture assertions;
+5. each cell invokes the smoke harness against generated launch metadata and does not hand-code plugin server commands;
+6. artifacts are unique and uploaded with `if: always()`;
+7. timeouts are bounded;
+8. dependency/launch/harness changes retrigger the matrix;
+9. removing or duplicating any OS/plugin cell fails the contract.
 
 ### RED 4 — Claude generated-transport workflow contract
 
@@ -183,7 +210,7 @@ Add tests that fail until:
 
 ## GREEN implementation order
 
-1. schema + validator platform support;
+1. schema + validator platform/include-selector support;
 2. harness client/transport-selection changes;
 3. workflow platform matrix and Claude generated-transport matrix;
 4. canonical check/plugin evidence updates;
@@ -210,6 +237,8 @@ Before finalizing, review the frozen head independently for:
 - accidental conflation of generic-harness Claude transport execution with actual Claude-client verification;
 - accidental use of the Codex Sefaria proxy while claiming the Claude direct-SSE path;
 - platform labels that are not runtime-asserted;
+- platform semantics inferred from runner/check names instead of explicit include-cell fields;
+- include selectors that match zero or multiple cells;
 - Windows path/argument handling through generated metadata;
 - any workflow command that bypasses generated manifests;
 - status promotion caused merely by adding more checks;
@@ -222,4 +251,4 @@ Before finalizing, review the frozen head independently for:
 
 ## Completion criteria
 
-#18 can close when the compatibility guide accurately scopes client/platform support, both Agora-owned local runtimes have bounded packaged-startup evidence on Linux/Intel-macOS/Windows, all four generated Claude configurations have reproducible transport-aware generic-harness evidence that remains explicitly non-Claude-client evidence, platform identity is traceable through canonical verification checks, and the frozen implementation head passes independent adversarial review.
+#18 can close when the compatibility guide accurately scopes client/platform support, both Agora-owned local runtimes have bounded packaged-startup evidence on Linux/Intel-macOS/Windows, all four generated Claude configurations have reproducible transport-aware generic-harness evidence that remains explicitly non-Claude-client evidence, platform identity is traceable through canonical verification checks with exact workflow-cell binding, and the frozen implementation head passes independent adversarial review.
