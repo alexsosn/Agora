@@ -9,7 +9,8 @@ Make `wiki/releases/v0.1-plan-active.md` accurately describe the current v0.1 im
 Canonical inputs:
 
 - `registry/v0.1.yaml` — fixed v0.1 plugin IDs;
-- `registry/plugins.yaml` — aggregate and per-client verification statuses;
+- `registry/plugins.yaml` — aggregate and per-client verification statuses plus referenced check IDs;
+- `registry/verification-checks.yaml` — machine-readable check kind, evidence level, plugin, client, and transport semantics;
 - existing required-skill tests — evidence that the current v0.1 scholarly skill set is implemented.
 
 Human-authored release history remains in `wiki/releases/v0.1-plan-active.md`.
@@ -31,10 +32,11 @@ The generated text must:
 1. use the plugin IDs from `registry/v0.1.yaml`, not every registry plugin;
 2. report aggregate plugin status by grouping exact canonical values from `registry/plugins.yaml`;
 3. report each supported client’s status conservatively and explicitly;
-4. identify live-verified client paths only when the client has `status: verified` and at least one referenced check ID with the `mcp-live/` family;
-5. never infer that aggregate plugin status equals a client status;
-6. render deterministically in v0.1 plugin order and stable client order;
-7. fail clearly if a v0.1 plugin is missing from `plugins.yaml` or lacks expected verification/client metadata.
+4. identify live-verified client paths only when the client has `status: verified` and at least one referenced check resolves in `registry/verification-checks.yaml` to the same plugin/client with `kind: live` and `evidence_level: verified`;
+5. never infer verification semantics from a check-ID naming prefix;
+6. never infer that aggregate plugin status equals a client status;
+7. render deterministically in v0.1 plugin order and stable client order;
+8. fail clearly if a v0.1 plugin is missing from `plugins.yaml`, a referenced check is missing/mismatched, or expected verification/client metadata is absent.
 
 For the current registry the prose should communicate, without hard-coded plugin names in the generator logic, that all four aggregate plugin statuses are `community`, Codex paths are `verified` with live evidence, and Claude paths remain `community` without equivalent live client-path evidence.
 
@@ -74,9 +76,10 @@ Add tests that fail before the script exists/works:
 1. generator/checker exists and `--check` accepts current generated output;
 2. rendering is derived from the v0.1 plugin set and exact registry aggregate/client statuses;
 3. aggregate `community` + client `verified` never renders aggregate “verified”;
-4. a verified client without an `mcp-live/` check is not described as live-verified;
-5. missing v0.1 plugin/client verification metadata fails closed;
-6. generation changes only the bounded block.
+4. a verified client whose referenced checks are not canonically `kind: live` + `evidence_level: verified` is not described as live-verified;
+5. a missing or plugin/client-mismatched referenced check fails closed;
+6. missing v0.1 plugin/client verification metadata fails closed;
+7. generation changes only the bounded block.
 
 ### RED 2 — stale plan semantics
 
@@ -107,6 +110,7 @@ Before finalization, review the frozen implementation head independently against
 - #16 acceptance criteria as rescoped by current repository state;
 - `CONTRIBUTING.md` generated-artifact rules;
 - whether the generator is genuinely registry-derived rather than hard-coded to the current four values;
+- whether live evidence is joined through `registry/verification-checks.yaml` rather than inferred from IDs;
 - whether “verified” can leak from one client into aggregate plugin prose;
 - whether missing/unknown evidence fails closed;
 - whether generation mutates hand-authored history outside its markers;
