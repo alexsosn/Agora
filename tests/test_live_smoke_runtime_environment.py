@@ -81,6 +81,7 @@ class LiveSmokeRuntimeEnvironmentTests(unittest.TestCase):
     def test_all_dependency_environment_changes_retrigger_live_verification(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         required_paths = (
+            ".gitattributes",
             "plugins/context-fabric/pyproject.toml",
             "plugins/context-fabric/uv.lock",
             "plugins/perseus/runtime-requirements.in",
