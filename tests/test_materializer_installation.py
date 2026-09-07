@@ -34,7 +34,7 @@ from scripts.agora_install_materializer import (
 from scripts.agora_materialize import materialize
 
 ROOT = Path(__file__).resolve().parents[1]
-PSEUDEPIGRAPHA_TF_COMMIT = "082c6aeae72df8c93c11d8b6bbb1b69ec2b1f544"
+PSEUDEPIGRAPHA_TF_COMMIT = "315439284e765c1d7ea89ffdefdd10f403aa1293"
 
 
 def _registry() -> dict:
