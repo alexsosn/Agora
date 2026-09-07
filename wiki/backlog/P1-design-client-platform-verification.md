@@ -15,14 +15,22 @@ The implementation must add:
 
 Keep the existing verification status vocabulary (`community`, `verified`) and check kinds (`deterministic`, `live`). Do not create a competing support-status enum.
 
-The compatibility guide describes **evidence mode**, not a new status:
+Agora's existing registry semantics distinguish **how evidence is executed** from **how strong a client claim it can support**:
+
+- `kind: deterministic` is for deterministic unittest evidence;
+- `kind: live` is for GitHub Actions runtime observations;
+- `evidence_level: community|verified` is the maximum client-evidence strength that observation may justify.
+
+Therefore every new Actions-based platform/generated-transport check in this ticket is `kind: live`. These checks remain `evidence_level: community` unless they truly exercise the named client path at verified strength. A live runtime observation is not automatically a verified client observation.
+
+The compatibility guide describes a separate **evidence mode**, not a new status:
 
 - **live client path** — the named client/transport path itself is exercised with a representative operation;
 - **generated transport path** — the generated client configuration is resolved and exercised through Agora's generic MCP harness, but the named client executable is not involved;
 - **deterministic only** — schema/manifest/path contract only;
 - **not exercised** — no claim beyond generated metadata.
 
-A generated transport-path check can remain `community` evidence even if it performs a real upstream lookup; it must never be presented as equivalent to executing Claude Code.
+A generated transport-path check may perform real runtime or upstream work and still remain `community` evidence because it does not execute the named client itself.
 
 ## Canonical platform identity
 
@@ -96,6 +104,8 @@ Each cell must:
 - upload a separate JSON trace artifact even on failure;
 - run with a small bounded timeout.
 
+Register every cell as `kind: live`, `evidence_level: community`: it is a real runtime observation on that platform, but not additional evidence that the Codex client itself was executed on that platform.
+
 The current dedicated `context-fabric-intel-macos` job may be folded into this matrix only if the resulting check remains at least as strict and its regression contract is updated atomically. Do not silently reduce existing Intel-mac evidence.
 
 ### 3. Generated Claude transport-path substitute
@@ -110,7 +120,7 @@ For `--client claude`:
 - initialize MCP, enumerate expected tools, and perform the same single bounded representative operation where practical;
 - record `client_requested: claude`, the generated transport, and an explicit trace field such as `client_execution: generic-harness`, so artifacts cannot be mistaken for Claude Code execution.
 
-Add an Ubuntu scheduled/push matrix for all four v0.1 plugins using this mode. Register those checks as `community`, not `verified`.
+Add an Ubuntu scheduled/push matrix for all four v0.1 plugins using this mode. Register all four as `kind: live`, `evidence_level: community`: they are live executions of generated Claude transport metadata through the generic harness, not executions of Claude Code.
 
 The existing deterministic Claude manifest checks remain useful and may stay referenced alongside the stronger generated-transport checks.
 
@@ -123,9 +133,9 @@ Add stable verification check records for:
 - six local-runtime platform startup cells; and
 - four generated-Claude transport-path cells.
 
-For the platform startup checks, use `kind: deterministic` and `evidence_level: community` unless the implementation genuinely performs a provider operation. For generated-Claude generic-harness checks, use `kind: live` only if a real upstream operation is performed, but keep `evidence_level: community` and clearly document that this is not Claude-client execution.
+All ten Actions-backed records are `kind: live`, `evidence_level: community`. The distinction between platform-startup, generated-Claude transport, and actual live-client verification belongs in their executor/platform binding, artifact trace, and compatibility evidence mode—not in an invented third `kind` value.
 
-Reference the new checks from the relevant `registry/plugins.yaml` client evidence without changing current statuses solely because more checks exist.
+Reference the new checks from the relevant `registry/plugins.yaml` client evidence without changing current statuses solely because more checks exist. Existing `verified` Codex status continues to require the stronger verified Ubuntu live-client check; Claude remains `community`.
 
 The validator must continue enforcing plugin/client/transport binding, support exact `matrix.include` selector binding, and add explicit platform-to-cell consistency validation.
 
@@ -139,10 +149,11 @@ It should contain:
 2. a local-runtime platform table for Context-Fabric and SEDRA;
 3. exact meaning of live-client vs generated-transport vs deterministic evidence;
 4. stable check IDs backing each exercised cell;
-5. an explicit statement that third-party Perseus and hosted Sefaria are not being claimed as fully cross-platform Agora-owned runtimes merely because Ubuntu path checks succeed;
-6. an explicit statement that macOS evidence is currently Intel x86_64 if that is the runner used;
-7. an explicit statement that the Claude Sefaria substitute exercises the generated direct-SSE configuration, not the Codex stdio proxy configuration;
-8. a link to current workflow artifacts/check definitions rather than a claim that all historical runs are green.
+5. an explicit statement that `kind: live` means a runtime workflow observation and does not by itself mean the named client was executed or that evidence is `verified`;
+6. an explicit statement that third-party Perseus and hosted Sefaria are not being claimed as fully cross-platform Agora-owned runtimes merely because Ubuntu path checks succeed;
+7. an explicit statement that macOS evidence is currently Intel x86_64 if that is the runner used;
+8. an explicit statement that the Claude Sefaria substitute exercises the generated direct-SSE configuration, not the Codex stdio proxy configuration;
+9. a link to current workflow artifacts/check definitions rather than a claim that all historical runs are green.
 
 README and `wiki/guides/installation.md` should link this guide and avoid broader support language than the matrix supports.
 
@@ -159,7 +170,8 @@ Commit failing tests before schema/validator implementation:
 5. a GitHub Actions executor selector can bind one exact `matrix.include` cell;
 6. missing, non-unique, or partially matching include selectors fail closed;
 7. a platform check whose declared OS/arch disagrees with the selected cell's `platform_os`/`platform_arch` is rejected;
-8. current registry remains valid only after canonical checks are updated coherently.
+8. Actions-backed checks introduced by this ticket are `kind: live` and `evidence_level: community`;
+9. current registry remains valid only after canonical checks are updated coherently.
 
 ### RED 2 — harness client/transport selection
 
@@ -193,8 +205,9 @@ Add tests that fail until:
 1. all four v0.1 plugins are exercised with `--client claude` on Ubuntu;
 2. the check artifacts are uniquely attributable;
 3. the Sefaria cell exercises generated SSE while the three local Claude cells exercise generated stdio;
-4. no generated-Claude check is promoted to `verified` merely because the generic harness succeeds;
-5. workflow/documentation identifies execution as generic-harness rather than actual Claude Code.
+4. all generated-Claude Actions checks are `kind: live`, `evidence_level: community`;
+5. no generated-Claude check promotes Claude beyond `community` merely because the generic harness succeeds;
+6. workflow/documentation identifies execution as generic-harness rather than actual Claude Code.
 
 ### RED 5 — compatibility documentation
 
@@ -204,9 +217,10 @@ Add tests that fail until:
 2. README and installation guide link it;
 3. the guide distinguishes live client path / generated transport path / deterministic only / not exercised;
 4. the guide explicitly says generated-Claude checks do not execute Claude Code;
-5. the guide identifies Intel x86_64 macOS if that is the tested macOS platform;
-6. the guide distinguishes Sefaria Claude direct SSE from Codex stdio-via-SSE-proxy;
-7. every check ID named in the guide resolves in `registry/verification-checks.yaml`.
+5. the guide explains that `kind: live` is not synonymous with `verified` client evidence;
+6. the guide identifies Intel x86_64 macOS if that is the tested macOS platform;
+7. the guide distinguishes Sefaria Claude direct SSE from Codex stdio-via-SSE-proxy;
+8. every check ID named in the guide resolves in `registry/verification-checks.yaml`.
 
 ## GREEN implementation order
 
@@ -235,6 +249,7 @@ On the frozen implementation head require:
 Before finalizing, review the frozen head independently for:
 
 - accidental conflation of generic-harness Claude transport execution with actual Claude-client verification;
+- accidental conflation of `kind: live` with `evidence_level: verified`;
 - accidental use of the Codex Sefaria proxy while claiming the Claude direct-SSE path;
 - platform labels that are not runtime-asserted;
 - platform semantics inferred from runner/check names instead of explicit include-cell fields;
