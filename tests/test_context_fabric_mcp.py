@@ -69,6 +69,15 @@ class FakeService:
         self.calls.append(("load", (resource_id,), kwargs))
         return {"logical_name": resource_id}
 
+    def cancel_load(self, load_id):
+        self.calls.append(("cancel_load", (load_id,), {}))
+        return {
+            "found": True,
+            "load_id": load_id,
+            "cancellation_requested": True,
+            "phase": "compiling",
+        }
+
     def unload(self, logical_name):
         self.calls.append(("unload", (logical_name,), {}))
         return {"logical_name": logical_name, "was_loaded": True}
@@ -107,6 +116,7 @@ class ToolRegistrationTests(unittest.TestCase):
                 "list_collection_members",
                 "prepare_corpus",
                 "load_corpus",
+                "cancel_corpus_load",
                 "unload_corpus",
                 "corpus_cache_status",
                 "prune_corpus_cache",
@@ -175,6 +185,14 @@ class ToolRegistrationTests(unittest.TestCase):
                     "modules": ["example-module"],
                 },
             ),
+        )
+
+    def test_cancel_tool_delegates_load_id(self):
+        result = self.mcp.tools["cancel_corpus_load"]("load-123")
+        self.assertTrue(result["cancellation_requested"])
+        self.assertEqual(
+            self.service.calls[-1],
+            ("cancel_load", ("load-123",), {}),
         )
 
     def test_unload_uses_exact_logical_name_returned_by_load(self):

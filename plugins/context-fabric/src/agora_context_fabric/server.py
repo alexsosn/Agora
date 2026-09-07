@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from .catalog import Catalog
+from .cold_compile import ColdCompileSupervisor
 from .gitstore import GitStore
+from .load_safety import current_cfm_version
 from .mcp_tools import register_tools
 from .resolver import ContextFabricResolver
 from .service import ContextFabricService
@@ -85,7 +87,15 @@ def build_runtime(
     catalog = Catalog.from_plugin_root(Path(plugin_root))
     store = GitStore(Path(cache_dir))
     resolver = ContextFabricResolver(catalog, store)
-    service = ContextFabricService(catalog, resolver, corpus_manager)
+    cfm_version = current_cfm_version()
+    cold_compiler = ColdCompileSupervisor(cfm_version=cfm_version)
+    service = ContextFabricService(
+        catalog,
+        resolver,
+        corpus_manager,
+        cold_compiler=cold_compiler,
+        cfm_version=cfm_version,
+    )
     register_tools(mcp, service)
     return mcp, service, corpus_manager
 

@@ -91,6 +91,8 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         source_revision: str | None = None,
         features: str | list[str] | None = None,
         modules: list[str] | None = None,
+        max_compile_gb: float | None = None,
+        max_compile_minutes: float | None = None,
     ) -> dict[str, Any]:
         """Acquire and load a corpus; its final cache path is leased until unload.
 
@@ -98,6 +100,14 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         exactly that cached collection snapshot. The response includes
         `logical_name`; pass that value to unload_corpus. Module-enabled loads
         lease the composed overlay, not every source input.
+
+        A genuinely warm current-format cache follows the normal upstream loader
+        path. Cold compilation runs in a contained worker with Agora-owned
+        observed disk/time guardrails. `max_compile_gb` and
+        `max_compile_minutes` are optional positive per-load overrides; neither
+        disables the server's configured minimum-free-space reserve. Use
+        corpus_cache_status to inspect active cold loads and cancel_corpus_load
+        with the reported load_id when cancellation is needed.
         """
         kwargs: dict[str, Any] = {
             "member_id": member_id,
@@ -108,7 +118,22 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
             kwargs["version"] = version
         if source_revision is not None:
             kwargs["source_revision"] = source_revision
+        if max_compile_gb is not None:
+            kwargs["max_compile_gb"] = max_compile_gb
+        if max_compile_minutes is not None:
+            kwargs["max_compile_minutes"] = max_compile_minutes
         return service.load(resource_id, **kwargs)
+
+    @mcp.tool()
+    def cancel_corpus_load(load_id: str) -> dict[str, Any]:
+        """Request cancellation of an active cold compile owned by this server.
+
+        Active load IDs are reported by corpus_cache_status. Cancellation is
+        idempotent while a worker is active. A different Agora server process can
+        suppress duplicate compilation through the shared compile lock, but its
+        worker cannot be cancelled through this process-local tool.
+        """
+        return service.cancel_load(load_id)
 
     @mcp.tool()
     def unload_corpus(logical_name: str) -> dict[str, Any]:
@@ -121,7 +146,7 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
 
     @mcp.tool()
     def corpus_cache_status() -> dict[str, Any]:
-        """Report Context-Fabric cache usage, object kinds, limits, and active leases."""
+        """Report cache usage, limits, active leases, and active cold loads."""
         return service.cache_status()
 
     @mcp.tool()

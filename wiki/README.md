@@ -58,6 +58,7 @@ When older planning/research language is broader than the plugin boundary, `ref-
 ### Guides
 
 - [`guides/installation.md`](guides/installation.md) — Claude Code and ChatGPT/Codex installation flows.
+- [`guides/context-fabric-cache.md`](guides/context-fabric-cache.md) — Context-Fabric managed cache, cold-compilation guardrails, status, cancellation, and cleanup behavior.
 
 ### Backlog
 
