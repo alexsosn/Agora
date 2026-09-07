@@ -16,7 +16,10 @@ resources:
     redistribution: restricted
     notes: Corpus data are CC BY-NC 4.0; attribution/citation is required and commercial use needs separate permission.
     evidence: {status: resolved, checked_at: '2026-09-06', sources: [https://github.com/ETCBC/bhsa/blob/master/README.md]}
-  verification: {status: community}
+  verification:
+    status: community
+    evidence:
+    - check_id: resource-load/bhsa
   source_snapshot: {source: 'Context-Fabric/context-fabric:CorporaTable.tsx', checked_at: '2026-08-29'}
 - id: dss
   name: Dead Sea Scrolls
@@ -484,7 +487,10 @@ resources:
     redistribution: restricted
     notes: Dataset is CC BY-NC 4.0; preserve the upstream dataset citation/DOI.
     evidence: {status: resolved, checked_at: '2026-09-06', sources: [https://github.com/DT-UCPH/cuc/blob/main/README.md]}
-  verification: {status: community}
+  verification:
+    status: community
+    evidence:
+    - check_id: resource-load/cuc
   source_snapshot: {source: 'Context-Fabric/context-fabric:CorporaTable.tsx', checked_at: '2026-08-29'}
 - id: dhammapada
   name: Dhammapada

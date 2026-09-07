@@ -2239,6 +2239,8 @@ members:
   canonical_id: tlg0012.tlg001.perseus-grc2
   verification:
     status: community
+    evidence:
+    - check_id: member-load/greek-iliad
 - id: canonical-greeklit-tlg0012-tlg002-perseus-grc2-1-55c11408
   path: canonical-greekLit/tlg0012/tlg002/perseus-grc2/1
   tf_path: canonical-greekLit/tlg0012/tlg002/perseus-grc2/1/tf/1.0
