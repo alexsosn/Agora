@@ -7,6 +7,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/external-mcp-smoke.yml"
+GITATTRIBUTES = ROOT / ".gitattributes"
 
 
 def _assert_intel_job_contract(testcase: unittest.TestCase, workflow: str) -> None:
@@ -69,6 +70,13 @@ class LiveSmokeRuntimeEnvironmentTests(unittest.TestCase):
         self.assertIn("python scripts/smoke_mcp_plugin.py", workflow)
         self.assertNotIn('uv run --with "mcp>=2,<3"', workflow)
         self.assertNotIn('--with "PyYAML>=6,<7"', workflow)
+
+    def test_digest_bound_environment_text_has_platform_stable_line_endings(self):
+        """Windows checkout must not rewrite bytes used as canonical SHA-256 evidence."""
+        self.assertTrue(GITATTRIBUTES.is_file(), "digest-bound text needs repository EOL policy")
+        attributes = GITATTRIBUTES.read_text(encoding="utf-8").splitlines()
+        self.assertIn("*.lock text eol=lf", attributes)
+        self.assertIn("*constraints.txt text eol=lf", attributes)
 
     def test_all_dependency_environment_changes_retrigger_live_verification(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
