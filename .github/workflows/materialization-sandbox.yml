@@ -73,7 +73,7 @@ jobs:
           fi
 
       - name: Run real sandbox materialization E2E
-        run: python -m unittest discover -s tests -p 'test_materialization_sandbox_e2e.py' -v
+        run: python -m unittest discover -s tests -p 'test_materialization_sandbox_e2e*.py' -v
 
       - name: Show recent macOS sandbox denials on failure
         if: failure() && runner.os == 'macOS'
