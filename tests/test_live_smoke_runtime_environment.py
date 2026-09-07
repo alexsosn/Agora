@@ -7,22 +7,32 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/external-mcp-smoke.yml"
-INTEL_JOB_MARKER = "  context-fabric-intel-macos:\n"
 
 
 def _assert_intel_job_contract(testcase: unittest.TestCase, workflow: str) -> None:
-    """Assert guarantees owned specifically by the Intel-macOS smoke job."""
+    """Assert the historical Context-Fabric Intel-macOS guarantee in the matrix."""
     document = yaml.safe_load(workflow)
     testcase.assertIsInstance(document, dict)
     jobs = document.get("jobs")
     testcase.assertIsInstance(jobs, dict)
-    testcase.assertIn("context-fabric-intel-macos", jobs)
+    testcase.assertIn("local-runtime-platform", jobs)
 
-    intel_job = jobs["context-fabric-intel-macos"]
-    testcase.assertEqual(intel_job.get("runs-on"), "macos-15-intel")
-    testcase.assertEqual(intel_job.get("timeout-minutes"), 10)
+    job = jobs["local-runtime-platform"]
+    testcase.assertEqual(job.get("runs-on"), "${{ matrix.runner }}")
+    testcase.assertEqual(job.get("timeout-minutes"), 10)
+    include = ((job.get("strategy") or {}).get("matrix") or {}).get("include")
+    testcase.assertIsInstance(include, list)
+    testcase.assertIn(
+        {
+            "plugin": "context-fabric",
+            "runner": "macos-15-intel",
+            "platform_os": "macos",
+            "platform_arch": "x86_64",
+        },
+        include,
+    )
 
-    steps = intel_job.get("steps")
+    steps = job.get("steps")
     testcase.assertIsInstance(steps, list)
     run_text = "\n".join(
         step.get("run", "")
@@ -30,15 +40,11 @@ def _assert_intel_job_contract(testcase: unittest.TestCase, workflow: str) -> No
         if isinstance(step, dict) and isinstance(step.get("run", ""), str)
     )
     testcase.assertIn("platform.machine()", run_text)
-    testcase.assertIn('"x86_64"', run_text)
-    testcase.assertIn(
-        "uv run --project verification/mcp-smoke --locked \\",
-        run_text,
-    )
-    testcase.assertIn(
-        "python scripts/smoke_mcp_plugin.py context-fabric --timeout 180",
-        run_text,
-    )
+    testcase.assertIn("platform.system()", run_text)
+    testcase.assertIn("uv run --project verification/mcp-smoke --locked \\", run_text)
+    testcase.assertIn("python scripts/smoke_mcp_plugin.py", run_text)
+    testcase.assertIn("--startup-only", run_text)
+    testcase.assertIn("--client codex", run_text)
 
     upload_steps = [
         step
@@ -49,14 +55,9 @@ def _assert_intel_job_contract(testcase: unittest.TestCase, workflow: str) -> No
     testcase.assertEqual(len(upload_steps), 1)
     upload = upload_steps[0]
     testcase.assertEqual(upload.get("if"), "always()")
-    testcase.assertEqual(
-        upload.get("with", {}).get("name"),
-        "mcp-smoke-context-fabric-intel-macos",
-    )
-    testcase.assertEqual(
-        upload.get("with", {}).get("path"),
-        "mcp-smoke-context-fabric-intel-macos.json",
-    )
+    testcase.assertIn("${{ matrix.plugin }}", upload.get("with", {}).get("name", ""))
+    testcase.assertIn("${{ matrix.platform_os }}", upload.get("with", {}).get("name", ""))
+    testcase.assertIn("${{ matrix.platform_arch }}", upload.get("with", {}).get("name", ""))
     testcase.assertEqual(upload.get("with", {}).get("if-no-files-found"), "warn")
 
 
@@ -64,10 +65,7 @@ class LiveSmokeRuntimeEnvironmentTests(unittest.TestCase):
     def test_live_smoke_runs_from_committed_harness_lock(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("version: \"0.12.10\"", workflow)
-        self.assertIn(
-            "uv run --project verification/mcp-smoke --locked \\",
-            workflow,
-        )
+        self.assertIn("uv run --project verification/mcp-smoke --locked \\", workflow)
         self.assertIn("python scripts/smoke_mcp_plugin.py", workflow)
         self.assertNotIn('uv run --with "mcp>=2,<3"', workflow)
         self.assertNotIn('--with "PyYAML>=6,<7"', workflow)
@@ -93,9 +91,6 @@ class LiveSmokeRuntimeEnvironmentTests(unittest.TestCase):
     def test_context_fabric_has_intel_macos_packaged_launch_regression_lane(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         _assert_intel_job_contract(self, workflow)
-
-        # Any change that can alter the packaged command or locked environment
-        # must retrigger the Intel evidence lane.
         for path in (
             "plugins/context-fabric/.codex-plugin/mcp.json",
             "plugins/context-fabric/pyproject.toml",
@@ -110,23 +105,28 @@ class LiveSmokeRuntimeEnvironmentTests(unittest.TestCase):
 
     def test_intel_contract_rejects_guarantees_satisfied_only_by_ubuntu(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        prefix, intel_job = workflow.split(INTEL_JOB_MARKER, 1)
-
         mutations = {
-            "unlocked Intel harness": intel_job.replace(
+            "Intel cell removed": workflow.replace(
+                "          - plugin: context-fabric\n"
+                "            runner: macos-15-intel\n"
+                "            platform_os: macos\n"
+                "            platform_arch: x86_64\n",
+                "",
+                1,
+            ),
+            "unlocked platform harness": workflow.replace(
                 "uv run --project verification/mcp-smoke --locked \\",
                 "uv run --project verification/mcp-smoke \\",
                 1,
             ),
-            "Intel artifact not uploaded on failure": intel_job.replace(
-                "        if: always()\n",
-                "",
+            "platform artifact not uploaded on failure": workflow.replace(
+                "      - name: Upload platform startup report\n        if: always()\n",
+                "      - name: Upload platform startup report\n",
                 1,
             ),
         }
-        for label, weakened_intel_job in mutations.items():
+        for label, mutated in mutations.items():
             with self.subTest(label=label):
-                mutated = prefix + INTEL_JOB_MARKER + weakened_intel_job
                 with self.assertRaises(AssertionError):
                     _assert_intel_job_contract(self, mutated)
 
