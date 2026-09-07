@@ -2,6 +2,24 @@
 
 Agora acquires registered Text-Fabric corpora lazily into its managed Context-Fabric cache. A first load can require Context-Fabric to compile `.tf` source files into its current `.cfm` format; later loads of a valid current-format cache use the normal warm upstream loader path.
 
+## Source resolution and offline use
+
+Acquisition-bearing tools (`list_collection_members`, `prepare_corpus`, and `load_corpus`) accept an optional `source_mode`:
+
+- `prefer-fresh` — the default. Agora tries to refresh the configured upstream Git selection. If that refresh fails for a narrowly recognized connectivity reason, it may reuse the previous local selection, but the remainder of that operation becomes cached-only.
+- `offline` — deterministic zero-network acquisition. Agora does not clone, fetch, lazily retrieve Git blobs, or create a source snapshot through the export-fetch path. The exact metadata selection, collection index where applicable, and source snapshots required by the operation must already be resident.
+- `require-fresh` — requires a successful upstream refresh. Refresh failure is returned as an error and cached state is not substituted.
+
+Prepared/loaded results report the immutable `source_revision` together with `source_resolution` (`remote`, `cached`, or `explicit-revision`) and `source_revision_verified`. The verification flag describes whether current upstream freshness was established during that operation; an immutable cached SHA remains the source identity even when freshness is unverified.
+
+An explicit immutable collection `source_revision` pins historical identity. It can be combined with `offline` when the required revision/index/snapshot state is resident. Combining an explicit `source_revision` with `require-fresh` is rejected because the two controls request incompatible resolution semantics.
+
+A cached Git commit is not by itself enough for offline materialization. Agora publishes revision-addressed corpus and feature-module source snapshots; those published snapshots are the offline source-byte boundary. If a required snapshot was pruned or evicted, reconnect and run a network-enabled prepare/load once to publish it again before using `offline`.
+
+Collection discovery also needs an installed or previously generated member index matching the exact selected revision. Offline mode refuses to regenerate a missing index from a partial Git clone because reading missing metadata blobs could otherwise trigger an implicit network request.
+
+Authentication, authorization, repository-not-found, missing-ref, and unclassified Git refresh failures are not treated as ordinary offline connectivity failures. They remain explicit errors instead of silently serving stale state.
+
 ## Cold compilation guardrails
 
 Agora runs cold Context-Fabric compilation in a separate worker process. The worker calls the pinned public `cfabric_mcp.corpus_manager.load(...)` operation with the same corpus path, logical name, and requested features. Agora does not replace or modify Context-Fabric's corpus semantics.
