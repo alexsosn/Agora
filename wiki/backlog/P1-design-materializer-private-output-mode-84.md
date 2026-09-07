@@ -18,12 +18,13 @@ Agora owns staging-directory construction and final artifact publication. This p
 Add a POSIX-only regression to `tests/test_materialization_staging_security.py`:
 
 1. create a final artifact path under a temporary directory;
-2. call `_create_staging_output(final)`;
-3. require the staging root mode to be `0700`;
-4. require the publishable `staging.output` child mode to be `0700`;
-5. always clean the staging workspace.
+2. temporarily force `umask 022`, restoring the previous umask immediately after staging creation;
+3. call `_create_staging_output(final)`;
+4. require the staging root mode to be `0700`;
+5. require the publishable `staging.output` child mode to be `0700`;
+6. always clean the staging workspace.
 
-Expected current-main result: root passes, output child fails because plain `Path.mkdir()` normally produces `0755` under CI's standard umask.
+Expected current-main result: root passes while the output child is `0755`, because plain `Path.mkdir()` requests `0777` and the forced `022` umask removes only write bits for group/other.
 
 ### GREEN
 
@@ -52,7 +53,7 @@ Freeze the exact final head after CI is green. A logically independent adversari
 1. whether the change actually restores the historical published-directory privacy baseline;
 2. whether it accidentally changes the sandbox writable surface;
 3. whether success/failure cleanup and atomic publication are untouched;
-4. whether the test is meaningful on POSIX and does not assert fake Windows ACL semantics;
+4. whether the test is deterministic and meaningful on POSIX, restores process umask, and does not assert fake Windows ACL semantics;
 5. whether any broader recursive permission policy has been introduced without requirement;
 6. exact-head CI status and current-main ancestry.
 
