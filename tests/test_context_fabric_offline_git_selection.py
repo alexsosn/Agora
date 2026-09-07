@@ -54,6 +54,17 @@ class GitSelectionTests(unittest.TestCase):
             ),
         )
 
+    @staticmethod
+    def _auth_error() -> subprocess.CalledProcessError:
+        return subprocess.CalledProcessError(
+            128,
+            ["git", "clone", "https://example.invalid/private.git"],
+            stderr=(
+                "remote: Repository not found.\n"
+                "fatal: Authentication failed for 'https://example.invalid/private.git/'\n"
+            ),
+        )
+
     def test_connectivity_fallback_preserves_previous_selected_ref(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -143,6 +154,38 @@ class GitSelectionTests(unittest.TestCase):
                         cache_key="fixture",
                         source_mode="offline",
                     )
+
+    def test_uncached_connectivity_failure_is_actionable_and_preserves_git_cause(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = GitStore(Path(tmp) / "cache", min_free_bytes=0)
+            failure = self._connectivity_error()
+            with patch.object(store, "_run_refresh", side_effect=failure):
+                with self.assertRaisesRegex(
+                    RuntimeError,
+                    "not cached|network.*required|acquisition",
+                ) as caught:
+                    store.select_metadata(
+                        "https://example.invalid/repo.git",
+                        cache_key="fixture",
+                        source_mode="prefer-fresh",
+                    )
+            self.assertIs(caught.exception.__cause__, failure)
+
+    def test_uncached_auth_failure_is_not_reported_as_offline_connectivity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = GitStore(Path(tmp) / "cache", min_free_bytes=0)
+            failure = self._auth_error()
+            with patch.object(store, "_run_refresh", side_effect=failure):
+                with self.assertRaises(RuntimeError) as caught:
+                    store.select_metadata(
+                        "https://example.invalid/private.git",
+                        cache_key="fixture",
+                        source_mode="prefer-fresh",
+                    )
+            message = str(caught.exception)
+            self.assertRegex(message, "acquisition|authentication|repository|cached state")
+            self.assertNotRegex(message, "offline|network.*required")
+            self.assertIs(caught.exception.__cause__, failure)
 
 
 if __name__ == "__main__":
