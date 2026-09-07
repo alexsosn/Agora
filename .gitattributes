@@ -1,0 +1,4 @@
+# Verification evidence binds these text snapshots by SHA-256.
+# Keep checkout bytes stable across Git's platform-specific line-ending defaults.
+*.lock text eol=lf
+*constraints.txt text eol=lf
