@@ -76,22 +76,17 @@ The three P0 research files are research backlogs, not promises that every candi
 ### Reviews
 
 - [`reviews/2026-08-29-review-architecture-code.md`](reviews/2026-08-29-review-architecture-code.md) — first independent architecture/code review, against pre-#4 main.
-- [`reviews/2026-08-29-review-pr1-pr4.md`](reviews/2026-08-29-review-pr1-pr4.md) — independent critical review of the two latest merged PRs (#1 and #4), including new cache/provenance findings.
+- [`reviews/2026-08-29-review-pr1-pr4.md`](reviews/2026-08-29-review-pr1-pr4.md) — independent critical review of the two latest merged PRs (#1 and #4), including the findings that drove later cache/provenance work.
 
-## Current P0 engineering findings
+## Live work tracking
 
-The latest review identifies these as the immediate engineering priorities:
+Dated reviews are historical evidence, not a live priority queue. Several engineering findings in the August reviews—immutable Context-Fabric snapshots, collection-revision propagation, representative corpus loads, verification-claim reconciliation, and executable verification evidence—have since been implemented.
 
-1. make Context-Fabric corpus materialization immutable and SHA-addressed so the reported source revision identifies the exact bytes loaded;
-2. carry a collection snapshot/revision through `list → prepare → load`;
-3. wire representative BHSA/CUC/Iliad load checks into CI and verify actual corpus features/content;
-4. reconcile user-facing README verification claims with canonical per-client registry status;
-5. require CI/branch protection before merge;
-6. make verification evidence executable/traceable rather than descriptive strings.
+Use current GitHub issues together with `backlog/` documents for active work. Repository branch protection remains a separate open governance/administration task (#9); it should not make the already-completed engineering findings look current again.
 
-These priorities remain subject to the plugin ownership boundary. Work on Agora-owned acquisition, provenance, registry, launch, and verification plumbing is in scope; fixing third-party algorithms or adding missing upstream capabilities is not.
+The plugin ownership boundary continues to apply to every live ticket: Agora-owned acquisition, provenance, registry, launch, verification, installation, and marketplace plumbing are in scope; third-party domain algorithms and missing scholarly capabilities remain upstream-owned unless an explicit architecture decision says otherwise.
 
-See [`reviews/2026-08-29-review-pr1-pr4.md`](reviews/2026-08-29-review-pr1-pr4.md) for evidence and lower-priority findings.
+Historical evidence and lower-priority findings remain available in [`reviews/2026-08-29-review-pr1-pr4.md`](reviews/2026-08-29-review-pr1-pr4.md) and later dated reviews.
 
 ## Maintenance rule
 
