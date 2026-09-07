@@ -114,11 +114,11 @@ Agora ships only the adapter code, not SEDRA data. The adapter exposes Beth Mard
 - **Phase 2 — deterministic Claude + Codex generation:** implemented.
 - **Phase 3 — Context-Fabric runtime and 37-resource baseline:** implemented at the resolver/provider layer; all 37 upstreams currently pass the source audit.
 - **Phase 4 — Perseus, Sefaria, and SEDRA:** implemented; Codex paths are live-verified, while aggregate plugin status remains Community pending equivalent Claude-path evidence.
-- **Phase 5 — scholarly skills:** underway; eight provider/corpus-specific skills are implemented and CI-validated, with additional resource-specific guidance still to add.
+- **Phase 5 — scholarly skills:** the eight-provider/corpus v0.1 baseline is implemented and CI-validated; additional resource-specific guidance remains incremental.
 - **Phase 6 — verification/trust:** client-specific live verification is implemented for Codex paths; deeper resource/member integration verification remains ongoing.
-- **Phase 7 — documentation:** underway; current Claude Code, managed ChatGPT/Codex, and local Codex installation flows are documented.
+- **Phase 7 — documentation:** substantially implemented; current Claude Code, managed ChatGPT/Codex, and local Codex installation flows are documented, with targeted policy/matrix work remaining.
 
-The next implementation work is tracked in the wiki index and latest independent review, with Context-Fabric snapshot integrity and representative corpus-load evidence among the highest-priority engineering items.
+Live implementation priorities are tracked in current GitHub issues and `wiki/backlog/`. Dated reviews remain historical evidence and should not be treated as a current queue after their findings have been resolved.
 
 ## Repository layout
 
