@@ -28,7 +28,7 @@ plugins:
     status: community
     clients:
       claude:
-        status: community
+        status: verified
         transport: stdio
         checks:
         - check_id: manifest/context-fabric-claude
@@ -87,7 +87,7 @@ plugins:
     status: community
     clients:
       claude:
-        status: community
+        status: verified
         transport: stdio
         checks:
         - check_id: manifest/perseus-claude
@@ -146,7 +146,7 @@ plugins:
     status: community
     clients:
       claude:
-        status: community
+        status: verified
         transport: sse
         checks:
         - check_id: manifest/sefaria-claude
@@ -203,7 +203,7 @@ plugins:
     status: community
     clients:
       claude:
-        status: community
+        status: verified
         transport: stdio
         checks:
         - check_id: manifest/sedra-claude
