@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FILE_BACKED_ENVIRONMENT_KINDS = {"uv-lock", "uv-constraints"}
 PERSEUS_ROUTING_KNOWN_ISSUE_ID = "perseus/cts-scaife-inventory-routing"
 PERSEUS_ROUTING_TARGET_WORK = "urn:cts:greekLit:tlg0006.tlg020"
+EVIDENCE_RANK = {"community": 1, "verified": 2}
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,18 @@ class LaunchSpec:
     args: tuple[str, ...]
     cwd: Path
     env: dict[str, str] | None = None
+
+
+@dataclass(frozen=True)
+class ConnectionSpec:
+    plugin_id: str
+    client: str
+    transport: str
+    command: str | None = None
+    args: tuple[str, ...] = ()
+    cwd: Path | None = None
+    env: dict[str, str] | None = None
+    url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -49,7 +62,6 @@ SMOKE_CASES: dict[str, SmokeCase] = {
             "prepare_corpus",
             "load_corpus",
         },
-        # This validates the shipped runtime/catalog without downloading a corpus.
         tool_call=("list_available_corpora", {"query": "Ugaritic"}),
     ),
     "perseus": SmokeCase(
@@ -84,36 +96,36 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def load_plugin_launch(plugin_id: str, root: Path = ROOT) -> LaunchSpec:
-    if plugin_id not in SMOKE_CASES:
-        raise KeyError(f"no live smoke case is defined for plugin {plugin_id!r}")
-
-    root = Path(root)
-    plugin_root = root / "plugins" / plugin_id
-    path = plugin_root / ".codex-plugin" / "mcp.json"
-    with path.open("r", encoding="utf-8") as fh:
-        document = json.load(fh)
-
-    servers = document.get("mcpServers")
-    if not isinstance(servers, dict) or set(servers) != {plugin_id}:
-        raise ValueError(
-            f"{path.relative_to(root)} must contain exactly the {plugin_id!r} MCP server"
-        )
-    server = servers[plugin_id]
-    if server.get("type") != "stdio":
-        raise ValueError(f"live smoke only supports stdio plugin configs: {plugin_id}")
-
+def _validated_stdio_connection(
+    plugin_id: str,
+    client: str,
+    server: Mapping[str, Any],
+    *,
+    plugin_root: Path,
+    root: Path,
+    expand_claude_root: bool,
+) -> ConnectionSpec:
     command = server.get("command")
     args = server.get("args", [])
     if not isinstance(command, str) or not command:
-        raise ValueError(f"plugin {plugin_id!r} has no stdio command")
+        raise ValueError(f"plugin {plugin_id!r} has no stdio command for {client}")
     if not isinstance(args, list) or not all(isinstance(item, str) for item in args):
-        raise ValueError(f"plugin {plugin_id!r} has invalid stdio args")
+        raise ValueError(f"plugin {plugin_id!r} has invalid stdio args for {client}")
+
+    if expand_claude_root:
+        replacement = str(plugin_root.resolve())
+        command = command.replace("${CLAUDE_PLUGIN_ROOT}", replacement)
+        args = [item.replace("${CLAUDE_PLUGIN_ROOT}", replacement) for item in args]
 
     relative_cwd = server.get("cwd", ".")
     if not isinstance(relative_cwd, str):
-        raise ValueError(f"plugin {plugin_id!r} has invalid cwd")
-    cwd = (plugin_root / relative_cwd).resolve()
+        raise ValueError(f"plugin {plugin_id!r} has invalid cwd for {client}")
+    if expand_claude_root:
+        relative_cwd = relative_cwd.replace("${CLAUDE_PLUGIN_ROOT}", str(plugin_root.resolve()))
+        cwd_candidate = Path(relative_cwd)
+        cwd = cwd_candidate.resolve() if cwd_candidate.is_absolute() else (plugin_root / cwd_candidate).resolve()
+    else:
+        cwd = (plugin_root / relative_cwd).resolve()
     try:
         cwd.relative_to(plugin_root.resolve())
     except ValueError as exc:
@@ -126,11 +138,16 @@ def load_plugin_launch(plugin_id: str, root: Path = ROOT) -> LaunchSpec:
             isinstance(key, str) and isinstance(value, str)
             for key, value in configured_env.items()
         ):
-            raise ValueError(f"plugin {plugin_id!r} has invalid env")
+            raise ValueError(f"plugin {plugin_id!r} has invalid env for {client}")
         env = dict(configured_env)
+        if expand_claude_root:
+            replacement = str(plugin_root.resolve())
+            env = {key: value.replace("${CLAUDE_PLUGIN_ROOT}", replacement) for key, value in env.items()}
 
-    return LaunchSpec(
+    return ConnectionSpec(
         plugin_id=plugin_id,
+        client=client,
+        transport="stdio",
         command=command,
         args=tuple(args),
         cwd=cwd,
@@ -138,9 +155,96 @@ def load_plugin_launch(plugin_id: str, root: Path = ROOT) -> LaunchSpec:
     )
 
 
+def load_plugin_connection(
+    plugin_id: str,
+    *,
+    client: str = "codex",
+    root: Path = ROOT,
+) -> ConnectionSpec:
+    if plugin_id not in SMOKE_CASES:
+        raise KeyError(f"no live smoke case is defined for plugin {plugin_id!r}")
+    if client not in {"codex", "claude"}:
+        raise ValueError(f"unsupported generated client configuration: {client!r}")
+
+    root = Path(root).resolve()
+    plugin_root = root / "plugins" / plugin_id
+    if client == "codex":
+        path = plugin_root / ".codex-plugin" / "mcp.json"
+        with path.open("r", encoding="utf-8") as fh:
+            document = json.load(fh)
+        servers = document.get("mcpServers")
+        if not isinstance(servers, dict) or set(servers) != {plugin_id}:
+            raise ValueError(
+                f"{path.relative_to(root)} must contain exactly the {plugin_id!r} MCP server"
+            )
+        server = servers[plugin_id]
+        if not isinstance(server, Mapping) or server.get("type") != "stdio":
+            raise ValueError(f"unsupported generated Codex transport for {plugin_id!r}: expected stdio")
+        return _validated_stdio_connection(
+            plugin_id,
+            client,
+            server,
+            plugin_root=plugin_root,
+            root=root,
+            expand_claude_root=False,
+        )
+
+    path = plugin_root / ".claude-plugin" / "mcp.json"
+    with path.open("r", encoding="utf-8") as fh:
+        document = json.load(fh)
+    if not isinstance(document, dict) or set(document) != {plugin_id}:
+        raise ValueError(
+            f"{path.relative_to(root)} must contain exactly the {plugin_id!r} MCP server"
+        )
+    server = document[plugin_id]
+    if not isinstance(server, Mapping):
+        raise ValueError(f"plugin {plugin_id!r} has malformed generated Claude configuration")
+
+    transport_type = server.get("type")
+    if transport_type in {None, "stdio"} and server.get("command"):
+        return _validated_stdio_connection(
+            plugin_id,
+            client,
+            server,
+            plugin_root=plugin_root,
+            root=root,
+            expand_claude_root=True,
+        )
+    if transport_type == "sse":
+        url = server.get("url")
+        if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+            raise ValueError(f"plugin {plugin_id!r} has invalid generated Claude SSE URL")
+        return ConnectionSpec(
+            plugin_id=plugin_id,
+            client=client,
+            transport="sse",
+            cwd=plugin_root.resolve(),
+            url=url,
+        )
+    raise ValueError(
+        f"unsupported generated Claude transport for {plugin_id!r}: {transport_type!r}"
+    )
+
+
+def load_plugin_launch(plugin_id: str, root: Path = ROOT) -> LaunchSpec:
+    """Backward-compatible loader for the generated Codex stdio launch."""
+    connection = load_plugin_connection(plugin_id, client="codex", root=root)
+    assert connection.command is not None and connection.cwd is not None
+    return LaunchSpec(
+        plugin_id=plugin_id,
+        command=connection.command,
+        args=connection.args,
+        cwd=connection.cwd,
+        env=connection.env,
+    )
+
+
 def _load_live_verification_reference(
     plugin_id: str,
     root: Path = ROOT,
+    *,
+    client: str = "codex",
+    check_id: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     plugins_doc = _load_yaml(Path(root) / "registry/plugins.yaml")
     checks_doc = _load_yaml(Path(root) / "registry/verification-checks.yaml")
@@ -150,18 +254,38 @@ def _load_live_verification_reference(
     plugin = plugins.get(plugin_id)
     if plugin is None:
         raise KeyError(f"plugin {plugin_id!r} is not present in registry/plugins.yaml")
-    evidence = plugin["verification"]["clients"]["codex"]
+    evidence = plugin["verification"]["clients"].get(client)
+    if not isinstance(evidence, Mapping):
+        raise ValueError(f"plugin {plugin_id!r} has no verification evidence for client {client!r}")
+
     live_references: list[tuple[dict[str, Any], dict[str, Any]]] = []
-    for reference in evidence["checks"]:
-        check = checks.get(reference["check_id"])
+    for reference in evidence.get("checks", []):
+        check = checks.get(reference.get("check_id")) if isinstance(reference, Mapping) else None
         if check is not None and check.get("kind") == "live":
-            live_references.append((check, reference))
-    if len(live_references) != 1:
+            live_references.append((check, dict(reference)))
+
+    if check_id is not None:
+        matches = [item for item in live_references if item[0].get("id") == check_id]
+        if len(matches) != 1:
+            raise ValueError(
+                f"plugin {plugin_id!r} client {client!r} does not reference live check {check_id!r}"
+            )
+        return matches[0]
+
+    if not live_references:
+        raise ValueError(f"plugin {plugin_id!r} client {client!r} has no live verification check")
+    strongest_rank = max(EVIDENCE_RANK.get(item[0].get("evidence_level"), -1) for item in live_references)
+    strongest = [
+        item
+        for item in live_references
+        if EVIDENCE_RANK.get(item[0].get("evidence_level"), -1) == strongest_rank
+    ]
+    if len(strongest) != 1:
         raise ValueError(
-            f"plugin {plugin_id!r} must have exactly one Codex live verification check; "
-            f"found {len(live_references)}"
+            f"plugin {plugin_id!r} client {client!r} has {len(strongest)} equally strong live checks; "
+            "select one with check_id"
         )
-    return live_references[0]
+    return strongest[0]
 
 
 def _load_declared_known_issue(
@@ -175,14 +299,11 @@ def _load_declared_known_issue(
     plugin = plugins.get(plugin_id)
     if plugin is None:
         raise KeyError(f"plugin {plugin_id!r} is not present in registry/plugins.yaml")
-
     known_issues = plugin.get("verification", {}).get("known_issues", [])
     for issue in known_issues:
         if issue.get("id") == issue_id:
             return issue
-    raise ValueError(
-        f"known issue {issue_id!r} is not declared for plugin {plugin_id!r}"
-    )
+    raise ValueError(f"known issue {issue_id!r} is not declared for plugin {plugin_id!r}")
 
 
 def _bind_environment_identity(
@@ -193,28 +314,24 @@ def _bind_environment_identity(
 ) -> dict[str, Any]:
     if not isinstance(identity, Mapping):
         raise ValueError(f"{label}: missing dependency environment identity")
-
     bound = dict(identity)
     kind = bound.get("kind")
     if kind == "hosted":
         return bound
     if kind not in FILE_BACKED_ENVIRONMENT_KINDS:
         raise ValueError(f"{label}: unsupported dependency environment kind {kind!r}")
-
     relative = bound.get("path")
     expected = bound.get("sha256")
     if not isinstance(relative, str) or not relative:
         raise ValueError(f"{label}: file-backed environment requires path")
     if not isinstance(expected, str) or len(expected) != 64:
         raise ValueError(f"{label}: file-backed environment requires a 64-character sha256")
-
     candidate = Path(relative)
     if candidate.is_absolute() or ".." in candidate.parts:
         raise ValueError(f"{label}: environment path must be repository-relative: {relative!r}")
     target = root / candidate
     if not target.is_file():
         raise ValueError(f"{label}: dependency environment file does not exist: {relative}")
-
     actual = _sha256(target)
     if actual != expected:
         raise ValueError(
@@ -228,21 +345,19 @@ def bind_live_verification_inputs(
     plugin_id: str,
     *,
     root: Path = ROOT,
+    client: str = "codex",
+    check_id: str | None = None,
 ) -> dict[str, Any]:
-    """Bind one live check's declared dependency identities to files on disk.
-
-    This function is intentionally called before importing or starting the MCP
-    runtime. A successful live evidence artifact therefore cannot claim a lock
-    or constraints digest that differs from the files available to the launch.
-    """
-
     root = Path(root).resolve()
-    _check, reference = _load_live_verification_reference(plugin_id, root)
+    _check, reference = _load_live_verification_reference(
+        plugin_id,
+        root,
+        client=client,
+        check_id=check_id,
+    )
     inputs = copy.deepcopy(reference["inputs"])
     inputs["environment"] = _bind_environment_identity(
-        inputs.get("environment"),
-        label=f"plugin[{plugin_id}].environment",
-        root=root,
+        inputs.get("environment"), label=f"plugin[{plugin_id}].environment", root=root
     )
     inputs["harness_environment"] = _bind_environment_identity(
         inputs.get("harness_environment"),
@@ -296,25 +411,42 @@ def _iso_utc(value: datetime) -> str:
     return value.isoformat().replace("+00:00", "Z")
 
 
+def _launch_from_connection(connection: ConnectionSpec | None) -> LaunchSpec | None:
+    if connection is None or connection.transport != "stdio":
+        return None
+    assert connection.command is not None and connection.cwd is not None
+    return LaunchSpec(
+        plugin_id=connection.plugin_id,
+        command=connection.command,
+        args=connection.args,
+        cwd=connection.cwd,
+        env=connection.env,
+    )
+
+
 def build_trace_metadata(
     plugin_id: str,
     *,
     launch: LaunchSpec | None = None,
+    connection: ConnectionSpec | None = None,
+    client: str = "codex",
+    check_id: str | None = None,
     env: Mapping[str, str] | None = None,
     checked_at: datetime | None = None,
     root: Path = ROOT,
     verification_inputs: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = Path(root).resolve()
-    check, _reference = _load_live_verification_reference(plugin_id, root)
+    check, _reference = _load_live_verification_reference(
+        plugin_id, root, client=client, check_id=check_id
+    )
     bound_inputs = (
         copy.deepcopy(dict(verification_inputs))
         if verification_inputs is not None
-        else bind_live_verification_inputs(plugin_id, root=root)
+        else bind_live_verification_inputs(plugin_id, root=root, client=client, check_id=check_id)
     )
     environment = dict(os.environ if env is None else env)
     when = checked_at or datetime.now(timezone.utc)
-
     repository = environment.get("GITHUB_REPOSITORY")
     run_id = environment.get("GITHUB_RUN_ID")
     server_url = environment.get("GITHUB_SERVER_URL")
@@ -325,12 +457,23 @@ def build_trace_metadata(
     )
     revision = environment.get("GITHUB_SHA") or _local_revision(root)
 
+    if connection is None and launch is not None:
+        connection = ConnectionSpec(
+            plugin_id=plugin_id,
+            client=client,
+            transport="stdio",
+            command=launch.command,
+            args=launch.args,
+            cwd=launch.cwd,
+            env=launch.env,
+        )
     if launch is None:
-        launch_data: dict[str, Any] | None = None
-    else:
+        launch = _launch_from_connection(connection)
+
+    launch_data: dict[str, Any] | None = None
+    if launch is not None:
         try:
-            relative_cwd = launch.cwd.resolve().relative_to(root)
-            cwd = relative_cwd.as_posix()
+            cwd = launch.cwd.resolve().relative_to(root).as_posix()
         except ValueError:
             cwd = str(launch.cwd)
         launch_data = {
@@ -340,12 +483,18 @@ def build_trace_metadata(
             "env": launch.env,
         }
 
+    generated_transport = connection.transport if connection is not None else "stdio"
+    endpoint = connection.url if connection is not None and connection.transport == "sse" else None
     return {
         "check_id": check["id"],
         "checked_at": _iso_utc(when),
         "plugin": plugin_id,
         "client": check["client"],
+        "client_requested": client,
+        "client_execution": "generic-harness",
         "transport": check["transport"],
+        "generated_transport": generated_transport,
+        "endpoint": endpoint,
         "agora_revision": revision,
         "github": {
             "repository": repository,
@@ -371,6 +520,9 @@ def build_error_report(
     error: Exception,
     *,
     launch: LaunchSpec | None = None,
+    connection: ConnectionSpec | None = None,
+    client: str = "codex",
+    check_id: str | None = None,
     env: Mapping[str, str] | None = None,
     checked_at: datetime | None = None,
     root: Path = ROOT,
@@ -379,20 +531,16 @@ def build_error_report(
         trace = build_trace_metadata(
             plugin_id,
             launch=launch,
+            connection=connection,
+            client=client,
+            check_id=check_id,
             env=env,
             checked_at=checked_at,
             root=root,
         )
     except Exception as trace_exc:
-        trace = {
-            "plugin": plugin_id,
-            "trace_error": f"{type(trace_exc).__name__}: {trace_exc}",
-        }
-    return {
-        **trace,
-        "status": "error",
-        "error": f"{type(error).__name__}: {error}",
-    }
+        trace = {"plugin": plugin_id, "trace_error": f"{type(trace_exc).__name__}: {trace_exc}"}
+    return {**trace, "status": "error", "error": f"{type(error).__name__}: {error}"}
 
 
 @contextmanager
@@ -406,10 +554,7 @@ def _working_directory(path: Path) -> Iterator[None]:
 
 
 def _tool_failed(result: Any) -> bool:
-    return bool(
-        getattr(result, "is_error", False)
-        or getattr(result, "isError", False)
-    )
+    return bool(getattr(result, "is_error", False) or getattr(result, "isError", False))
 
 
 def _tool_has_payload(result: Any) -> bool:
@@ -422,72 +567,39 @@ def _tool_has_payload(result: Any) -> bool:
     return False
 
 
-def _parse_json_object_text(
-    text: str,
-    *,
-    plugin_id: str,
-    tool_name: str,
-) -> dict[str, Any]:
+def _parse_json_object_text(text: str, *, plugin_id: str, tool_name: str) -> dict[str, Any]:
     try:
         parsed = json.loads(text)
     except (TypeError, json.JSONDecodeError) as exc:
-        raise RuntimeError(
-            f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
-        ) from exc
+        raise RuntimeError(f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object") from exc
     if not isinstance(parsed, dict):
-        raise RuntimeError(
-            f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
-        )
+        raise RuntimeError(f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object")
     return parsed
 
 
-def _json_object_from_tool_result(
-    result: Any,
-    *,
-    plugin_id: str,
-    tool_name: str,
-) -> dict[str, Any]:
+def _json_object_from_tool_result(result: Any, *, plugin_id: str, tool_name: str) -> dict[str, Any]:
     if _tool_failed(result):
-        raise RuntimeError(
-            f"{plugin_id} live tool {tool_name!r} returned an MCP error: {result}"
-        )
-
+        raise RuntimeError(f"{plugin_id} live tool {tool_name!r} returned an MCP error: {result}")
     structured = getattr(result, "structured_content", None)
     if structured is None:
         structured = getattr(result, "structuredContent", None)
     if isinstance(structured, Mapping):
-        # FastMCP wraps annotated primitive returns as {"result": value} because
-        # MCP structuredContent must have an object at the root. Perseus tools
-        # return JSON serialized as str, so decode exactly that documented shape.
         if set(structured) == {"result"}:
             wrapped = structured["result"]
             if isinstance(wrapped, Mapping):
                 return dict(wrapped)
             if isinstance(wrapped, str):
-                return _parse_json_object_text(
-                    wrapped,
-                    plugin_id=plugin_id,
-                    tool_name=tool_name,
-                )
-            raise RuntimeError(
-                f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object"
-            )
+                return _parse_json_object_text(wrapped, plugin_id=plugin_id, tool_name=tool_name)
+            raise RuntimeError(f"{plugin_id} live tool {tool_name!r} did not return a valid JSON object")
         return dict(structured)
-
-    text_parts: list[str] = []
-    for item in getattr(result, "content", None) or []:
-        text = getattr(item, "text", None)
-        if isinstance(text, str) and text.strip():
-            text_parts.append(text)
+    text_parts = [
+        item.text
+        for item in getattr(result, "content", None) or []
+        if isinstance(getattr(item, "text", None), str) and item.text.strip()
+    ]
     if len(text_parts) != 1:
-        raise RuntimeError(
-            f"{plugin_id} live tool {tool_name!r} did not return one valid JSON object"
-        )
-    return _parse_json_object_text(
-        text_parts[0],
-        plugin_id=plugin_id,
-        tool_name=tool_name,
-    )
+        raise RuntimeError(f"{plugin_id} live tool {tool_name!r} did not return one valid JSON object")
+    return _parse_json_object_text(text_parts[0], plugin_id=plugin_id, tool_name=tool_name)
 
 
 def _json_contains_exact_string(value: Any, expected: str) -> bool:
@@ -509,9 +621,7 @@ async def run_known_issue_canary(
 ) -> dict[str, Any]:
     _load_declared_known_issue(plugin_id, issue_id, root=root)
     if plugin_id != "perseus" or issue_id != PERSEUS_ROUTING_KNOWN_ISSUE_ID:
-        raise ValueError(
-            f"no live known-issue canary is implemented for {plugin_id!r} / {issue_id!r}"
-        )
+        raise ValueError(f"no live known-issue canary is implemented for {plugin_id!r} / {issue_id!r}")
 
     discovery = _json_object_from_tool_result(
         await session.call_tool(
@@ -530,10 +640,7 @@ async def run_known_issue_canary(
     cts_resources = _json_object_from_tool_result(
         await session.call_tool(
             "get_work_resources",
-            arguments={
-                "urn_or_title": PERSEUS_ROUTING_TARGET_WORK,
-                "language": "greek",
-            },
+            arguments={"urn_or_title": PERSEUS_ROUTING_TARGET_WORK, "language": "greek"},
         ),
         plugin_id=plugin_id,
         tool_name="get_work_resources",
@@ -546,12 +653,10 @@ async def run_known_issue_canary(
         plugin_id=plugin_id,
         tool_name="get_scaife_library_metadata",
     )
-
     match_count = cts_resources.get("match_count")
     if type(match_count) is not int or match_count < 0:
         raise RuntimeError(
-            f"{issue_id} signature changed: CTS get_work_resources returned invalid "
-            f"match_count={match_count!r}"
+            f"{issue_id} signature changed: CTS get_work_resources returned invalid match_count={match_count!r}"
         )
     if not _json_contains_exact_string(scaife_metadata, PERSEUS_ROUTING_TARGET_WORK):
         raise RuntimeError(
@@ -564,7 +669,6 @@ async def run_known_issue_canary(
             f"{PERSEUS_ROUTING_TARGET_WORK} with match_count={match_count}; "
             "retire or revise the canonical known issue and skill workaround"
         )
-
     return {
         "id": issue_id,
         "status": "observed",
@@ -573,73 +677,119 @@ async def run_known_issue_canary(
     }
 
 
+async def _exercise_session(
+    session: Any,
+    plugin_id: str,
+    case: SmokeCase,
+    *,
+    startup_only: bool,
+    root: Path,
+) -> tuple[Any, set[str], str | None, list[dict[str, Any]]]:
+    initialize_result = await session.initialize()
+    listed = await session.list_tools()
+    tool_names = {tool.name for tool in listed.tools}
+    missing = case.expected_tools - tool_names
+    if missing:
+        raise RuntimeError(
+            f"{plugin_id} is missing expected MCP tools: {sorted(missing)}; available={sorted(tool_names)}"
+        )
+    if startup_only:
+        return initialize_result, tool_names, None, []
+
+    tool_name, arguments = case.tool_call
+    result = await session.call_tool(tool_name, arguments=arguments)
+    if _tool_failed(result):
+        raise RuntimeError(f"{plugin_id} live tool {tool_name!r} returned an MCP error: {result}")
+    if not _tool_has_payload(result):
+        raise RuntimeError(f"{plugin_id} live tool {tool_name!r} returned no payload")
+
+    known_issue_evidence: list[dict[str, Any]] = []
+    for issue_id in case.known_issue_canaries:
+        known_issue_evidence.append(
+            await run_known_issue_canary(session, plugin_id, issue_id, root=root)
+        )
+    return initialize_result, tool_names, tool_name, known_issue_evidence
+
+
 async def smoke_plugin(
     plugin_id: str,
     *,
     timeout: float = 180.0,
     launch: LaunchSpec | None = None,
+    connection: ConnectionSpec | None = None,
+    client: str = "codex",
+    check_id: str | None = None,
+    startup_only: bool = False,
     root: Path = ROOT,
 ) -> dict[str, Any]:
-    # Bind the exact dependency files before importing the harness SDK or
-    # constructing a stdio client, so mismatched evidence cannot start a server.
-    bound_inputs = bind_live_verification_inputs(plugin_id, root=root)
-
+    bound_inputs = bind_live_verification_inputs(
+        plugin_id, root=root, client=client, check_id=check_id
+    )
     try:
         from mcp import ClientSession, StdioServerParameters
         from mcp.client.stdio import stdio_client
     except ImportError as exc:
-        raise RuntimeError(
-            "the live smoke harness requires MCP Python SDK v2; install mcp>=2,<3"
-        ) from exc
+        raise RuntimeError("the live smoke harness requires MCP Python SDK v2; install mcp>=2,<3") from exc
 
-    launch = launch or load_plugin_launch(plugin_id, root=root)
+    if connection is None:
+        if launch is not None:
+            connection = ConnectionSpec(
+                plugin_id=plugin_id,
+                client=client,
+                transport="stdio",
+                command=launch.command,
+                args=launch.args,
+                cwd=launch.cwd,
+                env=launch.env,
+            )
+        else:
+            connection = load_plugin_connection(plugin_id, client=client, root=root)
     case = SMOKE_CASES[plugin_id]
-    server_params = StdioServerParameters(
-        command=launch.command,
-        args=list(launch.args),
-        env=launch.env,
-    )
-    known_issue_evidence: list[dict[str, Any]] = []
 
     async with asyncio.timeout(timeout):
-        with _working_directory(launch.cwd):
-            async with stdio_client(server_params) as (read, write):
+        if connection.transport == "stdio":
+            if connection.command is None or connection.cwd is None:
+                raise ValueError(f"plugin {plugin_id!r} has incomplete stdio connection metadata")
+            server_params = StdioServerParameters(
+                command=connection.command,
+                args=list(connection.args),
+                env=connection.env,
+            )
+            with _working_directory(connection.cwd):
+                async with stdio_client(server_params) as (read, write):
+                    async with ClientSession(read, write) as session:
+                        initialize_result, tool_names, tool_name, known_issue_evidence = await _exercise_session(
+                            session,
+                            plugin_id,
+                            case,
+                            startup_only=startup_only,
+                            root=Path(root),
+                        )
+        elif connection.transport == "sse":
+            if not connection.url:
+                raise ValueError(f"plugin {plugin_id!r} has incomplete SSE connection metadata")
+            try:
+                from mcp.client.sse import sse_client
+            except ImportError as exc:
+                raise RuntimeError("the live smoke harness requires MCP SDK legacy SSE client support") from exc
+            async with sse_client(connection.url) as (read, write):
                 async with ClientSession(read, write) as session:
-                    initialize_result = await session.initialize()
-                    listed = await session.list_tools()
-                    tool_names = {tool.name for tool in listed.tools}
-                    missing = case.expected_tools - tool_names
-                    if missing:
-                        raise RuntimeError(
-                            f"{plugin_id} is missing expected MCP tools: {sorted(missing)}; "
-                            f"available={sorted(tool_names)}"
-                        )
-
-                    tool_name, arguments = case.tool_call
-                    result = await session.call_tool(tool_name, arguments=arguments)
-                    if _tool_failed(result):
-                        raise RuntimeError(
-                            f"{plugin_id} live tool {tool_name!r} returned an MCP error: {result}"
-                        )
-                    if not _tool_has_payload(result):
-                        raise RuntimeError(
-                            f"{plugin_id} live tool {tool_name!r} returned no payload"
-                        )
-
-                    for issue_id in case.known_issue_canaries:
-                        known_issue_evidence.append(
-                            await run_known_issue_canary(
-                                session,
-                                plugin_id,
-                                issue_id,
-                                root=root,
-                            )
-                        )
+                    initialize_result, tool_names, tool_name, known_issue_evidence = await _exercise_session(
+                        session,
+                        plugin_id,
+                        case,
+                        startup_only=startup_only,
+                        root=Path(root),
+                    )
+        else:
+            raise ValueError(f"unsupported smoke transport: {connection.transport!r}")
 
     return {
         **build_trace_metadata(
             plugin_id,
-            launch=launch,
+            connection=connection,
+            client=client,
+            check_id=check_id,
             root=root,
             verification_inputs=bound_inputs,
         ),
@@ -648,6 +798,7 @@ async def smoke_plugin(
         "tool_count": len(tool_names),
         "expected_tools": sorted(case.expected_tools),
         "called_tool": tool_name,
+        "startup_only": startup_only,
         "known_issue_canaries": known_issue_evidence,
         "status": "ok",
     }
@@ -656,25 +807,47 @@ async def smoke_plugin(
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Launch one Agora plugin through its generated Codex stdio MCP config, "
-            "initialize MCP, verify representative tools, and execute one live lookup."
+            "Exercise one Agora plugin through generated Claude or Codex MCP configuration, "
+            "using the generic MCP harness."
         )
     )
     parser.add_argument("plugin", choices=sorted(SMOKE_CASES))
+    parser.add_argument("--client", choices=("codex", "claude"), default="codex")
+    parser.add_argument("--check-id", help="Exact canonical live verification check to bind")
+    parser.add_argument(
+        "--startup-only",
+        action="store_true",
+        help="Initialize MCP and enumerate tools without executing the representative provider operation",
+    )
     parser.add_argument(
         "--timeout",
         type=float,
         default=180.0,
-        help="Maximum seconds for package startup, MCP handshake, and one live lookup",
+        help="Maximum seconds for startup, MCP handshake, and requested smoke operations",
     )
     args = parser.parse_args()
 
-    launch: LaunchSpec | None = None
+    connection: ConnectionSpec | None = None
     try:
-        launch = load_plugin_launch(args.plugin)
-        report = asyncio.run(smoke_plugin(args.plugin, timeout=args.timeout, launch=launch))
+        connection = load_plugin_connection(args.plugin, client=args.client)
+        report = asyncio.run(
+            smoke_plugin(
+                args.plugin,
+                timeout=args.timeout,
+                connection=connection,
+                client=args.client,
+                check_id=args.check_id,
+                startup_only=args.startup_only,
+            )
+        )
     except Exception as exc:
-        report = build_error_report(args.plugin, exc, launch=launch)
+        report = build_error_report(
+            args.plugin,
+            exc,
+            connection=connection,
+            client=args.client,
+            check_id=args.check_id,
+        )
         print(json.dumps(report, ensure_ascii=False, indent=2, default=str))
         return 1
 
