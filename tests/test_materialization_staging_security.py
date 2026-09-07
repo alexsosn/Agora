@@ -1,14 +1,27 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.agora_materialize import materialize
+from scripts.agora_materialize import _create_staging_output, materialize
 
 
 class StagingOutputSecurityTests(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "POSIX directory modes are not portable to Windows")
+    def test_private_output_child_preserves_private_directory_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            final = Path(tmp) / "artifact"
+            staging = _create_staging_output(final)
+            try:
+                self.assertEqual(stat.S_IMODE(staging.root.stat().st_mode), 0o700)
+                self.assertEqual(stat.S_IMODE(staging.output.stat().st_mode), 0o700)
+            finally:
+                staging.cleanup()
+
     def test_materializer_cannot_replace_designated_output_with_symlink(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
