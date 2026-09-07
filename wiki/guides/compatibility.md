@@ -23,7 +23,7 @@ A check with `kind: live` means GitHub Actions observed runtime behavior. It doe
 
 The Claude Sefaria check connects to the generated direct SSE endpoint. It does not silently substitute the Codex `stdio-via-sse-proxy` bridge. Conversely, the Codex check exercises its generated proxy path.
 
-The four newly added Claude live checks initially remain `community` evidence until their exact implementation-head workflow observations succeed. Canonical status is promoted only after that evidence exists; the check definition itself is not proof of a successful run.
+The four Claude representative-operation checks were registered conservatively at `community` and promoted to `verified` only after the new generated paths succeeded in live workflow observations. Because all supported Claude and Codex client paths are now verified, the canonical aggregate plugin status is also `verified`: Agora defines the aggregate as the weakest supported client status. This still does not promote provider health, resource/member integration status, or scholarly data quality.
 
 ## Agora-owned local runtime platform startup
 
