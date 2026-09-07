@@ -9,6 +9,8 @@ on:
       - '.github/workflows/context-fabric-load-smoke.yml'
       - 'registry/resources.yaml'
       - 'registry/collections/**'
+      - 'registry/verification-checks.yaml'
+      - 'registry/schema/verification-checks.schema.json'
       - 'plugins/context-fabric/resources/collections/**'
       - 'plugins/context-fabric/pyproject.toml'
       - 'plugins/context-fabric/src/**'
@@ -16,12 +18,15 @@ on:
       - 'scripts/smoke_context_fabric_resources.py'
       - 'tests/test_context_fabric_load_smoke.py'
       - 'tests/test_context_fabric_load_smoke_workflow.py'
+      - 'tests/test_resource_member_verification_live_workflow.py'
   push:
     branches: [main]
     paths:
       - '.github/workflows/context-fabric-load-smoke.yml'
       - 'registry/resources.yaml'
       - 'registry/collections/**'
+      - 'registry/verification-checks.yaml'
+      - 'registry/schema/verification-checks.schema.json'
       - 'plugins/context-fabric/resources/collections/**'
       - 'plugins/context-fabric/pyproject.toml'
       - 'plugins/context-fabric/src/**'
@@ -29,6 +34,7 @@ on:
       - 'scripts/smoke_context_fabric_resources.py'
       - 'tests/test_context_fabric_load_smoke.py'
       - 'tests/test_context_fabric_load_smoke_workflow.py'
+      - 'tests/test_resource_member_verification_live_workflow.py'
 
 permissions:
   contents: read
@@ -38,10 +44,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  representative-loads:
-    name: Load representative corpora and Greek known-failure canary
+  cold-load:
+    name: Exercise contained cold-load subprocess
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 15
+    steps:
+      - name: Check out Agora
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Context-Fabric runtime
+        run: python -m pip install -e plugins/context-fabric
+
+      - name: Exercise contained cold-load subprocess
+        run: python scripts/smoke_context_fabric_cold_load.py
+
+  representative-loads:
+    name: Load ${{ matrix.case }} and bind ${{ matrix.check_id }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {case: bhsa, check_id: resource-load/bhsa}
+          - {case: cuc, check_id: resource-load/cuc}
+          - {case: greek-iliad, check_id: member-load/greek-iliad}
+          - {case: greek-known-bad, check_id: member-canary/greek-argonautica}
     env:
       AGORA_CORPUS_CACHE_MAX_GB: '5'
       AGORA_CORPUS_MIN_FREE_GB: '2'
@@ -55,32 +88,31 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Restore Context-Fabric corpus cache
+      - name: Restore case-local Context-Fabric corpus cache
         uses: actions/cache@v4
         with:
-          path: ~/.cache/agora/context-fabric-smoke
-          key: ${{ runner.os }}-context-fabric-load-${{ hashFiles('registry/resources.yaml', 'plugins/context-fabric/pyproject.toml') }}
+          path: ~/.cache/agora/context-fabric-smoke/${{ matrix.case }}
+          key: ${{ runner.os }}-context-fabric-load-${{ matrix.case }}-${{ hashFiles('registry/resources.yaml', 'registry/verification-checks.yaml', 'plugins/context-fabric/pyproject.toml') }}
           restore-keys: |
-            ${{ runner.os }}-context-fabric-load-
+            ${{ runner.os }}-context-fabric-load-${{ matrix.case }}-
 
       - name: Install Context-Fabric runtime
         run: python -m pip install -e plugins/context-fabric
 
-      - name: Exercise contained cold-load subprocess
-        run: python scripts/smoke_context_fabric_cold_load.py
-
-      - name: Load real corpora and assert representative semantics
+      - name: Load exact representative subject and assert semantics
         shell: bash
         run: |
           set -o pipefail
           python scripts/smoke_context_fabric_resources.py \
-            --cache-dir "$HOME/.cache/agora/context-fabric-smoke" \
-            | tee context-fabric-load-smoke.jsonl
+            "${{ matrix.case }}" \
+            --check-id "${{ matrix.check_id }}" \
+            --cache-dir "$HOME/.cache/agora/context-fabric-smoke/${{ matrix.case }}" \
+            | tee "context-fabric-load-${{ matrix.case }}.jsonl"
 
-      - name: Upload smoke evidence
+      - name: Upload subject-bound smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: context-fabric-load-smoke
-          path: context-fabric-load-smoke.jsonl
+          name: context-fabric-load-${{ matrix.case }}
+          path: context-fabric-load-${{ matrix.case }}.jsonl
           if-no-files-found: warn

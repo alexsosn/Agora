@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_SRC = ROOT / "plugins" / "context-fabric" / "src"
 if str(PLUGIN_SRC) not in sys.path:
@@ -50,6 +52,14 @@ LOAD_CASES = {
         "ValueError",
         "not enough values to unpack",
     ),
+}
+
+POSITIVE_CLAIMS = frozenset({"materialization", "load", "representative-content"})
+CASE_CLAIMS = {
+    "bhsa": POSITIVE_CLAIMS,
+    "cuc": POSITIVE_CLAIMS,
+    "greek-iliad": POSITIVE_CLAIMS,
+    "greek-known-bad": frozenset({"known-issue-canary"}),
 }
 
 
@@ -121,6 +131,70 @@ def check_semantic_expectations(
     return checks
 
 
+def validate_case_check_binding(
+    case_name: str,
+    check_id: str,
+    *,
+    member_id: str | None,
+    root: Path = ROOT,
+) -> dict[str, Any]:
+    """Bind one live smoke invocation to one exact canonical evidence subject."""
+    if case_name not in LOAD_CASES:
+        raise RuntimeError(f"unknown smoke case {case_name!r}")
+    checks_path = Path(root) / "registry" / "verification-checks.yaml"
+    document = yaml.safe_load(checks_path.read_text(encoding="utf-8"))
+    checks = document.get("checks", []) if isinstance(document, dict) else []
+    matches = [
+        check
+        for check in checks
+        if isinstance(check, dict) and check.get("id") == check_id
+    ]
+    if len(matches) != 1:
+        raise RuntimeError(
+            f"{case_name}: check {check_id!r} must resolve exactly once, found {len(matches)}"
+        )
+    check = matches[0]
+    if check.get("kind") != "live":
+        raise RuntimeError(f"{case_name}: check {check_id!r} is not live evidence")
+    contract = (check.get("plugin"), check.get("provider"))
+    if contract != ("context-fabric", "context-fabric"):
+        raise RuntimeError(
+            f"{case_name}: check {check_id!r} has wrong plugin/provider contract {contract!r}"
+        )
+
+    case = LOAD_CASES[case_name]
+    if case.member_path_contains is None:
+        expected_subject = {"type": "resource", "resource_id": case.resource_id}
+        if member_id is not None:
+            raise RuntimeError(
+                f"{case_name}: resource-scoped check unexpectedly resolved member {member_id!r}"
+            )
+    else:
+        if not member_id:
+            raise RuntimeError(f"{case_name}: member-scoped check resolved no member")
+        expected_subject = {
+            "type": "collection-member",
+            "resource_id": case.resource_id,
+            "member_id": member_id,
+        }
+    subject = check.get("subject")
+    if subject != expected_subject:
+        raise RuntimeError(
+            f"{case_name}: check {check_id!r} subject {subject!r} does not match "
+            f"resolved subject {expected_subject!r}"
+        )
+
+    claims = check.get("claims")
+    actual_claims = frozenset(claims) if isinstance(claims, list) else frozenset()
+    expected_claims = CASE_CLAIMS[case_name]
+    if actual_claims != expected_claims:
+        raise RuntimeError(
+            f"{case_name}: check {check_id!r} claims {sorted(actual_claims)!r} do not match "
+            f"the case contract {sorted(expected_claims)!r}"
+        )
+    return check
+
+
 def probe_expected_upstream_failure(
     case_name: str,
     dataset: Path,
@@ -187,7 +261,11 @@ def summarize_loaded_corpus(
     }
 
 
-def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
+def run_case(
+    case_name: str,
+    cache_dir: Path,
+    check_id: str | None = None,
+) -> dict[str, Any]:
     from agora_context_fabric.catalog import Catalog
     from agora_context_fabric.gitstore import GitStore
     from agora_context_fabric.resolver import ContextFabricResolver, KnownMemberIssueError
@@ -208,6 +286,13 @@ def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
         )
         member_id = member.id
         source_revision = member.source_revision
+
+    if check_id is not None:
+        validate_case_check_binding(
+            case_name,
+            check_id,
+            member_id=member_id,
+        )
 
     if case.expected_known_issue is not None:
         if member is None:
@@ -274,7 +359,7 @@ def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
                 expected_error_text=case.expected_upstream_error_text,
             )
 
-        return {
+        report = {
             "case": case_name,
             "status": "expected-known-failure",
             "resource_id": case.resource_id,
@@ -284,6 +369,9 @@ def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
             "known_issue": case.expected_known_issue,
             "upstream_probe": upstream_probe,
         }
+        if check_id is not None:
+            report["check_id"] = check_id
+        return report
 
     result = service.load(
         case.resource_id,
@@ -299,7 +387,10 @@ def run_case(case_name: str, cache_dir: Path) -> dict[str, Any]:
             api,
             SEMANTIC_EXPECTATIONS[case_name],
         )
-        return summarize_loaded_corpus(case_name, result, semantic_checks)
+        report = summarize_loaded_corpus(case_name, result, semantic_checks)
+        if check_id is not None:
+            report["check_id"] = check_id
+        return report
     finally:
         service.unload(logical_name)
 
@@ -308,14 +399,24 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Load representative Context-Fabric resources")
     parser.add_argument("cases", nargs="*", choices=sorted(LOAD_CASES))
     parser.add_argument(
+        "--check-id",
+        help="Bind one explicit smoke case to one canonical verification check ID.",
+    )
+    parser.add_argument(
         "--cache-dir",
         type=Path,
         default=Path("~/.cache/agora/context-fabric-smoke").expanduser(),
     )
     args = parser.parse_args()
+    if args.check_id is not None and len(args.cases) != 1:
+        parser.error("--check-id requires exactly one explicit smoke case")
     case_names = args.cases or list(LOAD_CASES)
     for case_name in case_names:
-        print(json.dumps(run_case(case_name, args.cache_dir), sort_keys=True, ensure_ascii=False))
+        if args.check_id is None:
+            report = run_case(case_name, args.cache_dir)
+        else:
+            report = run_case(case_name, args.cache_dir, check_id=args.check_id)
+        print(json.dumps(report, sort_keys=True, ensure_ascii=False))
     return 0
 
 

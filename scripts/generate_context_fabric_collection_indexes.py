@@ -5,8 +5,9 @@ import argparse
 import re
 import sys
 import tempfile
+from dataclasses import replace
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 import yaml
 
@@ -16,7 +17,11 @@ if str(PLUGIN_SRC) not in sys.path:
     sys.path.insert(0, str(PLUGIN_SRC))
 
 from agora_context_fabric.catalog import Catalog, ResourceSpec
-from agora_context_fabric.collection_index import CollectionIndexManager, dump_collection_index
+from agora_context_fabric.collection_index import (
+    CollectionIndex,
+    CollectionIndexManager,
+    dump_collection_index,
+)
 from agora_context_fabric.gitstore import GitStore
 
 
@@ -27,6 +32,7 @@ COLLECTION_IDS = (
     "translatin-manif",
 )
 _IMMUTABLE_REVISION_RE = re.compile(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\Z")
+_VERIFICATION_STATUSES = frozenset({"experimental", "community", "verified"})
 
 
 def load_yaml(path: Path):
@@ -73,6 +79,73 @@ def generate_resource_index(
     )
 
 
+def _canonical_member_by_id(document: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {
+        member["id"]: member
+        for member in document.get("members", [])
+        if isinstance(member, dict) and isinstance(member.get("id"), str)
+    }
+
+
+def preserve_canonical_verification(
+    index: CollectionIndex,
+    canonical_document: dict[str, Any] | None,
+) -> CollectionIndex:
+    """Carry trust annotations across same-revision regeneration, never source findings.
+
+    Status, positive evidence references, and notes are Agora-owned trust metadata.
+    Known-issue references are source-derived by the generator and must therefore
+    always come from the newly generated index. Trust is also never carried across
+    a source revision or member path change.
+    """
+    if not isinstance(canonical_document, dict):
+        return index
+    if canonical_document.get("collection_id") != index.collection_id:
+        return index
+    canonical_revision = canonical_document.get("source_revision")
+    if not isinstance(canonical_revision, str):
+        return index
+    if canonical_revision.casefold() != index.source_revision.casefold():
+        return index
+
+    canonical_by_id = _canonical_member_by_id(canonical_document)
+    members = []
+    for member in index.members:
+        previous = canonical_by_id.get(member.id)
+        if not isinstance(previous, dict):
+            members.append(member)
+            continue
+        if previous.get("path") != member.path or previous.get("tf_path") != member.tf_path:
+            members.append(member)
+            continue
+        verification = previous.get("verification")
+        if not isinstance(verification, dict):
+            members.append(member)
+            continue
+
+        status = verification.get("status")
+        if status not in _VERIFICATION_STATUSES:
+            status = member.verification_status
+        evidence = tuple(
+            reference["check_id"]
+            for reference in verification.get("evidence", [])
+            if isinstance(reference, dict) and isinstance(reference.get("check_id"), str)
+        )
+        notes = tuple(
+            note for note in verification.get("notes", []) if isinstance(note, str)
+        )
+        members.append(
+            replace(
+                member,
+                verification_status=status,
+                verification_evidence=evidence,
+                verification_notes=notes,
+            )
+        )
+
+    return replace(index, members=tuple(members))
+
+
 def generate_documents(
     root: Path,
     *,
@@ -91,6 +164,10 @@ def generate_documents(
             source_revision=revision,
             store=store,
         )
+        canonical_document = None
+        if resource.member_index_path is not None and resource.member_index_path.is_file():
+            canonical_document = load_yaml(resource.member_index_path)
+        index = preserve_canonical_verification(index, canonical_document)
         generated[resource_id] = dump_collection_index(index)
     return generated
 

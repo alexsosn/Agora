@@ -235,3 +235,65 @@ checks:
       job: local-runtime-platform
       matrix: {plugin: sedra, runner: windows-latest, platform_os: windows, platform_arch: x86_64}
       artifact: mcp-startup-sedra-windows-x86_64
+
+  - id: resource-load/bhsa
+    kind: live
+    plugin: context-fabric
+    provider: context-fabric
+    evidence_level: community
+    subject: {type: resource, resource_id: bhsa}
+    claims: [materialization, load, representative-content]
+    executor:
+      type: github-actions
+      workflow: .github/workflows/context-fabric-load-smoke.yml
+      job: representative-loads
+      matrix: {case: bhsa, check_id: resource-load/bhsa}
+      artifact: context-fabric-load-bhsa
+
+  - id: resource-load/cuc
+    kind: live
+    plugin: context-fabric
+    provider: context-fabric
+    evidence_level: community
+    subject: {type: resource, resource_id: cuc}
+    claims: [materialization, load, representative-content]
+    executor:
+      type: github-actions
+      workflow: .github/workflows/context-fabric-load-smoke.yml
+      job: representative-loads
+      matrix: {case: cuc, check_id: resource-load/cuc}
+      artifact: context-fabric-load-cuc
+
+  - id: member-load/greek-iliad
+    kind: live
+    plugin: context-fabric
+    provider: context-fabric
+    evidence_level: community
+    subject:
+      type: collection-member
+      resource_id: greek_literature
+      member_id: canonical-greeklit-tlg0012-tlg001-perseus-grc2-1-67402e1a
+    claims: [materialization, load, representative-content]
+    executor:
+      type: github-actions
+      workflow: .github/workflows/context-fabric-load-smoke.yml
+      job: representative-loads
+      matrix: {case: greek-iliad, check_id: member-load/greek-iliad}
+      artifact: context-fabric-load-greek-iliad
+
+  - id: member-canary/greek-argonautica
+    kind: live
+    plugin: context-fabric
+    provider: context-fabric
+    evidence_level: community
+    subject:
+      type: collection-member
+      resource_id: greek_literature
+      member_id: canonical-greeklit-tlg0001-tlg001-perseus-grc2-1-62c8ed02
+    claims: [known-issue-canary]
+    executor:
+      type: github-actions
+      workflow: .github/workflows/context-fabric-load-smoke.yml
+      job: representative-loads
+      matrix: {case: greek-known-bad, check_id: member-canary/greek-argonautica}
+      artifact: context-fabric-load-greek-known-bad
