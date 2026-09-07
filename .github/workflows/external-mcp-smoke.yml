@@ -13,6 +13,8 @@ on:
       - "registry/schema/plugins.schema.json"
       - "registry/schema/providers.schema.json"
       - "registry/schema/verification-checks.schema.json"
+      - "wiki/guides/compatibility.md"
+      - "wiki/releases/v0.1-plan-active.md"
       - "plugins/context-fabric/.codex-plugin/mcp.json"
       - "plugins/context-fabric/.claude-plugin/mcp.json"
       - "plugins/context-fabric/pyproject.toml"
