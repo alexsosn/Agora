@@ -89,7 +89,64 @@ def _render_matrix_template(value: str, selector: dict[str, Any]) -> str:
     return rendered
 
 
-def _validate_actions_executor(root: Path, check_id: str, executor: dict[str, Any]) -> list[str]:
+def _resolve_matrix_selector(
+    matrix: Any,
+    selector: dict[str, Any],
+    *,
+    check_id: str,
+    job_id: str,
+) -> tuple[list[str], dict[str, Any] | None, dict[str, Any]]:
+    """Resolve a verification selector against a simple matrix or one include cell."""
+    errors: list[str] = []
+    if not isinstance(matrix, dict):
+        return [f"verification check {check_id!r}: workflow job {job_id!r} has no matrix"], None, selector
+
+    simple = bool(selector) and all(
+        isinstance(matrix.get(key), list) for key in selector
+    )
+    if simple:
+        for key, selected in selector.items():
+            configured = matrix[key]
+            if selected not in configured:
+                errors.append(
+                    f"verification check {check_id!r}: matrix selector {key}={selected!r} "
+                    f"is not executable by workflow job {job_id!r}"
+                )
+        return errors, None, selector
+
+    include = matrix.get("include")
+    if isinstance(include, list):
+        matches = [
+            cell
+            for cell in include
+            if isinstance(cell, dict)
+            and all(cell.get(key) == selected for key, selected in selector.items())
+        ]
+        if len(matches) != 1:
+            errors.append(
+                f"verification check {check_id!r}: matrix selector {selector!r} must resolve "
+                f"exactly one matrix.include cell in workflow job {job_id!r}; matched {len(matches)}"
+            )
+            return errors, None, selector
+        selected_cell = dict(matches[0])
+        return errors, selected_cell, selected_cell
+
+    for key, selected in selector.items():
+        configured = matrix.get(key)
+        if not isinstance(configured, list) or selected not in configured:
+            errors.append(
+                f"verification check {check_id!r}: matrix selector {key}={selected!r} "
+                f"is not executable by workflow job {job_id!r}"
+            )
+    return errors, None, selector
+
+
+def _validate_actions_executor(
+    root: Path,
+    check_id: str,
+    executor: dict[str, Any],
+    platform: dict[str, Any] | None = None,
+) -> list[str]:
     errors: list[str] = []
     workflow = executor.get("workflow")
     job_id = executor.get("job")
@@ -108,16 +165,33 @@ def _validate_actions_executor(root: Path, check_id: str, executor: dict[str, An
         return [f"verification check {check_id!r}: missing workflow job {job_id!r} in {workflow}"]
 
     matrix = ((job.get("strategy") or {}).get("matrix") or {})
-    for key, selected in selector.items():
-        configured = matrix.get(key) if isinstance(matrix, dict) else None
-        if not isinstance(configured, list) or selected not in configured:
+    selector_errors, selected_cell, render_values = _resolve_matrix_selector(
+        matrix,
+        selector,
+        check_id=check_id,
+        job_id=job_id,
+    )
+    errors.extend(selector_errors)
+
+    if isinstance(platform, dict):
+        if selected_cell is None:
             errors.append(
-                f"verification check {check_id!r}: matrix selector {key}={selected!r} "
-                f"is not executable by workflow job {job_id!r}"
+                f"verification check {check_id!r}: platform evidence requires an exact matrix.include cell"
             )
+        else:
+            declared_os = platform.get("os")
+            declared_arch = platform.get("arch")
+            selected_os = selected_cell.get("platform_os")
+            selected_arch = selected_cell.get("platform_arch")
+            if declared_os != selected_os or declared_arch != selected_arch:
+                errors.append(
+                    f"verification check {check_id!r}: declared platform "
+                    f"os={declared_os!r}, arch={declared_arch!r} does not match selected "
+                    f"matrix.include platform os={selected_os!r}, arch={selected_arch!r}"
+                )
 
     artifact = executor.get("artifact")
-    if isinstance(artifact, str):
+    if isinstance(artifact, str) and not selector_errors:
         rendered_artifacts: list[str] = []
         for step in job.get("steps", []):
             if not isinstance(step, dict):
@@ -127,7 +201,7 @@ def _validate_actions_executor(root: Path, check_id: str, executor: dict[str, An
                 continue
             name = (step.get("with") or {}).get("name")
             if isinstance(name, str):
-                rendered_artifacts.append(_render_matrix_template(name, selector))
+                rendered_artifacts.append(_render_matrix_template(name, render_values))
         if artifact not in rendered_artifacts:
             errors.append(
                 f"verification check {check_id!r}: artifact {artifact!r} is not uploaded by "
@@ -144,7 +218,7 @@ def _validate_executor(root: Path, check: dict[str, Any]) -> list[str]:
     if executor_type == "unittest":
         return _validate_unittest_executor(root, check_id, executor)
     if executor_type == "github-actions":
-        return _validate_actions_executor(root, check_id, executor)
+        return _validate_actions_executor(root, check_id, executor, check.get("platform"))
     if executor_type is not None:
         return [f"verification check {check_id!r}: unsupported executor type {executor_type!r}"]
     return []
