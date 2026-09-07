@@ -201,9 +201,14 @@ class GitStore(_CoreGitStore):
                         str(destination),
                     )
                 except subprocess.CalledProcessError as exc:
+                    if self._is_connectivity_failure(exc):
+                        raise RuntimeError(
+                            f"resource {key!r} is not cached and upstream acquisition failed; "
+                            "network access is required to prepare it"
+                        ) from exc
                     raise RuntimeError(
-                        f"resource {key!r} is not cached and upstream acquisition failed; "
-                        "network access is required to prepare it"
+                        f"upstream acquisition failed for resource {key!r}; "
+                        "cached state was not substituted"
                     ) from exc
 
             try:
