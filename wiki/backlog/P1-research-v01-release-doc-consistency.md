@@ -30,6 +30,10 @@ Audited against `main` at `293c3be5688fea2d7e5f5edb867559301ab86e57`.
 
 The wiki index is therefore not merely historical prose: its “Current” label makes it part of the user/contributor-facing status surface covered by #16.
 
+### Still stale: implementation-details pointer
+
+`wiki/architecture/ref-implementation-details.md` has an otherwise current phase-status table, but its closing sentence still names Context-Fabric snapshot integrity and representative corpus-load evidence as among the highest-priority implementation items. Those are completed. Because README links this file as the detailed current implementation/status reference, that stale priority pointer should be reconciled in the same documentation-consistency change.
+
 ## Why ordinary prose edits are insufficient
 
 The verification model is intentionally multi-dimensional: aggregate plugin status, per-client status, provider health, and resource/member evidence are separate. Repeating a hand-written “current status” in several documents invites the same drift to recur whenever registry evidence changes.
@@ -48,10 +52,11 @@ A validator that merely rejects specific stale phrases would encode historical m
 
 1. Reconcile stale current-state prose in `v0.1-plan-active.md`; do not rewrite the already-correct scope document or README unnecessarily.
 2. Reconcile `wiki/README.md` so completed review findings are not presented as current P0 engineering work; preserve links to historical reviews as history.
-3. Add a deterministic generated verification-status block to the plan, derived from `registry/v0.1.yaml`, `registry/plugins.yaml`, and `registry/verification-checks.yaml`.
-4. Add `--check` support and Foundation coverage so future registry status changes cannot leave that block stale.
-5. Update Phase 5 from `NEXT` to implemented/currently refining, grounded in the existing skill tests.
-6. Update Phase 7/current-sequence/current-remaining-work wording to describe only genuinely unfinished work, leaving the client/platform matrix explicitly to #18.
+3. Reconcile the stale closing priority pointer in `wiki/architecture/ref-implementation-details.md` while preserving its otherwise-current phase table.
+4. Add a deterministic generated verification-status block to the plan, derived from `registry/v0.1.yaml`, `registry/plugins.yaml`, and `registry/verification-checks.yaml`.
+5. Add `--check` support and Foundation coverage so future registry status changes cannot leave that block stale.
+6. Update Phase 5 from `NEXT` to implemented/currently refining, grounded in the existing skill tests.
+7. Update Phase 7/current-sequence/current-remaining-work wording to describe only genuinely unfinished work, leaving the client/platform matrix explicitly to #18.
 
 ## Non-goals
 
@@ -71,7 +76,8 @@ A validator that merely rejects specific stale phrases would encode historical m
 - Generated-block matching is loose enough that stale hand-written dynamic claims survive elsewhere in the plan.
 - The generator rewrites unrelated hand-authored release history.
 - Wiki index cleanup erases historical review evidence rather than changing only the false “current” framing.
+- Current-status cleanup updates the plan but leaves README-linked `ref-implementation-details.md` pointing at already-completed priorities.
 
 ## Research conclusion
 
-#16 is still actionable but should be rescoped: TLHdig scope and README verification wording are already fixed. The remaining defects are stale `v0.1-plan-active.md` current-state prose, stale “Current P0” framing in `wiki/README.md`, and the lack of a canonical registry-derived guard for the plan’s dynamic verification summary. A generated verification block plus targeted narrative reconciliation and deterministic freshness checking is the smallest durable fix.
+#16 is still actionable but should be rescoped: TLHdig scope and README verification wording are already fixed. The remaining defects are stale `v0.1-plan-active.md` current-state prose, stale “Current P0” framing in `wiki/README.md`, one stale current-priority pointer in `ref-implementation-details.md`, and the lack of a canonical registry-derived guard for the plan’s dynamic verification summary. A generated verification block plus targeted narrative reconciliation and deterministic freshness checking is the smallest durable fix.
