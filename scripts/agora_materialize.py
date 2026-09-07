@@ -5,11 +5,9 @@ import hashlib
 import json
 import os
 import platform
-import re
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -17,7 +15,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlparse
 
-import jsonschema
+from jsonschema import Draft202012Validator, FormatChecker
 
 
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "registry/schema/materializer-plugin.schema.json"
@@ -27,22 +25,23 @@ _TREE_EXCLUDES = {
     ".git",
     ".hg",
     ".svn",
-    ".tox",
-    ".nox",
-    ".venv",
     "__pycache__",
     ".pytest_cache",
     ".mypy_cache",
     ".ruff_cache",
+    ".tox",
+    ".nox",
+    ".venv",
+    "venv",
 }
 
 
 class ManifestError(ValueError):
-    """Materializer manifest is invalid or unsafe for the host contract."""
+    pass
 
 
 class AcquisitionError(RuntimeError):
-    """No declared acquisition path could be completed."""
+    """Automatic acquisition failed for an environmental/network reason."""
 
 
 @dataclass(frozen=True)
@@ -68,236 +67,228 @@ class StagingOutput:
 def _safe_relative(value: str, *, where: str) -> str:
     if not isinstance(value, str) or not value:
         raise ManifestError(f"{where} must be a non-empty relative path")
-    normalized = value.replace("\\", "/")
-    candidate = PurePosixPath(normalized)
-    if candidate.is_absolute() or ".." in candidate.parts or normalized.startswith("~"):
-        raise ManifestError(f"{where} must stay inside its declared root: {value!r}")
-    return candidate.as_posix()
-
-
-def _validate_https_url(value: str, *, where: str) -> str:
-    parsed = urlparse(value)
-    if parsed.scheme != "https" or not parsed.netloc:
-        raise ManifestError(f"{where} must be an https URL")
-    if parsed.username is not None or parsed.password is not None:
-        raise ManifestError(f"{where} must not contain embedded credentials")
+    path = PurePosixPath(value.replace("\\", "/"))
+    if path.is_absolute() or ".." in path.parts:
+        raise ManifestError(f"{where} must stay inside the declared source/output root")
     return value
 
 
-def _validate_module_name(value: str) -> str:
-    if not isinstance(value, str) or not value:
-        raise ManifestError("execution.module must be a non-empty Python module name")
-    if not re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*", value):
-        raise ManifestError(f"unsafe Python module name: {value!r}")
-    return value
+def _format_schema_error(error: Any) -> str:
+    location = error.json_path if getattr(error, "json_path", None) else "$"
+    return f"{location}: {error.message}"
 
 
-def _validate_args(args: list[str]) -> list[str]:
-    if not isinstance(args, list) or not all(isinstance(item, str) for item in args):
-        raise ManifestError("execution.args must be a list of strings")
-    allowed = {"source", "output", "source_revision"}
-    for item in args:
-        for match in re.finditer(r"\{([^{}]+)\}", item):
-            if match.group(1) not in allowed:
-                raise ManifestError(f"unsupported execution placeholder: {match.group(0)}")
-    return args
+def _validate_manifest_semantics(doc: dict[str, Any]) -> None:
+    ids: set[str] = set()
+    for index, materializer in enumerate(doc["materializers"]):
+        materializer_id = materializer["id"]
+        if materializer_id in ids:
+            raise ManifestError(f"duplicate materializer id {materializer_id!r}")
+        ids.add(materializer_id)
+
+        seen_types: set[str] = set()
+        for ai, strategy in enumerate(materializer["acquisition"]):
+            strategy_type = strategy["type"]
+            if strategy_type in seen_types:
+                raise ManifestError(
+                    f"materializers[{index}].acquisition repeats strategy type {strategy_type!r}"
+                )
+            seen_types.add(strategy_type)
+
+            if strategy_type == "git":
+                parsed = urlparse(strategy["url"])
+                if (
+                    parsed.scheme != "https"
+                    or not parsed.netloc
+                    or parsed.username is not None
+                    or parsed.password is not None
+                ):
+                    raise ManifestError(
+                        f"materializers[{index}].acquisition[{ai}].url must be an absolute "
+                        "credential-free HTTPS URL"
+                    )
+                if strategy["ref"].startswith("-"):
+                    raise ManifestError(
+                        f"materializers[{index}].acquisition[{ai}].ref must be a non-option Git ref"
+                    )
+                _safe_relative(
+                    strategy["subpath"],
+                    where=f"materializers[{index}].acquisition[{ai}].subpath",
+                )
+
+        for pattern in materializer["input"]["required_globs"]:
+            _safe_relative(pattern, where=f"materializers[{index}].input.required_globs")
+        for relative in materializer["output"]["required_paths"]:
+            _safe_relative(relative, where=f"materializers[{index}].output.required_paths")
 
 
 def load_manifest(path: Path) -> dict[str, Any]:
-    path = Path(path).resolve()
-    data = json.loads(path.read_text(encoding="utf-8"))
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-    jsonschema.validate(data, schema)
+    path = Path(path)
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ManifestError(f"cannot read materializer manifest {path}: {exc}") from exc
 
-    materializers = data.get("materializers", [])
-    ids = [item.get("id") for item in materializers]
-    if len(ids) != len(set(ids)):
-        raise ManifestError("materializer ids must be unique")
+    try:
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover - repository corruption
+        raise RuntimeError(f"cannot read Agora materializer schema {SCHEMA_PATH}: {exc}") from exc
 
-    for materializer in materializers:
-        execution = materializer["execution"]
-        _validate_module_name(execution["module"])
-        _validate_args(execution["args"])
-        if execution.get("network") != "deny":
-            raise ManifestError("contract v1 requires execution.network='deny'")
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    errors = sorted(validator.iter_errors(doc), key=lambda item: item.json_path)
+    if errors:
+        raise ManifestError(f"materializer manifest violates schema: {_format_schema_error(errors[0])}")
 
-        acquisition_ids: list[str] = []
-        for index, acquisition in enumerate(materializer["acquisition"]):
-            acquisition_id = acquisition.get("id", str(index))
-            if acquisition_id in acquisition_ids:
-                raise ManifestError(f"duplicate acquisition id: {acquisition_id!r}")
-            acquisition_ids.append(acquisition_id)
-            if acquisition["type"] == "git":
-                _validate_https_url(acquisition["url"], where="git acquisition URL")
-                ref = acquisition.get("ref")
-                if not isinstance(ref, str) or not ref:
-                    raise ManifestError("git acquisition ref must be a non-empty immutable revision")
-                if not re.fullmatch(r"[0-9a-fA-F]{40}", ref):
-                    raise ManifestError(
-                        "git acquisition ref must be a full 40-character commit SHA in contract v1"
-                    )
-                if "subpath" in acquisition:
-                    _safe_relative(acquisition["subpath"], where="git acquisition subpath")
-
-        for required in materializer["input"].get("required_globs", []):
-            _safe_relative(required, where="input required_glob")
-        for required in materializer["output"].get("required_paths", []):
-            _safe_relative(required, where="output required_path")
-    return data
+    _validate_manifest_semantics(doc)
+    return doc
 
 
 def select_materializer(manifest: dict[str, Any], materializer_id: str) -> dict[str, Any]:
-    matches = [item for item in manifest["materializers"] if item["id"] == materializer_id]
-    if not matches:
-        raise KeyError(f"unknown materializer id: {materializer_id!r}")
-    if len(matches) != 1:
-        raise ManifestError(f"materializer id is not unique: {materializer_id!r}")
-    return matches[0]
+    for materializer in manifest["materializers"]:
+        if materializer["id"] == materializer_id:
+            return materializer
+    available = ", ".join(item["id"] for item in manifest["materializers"])
+    raise KeyError(f"unknown materializer {materializer_id!r}; available: {available}")
 
 
-def _isolated_git_environment(home: Path) -> dict[str, str]:
-    env = os.environ.copy()
-    env.update(
-        {
-            "HOME": str(home),
-            "GIT_CONFIG_NOSYSTEM": "1",
-            "GIT_CONFIG_GLOBAL": os.devnull,
-            "GIT_TERMINAL_PROMPT": "0",
-            "GCM_INTERACTIVE": "never",
-        }
-    )
-    env.pop("GIT_ASKPASS", None)
-    env.pop("SSH_ASKPASS", None)
-    return env
-
-
-def _git(*args: str, cwd: Path, env: dict[str, str] | None = None) -> str:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=cwd,
-        env=env,
-        check=True,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=GIT_TIMEOUT_SECONDS,
-    )
-    return result.stdout.strip()
-
-
-def _tree_digest(root: Path) -> str:
+def _hash_tree(root: Path, *, excluded_names: set[str] | None = None) -> str:
+    root = Path(root).resolve()
+    excluded_names = excluded_names or set()
     digest = hashlib.sha256()
-    for path in sorted(root.rglob("*"), key=lambda value: value.relative_to(root).as_posix()):
-        relative = path.relative_to(root)
-        if any(part in _TREE_EXCLUDES for part in relative.parts):
+
+    candidates = sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix())
+    for candidate in candidates:
+        relative = candidate.relative_to(root)
+        if any(part in excluded_names for part in relative.parts):
             continue
-        if path.is_symlink():
-            digest.update(b"L\0")
-            digest.update(relative.as_posix().encode("utf-8"))
+        rel = relative.as_posix().encode("utf-8")
+        if candidate.is_symlink():
+            digest.update(b"L\0" + rel + b"\0")
+            digest.update(os.readlink(candidate).encode("utf-8", errors="surrogateescape"))
             digest.update(b"\0")
-            digest.update(os.readlink(path).encode("utf-8"))
-            digest.update(b"\0")
-        elif path.is_file():
-            digest.update(b"F\0")
-            digest.update(relative.as_posix().encode("utf-8"))
-            digest.update(b"\0")
-            with path.open("rb") as handle:
-                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+        elif candidate.is_dir():
+            digest.update(b"D\0" + rel + b"\0")
+        elif candidate.is_file():
+            digest.update(b"F\0" + rel + b"\0")
+            with candidate.open("rb") as stream:
+                while chunk := stream.read(1024 * 1024):
                     digest.update(chunk)
             digest.update(b"\0")
     return digest.hexdigest()
 
 
-def _materializer_code_digest(root: Path) -> str:
-    root = Path(root).resolve()
-    installation_record = root / ".agora-environment.json"
-    if installation_record.is_file():
-        try:
-            record = json.loads(installation_record.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as exc:
-            raise ValueError("managed materializer environment has unreadable identity metadata") from exc
-        expected = record.get("runtime_tree_sha256")
-        if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
-            raise ValueError("managed materializer environment has invalid runtime_tree_sha256")
-        actual = _tree_digest(root)
-        if actual != expected:
-            raise ValueError(
-                "managed materializer runtime no longer matches its installed identity; reinstall it"
-            )
-        return actual
-
-    code_root = root / "src"
-    if not code_root.is_dir():
-        code_root = root
-    return _tree_digest(code_root)
+def _materializer_code_digest(plugin_root: Path) -> str:
+    plugin_root = Path(plugin_root).resolve()
+    code_root = plugin_root / "src" if (plugin_root / "src").is_dir() else plugin_root
+    return _hash_tree(code_root, excluded_names=_TREE_EXCLUDES)
 
 
-def _git_revision_for_path(path: Path) -> str | None:
-    try:
-        top = _git("rev-parse", "--show-toplevel", cwd=path)
-        return _git("rev-parse", "HEAD", cwd=Path(top))
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        return None
-
-
-def _validate_local_source(path: Path, materializer: dict[str, Any]) -> dict[str, Any]:
-    path = Path(path).expanduser().resolve()
+def _validate_source(path: Path, materializer: dict[str, Any]) -> None:
     if not path.is_dir():
         raise ValueError(f"materializer source is not a directory: {path}")
-    if materializer["input"].get("allow_symlinks") is False:
-        symlinks = [candidate for candidate in path.rglob("*") if candidate.is_symlink()]
-        if symlinks:
-            raise ValueError(f"materializer source contains symlinks but contract forbids them: {symlinks[0]}")
-    for pattern in materializer["input"].get("required_globs", []):
-        matches = list(path.glob(pattern))
-        if not matches:
-            raise ValueError(f"materializer source does not satisfy required_glob: {pattern}")
+    input_spec = materializer["input"]
+    if not input_spec["allow_symlinks"]:
+        for candidate in path.rglob("*"):
+            if candidate.is_symlink():
+                raise ValueError(f"materializer source contains a disallowed symlink: {candidate}")
+    for pattern in input_spec["required_globs"]:
+        if not any(path.glob(pattern)):
+            raise ValueError(f"required input pattern {pattern!r} matched no files in {path}")
+
+
+def _git_environment(home: Path) -> dict[str, str]:
     return {
-        "kind": "user-local",
-        "name": path.name,
-        "tree_sha256": _tree_digest(path),
-        "git_head": _git_revision_for_path(path),
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "HOME": str(home),
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_ASKPASS": "true",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
     }
 
 
-def _acquire_git_source(acquisition: dict[str, Any], materializer: dict[str, Any]) -> PreparedSource:
+def _detect_local_git_revision(path: Path) -> str | None:
+    git = shutil.which("git")
+    if git is None:
+        return None
+    try:
+        return subprocess.check_output(
+            [git, "-C", str(path), "rev-parse", "HEAD"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+            timeout=10,
+        ).strip() or None
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+        return None
+
+
+def prepare_user_source(path: Path, materializer: dict[str, Any]) -> PreparedSource:
+    resolved = Path(path).expanduser().resolve()
+    _validate_source(resolved, materializer)
+    provenance: dict[str, Any] = {
+        "type": "user-local",
+        "name": resolved.name,
+        "tree_sha256": _hash_tree(resolved),
+    }
+    revision = _detect_local_git_revision(resolved)
+    if revision is not None:
+        provenance["resolved_commit"] = revision
+    return PreparedSource(path=resolved, provenance=provenance)
+
+
+def _run_git(command: list[str], *, env: dict[str, str], capture: bool = False) -> str | None:
+    try:
+        if capture:
+            return subprocess.check_output(
+                command,
+                env=env,
+                text=True,
+                timeout=GIT_TIMEOUT_SECONDS,
+            ).strip()
+        subprocess.run(command, check=True, env=env, timeout=GIT_TIMEOUT_SECONDS)
+        return None
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
+        raise AcquisitionError(f"Git acquisition failed: {exc}") from exc
+
+
+def acquire_git_source(strategy: dict[str, Any], materializer: dict[str, Any]) -> PreparedSource:
+    git = shutil.which("git")
+    if git is None:
+        raise AcquisitionError("Git acquisition requested but git is not installed")
+
     root = Path(tempfile.mkdtemp(prefix="agora-source-"))
-    repo = root / "repo"
+    repo = root / "repository"
     home = root / "home"
     home.mkdir()
-    repo.mkdir()
-    env = _isolated_git_environment(home)
+    env = _git_environment(home)
     try:
-        _git("init", "-q", cwd=repo, env=env)
-        _git("remote", "add", "origin", acquisition["url"], cwd=repo, env=env)
-        _git(
-            "fetch",
-            "--quiet",
-            "--depth",
-            "1",
-            "origin",
-            acquisition["ref"],
-            cwd=repo,
+        _run_git([git, "init", "--quiet", str(repo)], env=env)
+        _run_git([git, "-C", str(repo), "remote", "add", "origin", strategy["url"]], env=env)
+        _run_git(
+            [git, "-C", str(repo), "fetch", "--quiet", "--depth", "1", "origin", strategy["ref"]],
             env=env,
         )
-        resolved = _git("rev-parse", "FETCH_HEAD", cwd=repo, env=env)
-        _git("checkout", "--quiet", "--detach", resolved, cwd=repo, env=env)
-        source = repo
-        subpath = acquisition.get("subpath")
-        if subpath:
-            source = repo / _safe_relative(subpath, where="git acquisition subpath")
-        if not source.is_dir():
-            raise ValueError(f"git acquisition subpath is not a directory: {subpath!r}")
-        local = _validate_local_source(source, materializer)
-        provenance = {
-            "kind": "git",
-            "url": acquisition["url"],
-            "requested_ref": acquisition["ref"],
-            "resolved_commit": resolved,
-            "subpath": subpath,
-            "tree_sha256": local["tree_sha256"],
-        }
-        return PreparedSource(path=source, provenance=provenance, cleanup_root=root)
+        _run_git([git, "-C", str(repo), "checkout", "--quiet", "--detach", "FETCH_HEAD"], env=env)
+        revision = _run_git([git, "-C", str(repo), "rev-parse", "HEAD"], env=env, capture=True)
+        assert revision is not None
+
+        repo_root = repo.resolve()
+        source = (repo / strategy["subpath"]).resolve()
+        if repo_root not in source.parents and source != repo_root:
+            raise ValueError("Git acquisition subpath escaped the repository")
+        _validate_source(source, materializer)
+        return PreparedSource(
+            path=source,
+            provenance={
+                "type": "git",
+                "url": strategy["url"],
+                "requested_ref": strategy["ref"],
+                "resolved_commit": revision,
+                "subpath": strategy["subpath"],
+            },
+            cleanup_root=root,
+        )
     except Exception:
         shutil.rmtree(root, ignore_errors=True)
         raise
@@ -309,22 +300,34 @@ def acquire_source(
     source_override: Path | None = None,
 ) -> PreparedSource:
     if source_override is not None:
-        provenance = _validate_local_source(source_override, materializer)
-        return PreparedSource(path=Path(source_override).expanduser().resolve(), provenance=provenance)
+        if not any(item["type"] == "user-local" for item in materializer["acquisition"]):
+            raise ValueError("this materializer does not accept user-provided local source files")
+        return prepare_user_source(source_override, materializer)
 
-    failures: list[str] = []
-    for acquisition in materializer["acquisition"]:
-        if acquisition["type"] == "git":
+    git_errors: list[str] = []
+    user_local: dict[str, Any] | None = None
+    for strategy in materializer["acquisition"]:
+        if strategy["type"] == "git":
             try:
-                return _acquire_git_source(acquisition, materializer)
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
-                failures.append(f"git:{type(exc).__name__}")
-                continue
-        if acquisition["type"] == "user-local":
-            failures.append("user-local:source required")
-            continue
-    rendered = ", ".join(failures) if failures else "no acquisition strategies"
-    raise AcquisitionError(f"could not acquire materializer source ({rendered})")
+                return acquire_git_source(strategy, materializer)
+            except AcquisitionError as exc:
+                git_errors.append(str(exc))
+        elif strategy["type"] == "user-local":
+            user_local = strategy
+
+    if user_local is not None and sys.stdin.isatty():
+        if git_errors:
+            print(f"automatic acquisition failed: {'; '.join(git_errors)}", file=sys.stderr)
+        entered = input(f"{user_local['prompt']}: ").strip()
+        if not entered:
+            raise RuntimeError("no local source directory was provided")
+        return prepare_user_source(Path(entered), materializer)
+
+    detail = f" Automatic acquisition errors: {'; '.join(git_errors)}" if git_errors else ""
+    raise RuntimeError(
+        "no source could be acquired non-interactively; pass --source with a user-provided directory."
+        + detail
+    )
 
 
 def _render_args(
@@ -332,17 +335,27 @@ def _render_args(
     *,
     source: str,
     output: str,
-    source_revision: str,
+    source_revision: str = "",
 ) -> list[str]:
-    return [
-        item.format(source=source, output=output, source_revision=source_revision)
-        for item in args
-    ]
+    values = {
+        "{source}": source,
+        "{output}": output,
+        "{source_revision}": source_revision,
+    }
+    rendered: list[str] = []
+    for arg in args:
+        value = arg
+        for placeholder, replacement in values.items():
+            value = value.replace(placeholder, replacement)
+        if "{" in value or "}" in value:
+            raise ManifestError(f"unresolved or invalid execution placeholder in {arg!r}")
+        rendered.append(value)
+    return rendered
 
 
 def _sandbox_backend_preflight(sandbox: str) -> tuple[str, str | None]:
     if sandbox == "off":
-        return "off", None
+        return "none-explicit", None
     if sandbox != "required":
         raise ValueError("sandbox must be 'required' or 'off'")
 
@@ -757,33 +770,39 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--materializer",
         required=True,
-        help="materializer id declared by the selected manifest",
+        help="materializer id declared by the trusted plugin",
     )
-    parser.add_argument("--output", required=True, type=Path, help="local artifact output directory")
+    parser.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="absent or empty final directory for the derived local artifact",
+    )
     parser.add_argument(
         "--source",
         type=Path,
-        help="explicit local source directory; bypasses automatic acquisition",
+        default=None,
+        help="user-provided local source directory; otherwise Agora tries declared automatic acquisition",
     )
     parser.add_argument(
         "--sandbox",
         choices=("required", "off"),
         default="required",
-        help="require the OS sandbox by default; 'off' is an explicit development/trust override",
+        help="require an OS sandbox (default); 'off' is an explicit development-only trust override",
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    final = materialize(
+    result = materialize(
         manifest_path=args.manifest,
         materializer_id=args.materializer,
         output=args.output,
         source=args.source,
         sandbox=args.sandbox,
     )
-    print(final)
+    print(result)
     return 0
 
 
