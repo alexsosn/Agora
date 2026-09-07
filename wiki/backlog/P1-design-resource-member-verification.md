@@ -70,6 +70,8 @@ subject:
 
 Resource/member checks do **not** carry `client`, `transport`, or client-platform fields. They are direct provider/resource integration observations and must not pretend to execute Claude or Codex.
 
+Subject identifiers reuse the canonical resource/member identifier rules, not the lowercase-only check-ID namespace. This matters for valid existing resource IDs such as `SBLGNT`, `Nestle1904GBI`, and `TLHdig-TF`. Matching is exact and case-sensitive against the canonical record.
+
 ### 2. Check schema is a discriminated union by subject presence
 
 `verification-checks.schema.json` should accept:
@@ -117,6 +119,8 @@ Semantics:
 - `impact: resource` describes a problem applicable to the resource as a whole;
 - `impact: member` defines a problem that applies only to collection members that explicitly reference that issue ID.
 
+`impact: member` is valid only on a collection resource. A member evidence/reference may point only to a member-impact issue; resource-impact issues do not need to be duplicated onto every member.
+
 The current `context-fabric/duplicate-structure-levels` definition becomes `impact: member` because only listed Greek members are affected.
 
 This avoids the incorrect rule "a collection defines one blocking member issue, therefore the whole collection can never be verified."
@@ -141,7 +145,14 @@ For every resource-evidence check definition:
 - referenced resource must exist;
 - `collection-member` subject requires a collection resource and an existing committed member ID;
 - a `resource` subject must not name a member;
+- subject IDs are validated with the canonical resource/member identifier rules, including mixed-case resource IDs;
 - executor binding must remain exact under the existing executor validator.
+
+For known issues:
+
+- `impact: member` requires a collection resource;
+- collection-member `issue_id` references must resolve to an `impact: member` definition on that collection;
+- a resource-impact definition is evaluated at the resource promotion layer and is not implicitly copied to member records.
 
 ### Promotion rules
 
@@ -177,7 +188,7 @@ A check may satisfy several claims in one bounded execution.
 
 A resource cannot be `verified` while it has an unresolved `blocking` issue with `impact: resource`.
 
-A member cannot be `verified` while it references a `blocking` issue definition. Advisory issues do not block promotion, but remain visible.
+A member cannot be `verified` while it references a `blocking` member-impact issue definition. Advisory issues do not block promotion, but remain visible.
 
 A member-scoped issue definition on a collection does not by itself block the collection; only member references apply it.
 
@@ -208,7 +219,9 @@ Refactor `.github/workflows/context-fabric-load-smoke.yml` so each current real 
 
 The matrix cell should include the `case` and `check_id`, and each artifact name should be unique. The smoke script should bind/output that check ID and fail if the canonical check does not target the case's exact resource/member.
 
-The existing contained cold-load smoke remains a separate bounded step/job; it is not resource-verification evidence unless separately modeled later.
+The existing contained cold-load smoke must remain a separate bounded step/job that executes once, not once per matrix cell; it is not resource-verification evidence unless separately modeled later.
+
+The matrix refactor must not introduce concurrent writes to one shared mutable cache directory. Use per-case cache paths/keys or another explicitly safe arrangement, while retaining restore reuse where practical. The four evidence cells replace the current four sequential cases rather than adding four new corpus loads on top of them.
 
 ### CI triggers
 
@@ -276,7 +289,8 @@ Add failing tests proving:
 - resource/member check schema supports direct subjects without client/transport;
 - client check cannot satisfy resource/member evidence;
 - wrong resource/member target is rejected;
-- missing target resource/member is rejected.
+- missing target resource/member is rejected;
+- mixed-case canonical resource IDs are valid resource-check subjects.
 
 ### RED 2 — promotion and issue impact
 
@@ -285,7 +299,9 @@ Add failing tests proving:
 - `verified` corpus/member without required verified live claim coverage is rejected;
 - community/experimental status can remain without evidence;
 - resource-wide blocking issue rejects resource promotion;
+- member-impact issue is rejected on a non-collection resource;
 - member-scoped blocking issue only rejects referenced members;
+- member issue references cannot point at a resource-impact definition;
 - advisory issue does not block verified status when evidence is otherwise sufficient;
 - collection/member/plugin/provider statuses do not propagate.
 
@@ -296,6 +312,8 @@ Add failing tests proving:
 - four existing representative cases have exact workflow matrix cells and stable check IDs;
 - each cell uploads a unique artifact;
 - the script binds the requested check to the exact case subject;
+- cold-load smoke executes only once, outside the case matrix;
+- case cells do not concurrently mutate one shared cache directory;
 - verification registry/schema changes retrigger the real-load workflow.
 
 ### GREEN
