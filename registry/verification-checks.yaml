@@ -95,3 +95,143 @@ checks:
       job: live-mcp
       matrix: {plugin: sedra}
       artifact: mcp-smoke-sedra
+
+  - id: mcp-live/context-fabric-claude
+    kind: live
+    plugin: context-fabric
+    provider: context-fabric
+    client: claude
+    transport: stdio
+    evidence_level: community
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: claude-live-mcp
+      matrix: {plugin: context-fabric}
+      artifact: mcp-smoke-context-fabric-claude
+
+  - id: mcp-live/perseus-claude
+    kind: live
+    plugin: perseus
+    provider: perseus
+    client: claude
+    transport: stdio
+    evidence_level: community
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: claude-live-mcp
+      matrix: {plugin: perseus}
+      artifact: mcp-smoke-perseus-claude
+
+  - id: mcp-live/sefaria-claude
+    kind: live
+    plugin: sefaria
+    provider: sefaria
+    client: claude
+    transport: sse
+    evidence_level: community
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: claude-live-mcp
+      matrix: {plugin: sefaria}
+      artifact: mcp-smoke-sefaria-claude
+
+  - id: mcp-live/sedra-claude
+    kind: live
+    plugin: sedra
+    provider: sedra
+    client: claude
+    transport: stdio
+    evidence_level: community
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: claude-live-mcp
+      matrix: {plugin: sedra}
+      artifact: mcp-smoke-sedra-claude
+
+  - id: platform-startup/context-fabric-linux-x86-64
+    kind: live
+    plugin: context-fabric
+    client: codex
+    transport: stdio
+    evidence_level: community
+    platform: {os: linux, arch: x86_64}
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: local-runtime-platform
+      matrix: {plugin: context-fabric, runner: ubuntu-latest, platform_os: linux, platform_arch: x86_64}
+      artifact: mcp-startup-context-fabric-linux-x86_64
+
+  - id: platform-startup/context-fabric-macos-x86-64
+    kind: live
+    plugin: context-fabric
+    client: codex
+    transport: stdio
+    evidence_level: community
+    platform: {os: macos, arch: x86_64}
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: local-runtime-platform
+      matrix: {plugin: context-fabric, runner: macos-15-intel, platform_os: macos, platform_arch: x86_64}
+      artifact: mcp-startup-context-fabric-macos-x86_64
+
+  - id: platform-startup/context-fabric-windows-x86-64
+    kind: live
+    plugin: context-fabric
+    client: codex
+    transport: stdio
+    evidence_level: community
+    platform: {os: windows, arch: x86_64}
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: local-runtime-platform
+      matrix: {plugin: context-fabric, runner: windows-latest, platform_os: windows, platform_arch: x86_64}
+      artifact: mcp-startup-context-fabric-windows-x86_64
+
+  - id: platform-startup/sedra-linux-x86-64
+    kind: live
+    plugin: sedra
+    client: codex
+    transport: stdio
+    evidence_level: community
+    platform: {os: linux, arch: x86_64}
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: local-runtime-platform
+      matrix: {plugin: sedra, runner: ubuntu-latest, platform_os: linux, platform_arch: x86_64}
+      artifact: mcp-startup-sedra-linux-x86_64
+
+  - id: platform-startup/sedra-macos-x86-64
+    kind: live
+    plugin: sedra
+    client: codex
+    transport: stdio
+    evidence_level: community
+    platform: {os: macos, arch: x86_64}
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: local-runtime-platform
+      matrix: {plugin: sedra, runner: macos-15-intel, platform_os: macos, platform_arch: x86_64}
+      artifact: mcp-startup-sedra-macos-x86_64
+
+  - id: platform-startup/sedra-windows-x86-64
+    kind: live
+    plugin: sedra
+    client: codex
+    transport: stdio
+    evidence_level: community
+    platform: {os: windows, arch: x86_64}
+    executor:
+      type: github-actions
+      workflow: .github/workflows/external-mcp-smoke.yml
+      job: local-runtime-platform
+      matrix: {plugin: sedra, runner: windows-latest, platform_os: windows, platform_arch: x86_64}
+      artifact: mcp-startup-sedra-windows-x86_64
