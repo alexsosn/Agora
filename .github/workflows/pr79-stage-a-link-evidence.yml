@@ -24,8 +24,8 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install YAML support
-        run: python -m pip install 'PyYAML>=6,<7'
+      - name: Install validation dependencies
+        run: python -m pip install -r requirements-dev.txt
 
       - name: Link staged community evidence
         shell: bash
