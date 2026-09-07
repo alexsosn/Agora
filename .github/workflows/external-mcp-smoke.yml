@@ -13,16 +13,20 @@ on:
       - "registry/schema/providers.schema.json"
       - "registry/schema/verification-checks.schema.json"
       - "plugins/context-fabric/.codex-plugin/mcp.json"
+      - "plugins/context-fabric/.claude-plugin/mcp.json"
       - "plugins/context-fabric/pyproject.toml"
       - "plugins/context-fabric/uv.lock"
       - "plugins/context-fabric/src/**"
       - "plugins/perseus/.codex-plugin/mcp.json"
+      - "plugins/perseus/.claude-plugin/mcp.json"
       - "plugins/perseus/runtime-requirements.in"
       - "plugins/perseus/runtime-constraints.txt"
       - "plugins/sefaria/.codex-plugin/mcp.json"
+      - "plugins/sefaria/.claude-plugin/mcp.json"
       - "plugins/sefaria/runtime-requirements.in"
       - "plugins/sefaria/runtime-constraints.txt"
       - "plugins/sedra/.codex-plugin/mcp.json"
+      - "plugins/sedra/.claude-plugin/mcp.json"
       - "plugins/sedra/pyproject.toml"
       - "plugins/sedra/uv.lock"
       - "plugins/sedra/src/**"
@@ -34,6 +38,7 @@ on:
       - "tests/test_mcp_smoke.py"
       - "tests/test_verification_evidence.py"
       - "tests/test_live_smoke_runtime_environment.py"
+      - "tests/test_client_platform_verification.py"
       - ".github/workflows/external-mcp-smoke.yml"
 
 permissions:
@@ -41,7 +46,7 @@ permissions:
 
 jobs:
   live-mcp:
-    name: Live MCP — ${{ matrix.plugin }}
+    name: Live generated Codex path — ${{ matrix.plugin }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
@@ -63,12 +68,15 @@ jobs:
         with:
           version: "0.12.10"
 
-      - name: Initialize MCP and execute one live scholarly lookup
+      - name: Initialize MCP and execute one representative operation
         shell: bash
         run: |
           set -o pipefail
           uv run --project verification/mcp-smoke --locked \
-            python scripts/smoke_mcp_plugin.py "${{ matrix.plugin }}" --timeout 180 \
+            python scripts/smoke_mcp_plugin.py "${{ matrix.plugin }}" \
+              --client codex \
+              --check-id "mcp-live/${{ matrix.plugin }}-codex" \
+              --timeout 180 \
             | tee "mcp-smoke-${{ matrix.plugin }}.json"
 
       - name: Upload smoke report
@@ -79,10 +87,14 @@ jobs:
           path: mcp-smoke-${{ matrix.plugin }}.json
           if-no-files-found: warn
 
-  context-fabric-intel-macos:
-    name: Live MCP — context-fabric (Intel macOS)
-    runs-on: macos-15-intel
+  claude-live-mcp:
+    name: Live generated Claude path — ${{ matrix.plugin }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: [context-fabric, perseus, sefaria, sedra]
 
     steps:
       - name: Check out Agora
@@ -98,32 +110,118 @@ jobs:
         with:
           version: "0.12.10"
 
-      - name: Verify Intel macOS runner
-        shell: bash
-        run: |
-          python - <<'PY'
-          import platform
-          system = platform.system()
-          machine = platform.machine()
-          if system != "Darwin" or machine != "x86_64":
-              raise SystemExit(
-                  f"expected Intel macOS runner, got system={system!r} machine={machine!r}"
-              )
-          print(f"Verified Intel macOS runner: {system} {machine}")
-          PY
-
-      - name: Initialize packaged Context-Fabric MCP on Intel macOS
+      - name: Exercise exact generated Claude transport and representative operation
         shell: bash
         run: |
           set -o pipefail
           uv run --project verification/mcp-smoke --locked \
-            python scripts/smoke_mcp_plugin.py context-fabric --timeout 180 \
-            | tee mcp-smoke-context-fabric-intel-macos.json
+            python scripts/smoke_mcp_plugin.py "${{ matrix.plugin }}" \
+              --client claude \
+              --check-id "mcp-live/${{ matrix.plugin }}-claude" \
+              --timeout 180 \
+            | tee "mcp-smoke-${{ matrix.plugin }}-claude.json"
 
-      - name: Upload Intel macOS smoke report
+      - name: Upload Claude-path smoke report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mcp-smoke-context-fabric-intel-macos
-          path: mcp-smoke-context-fabric-intel-macos.json
+          name: mcp-smoke-${{ matrix.plugin }}-claude
+          path: mcp-smoke-${{ matrix.plugin }}-claude.json
+          if-no-files-found: warn
+
+  local-runtime-platform:
+    name: Packaged startup — ${{ matrix.plugin }} / ${{ matrix.platform_os }} / ${{ matrix.platform_arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - plugin: context-fabric
+            runner: ubuntu-latest
+            platform_os: linux
+            platform_arch: x86_64
+          - plugin: context-fabric
+            runner: macos-15-intel
+            platform_os: macos
+            platform_arch: x86_64
+          - plugin: context-fabric
+            runner: windows-latest
+            platform_os: windows
+            platform_arch: x86_64
+          - plugin: sedra
+            runner: ubuntu-latest
+            platform_os: linux
+            platform_arch: x86_64
+          - plugin: sedra
+            runner: macos-15-intel
+            platform_os: macos
+            platform_arch: x86_64
+          - plugin: sedra
+            runner: windows-latest
+            platform_os: windows
+            platform_arch: x86_64
+
+    steps:
+      - name: Check out Agora
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.10"
+
+      - name: Assert runtime platform identity
+        shell: bash
+        env:
+          EXPECTED_OS: ${{ matrix.platform_os }}
+          EXPECTED_ARCH: ${{ matrix.platform_arch }}
+        run: |
+          python - <<'PY'
+          import os
+          import platform
+
+          os_map = {"Linux": "linux", "Darwin": "macos", "Windows": "windows"}
+          arch_map = {
+              "x86_64": "x86_64",
+              "AMD64": "x86_64",
+              "amd64": "x86_64",
+              "arm64": "arm64",
+              "aarch64": "arm64",
+          }
+          actual_os = os_map.get(platform.system(), platform.system().casefold())
+          actual_arch = arch_map.get(platform.machine(), platform.machine().casefold())
+          expected_os = os.environ["EXPECTED_OS"]
+          expected_arch = os.environ["EXPECTED_ARCH"]
+          if (actual_os, actual_arch) != (expected_os, expected_arch):
+              raise SystemExit(
+                  f"platform mismatch: expected {expected_os}/{expected_arch}, "
+                  f"got {actual_os}/{actual_arch}"
+              )
+          print(f"Verified runtime platform: {actual_os}/{actual_arch}")
+          PY
+
+      - name: Initialize generated packaged MCP without provider operation
+        shell: bash
+        run: |
+          set -o pipefail
+          uv run --project verification/mcp-smoke --locked \
+            python scripts/smoke_mcp_plugin.py "${{ matrix.plugin }}" \
+              --client codex \
+              --startup-only \
+              --check-id "platform-startup/${{ matrix.plugin }}-${{ matrix.platform_os }}-x86-64" \
+              --timeout 120 \
+            | tee "mcp-startup-${{ matrix.plugin }}-${{ matrix.platform_os }}-${{ matrix.platform_arch }}.json"
+
+      - name: Upload platform startup report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-startup-${{ matrix.plugin }}-${{ matrix.platform_os }}-${{ matrix.platform_arch }}
+          path: mcp-startup-${{ matrix.plugin }}-${{ matrix.platform_os }}-${{ matrix.platform_arch }}.json
           if-no-files-found: warn
