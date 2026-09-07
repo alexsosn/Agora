@@ -142,9 +142,11 @@ Automatic corpus-source acquisition falls back to user-local mode only for acqui
 The materializer receives:
 
 - a read-only corpus source directory;
-- a writable staging artifact directory;
+- a designated `output/` directory inside a private writable staging workspace;
 - its trusted installed/plugin code;
 - a filtered environment.
+
+The private staging workspace is created by Agora on the same host filesystem as the requested final artifact. It contains no user files. A materializer may create disposable sibling files/directories beside its designated `output/` child, which supports conventional atomic writer patterns without exposing the user's actual destination parent.
 
 Agora launches the declared Python module directly and never invokes a shell.
 
@@ -152,13 +154,13 @@ Agora launches the declared Python module directly and never invokes a shell.
 
 Sandboxing fails closed by default.
 
-- Linux: bubblewrap (`bwrap`) creates new namespaces, including an isolated network namespace; system/runtime/plugin/source mounts are read-only and output is read/write.
-- macOS: `sandbox-exec` uses a deny-by-default profile; system/runtime/plugin/source/output paths receive the reads needed by Python/converters, only output/work receive writes, and network operations are denied.
+- Linux: bubblewrap (`bwrap`) creates new namespaces, including an isolated network namespace; system/runtime/plugin/source mounts are read-only. Agora bind-mounts the private staging workspace read/write at `/agora-output` and passes `/agora-output/output` as `{output}`. The user's real destination parent is not mounted read/write.
+- macOS: `sandbox-exec` uses a deny-by-default profile; system/runtime/plugin/source paths receive the reads needed by Python/converters, only the exact private staging workspace and work directory receive writes, and network operations are denied. The user's real destination parent is not granted as a writable subtree.
 - Other platforms: contract v1 refuses to run with sandbox mode `required`.
 
-`--sandbox off` is an explicit development/trust override only.
+`--sandbox off` is an explicit development/trust override only. It uses the same private staging-workspace/output-child layout so transactional and atomic-writer behavior does not depend on sandbox mode.
 
-Both supported backends are exercised by `.github/workflows/materialization-sandbox.yml`. The E2E launches a real fixture through `sandbox="required"`, reads the source, writes and reopens output, verifies the artifact/provenance, and attempts to connect to a live loopback listener that must be denied by the sandbox.
+Both supported backends are exercised by `.github/workflows/materialization-sandbox.yml`. The E2E launches real fixtures through `sandbox="required"`, reads the source, writes and reopens output, verifies the artifact/provenance, attempts to connect to a live loopback listener that must be denied by the sandbox, and exercises a converter that stages files in a sibling directory before atomically replacing files inside `output/`.
 
 The same workflow exercises the pinned Pseudepigrapha-TF reference materializer on Linux: Agora acquires the pinned OCP source itself, runs the real converter under bubblewrap, and verifies that the exact resolved OCP commit survives through Agora provenance, the converter report, and generated Text-Fabric metadata. This is an integration smoke, not a duplicate of Pseudepigrapha-TF's semantic test suite.
 
@@ -168,7 +170,9 @@ The sandbox is defense in depth around code the user chose to trust; it is not a
 
 Converters never write directly into the requested final artifact path.
 
-Agora creates a sibling staging directory on the same filesystem, runs the converter there, validates all required output paths, writes protected provenance, and only then atomically renames the staging directory to the requested destination. Converter failure, output-validation failure, or provenance failure removes staging and leaves an existing empty destination empty (or an absent destination absent).
+Agora creates a private sibling staging workspace on the same filesystem as the final destination and creates a designated `output/` child inside it. The converter runs against that child and may use other paths inside the private workspace for temporary/sibling staging. After the converter exits, Agora requires the designated output root to still be a real directory rather than a symlink or replacement object, validates all required output paths stay inside it, and writes protected provenance there. Only then does Agora atomically rename the `output/` child to the requested destination and delete the remaining private workspace.
+
+Converter failure, output-root replacement, output-validation failure, or provenance failure removes the entire private workspace and leaves an existing empty destination empty (or an absent destination absent). Disposable converter-created siblings are never published.
 
 `agora-materialization.json` is reserved for Agora and is created with exclusive/no-follow semantics after the converter exits, preventing a converter-created symlink from redirecting the provenance write.
 
