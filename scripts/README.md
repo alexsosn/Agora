@@ -26,6 +26,22 @@ python scripts/generate_marketplaces.py --check
 
 Phase 2 intentionally does not generate Antigravity artifacts.
 
+## v0.1 release verification status
+
+```bash
+python scripts/generate_release_status.py
+```
+
+Regenerates only the bounded plugin/client verification block in `wiki/releases/v0.1-plan-active.md`. The block is derived from the fixed plugin set in `registry/v0.1.yaml`, aggregate/client statuses in `registry/plugins.yaml`, and the referenced check semantics in `registry/verification-checks.yaml`. It does not infer live evidence from check-ID names and does not promote aggregate plugin status from a stronger client path.
+
+Verify freshness without writing:
+
+```bash
+python scripts/generate_release_status.py --check
+```
+
+The generator fails closed when required plugin verification metadata or referenced/matching verification checks are missing. Narrative release history outside the generated markers remains hand-authored.
+
 ## Context-Fabric source coverage
 
 ```bash
