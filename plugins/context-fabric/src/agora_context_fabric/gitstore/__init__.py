@@ -110,6 +110,14 @@ class GitStore(_CoreGitStore):
         )
         return result.stdout.strip()
 
+    def _run(self, *args: str, cwd: Path | None = None) -> str:
+        # Any fetch may surface diagnostics consumed by source-failure
+        # classification. Keep those diagnostics stable and credential prompting
+        # disabled, including the disposable snapshot-export repository fetch.
+        if args and args[0] == "fetch":
+            return self._run_refresh(*args, cwd=cwd)
+        return super()._run(*args, cwd=cwd)
+
     def _select(self, repo: Path, ref: str | None) -> str:
         target = ref or "HEAD"
         self._run_refresh(
