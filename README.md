@@ -70,7 +70,7 @@ Replace `context-fabric` with `perseus`, `sefaria`, or `sedra` as needed.
 
 Most local launch paths use [`uv`](https://docs.astral.sh/uv/). Context-Fabric currently requires Python 3.13; the SEDRA adapter requires Python 3.11 or later.
 
-See the [full installation guide](wiki/guides/installation.md) for platform-specific details, updating, prerequisites, and validation.
+See the [full installation guide](wiki/guides/installation.md) for platform-specific details, updating, prerequisites, and validation. See the [compatibility and verification guide](wiki/guides/compatibility.md) for the exact Claude Code, Codex, transport, and platform evidence Agora currently claims.
 
 ## Example prompts
 
@@ -113,15 +113,16 @@ Agora verification covers installation, launch, transport, resource resolution, 
 
 Agora keeps **provider/service health**, **plugin/client integration evidence**, and **resource/data status** independent. Provider health records that a provider or runtime path was observed operational through traceable live evidence; it does not establish scholarly suitability, prove every client path, or promote the resources behind that provider. Plugin/client evidence describes the tested client and transport path, while resource/data status remains resource-specific.
 
-Use the resolved source revision to consult the original repository or corpus publisher's current documentation for semantics, limitations, and suitability. The four v0.1 integrations currently have live **Codex-path** verification; their aggregate plugin status remains `community` because the Claude paths currently have deterministic configuration evidence rather than equivalent live client-path evidence.
+Use the resolved source revision to consult the original repository or corpus publisher's current documentation for semantics, limitations, and suitability. Client verification is scoped to the exact generated transport and executable evidence recorded in `registry/verification-checks.yaml`; platform startup evidence is separately bounded and does not imply exhaustive client/platform compatibility.
 
 Plugin/client verification claims are bound to stable executable check IDs in `registry/verification-checks.yaml`. Live smoke artifacts record the check ID, exact Agora revision, timestamp, GitHub Actions run, runtime/platform, generated launch command, and configured dependency inputs, so a `verified` client claim can be traced to an actual executable check and run rather than a prose test name. Provider health may reference those live checks only as operational observations; it does not inherit the client evidence level. See [`registry/README.md`](registry/README.md) for the evidence model.
 
-For the detailed verification model and current implementation status, see [implementation details](wiki/architecture/ref-implementation-details.md).
+For the exact client/transport/platform evidence boundary, see the [compatibility and verification guide](wiki/guides/compatibility.md). For the broader implementation model and current status, see [implementation details](wiki/architecture/ref-implementation-details.md).
 
 ## Documentation
 
 - [Installation guide](wiki/guides/installation.md)
+- [Compatibility and verification](wiki/guides/compatibility.md)
 - [Wiki index](wiki/README.md)
 - [v0.1 scope](wiki/releases/v0.1-scope-frozen.md)
 - [Implementation details](wiki/architecture/ref-implementation-details.md)
