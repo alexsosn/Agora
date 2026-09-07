@@ -17,6 +17,15 @@
       "type": "string",
       "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
     },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "arch"],
+      "properties": {
+        "os": {"enum": ["linux", "macos", "windows"]},
+        "arch": {"enum": ["x86_64", "arm64"]}
+      }
+    },
     "check": {
       "type": "object",
       "additionalProperties": false,
@@ -29,6 +38,7 @@
         "client": {"enum": ["claude", "codex"]},
         "transport": {"type": "string", "minLength": 1},
         "evidence_level": {"enum": ["community", "verified"]},
+        "platform": {"$ref": "#/$defs/platform"},
         "executor": {
           "oneOf": [
             {"$ref": "#/$defs/unittestExecutor"},
