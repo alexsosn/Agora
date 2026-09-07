@@ -92,6 +92,7 @@ class CollectionIndexRegistryTests(unittest.TestCase):
             {
                 "id": ISSUE_ID,
                 "severity": "blocking",
+                "impact": "member",
                 "signature": "duplicate-structure-levels",
                 "summary": "Some members declare duplicate structureTypes.",
                 "upstream": [
@@ -151,9 +152,10 @@ class CollectionIndexRegistryTests(unittest.TestCase):
         issue = known_issues["items"]
         self.assertEqual(
             set(issue["required"]),
-            {"id", "severity", "signature", "summary"},
+            {"id", "severity", "impact", "signature", "summary"},
         )
         self.assertEqual(issue["properties"]["severity"]["enum"], ["advisory", "blocking"])
+        self.assertEqual(issue["properties"]["impact"]["enum"], ["resource", "member"])
         self.assertIn("upstream", issue["properties"])
 
     def test_registry_accepts_complete_revision_bound_index(self):

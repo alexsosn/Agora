@@ -263,6 +263,7 @@ resources:
     known_issues:
     - id: context-fabric/duplicate-structure-levels
       severity: blocking
+      impact: member
       signature: duplicate-structure-levels
       summary: Some collection members declare duplicate structure levels and cannot be loaded by the supported Context-Fabric release.
       upstream:
@@ -650,7 +651,7 @@ resources:
     data: unknown
     redistribution: unknown
     notes: TF derives from DBNL TEI; repository software licensing does not establish DBNL corpus-data terms or redistribution permission.
-    evidence: {status: unresolved, checked_at: '2026-09-06', sources: [https://github.com/annotation/mobydick/blob/main/README.md]}
+    evidence: {status: unresolved, checked_at: '2026-09-06', sources: [https://github.com/annotation/mobydick/blob/master/README.md]}
   verification: {status: community}
   source_snapshot: {source: 'Context-Fabric/context-fabric:CorporaTable.tsx', checked_at: '2026-08-29'}
 - id: banks

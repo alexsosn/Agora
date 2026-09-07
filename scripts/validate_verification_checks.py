@@ -11,6 +11,8 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
 VERIFICATION_RANK = {"experimental": 0, "community": 1, "verified": 2}
+POSITIVE_RESOURCE_CLAIMS = frozenset({"materialization", "load", "representative-content"})
+COLLECTION_VERIFIED_CLAIMS = frozenset({"discovery"})
 
 
 def _load_yaml(path: Path) -> Any:
@@ -308,8 +310,6 @@ def _validate_resource_evidence_graph(
     }
     errors: list[str] = []
 
-    # Direct check definitions are independently valid only when their exact
-    # resource/member subject exists and belongs to the declared provider path.
     for check in check_by_id.values():
         subject = check.get("subject")
         if not isinstance(subject, dict):
@@ -350,8 +350,6 @@ def _validate_resource_evidence_graph(
                     f"from collection resource {resource_id!r}"
                 )
 
-    # Resource/member evidence is an exact-subject reference, not merely an ID
-    # that happens to exist in the shared executable-check catalog.
     for resource in resources:
         resource_id = resource.get("id")
         if not isinstance(resource_id, str):
@@ -396,41 +394,177 @@ def _validate_resource_evidence_graph(
     return errors
 
 
-def _validate_resource_known_issue_references(root: Path) -> list[str]:
-    """Ensure compact collection-member issue refs resolve inside their resource."""
+def _verified_live_claims(
+    verification: dict[str, Any],
+    *,
+    expected_subject: dict[str, str],
+    resource: dict[str, Any],
+    check_by_id: dict[str, dict[str, Any]],
+) -> set[str]:
+    claims: set[str] = set()
+    for reference in verification.get("evidence", []):
+        if not isinstance(reference, dict):
+            continue
+        check_id = reference.get("check_id")
+        check = check_by_id.get(check_id) if isinstance(check_id, str) else None
+        if not isinstance(check, dict):
+            continue
+        if check.get("kind") != "live" or check.get("evidence_level") != "verified":
+            continue
+        if check.get("subject") != expected_subject:
+            continue
+        if (check.get("plugin"), check.get("provider")) != (
+            resource.get("plugin"),
+            resource.get("provider"),
+        ):
+            continue
+        for claim in check.get("claims", []):
+            if isinstance(claim, str) and claim != "known-issue-canary":
+                claims.add(claim)
+    return claims
+
+
+def _validate_verified_status(
+    *,
+    prefix: str,
+    verification: dict[str, Any],
+    required_claims: frozenset[str],
+    expected_subject: dict[str, str],
+    resource: dict[str, Any],
+    check_by_id: dict[str, dict[str, Any]],
+    blocking_issue_ids: list[str],
+) -> list[str]:
+    if verification.get("status") != "verified":
+        return []
+
     errors: list[str] = []
+    claims = _verified_live_claims(
+        verification,
+        expected_subject=expected_subject,
+        resource=resource,
+        check_by_id=check_by_id,
+    )
+    missing = sorted(required_claims - claims)
+    if missing:
+        required = ", ".join(sorted(required_claims))
+        errors.append(
+            f"{prefix}: status 'verified' requires live verified evidence for claims {required}; "
+            f"missing {', '.join(missing)}"
+        )
+    for issue_id in blocking_issue_ids:
+        errors.append(
+            f"{prefix}: status 'verified' is blocked by blocking known issue {issue_id!r}"
+        )
+    return errors
+
+
+def _validate_resource_promotion_and_known_issues(
+    root: Path,
+    checks: list[Any],
+) -> list[str]:
+    check_by_id = {
+        check["id"]: check
+        for check in checks
+        if isinstance(check, dict) and isinstance(check.get("id"), str)
+    }
+    errors: list[str] = []
+
     for resource in _resource_records(root):
         resource_id = resource.get("id")
         if not isinstance(resource_id, str):
             continue
-        definitions = (resource.get("verification") or {}).get("known_issues", [])
-        issue_ids: set[str] = set()
-        for issue in definitions:
+        verification = resource.get("verification") or {}
+        if not isinstance(verification, dict):
+            continue
+
+        issue_by_id: dict[str, dict[str, Any]] = {}
+        for issue in verification.get("known_issues", []):
             if not isinstance(issue, dict) or not isinstance(issue.get("id"), str):
                 continue
             issue_id = issue["id"]
-            if issue_id in issue_ids:
+            if issue_id in issue_by_id:
                 errors.append(
                     f"resource {resource_id}.verification.known_issues: duplicate id {issue_id!r}"
                 )
-            issue_ids.add(issue_id)
+            issue_by_id[issue_id] = issue
+            if issue.get("impact") == "member" and resource.get("kind") != "collection":
+                errors.append(
+                    f"resource {resource_id}.verification.known_issues[{issue_id}]: impact 'member' "
+                    "is only valid for a collection resource"
+                )
+
+        resource_blockers = [
+            issue_id
+            for issue_id, issue in issue_by_id.items()
+            if issue.get("severity") == "blocking" and issue.get("impact") == "resource"
+        ]
+        required_claims = (
+            COLLECTION_VERIFIED_CLAIMS
+            if resource.get("kind") == "collection"
+            else POSITIVE_RESOURCE_CLAIMS
+        )
+        errors.extend(
+            _validate_verified_status(
+                prefix=f"resource {resource_id}.verification",
+                verification=verification,
+                required_claims=required_claims,
+                expected_subject={"type": "resource", "resource_id": resource_id},
+                resource=resource,
+                check_by_id=check_by_id,
+                blocking_issue_ids=resource_blockers,
+            )
+        )
 
         for member in _collection_members(root, resource):
-            member_id = member.get("id", "<unknown>")
-            verification = member.get("verification") or {}
-            if not isinstance(verification, dict):
+            member_id = member.get("id")
+            if not isinstance(member_id, str):
                 continue
-            for reference in verification.get("known_issues", []):
+            member_verification = member.get("verification") or {}
+            if not isinstance(member_verification, dict):
+                continue
+
+            member_blockers: list[str] = []
+            for reference in member_verification.get("known_issues", []):
                 if not isinstance(reference, dict):
                     continue
                 issue_id = reference.get("issue_id")
                 if not isinstance(issue_id, str):
                     continue
-                if issue_id not in issue_ids:
+                issue = issue_by_id.get(issue_id)
+                prefix = (
+                    f"resource {resource_id}.member[{member_id}].verification.known_issues"
+                    f"[{issue_id}]"
+                )
+                if issue is None:
                     errors.append(
-                        f"resource {resource_id}.member[{member_id}].verification.known_issues"
-                        f"[{issue_id}]: references missing resource known issue {issue_id!r}"
+                        f"{prefix}: references missing resource known issue {issue_id!r}"
                     )
+                    continue
+                if issue.get("impact") != "member":
+                    errors.append(
+                        f"{prefix}: collection-member issue references require impact 'member'; "
+                        f"definition has impact {issue.get('impact')!r}"
+                    )
+                    continue
+                if issue.get("severity") == "blocking":
+                    member_blockers.append(issue_id)
+
+            errors.extend(
+                _validate_verified_status(
+                    prefix=f"resource {resource_id}.member[{member_id}].verification",
+                    verification=member_verification,
+                    required_claims=POSITIVE_RESOURCE_CLAIMS,
+                    expected_subject={
+                        "type": "collection-member",
+                        "resource_id": resource_id,
+                        "member_id": member_id,
+                    },
+                    resource=resource,
+                    check_by_id=check_by_id,
+                    blocking_issue_ids=member_blockers,
+                )
+            )
+
     return errors
 
 
@@ -505,5 +639,5 @@ def validate_verification_checks(root: Path, plugins_doc: dict[str, Any]) -> lis
                 )
 
     errors += _validate_resource_evidence_graph(root, checks)
-    errors += _validate_resource_known_issue_references(root)
+    errors += _validate_resource_promotion_and_known_issues(root, checks)
     return errors

@@ -146,13 +146,14 @@
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["id", "severity", "signature", "summary"],
+                  "required": ["id", "severity", "impact", "signature", "summary"],
                   "properties": {
                     "id": {
                       "type": "string",
                       "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
                     },
                     "severity": {"enum": ["advisory", "blocking"]},
+                    "impact": {"enum": ["resource", "member"]},
                     "signature": {"type": "string", "minLength": 1},
                     "summary": {"type": "string", "minLength": 1},
                     "upstream": {
