@@ -608,6 +608,13 @@ def _create_staging_output(final: Path) -> StagingOutput:
     return StagingOutput(root=root, output=output)
 
 
+def _validate_staging_output(staging: StagingOutput) -> None:
+    if staging.output.is_symlink() or not staging.output.is_dir():
+        raise ValueError("materializer replaced Agora's designated output directory")
+    if staging.output.parent.resolve() != staging.root:
+        raise ValueError("materializer output directory escaped Agora's private staging workspace")
+
+
 def validate_output(path: Path, materializer: dict[str, Any]) -> None:
     root = Path(path).resolve()
     for relative in materializer["output"]["required_paths"]:
@@ -715,6 +722,7 @@ def materialize(
             cwd=work_dir,
             env=_runtime_environment(plugin_root=plugin_root, work_dir=work_dir),
         )
+        _validate_staging_output(staging)
         validate_output(staging.output, spec)
 
         provenance = {
