@@ -216,7 +216,7 @@ class GitStore(_CoreGitStore):
                     ) from exc
                 try:
                     revision = self.selected_revision(destination)
-                except subprocess.CalledProcessError as selected_exc:
+                except subprocess.CalledProcessError:
                     raise RuntimeError(
                         f"upstream refresh failed for resource {key!r} and no cached selected "
                         "revision is available; network access is required"
@@ -287,6 +287,35 @@ class GitStore(_CoreGitStore):
                 ) from exc
             self.touch_cache_object(destination)
             return destination
+
+    def _materialize_snapshot(
+        self,
+        repo: Path,
+        relative_path: str,
+        revision: str | None,
+        *,
+        kind: str,
+        validate,
+    ) -> Path:
+        try:
+            return super()._materialize_snapshot(
+                repo,
+                relative_path,
+                revision,
+                kind=kind,
+                validate=validate,
+            )
+        except subprocess.CalledProcessError as exc:
+            relative = self._safe_relative_path(relative_path)
+            if self._is_connectivity_failure(exc):
+                raise RuntimeError(
+                    f"source snapshot acquisition failed for {repo.name!r} at {relative!r}; "
+                    "network access is required to publish the snapshot"
+                ) from exc
+            raise RuntimeError(
+                f"source snapshot acquisition failed for {repo.name!r} at {relative!r}; "
+                "cached state was not substituted"
+            ) from exc
 
     def materialize(
         self,
