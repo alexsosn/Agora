@@ -393,6 +393,14 @@ class CollectionIndexManager:
         if cached is not None:
             return cached
 
+        current_source_policy = getattr(self.store, "current_source_policy", None)
+        policy = current_source_policy() if callable(current_source_policy) else None
+        if policy is not None and not policy.allow_network:
+            raise RuntimeError(
+                f"collection {collection_id!r} index for revision {source_revision} is not cached "
+                "for offline use; network-enabled discovery is required before index generation"
+            )
+
         roots = self.store.dataset_roots(repo, source_revision)
         index = build_collection_index(
             collection_id=collection_id,
