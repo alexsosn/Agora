@@ -42,6 +42,14 @@ class ContextFabricService(_BaseContextFabricService):
             return nullcontext(None)
         return self.store.source_policy(mode)
 
+    def _managed_collection_resolution(self, resource) -> bool:
+        return (
+            resource.kind == "collection"
+            and self.store is not None
+            and callable(getattr(self.resolver, "_collection_repo", None))
+            and callable(getattr(self.resolver, "_collection_index_manager", None))
+        )
+
     @staticmethod
     def _provenance(
         policy: SourcePolicyState | None,
@@ -144,11 +152,18 @@ class ContextFabricService(_BaseContextFabricService):
         offset: int = 0,
         limit: int = 100,
     ) -> dict[str, Any]:
+        # Preserve the historical validation-before-resolution contract.
+        if offset < 0:
+            raise ValueError("offset must be >= 0")
+        if limit < 1:
+            raise ValueError("limit must be >= 1")
+        if limit > 100:
+            raise ValueError("limit must be <= 100")
         mode = self._validate_source_request(source_mode, source_revision)
         resource = self.catalog.get(resource_id)
         with self._source_context(mode) as policy:
             effective_revision = source_revision
-            if resource.kind == "collection":
+            if self._managed_collection_resolution(resource):
                 effective_revision = self._resolve_collection_revision(
                     resource,
                     source_revision,
@@ -205,7 +220,7 @@ class ContextFabricService(_BaseContextFabricService):
         resource = self.catalog.get(resource_id)
         with self._source_context(mode) as policy:
             effective_revision = source_revision
-            if resource.kind == "collection":
+            if self._managed_collection_resolution(resource):
                 effective_revision = self._resolve_collection_revision(
                     resource,
                     source_revision,
@@ -243,7 +258,7 @@ class ContextFabricService(_BaseContextFabricService):
         resource = self.catalog.get(resource_id)
         with self._source_context(mode) as policy:
             effective_revision = source_revision
-            if resource.kind == "collection":
+            if self._managed_collection_resolution(resource):
                 effective_revision = self._resolve_collection_revision(
                     resource,
                     source_revision,
