@@ -140,7 +140,11 @@ Installing Context-Fabric does not download all 37 registered resources. Corpus 
 
 ## Verification after installation
 
-Agora CI verifies all four v0.1 plugin integrations by starting/connecting through their generated Codex MCP configuration, initializing MCP, enumerating expected tools, and executing a representative operation. The Context-Fabric source audit separately verifies that all 37 registered v0.1 upstream resources currently resolve to Text-Fabric dataset roots.
+Agora records verification per **client and transport**, rather than treating one successful MCP connection as proof of all launch paths. Representative-operation live checks exercise the generated Claude Code and Codex paths independently, while bounded Context-Fabric/SEDRA platform checks verify startup only on Linux x86_64, Intel macOS x86_64, and Windows x86_64.
+
+The platform startup cells are not end-to-end Claude Code or Codex executable tests and do not make claims about ARM, Apple Silicon, or other operating systems. Deterministic checks separately validate generated configuration structure and registry bindings.
+
+See [compatibility and verification](compatibility.md) for the exact check IDs, transport differences such as Sefaria's Claude direct SSE versus Codex `stdio-via-sse-proxy`, and the evidence boundaries behind each status.
 
 These integration checks do **not** mean that every underlying scholarly resource has Verified data quality. Consult resource status and the plugin's scholarly skills before using a corpus for research conclusions.
 
