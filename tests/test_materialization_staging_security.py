@@ -15,7 +15,11 @@ class StagingOutputSecurityTests(unittest.TestCase):
     def test_private_output_child_preserves_private_directory_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
             final = Path(tmp) / "artifact"
-            staging = _create_staging_output(final)
+            previous_umask = os.umask(0o022)
+            try:
+                staging = _create_staging_output(final)
+            finally:
+                os.umask(previous_umask)
             try:
                 self.assertEqual(stat.S_IMODE(staging.root.stat().st_mode), 0o700)
                 self.assertEqual(stat.S_IMODE(staging.output.stat().st_mode), 0o700)
