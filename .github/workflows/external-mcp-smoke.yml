@@ -6,6 +6,7 @@ on:
     - cron: "41 5 * * 3"
   push:
     paths:
+      - ".gitattributes"
       - "registry/plugins.yaml"
       - "registry/providers.yaml"
       - "registry/verification-checks.yaml"
