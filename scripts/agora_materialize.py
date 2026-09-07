@@ -20,6 +20,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "registry/schema/materializer-plugin.schema.json"
 GIT_TIMEOUT_SECONDS = 120
+SANDBOX_OUTPUT_ROOT = "/agora-output"
 _TREE_EXCLUDES = {
     ".git",
     ".hg",
@@ -52,6 +53,15 @@ class PreparedSource:
     def cleanup(self) -> None:
         if self.cleanup_root is not None:
             shutil.rmtree(self.cleanup_root, ignore_errors=True)
+
+
+@dataclass(frozen=True)
+class StagingOutput:
+    root: Path
+    output: Path
+
+    def cleanup(self) -> None:
+        shutil.rmtree(self.root, ignore_errors=True)
 
 
 def _safe_relative(value: str, *, where: str) -> str:
@@ -395,6 +405,7 @@ def _build_linux_sandbox(
     source_revision: str,
 ) -> list[str]:
     python_inside, runtime_bind = _linux_python_path()
+    sandbox_output = str(PurePosixPath(SANDBOX_OUTPUT_ROOT) / output.name)
     command = [
         bwrap,
         "--die-with-parent",
@@ -422,8 +433,8 @@ def _build_linux_sandbox(
             str(source),
             "/input",
             "--bind",
-            str(output),
-            "/output",
+            str(output.parent),
+            SANDBOX_OUTPUT_ROOT,
             "--setenv",
             "HOME",
             "/tmp/home",
@@ -447,7 +458,7 @@ def _build_linux_sandbox(
             *_render_args(
                 args,
                 source="/input",
-                output="/output",
+                output=sandbox_output,
                 source_revision=source_revision,
             ),
         ]
@@ -470,6 +481,7 @@ def _build_macos_sandbox(
     args: list[str],
     source_revision: str,
 ) -> list[str]:
+    output_parent = output.parent.resolve()
     readable = {
         Path("/System"),
         Path("/usr"),
@@ -480,7 +492,7 @@ def _build_macos_sandbox(
         Path(sys.base_prefix).resolve(),
         plugin_root.resolve(),
         source.resolve(),
-        output.resolve(),
+        output_parent,
         work_dir.resolve(),
     }
     read_rules = "\n".join(
@@ -497,7 +509,7 @@ def _build_macos_sandbox(
 (allow file-read-data (literal \"/\"))
 {read_rules}
 (allow file-read* file-write* (subpath \"/dev\"))
-(allow file-write* (subpath {_sandbox_profile_path(output)}))
+(allow file-write* (subpath {_sandbox_profile_path(output_parent)}))
 (allow file-write* (subpath {_sandbox_profile_path(work_dir)}))
 (deny network*)
 """
@@ -587,8 +599,13 @@ def _preflight_output(path: Path) -> Path:
     return final
 
 
-def _create_staging_output(final: Path) -> Path:
-    return Path(tempfile.mkdtemp(prefix=f".{final.name}.agora-stage-", dir=final.parent)).resolve()
+def _create_staging_output(final: Path) -> StagingOutput:
+    root = Path(
+        tempfile.mkdtemp(prefix=f".{final.name}.agora-stage-", dir=final.parent)
+    ).resolve()
+    output = root / "output"
+    output.mkdir()
+    return StagingOutput(root=root, output=output)
 
 
 def validate_output(path: Path, materializer: dict[str, Any]) -> None:
@@ -658,10 +675,10 @@ def materialize(
 
     prepared: PreparedSource | None = None
     work_dir: Path | None = None
-    staging_output: Path | None = None
+    staging: StagingOutput | None = None
     try:
         prepared = acquire_source(spec, source_override=source)
-        staging_output = _create_staging_output(final_output)
+        staging = _create_staging_output(final_output)
         work_dir = Path(tempfile.mkdtemp(prefix="agora-materializer-"))
         (work_dir / "home").mkdir()
         (work_dir / "tmp").mkdir()
@@ -672,7 +689,7 @@ def materialize(
             command, sandbox_backend = build_sandbox_command(
                 plugin_root=plugin_root,
                 source=prepared.path,
-                output=staging_output,
+                output=staging.output,
                 work_dir=work_dir,
                 module=execution["module"],
                 args=execution["args"],
@@ -686,7 +703,7 @@ def materialize(
                 *_render_args(
                     execution["args"],
                     source=str(prepared.path),
-                    output=str(staging_output),
+                    output=str(staging.output),
                     source_revision=source_revision,
                 ),
             ]
@@ -698,7 +715,7 @@ def materialize(
             cwd=work_dir,
             env=_runtime_environment(plugin_root=plugin_root, work_dir=work_dir),
         )
-        validate_output(staging_output, spec)
+        validate_output(staging.output, spec)
 
         provenance = {
             "schema_version": 1,
@@ -714,18 +731,19 @@ def materialize(
             "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
-        _write_provenance(staging_output / "agora-materialization.json", provenance)
+        _write_provenance(staging.output / "agora-materialization.json", provenance)
 
-        os.replace(staging_output, final_output)
-        staging_output = None
+        os.replace(staging.output, final_output)
+        staging.cleanup()
+        staging = None
         return final_output
     finally:
         if prepared is not None:
             prepared.cleanup()
         if work_dir is not None:
             shutil.rmtree(work_dir, ignore_errors=True)
-        if staging_output is not None:
-            shutil.rmtree(staging_output, ignore_errors=True)
+        if staging is not None:
+            staging.cleanup()
 
 
 def _parser() -> argparse.ArgumentParser:
