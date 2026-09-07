@@ -87,8 +87,6 @@ jobs:
     name: Pseudepigrapha-TF reference materialization
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      OCP_COMMIT: 2d1d14d23434a784d377ff7f4409ccdb2d18aafb
     steps:
       - name: Check out Agora
         uses: actions/checkout@v4
@@ -159,12 +157,23 @@ jobs:
           from pathlib import Path
 
           artifact = Path(os.environ['RUNNER_TEMP']) / 'pseudepigrapha-tf'
-          expected = os.environ['OCP_COMMIT']
+          plugin_root = Path('.reference/pseudepigrapha-tf')
+          manifest = json.loads((plugin_root / 'agora.materializer.json').read_text(encoding='utf-8'))
+          materializers = [item for item in manifest['materializers'] if item['id'] == 'ocp-text-fabric']
+          assert len(materializers) == 1
+          git_sources = [item for item in materializers[0]['acquisition'] if item['type'] == 'git']
+          assert len(git_sources) == 1
+          upstream = git_sources[0]
+          expected = upstream['ref']
+          assert len(expected) == 40 and all(char in '0123456789abcdef' for char in expected)
+
           host = json.loads((artifact / 'agora-materialization.json').read_text(encoding='utf-8'))
           report = json.loads((artifact / 'conversion-report.json').read_text(encoding='utf-8'))
 
           assert host['plugin']['id'] == 'pseudepigrapha-tf'
           assert host['materializer'] == 'ocp-text-fabric'
+          assert host['source']['url'] == upstream['url']
+          assert host['source']['subpath'] == upstream['subpath']
           assert host['source']['requested_ref'] == expected
           assert host['source']['resolved_commit'] == expected
           assert host['sandbox'] == 'bubblewrap'

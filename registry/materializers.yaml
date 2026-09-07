@@ -4,7 +4,7 @@ plugins:
     name: Pseudepigrapha-TF
     description: Convert Online Critical Pseudepigrapha XML editions into local Text-Fabric artifacts.
     repository: alexsosn/Pseudepigrapha-TF
-    ref: 082c6aeae72df8c93c11d8b6bbb1b69ec2b1f544
+    ref: 315439284e765c1d7ea89ffdefdd10f403aa1293
     version: 0.1.0
     manifest: agora.materializer.json
     package:
