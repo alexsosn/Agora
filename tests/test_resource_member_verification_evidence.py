@@ -206,6 +206,30 @@ class ResourceMemberVerificationEvidenceRed1Tests(unittest.TestCase):
             errors,
         )
 
+    def test_member_check_definition_rejects_missing_subject_member(self):
+        root = self.make_root()
+        missing_member = "missing-member-12345678"
+        checks = _load_yaml(root / "registry/verification-checks.yaml")
+        checks["checks"].append(
+            _direct_check(
+                "member-load/missing-fixture",
+                resource_id="greek_literature",
+                member_id=missing_member,
+            )
+        )
+        _write_yaml(root / "registry/verification-checks.yaml", checks)
+
+        errors = validate_registry(root)
+        self.assertTrue(
+            any(
+                "member-load/missing-fixture" in error
+                and missing_member in error
+                and "missing" in error.casefold()
+                for error in errors
+            ),
+            errors,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
