@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make `wiki/releases/v0.1-plan-active.md` accurately describe the current v0.1 implementation and prevent its dynamic plugin/client verification summary from drifting beyond canonical registry evidence.
+Make `wiki/releases/v0.1-plan-active.md` and the wiki index accurately describe the current v0.1 implementation, and prevent the plan’s dynamic plugin/client verification summary from drifting beyond canonical registry evidence.
 
 ## Inputs
 
@@ -13,7 +13,7 @@ Canonical inputs:
 - `registry/verification-checks.yaml` — machine-readable check kind, evidence level, plugin, client, and transport semantics;
 - existing required-skill tests — evidence that the current v0.1 scholarly skill set is implemented.
 
-Human-authored release history remains in `wiki/releases/v0.1-plan-active.md`.
+Human-authored release history remains in `wiki/releases/v0.1-plan-active.md` and historical review links remain in `wiki/README.md`.
 
 ## Generated verification block
 
@@ -55,7 +55,7 @@ For the current registry the prose should communicate, without hard-coded plugin
 - exits non-zero when the committed plan block differs;
 - performs no write.
 
-## Hand-authored plan reconciliation
+## Hand-authored release-plan reconciliation
 
 Update only stale current-state sections:
 
@@ -66,6 +66,17 @@ Update only stale current-state sections:
 - Current sequence and final “remaining work” summary: reconcile with those statuses.
 
 Do not edit `v0.1-scope-frozen.md` merely to satisfy the old issue text; its TLHdig statement is already correct.
+
+## Wiki-index reconciliation
+
+`wiki/README.md` must stop presenting superseded review findings as **current P0 engineering work**. Replace that section with current framing that:
+
+- preserves the links to the dated historical reviews;
+- does not enumerate already-completed work as current;
+- may point to GitHub issues/backlog documents as the live work queue rather than duplicating volatile priorities;
+- keeps #9 branch protection distinguishable as a still-open governance/admin task without implying the completed engineering findings remain open.
+
+This is deliberately hand-authored rather than generated: GitHub issue priority is not currently a canonical repository data model, and this ticket should not invent one.
 
 ## TDD gates
 
@@ -81,19 +92,20 @@ Add tests that fail before the script exists/works:
 6. missing v0.1 plugin/client verification metadata fails closed;
 7. generation changes only the bounded block.
 
-### RED 2 — stale plan semantics
+### RED 2 — stale current-state semantics
 
 Add focused document assertions that reject the known stale states:
 
 - Phase 5 may not be labeled `NEXT` while the required-skill contract passes;
 - plan may not contain the false current-state sentence that v0.1 aggregate plugin statuses are `verified`;
-- Phase 4 may not state unscoped “implemented and Verified”.
+- Phase 4 may not state unscoped “implemented and Verified”;
+- `wiki/README.md` may not retain the superseded “Current P0 engineering findings” list of completed work.
 
-These checks should encode semantic invariants, not a growing blacklist of historical prose.
+These checks should encode semantic invariants, not a growing blacklist of historical prose. Historical dated review documents themselves remain untouched.
 
 ### GREEN
 
-Implement the generator, insert the generated block, reconcile the stale plan sections, and wire `--check` into Foundation.
+Implement the generator, insert the generated block, reconcile the stale plan and wiki-index sections, and wire `--check` into Foundation.
 
 ### Test gate
 
@@ -115,8 +127,10 @@ Before finalization, review the frozen implementation head independently against
 - whether missing/unknown evidence fails closed;
 - whether generation mutates hand-authored history outside its markers;
 - whether stale Phase 5/7 prose remains elsewhere in the current sequence or definition-of-done summary;
+- whether the wiki index still labels completed review findings as current work;
+- whether historical review evidence/links were preserved;
 - whether the change remains documentation/verification plumbing and does not alter plugin semantics.
 
 ## Completion criteria
 
-#16 can close when the plan is current, the generated verification block exactly reflects canonical v0.1 registry evidence, Foundation enforces freshness, tests cover conservative status derivation, and the frozen implementation head passes independent adversarial review.
+#16 can close when the release plan and wiki index are current, the generated verification block exactly reflects canonical v0.1 registry evidence, Foundation enforces freshness, tests cover conservative status derivation and stale-current-state regression, and the frozen implementation head passes independent adversarial review.
