@@ -102,7 +102,7 @@ checks:
     provider: context-fabric
     client: claude
     transport: stdio
-    evidence_level: community
+    evidence_level: verified
     executor:
       type: github-actions
       workflow: .github/workflows/external-mcp-smoke.yml
@@ -116,7 +116,7 @@ checks:
     provider: perseus
     client: claude
     transport: stdio
-    evidence_level: community
+    evidence_level: verified
     executor:
       type: github-actions
       workflow: .github/workflows/external-mcp-smoke.yml
@@ -130,7 +130,7 @@ checks:
     provider: sefaria
     client: claude
     transport: sse
-    evidence_level: community
+    evidence_level: verified
     executor:
       type: github-actions
       workflow: .github/workflows/external-mcp-smoke.yml
@@ -144,7 +144,7 @@ checks:
     provider: sedra
     client: claude
     transport: stdio
-    evidence_level: community
+    evidence_level: verified
     executor:
       type: github-actions
       workflow: .github/workflows/external-mcp-smoke.yml
