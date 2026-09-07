@@ -114,6 +114,14 @@ class LiveSmokeRuntimeEnvironmentTests(unittest.TestCase):
 
     def test_intel_contract_rejects_guarantees_satisfied_only_by_ubuntu(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
+        platform_launch = (
+            "      - name: Initialize generated packaged MCP without provider operation\n"
+            "        shell: bash\n"
+            "        run: |\n"
+            "          set -o pipefail\n"
+            "          uv run --project verification/mcp-smoke --locked \\\n"
+        )
+        unlocked_platform_launch = platform_launch.replace(" --locked", "")
         mutations = {
             "Intel cell removed": workflow.replace(
                 "          - plugin: context-fabric\n"
@@ -124,8 +132,8 @@ class LiveSmokeRuntimeEnvironmentTests(unittest.TestCase):
                 1,
             ),
             "unlocked platform harness": workflow.replace(
-                "uv run --project verification/mcp-smoke --locked \\",
-                "uv run --project verification/mcp-smoke \\",
+                platform_launch,
+                unlocked_platform_launch,
                 1,
             ),
             "platform artifact not uploaded on failure": workflow.replace(
