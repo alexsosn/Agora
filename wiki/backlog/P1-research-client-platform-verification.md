@@ -22,16 +22,17 @@ These changes materially satisfy the filesystem-lock/path/subprocess part of #18
 
 ### Remaining gaps
 
-1. **No explicit compatibility/evidence matrix.** Installation docs say Agora targets Claude Code and ChatGPT/Codex but do not give a compact client × transport × OS × evidence table. A reader cannot tell which combinations have live client evidence, generic packaged-launch evidence, deterministic manifest coverage, or no exercised path.
+1. **No explicit compatibility/evidence matrix.** Installation docs say Agora targets Claude Code and ChatGPT/Codex but do not give a compact client × transport × OS × evidence table. A reader cannot tell which combinations have live client evidence, generated-transport evidence, deterministic manifest coverage, or no exercised path.
 2. **Local runtime startup coverage is asymmetric.** Context-Fabric has an Intel-macOS packaged smoke, but SEDRA has no Windows/macOS packaged startup lane. The all-OS Foundation jobs exercise cache/install locking, not the actual Agora-owned MCP server startup path.
 3. **Windows packaged MCP startup is absent.** No current workflow starts an Agora-owned MCP runtime through generated launch metadata on Windows.
 4. **Claude is not exercised as a client.** The repository can deterministically validate generated Claude metadata, but CI has no authenticated Claude Code runtime. Claiming live Claude-client verification would therefore be unjustified.
-5. **The strongest reproducible Claude substitute is not exercised.** A generic MCP harness can still resolve the generated Claude launch command (including `${CLAUDE_PLUGIN_ROOT}`), start the underlying server, initialize MCP, enumerate tools, and run a bounded representative operation. That would prove the generated launch path/runtime without pretending the Claude client itself was tested.
+5. **The strongest reproducible generated-Claude transport paths are not exercised.** Three current Claude configurations (`context-fabric`, `perseus`, `sedra`) are generated stdio launch commands, while Sefaria is a generated direct `type: sse` URL. A generic MCP harness can exercise those generated transports directly—resolving `${CLAUDE_PLUGIN_ROOT}` for stdio and connecting to the generated Sefaria SSE URL—without pretending Claude Code itself was tested.
 6. **Platform evidence is not represented canonically.** `registry/verification-checks.yaml` records plugin/client/transport/check executors, but the existing Intel-macOS job is not a referenced verification check and platform is only implicit in workflow YAML. A platform-specific failure can therefore exist outside the traceable evidence graph.
 
 ## Existing primitives to reuse
 
 - `scripts/smoke_mcp_plugin.py` already starts generated Codex configurations with the committed locked smoke harness and records trace evidence.
+- Generated Claude artifacts are concrete `plugins/<id>/.claude-plugin/mcp.json` files. They are not all stdio: Sefaria's current file is direct SSE, so the harness extension must be transport-aware rather than command-only.
 - `registry/verification-checks.yaml` already provides stable check IDs and executable workflow bindings; platform work should extend/reuse that model rather than create a second verification registry.
 - `registry/plugins.yaml` already separates aggregate and per-client status. New platform checks must not promote aggregate status or Claude status automatically.
 - `tests/test_live_smoke_runtime_environment.py` already asserts workflow/runtime-environment guarantees.
@@ -44,7 +45,7 @@ These changes materially satisfy the filesystem-lock/path/subprocess part of #18
 Add `wiki/guides/compatibility.md` with one concise table covering current v0.1 clients/transports and the three major OS families. Each cell must distinguish at least:
 
 - **live client path** — actual client/transport path exercised;
-- **packaged launch** — generated launch command started through the generic MCP harness, but not the named client itself;
+- **generated transport path** — generated client configuration exercised through the generic MCP harness, but not the named client executable;
 - **deterministic only** — manifest/schema/path contract only;
 - **not exercised / not claimed**.
 
@@ -64,7 +65,10 @@ Running two local runtimes across three OSes is six small startup checks, not a 
 
 ### C. Strongest reproducible Claude-path substitute
 
-Extend the smoke harness to load generated Claude MCP launch metadata as well as Codex metadata. On Ubuntu, exercise all four v0.1 Claude-generated launch paths through the generic MCP client/harness.
+Extend the smoke harness to load generated Claude MCP metadata as well as Codex metadata. On Ubuntu, exercise all four v0.1 generated Claude transport paths through the generic MCP client/harness:
+
+- stdio for Context-Fabric, Perseus, and SEDRA;
+- direct SSE for Sefaria, using the URL present in the generated Claude configuration rather than the Codex stdio proxy path.
 
 This must remain `community` evidence because it does **not** execute Claude Code itself. The compatibility guide must say exactly that.
 
@@ -72,17 +76,18 @@ If a future authenticated/noninteractive Claude CI mechanism becomes available, 
 
 ### D. Trace platform evidence through the existing verification-check model
 
-Do not infer platform support from check-ID names. Extend the canonical verification-check schema minimally so a check can carry an explicit platform/environment identity (for example `platform: linux-x86_64`, `macos-x86_64`, `windows-x86_64`, with architecture kept explicit where the runner matters).
+Do not infer platform support from check-ID names. Extend the canonical verification-check schema minimally so a check can carry explicit structured platform/environment identity with OS and architecture kept separate.
 
 Then register the packaged-startup checks and reference the relevant stable IDs from client evidence where appropriate. A platform check may strengthen confidence without changing the client's canonical status.
 
-The validator must reject a platform check whose declared workflow/job/matrix selector cannot execute that platform.
+The validator must reject a platform check whose declared workflow/job/matrix selector cannot execute the declared platform, and the workflow must assert the actual runtime OS/architecture before launching the server.
 
 ## Non-goals
 
 - Do not claim every plugin/client combination is supported on every OS.
 - Do not turn third-party Perseus or hosted Sefaria behavior into Agora-owned cross-platform obligations.
 - Do not promote Claude to `verified` without an actual Claude-client execution mechanism.
+- Do not silently translate Sefaria's Claude direct-SSE path into the Codex stdio proxy path.
 - Do not run real network lookups in every OS cell; startup/initialization is sufficient for path/subprocess/packaging differences.
 - Do not duplicate the existing Context-Fabric cache and materializer lock matrices.
 - Do not create a separate status vocabulary for the compatibility guide.
@@ -90,6 +95,7 @@ The validator must reject a platform check whose declared workflow/job/matrix se
 ## Risks to test adversarially
 
 - A generic Claude-path harness is mislabeled as actual Claude-client verification.
+- Sefaria's Claude SSE configuration is accidentally replaced by the Codex proxy path during testing.
 - Platform support is inferred from a workflow runner but not bound to stable evidence.
 - Windows command/path quoting works in unit tests but generated launch execution is never attempted.
 - The matrix quietly explodes into expensive live-network jobs.
@@ -99,4 +105,4 @@ The validator must reject a platform check whose declared workflow/job/matrix se
 
 ## Research conclusion
 
-#18 remains actionable but is substantially narrower than filed. Agora already has meaningful cross-platform lock/cache coverage and one Intel-macOS packaged Context-Fabric smoke. The remaining trustworthy increment is a bounded compatibility/evidence matrix, six cross-OS packaged-startup checks for the two Agora-owned local MCP runtimes, a generic-harness Claude launch-path substitute that remains explicitly non-client/live evidence, and explicit platform identity in the existing verification-check graph.
+#18 remains actionable but is substantially narrower than filed. Agora already has meaningful cross-platform lock/cache coverage and one Intel-macOS packaged Context-Fabric smoke. The remaining trustworthy increment is a bounded compatibility/evidence matrix, six cross-OS packaged-startup checks for the two Agora-owned local MCP runtimes, transport-aware generic-harness evidence for all four generated Claude configurations that remains explicitly non-Claude-client evidence, and explicit platform identity in the existing verification-check graph.
