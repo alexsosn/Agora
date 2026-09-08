@@ -13,6 +13,27 @@ from scripts import agora_install_materializer as installer
 from scripts import agora_materialize as host
 
 
+def _registered_target(
+    plugin_id: str,
+    *,
+    install_root: Path | None = None,
+    registry_path: Path | None = None,
+) -> tuple[dict, Path]:
+    registry = (
+        installer.load_registry()
+        if registry_path is None
+        else installer.load_registry(Path(registry_path))
+    )
+    try:
+        plugin = installer.select_plugin(registry, plugin_id)
+    except KeyError as exc:
+        raise installer.MaterializerInstallError(
+            f"unknown materializer plugin {plugin_id!r}"
+        ) from exc
+    root = installer.default_install_root() if install_root is None else Path(install_root)
+    return plugin, installer.installation_path(plugin, root)
+
+
 def resolve_installed_manifest(
     plugin_id: str,
     *,
@@ -25,20 +46,11 @@ def resolve_installed_manifest(
     executes packaging code. The current registry pin and runtime identity must
     already have a valid managed installation.
     """
-    registry = (
-        installer.load_registry()
-        if registry_path is None
-        else installer.load_registry(Path(registry_path))
+    plugin, target = _registered_target(
+        plugin_id,
+        install_root=install_root,
+        registry_path=registry_path,
     )
-    try:
-        plugin = installer.select_plugin(registry, plugin_id)
-    except KeyError as exc:
-        raise installer.MaterializerInstallError(
-            f"unknown materializer plugin {plugin_id!r}"
-        ) from exc
-
-    root = installer.default_install_root() if install_root is None else Path(install_root)
-    target = installer.installation_path(plugin, root)
     if not target.exists():
         raise installer.MaterializerInstallError(
             f"materializer plugin {plugin_id!r} is not installed for the current runtime; "
@@ -70,19 +82,36 @@ def materialize_registered(
     install_root: Path | None = None,
     registry_path: Path | None = None,
 ) -> Path:
-    """Run one materializer from a verified, already-installed registry plugin."""
-    manifest = resolve_installed_manifest(
+    """Run one materializer from a verified, already-installed registry plugin.
+
+    The installer runtime lock is held from the final integrity verification
+    through converter completion so an explicit concurrent repair cannot replace
+    the managed environment after it has been approved for this execution.
+    """
+    _plugin, target = _registered_target(
         plugin_id,
         install_root=install_root,
         registry_path=registry_path,
     )
-    return host.materialize(
-        manifest_path=manifest,
-        materializer_id=materializer_id,
-        output=Path(output),
-        source=None if source is None else Path(source),
-        sandbox=sandbox,
-    )
+    lock_path = target.parent / f".{target.name}.lock"
+    with installer._lock(lock_path):
+        manifest = resolve_installed_manifest(
+            plugin_id,
+            install_root=install_root,
+            registry_path=registry_path,
+        )
+        expected_runtime = (target / "runtime").resolve()
+        if manifest.parent != expected_runtime:
+            raise installer.MaterializerInstallError(
+                f"materializer plugin {plugin_id!r} registry binding changed while acquiring its runtime lock"
+            )
+        return host.materialize(
+            manifest_path=manifest,
+            materializer_id=materializer_id,
+            output=Path(output),
+            source=None if source is None else Path(source),
+            sandbox=sandbox,
+        )
 
 
 def _parser() -> argparse.ArgumentParser:
