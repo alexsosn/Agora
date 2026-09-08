@@ -26,20 +26,25 @@ Only published, non-draft, non-prerelease GitHub Releases whose tag is the confi
 
 A release tag is untrusted mutable metadata. For an eligible release Agora resolves the tag through GitHub's Git ref/tag-object APIs until it reaches a full commit SHA. Lightweight and annotated tags are supported; cycles, malformed SHAs, excessive nesting, or non-commit terminal objects fail closed. Only the resolved commit SHA can be proposed in `registry/materializers.yaml`.
 
-The configured `agora.materializer.json` is then fetched from that exact immutable commit and treated as data. Before a proposal is produced, Agora requires the candidate manifest to satisfy the current materializer schema/semantic checks and to preserve:
+The configured `agora.materializer.json` is then fetched from that exact immutable commit and treated as data. Before a proposal is produced, Agora requires the candidate manifest to satisfy the current materializer schema/semantic checks and to preserve the same binding that installation enforces:
 
-- the registered plugin id;
-- the registered repository identity when the manifest declares it;
-- the release version;
-- the exact registered materializer-id set.
+- the registered plugin `id`;
+- the registered plugin `name`;
+- the registered repository identity (it must be present and exactly equal);
+- the release version selected from the tag;
+- the exact registered materializer-id sequence, including order.
+
+The proposal gate is intentionally no weaker than install-time registry ↔ manifest validation: automation must not create a review candidate that Agora would later refuse to fetch/install solely because of identity drift.
 
 Discovery does not clone, build, install, import, or execute candidate plugin code. A missing/malformed manifest, identity/version drift, unsupported contract, tag ambiguity, or API/network failure leaves the canonical registry unchanged.
 
 ## Proposal workflow
 
-`.github/workflows/materializer-release-updates.yml` runs daily and can also be dispatched manually. It uses the repository `GITHUB_TOKEN`, applies proposals only to a working copy, runs Agora's registry/generator/unit validation before any push, and maintains one fixed review branch/PR: `automation/materializer-releases`.
+`.github/workflows/materializer-release-updates.yml` runs daily and can also be dispatched manually. The workflow explicitly checks out canonical `main` even for `workflow_dispatch`, so the fixed bot branch is always rebuilt from current main rather than from an arbitrary selected dispatch ref. It uses the repository `GITHUB_TOKEN`, applies proposals only to a working copy, runs Agora's registry/generator/unit validation before any push, and maintains one fixed review branch/PR: `automation/materializer-releases`.
 
 The registry patcher changes only the selected entries' `version` and `ref` scalar bytes and verifies the resulting YAML semantically. Repeated successful runs are idempotent. A failure produces no partial aggregate proposal; a successful no-update run may close an obsolete automation PR.
+
+Creating or updating the automation PR requires the repository to permit GitHub Actions to create pull requests with `GITHUB_TOKEN`. If that repository setting is disabled, the workflow must fail visibly at the PR operation rather than bypassing review or using a hidden long-lived credential.
 
 Automation PRs are review artifacts, not trust decisions. The workflow never merges them. After a reviewed pin is eventually merged, the existing `explicit-code-execution` approval remains required before third-party Python packaging/build code can execute.
 
