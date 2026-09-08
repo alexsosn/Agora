@@ -112,6 +112,40 @@ repository_packs_after
 
 Maintenance failure or budget exhaustion is a visible housekeeping result, never a corpus-resolution failure and never a reason to suppress successful snapshot/overlay reclamation.
 
+#### Maintenance outcome and measurement completeness
+
+A successful `git gc --prune=now` exit proves that Git completed the requested maintenance command. It does not prove exact bytes reclaimed, garbage entries removed, or final pack count unless those values were actually observed before the same whole-operation deadline expired.
+
+Per-repository maintenance rows must expose, or be semantically equivalent to:
+
+```text
+maintenance_attempted: bool
+maintenance_status: skipped | success | failed | timed-out | budget-exhausted
+before_measurement_complete: bool
+after_measurement_complete: bool
+bytes_before: int | null
+bytes_after: int | null
+bytes_reclaimed: int | null
+garbage_entries_before: int | null
+garbage_entries_after: int | null
+garbage_entries_removed: int | null
+packs_before: int | null
+packs_after: int | null
+```
+
+Exact field names may follow existing style, but these semantics are normative:
+
+1. every filesystem-size walk and every pre/post `git count-objects -v` observation consumes the original whole-operation maintenance deadline;
+2. `maintenance_status: success` may be reported from GC exit status even when the post-maintenance measurement is incomplete;
+3. `bytes_reclaimed` is non-null only when exact before and after filesystem measurements completed;
+4. `garbage_entries_removed` and pack deltas are non-null only when both relevant Git-status observations completed;
+5. missing post-observation due to exhausted budget yields null/incomplete metrics, never zero or an inferred healthy state;
+6. an observed negative byte delta must not be clamped to zero: report the actual signed delta, or exact before/after values from which it is derived;
+7. aggregate reclaimed/debt metrics are exact only when every contributing measurement is complete; otherwise their aggregate is null with explicit incomplete state instead of a partial sum;
+8. logical snapshot/overlay LRU results remain independent and are still returned when repository-maintenance measurement is incomplete.
+
+Final implementation review must distinguish independently whether maintenance was attempted/completed, whether before/after observations completed, and what exact change was measured. No result field may infer measurement completeness or a delta merely from successful maintenance execution.
+
 ## Repository-use lock protocol
 
 Generalize `_repository_lock()` to support shared/exclusive modes while retaining the same stable pathname and finite timeout:
@@ -160,6 +194,7 @@ Extend the cache lifecycle reference and user guide to state:
 - `corpus_cache_status` exposes repository storage/garbage/pack health under a bounded best-effort deadline and reports incomplete measurements honestly;
 - aggregate repository byte metrics and aggregate Git pack/garbage metrics each carry independent completeness state and are null when incomplete;
 - `prune_corpus_cache` is the explicit bounded maintenance trigger with one whole-operation budget;
+- successful maintenance execution and complete before/after measurement are reported independently;
 - ordinary prepare/load do not run full Git maintenance.
 
 ## TDD implementation gates
@@ -217,7 +252,13 @@ Before adding GC, require:
 7. repeated prune is idempotent after debt clears;
 8. before/after repository bytes/debt are truthful;
 9. many slow/busy repositories share one total maintenance deadline and later repositories become budget-skipped while logical LRU still executes;
-10. slow pre/post `count-objects` calls consume that same global maintenance deadline rather than escaping it.
+10. slow pre/post `count-objects` calls consume that same global maintenance deadline rather than escaping it;
+11. successful GC with the global budget exhausted before post-status reports success plus incomplete post-measurement and null delta metrics;
+12. successful GC with post `count-objects` available but the post filesystem walk incomplete may report exact Git debt deltas while byte reclamation remains null/incomplete;
+13. failed or timed-out GC does not synthesize post-success zero deltas;
+14. aggregate repository reclamation is null/incomplete when any attempted row lacks the needed before/after measurements;
+15. a measured post-GC repository larger than before is represented truthfully rather than clamped to zero;
+16. all additional post-maintenance observations obey the same original whole-operation deadline and cannot extend prune latency after GC.
 
 ### GREEN 3
 
@@ -251,8 +292,10 @@ Challenge the frozen final diff for:
 7. repository bytes being double-counted or silently redefining quota semantics;
 8. malformed Git status becoming false healthy state;
 9. partial successful rows becoming false-exact aggregate pack/garbage totals;
-10. pack tests that mock strings or assume one final pack rather than exercising real Git behavior;
-11. upstream scholarly semantics or a bare-repository migration slipping into scope.
+10. successful maintenance execution being mistaken for complete post-maintenance measurement;
+11. partial before/after measurements becoming inferred zero or false-exact delta aggregates;
+12. pack tests that mock strings or assume one final pack rather than exercising real Git behavior;
+13. upstream scholarly semantics or a bare-repository migration slipping into scope.
 
 Every blocker gets a focused regression RED first, the minimal fix, exact-head GREEN, and a fresh independent review.
 
