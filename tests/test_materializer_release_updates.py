@@ -6,6 +6,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import yaml
 from jsonschema import Draft202012Validator
@@ -445,7 +446,8 @@ class GitHubApiContractTests(unittest.TestCase):
 
         def requester(url, *, headers, timeout):
             calls.append((url, headers, timeout))
-            page = 1 if "page=1" in url else 2
+            query = parse_qs(urlparse(url).query)
+            page = int(query["page"][0])
             return json.dumps(pages[page - 1]).encode("utf-8")
 
         api = mod.GitHubApi(token="secret", requester=requester, timeout=7)
