@@ -2,13 +2,13 @@
 
 ## Status
 
-Research gate complete. No production implementation is authorized by this document; the next gate is an explicit design/TDD plan.
+Research gate complete. The implementation must preserve the conclusions below and the stronger install-time binding contract identified during adversarial review.
 
 ## Problem boundary
 
-Agora owns discovery, registration metadata, immutable source identity, integration validation, and reviewable update proposals. Third-party materializers own their packaging and converter behavior. Release discovery therefore must remain passive: it may read GitHub metadata and candidate files, but it must not build, install, import, or execute candidate plugin code.
+Agora owns discovery, registration metadata, immutable source identity, integration validation, and reviewable update proposals. Third-party materializers own packaging and converter behavior. Release discovery therefore remains passive: it may read GitHub metadata and candidate files, but it must not build, install, import, or execute candidate plugin code.
 
-The current registry already requires every runtime `ref` to be a 40-character lowercase commit SHA. That invariant should remain unchanged. Release tracking is metadata for proposing a new immutable SHA, never a runtime `latest`/tag indirection.
+The canonical materializer registry already requires runtime `ref` values to be 40-character commit SHAs. Release tracking only proposes a new immutable SHA; it never changes runtime resolution to a branch, tag, release alias, or `latest`.
 
 ## Source research
 
@@ -21,69 +21,62 @@ Primary GitHub documentation consulted:
 - `GITHUB_TOKEN` behavior: <https://docs.github.com/en/actions/concepts/security/github_token>
 - Workflow triggering: <https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow>
 
-Repository inspection also covered the canonical materializer registry/schema, `scripts/agora_install_materializer.py`, existing validation/generation workflows, and the absence of an existing generic PR-creation automation in Agora.
+Repository inspection covered `registry/materializers.yaml`, its schema, the materializer manifest schema, `scripts/agora_install_materializer.py`, validation/generation workflows, and existing GitHub automation patterns.
 
-## Releases API versus tags-only discovery
+## Discovery source and version policy
 
-GitHub's Releases API exposes the policy signals Agora needs directly: draft and prerelease state, tag name, publication metadata, and release identity. Tags alone do not distinguish a project-declared public stable release from an arbitrary maintenance/checkpoint tag.
+Use GitHub Releases, not tags-only discovery. Releases expose draft/prerelease state and upstream publication intent; raw tags do not. Do not use `/releases/latest` as the selector because Agora needs deterministic version ordering against the registered version rather than GitHub's mutable/latest-release presentation semantics.
 
-The `/releases/latest` endpoint is not sufficient for Agora's `latest-stable` policy. GitHub documents it as the latest published full release according to release metadata/creation semantics, and release authors can influence `make_latest`. Agora needs deterministic version ordering against the currently registered version. The checker should therefore list releases, discard drafts/prereleases, parse eligible tags as strict SemVer, and select the highest SemVer greater than the registered version.
+V1 policy:
 
-Repositories without GitHub Releases should **not** silently fall back to tags under a `github-releases` policy. That would change the meaning of opt-in metadata and could promote a tag the upstream project never declared as a release. Such repositories remain manually pinned/disabled in v1; a separate explicit `github-tags` policy could be researched later.
+1. list all GitHub Releases, with pagination;
+2. reject drafts and prereleases;
+3. require configured `tag_prefix + strict SemVer`;
+4. reject SemVer prerelease versions on the stable channel;
+5. consider only versions strictly greater than the registered version;
+6. choose the single highest SemVer candidate;
+7. if multiple release records have equal highest precedence, fail closed rather than guessing.
 
-## Stable release and SemVer policy
+Repositories without GitHub Releases do not silently fall back to tags. They stay manual/disabled in v1; a future explicit `github-tags` policy would be a separate design.
 
-For v1, use strict SemVer 2.0 precedence for `MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]`, with an explicit per-plugin tag prefix (for example `v`). The stable channel accepts only versions without a prerelease component. GitHub `draft: true` and `prerelease: true` releases are excluded even if their tag text looks stable.
+The SemVer parser should be dependency-light and directly tested: numeric major/minor/patch without leading zeros, correct prerelease precedence, build metadata ignored for precedence, and stable versions above prereleases of the same core version.
 
-Selection rules:
+## Tag dereferencing and immutable identity
 
-1. parse the registry's current `version` as strict SemVer;
-2. enumerate all published release records available to the workflow;
-3. exclude draft and prerelease records;
-4. require the tag to match the configured prefix plus a strict SemVer version;
-5. ignore versions less than or equal to the registered version;
-6. choose the single highest SemVer candidate; ties with different release/tag identities are ambiguous and fail closed.
+A release tag is mutable discovery metadata. Persisting it would violate Agora's immutable-pin contract.
 
-Do not depend on third-party `packaging`/SemVer libraries merely for this small control-plane parser. A bounded internal SemVer value/parser keeps release discovery dependency-light and makes precedence rules directly testable. It must reject leading-zero numeric identifiers and implement SemVer prerelease precedence correctly even though the default stable policy filters prereleases; the parser should not contain a subtly different ordering model.
+Resolve the release tag through the Git refs/tag-object APIs:
 
-## Tag dereferencing and mutability
+1. fetch `refs/tags/<name>`;
+2. if it points to a commit, use that commit;
+3. if it points to an annotated tag object, fetch that object and continue;
+4. reject other object types;
+5. reject cycles and excessive nesting with a fixed bound;
+6. persist only the terminal lowercase 40-hex commit SHA.
 
-A Git tag name is a mutable reference. Persisting the tag name would violate Agora's existing immutable-pin contract.
-
-GitHub's Git refs API returns the object currently referenced by `refs/tags/<name>`. For a lightweight tag the object can already be a commit. For an annotated tag it is a tag object; GitHub's tag-object endpoint applies only to annotated tag objects. Correct dereferencing is therefore:
-
-1. fetch the exact tag ref;
-2. if the target type is `commit`, use that commit SHA;
-3. if the target type is `tag`, fetch that tag object and repeat on its target;
-4. reject any other object type;
-5. reject cycles and excessive nesting with a small fixed depth bound;
-6. persist only the final 40-hex commit SHA.
-
-The release record's `target_commitish` is useful context but is not the immutable pin. The Git ref/tag-object chain is authoritative for resolving the candidate at discovery time.
-
-A later run may observe that a mutable tag moved. The updater must recompute the commit and proposal from current upstream state, but the canonical registry remains unchanged until the review PR is merged. Existing installed/runtime identity therefore remains pinned to the previously reviewed commit.
+`target_commitish` is not an immutable trust anchor. A later run may observe a moved tag and recompute its proposed SHA, but the canonical registry remains on its previously reviewed commit until a human-reviewed PR merges.
 
 ## Candidate manifest validation
 
-The checker should fetch the configured manifest path from the **resolved immutable candidate commit**, not from the tag or default branch. It can reuse Agora's existing materializer-manifest schema/semantic loader logic on downloaded bytes or an equivalent pure validator.
+Fetch the configured `agora.materializer.json` from the **resolved immutable candidate commit**, decode it as UTF-8 JSON, and run Agora's existing manifest schema plus semantic validation without importing candidate modules.
 
-Before producing a proposal, require all of the following:
+The proposal gate must be **at least as strict as `scripts/agora_install_materializer.py::_validate_binding`**. A release is proposal-compatible only when:
 
-- manifest exists and parses as JSON;
-- manifest satisfies Agora's current materializer plugin schema and semantic checks;
-- `plugin.id` exactly equals the registry entry id;
-- `plugin.repository`, when declared by the manifest, exactly equals the registered `owner/repo`;
-- manifest plugin version exactly equals the normalized candidate SemVer text;
-- the set of declared materializer ids exactly equals the registry entry's `materializers` set;
-- no unsupported schema/contract change is needed for validation.
+- `plugin.id` exactly equals the registered id;
+- `plugin.name` exactly equals the registered name;
+- `plugin.repository` is present and exactly equals the registered `owner/repo`;
+- `plugin.version` exactly equals the normalized candidate SemVer text;
+- materializer IDs exactly equal the registered ordered list, not merely the same set.
 
-A candidate that changes description, acquisition source, dependencies, or converter behavior may still be proposed if the identity contract above remains valid; those changes are for human/CI review after the passive proposal. Discovery must not execute the candidate to decide that.
+This stronger rule was confirmed by adversarial review: allowing missing repository metadata, name drift, or reordered IDs would let the automation propose a release that Agora's installer would later reject. Generic manifest schema permissiveness does not weaken this registry-bound proposal contract.
 
-Missing/malformed manifests, version mismatch, identity drift, unsupported schema, ambiguous tag resolution, or API/network failures produce an actionable failure result and **no registry mutation**.
+Changes to descriptions, acquisition details, dependencies, or converter implementation may still appear in a proposal when the binding contract remains valid; those substantive changes are review material, not something the passive checker executes or semantically blesses.
 
-## Registry metadata shape
+Missing/malformed manifests, schema errors, binding drift, version mismatch, tag ambiguity, unsupported contracts, or API/network failures fail closed and produce no canonical registry mutation.
 
-Release policy must be explicit rather than inferred from repository host/name. Recommended optional field:
+## Registry metadata
+
+Release policy is explicit and opt-in:
 
 ```yaml
 release_tracking:
@@ -92,95 +85,63 @@ release_tracking:
   tag_prefix: v
 ```
 
-Explicit opt-out is also valid:
+Explicit opt-out:
 
 ```yaml
 release_tracking:
   mode: disabled
 ```
 
-For backward compatibility, absence of `release_tracking` is equivalent to disabled/manual. Schema `additionalProperties: false` means this field requires an intentional schema extension; that is desirable because it prevents silent policy typos.
+Absence remains equivalent to manual/disabled for backward compatibility. V1 does not add speculative providers or execution policy.
 
-V1 needs only `github-releases` + stable and disabled/manual semantics. Do not add speculative providers or execution policy to this field.
+## Scheduling and workflow base
 
-## Scheduled polling versus webhooks
+Use a daily scheduled GitHub Actions workflow plus `workflow_dispatch`. Polling is generic and requires no upstream webhook/action installation; repository dispatch/webhooks may be future latency optimizations but are not dependencies.
 
-A scheduled workflow is the generic default. It requires no cooperation or installed workflow in third-party repositories and works for every registered public GitHub materializer.
+The workflow must explicitly check out canonical `main`, including on `workflow_dispatch`. Manual dispatch can select another ref, so relying on the event ref would make the fixed automation branch non-deterministically based on arbitrary branch state.
 
-`repository_dispatch` or upstream webhooks can reduce latency but require upstream configuration/credentials and undermine the marketplace goal of thin generic integration. They may be optional future accelerators, not the v1 dependency.
+The checker remains a normal deterministic CLI; scheduling is orchestration only.
 
-A daily schedule is sufficient for release discovery. Add `workflow_dispatch` for manual verification/debugging. The checker itself should be a normal deterministic CLI so scheduling is orchestration, not business logic.
+## API authentication and limits
 
-## API authentication and rate limits
+Use `GITHUB_TOKEN` when available, explicit GitHub JSON/API-version headers, bounded timeouts, and complete pagination. Avoid search endpoints and redundant per-release calls. Public upstream release/source metadata requires no third-party repository credential.
 
-GitHub documents a primary REST limit of 1,000 requests/hour/repository for the Actions `GITHUB_TOKEN` outside higher Enterprise limits. A daily check over the current small registry is comfortably below this if the checker paginates releases efficiently and only fetches tag/manifest data for the selected newer candidate.
-
-The client should:
-
-- authenticate with `GITHUB_TOKEN` when available;
-- send an explicit API version and JSON accept header;
-- use bounded request timeouts;
-- surface HTTP status and rate-limit exhaustion actionably without mutating state;
-- paginate list-releases responses instead of assuming one page;
-- avoid search endpoints and redundant per-release calls.
-
-No third-party repository token is needed for public release/source metadata.
+HTTP, JSON, authentication, connectivity, or rate-limit failures must be actionable and must not mutate canonical state.
 
 ## Deterministic proposal and idempotency
 
-Separate discovery from mutation. A pure-ish discovery layer should return a structured proposal such as:
+Discovery returns structured proposals containing plugin id, old/new version and ref, release/tag URL identity, resolved commit, and candidate-manifest SHA-256. Mutation is a separate step.
 
-```json
-{
-  "plugin_id": "pseudepigrapha-tf",
-  "previous_version": "0.1.0",
-  "previous_ref": "...",
-  "candidate_version": "0.2.0",
-  "candidate_tag": "v0.2.0",
-  "candidate_ref": "<40-hex commit>",
-  "release_url": "...",
-  "manifest_sha256": "..."
-}
-```
+The registry mutator changes only the target entries' `version` and `ref` scalar values, preserving comments, ordering, indentation, line endings, and unrelated bytes; it reparses and revalidates the result and rejects stale expected old values.
 
-Applying proposals should update only `version` and `ref` for the matching registry entry. YAML output must be deterministic and preserve unrelated registry entries/fields semantically; tests should catch accidental broad rewrites.
+Use one fixed aggregate branch/PR, `automation/materializer-releases`. Each successful run begins from current `main`, computes the complete valid proposal set, and creates or refreshes that one review artifact. Repeated runs therefore converge instead of creating duplicate PRs. A selected-candidate or network failure prevents a partial aggregate proposal.
 
-One automation branch name, e.g. `automation/materializer-releases`, and one open PR title are sufficient. Repeated runs should update that branch/PR to the current deterministic proposal set instead of opening duplicates. If there is no valid newer proposal, the checker exits successfully with no canonical registry mutation and no new PR.
+## Workflow-created PRs and trust
 
-Multiple materializer updates can share one PR if each passes independent passive validation; this reduces bot churn and makes the fixed branch naturally idempotent. The PR body should list per-plugin old/new versions, tag/release URL, resolved commit, and manifest digest.
+The scheduled job runs Agora-owned registry/generator/unit validation before any push. It uses only `contents: write` and `pull-requests: write`, never auto-merges, and does not require a PAT in v1.
 
-## Workflow-created PRs and CI
+GitHub repositories may disable PR creation by Actions. The workflow should fail visibly if the `GITHUB_TOKEN` is not allowed to create/update a PR; it must not bypass review with another hidden credential. PR-triggered workflow behavior for bot-created changes is secondary evidence because the proposal workflow already validates before push.
 
-GitHub documents special anti-recursion behavior for `GITHUB_TOKEN`. A PR created/updated by a workflow with that token can create `pull_request` workflow runs in an approval-required state; ordinary pushes made with that token do not recursively start workflows. A GitHub App installation token or PAT can trigger normal downstream workflow behavior without that approval requirement.
+The release checker is a proposal engine, not a runtime updater or trust authority:
 
-V1 should not require a new long-lived PAT merely to automate discovery. The scheduled job can run the required Agora-owned registry/generator/unit validation **before** creating/updating the PR, then create the reviewable PR with the repository `GITHUB_TOKEN`. The PR remains deliberately non-auto-mergeable and maintainers can approve any additional PR-triggered runs. If fully unattended downstream CI becomes a requirement, use a least-privilege GitHub App token as a separate hardening/operations change.
-
-Required workflow permissions should be minimized to `contents: write` and `pull-requests: write`; discovery itself needs read access only.
-
-## Trust model
-
-The release checker is a proposal engine, not an updater of trusted runtime state.
-
-- upstream release/tag metadata is untrusted input;
-- tag names are mutable and never persisted as runtime refs;
-- the candidate manifest is untrusted data and never imported/executed;
-- only a resolved commit SHA can enter the registry proposal;
-- current canonical registry remains unchanged on discovery/validation failure;
+- release/tag metadata is untrusted input;
+- mutable tag names are never runtime refs;
+- the manifest is untrusted data and never executed;
+- only a resolved commit SHA may enter a proposal;
+- failures leave canonical registry unchanged;
 - bot PRs are never auto-merged;
-- package/build execution still requires the existing explicit-code-execution approval after a reviewed pin reaches canonical registry.
-
-This keeps #81 inside Agora's marketplace boundary and does not grant the bot authority to bless third-party code.
+- explicit code-execution approval remains required after a reviewed pin reaches the canonical registry.
 
 ## Alternatives rejected for v1
 
-- **Use `/releases/latest` only:** does not implement highest-stable-SemVer policy reliably.
-- **Track tags without Releases:** cannot distinguish project-declared releases from arbitrary tags under the proposed policy.
-- **Store tag names in `ref`:** violates the immutable source identity contract.
-- **Clone/install candidate repositories:** unnecessary execution/trust expansion; passive API reads are sufficient.
-- **Require upstream dispatch/webhooks:** poor generic compatibility and extra upstream coupling.
-- **Auto-merge bot PRs:** collapses discovery/proposal and trust approval into one step.
-- **Use a PAT by default:** avoidable secret/lifecycle burden for a review-first workflow.
+- `/releases/latest` only: not deterministic highest-stable-SemVer selection.
+- tags without Releases: no reliable upstream publication/stability signal under this policy.
+- storing tags/branches/latest: violates immutable runtime identity.
+- cloning/installing/importing candidates: expands trust unnecessarily.
+- mandatory upstream webhooks: poor generic compatibility.
+- auto-merge: collapses proposal and trust review.
+- PAT by default: unnecessary long-lived credential burden.
 
 ## Research conclusion
 
-Proceed with an explicit optional `release_tracking` registry contract, a standalone passive GitHub release checker with injected/mockable API transport, strict SemVer selection, recursive tag-to-commit dereferencing, immutable-commit manifest validation, deterministic proposal/application output, and a scheduled review-PR workflow. Keep PR creation/orchestration thin around the tested checker and preserve manual immutable pins for all non-opted-in entries.
+Proceed with explicit optional `release_tracking`, a passive injectable GitHub API client, strict SemVer release selection, recursive tag-to-commit dereferencing, proposal validation no weaker than install-time binding, deterministic byte-preserving registry mutation, and one scheduled/manual review-PR workflow always based on canonical `main`.
