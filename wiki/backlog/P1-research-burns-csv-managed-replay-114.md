@@ -142,6 +142,21 @@ Burns source and derived TF remain local-only under the registered CC BY-NC-ND 2
 - PDF accidentally inheriting CSV evidence;
 - a dependency change after evidence silently retaining reuse authority.
 
-## Conclusion
+## Post-review correction: #111 is a prerequisite for attested identity
 
-The correct promotion target is `ugarit-context-parsing@f0c4e666fa9783b455ef3cc1b86238f41bb6e8b6`, but promotion must be two-stage. First repin and produce exact managed replay evidence with the packaged upstream comparator while reuse remains denied. Only a later immutable commit may bind the actually observed managed `execution_identity_sha256` into a `reusable` registry attestation. #114 remains blocked on #103 for the final authorization semantics, but its evidence design is otherwise unblocked.
+A later independent review found that the schema-v2 execution identity described above is not yet proven reproducible across two equivalent clean installations. Agora installs local projects through a randomly named `agora-materializer-build-*` source directory, while pip is expected to preserve local-origin path metadata inside the managed runtime. Because schema v2 hashes the raw runtime tree into `execution_identity_sha256`, a digest observed in one ephemeral CI installation may be a one-off installation identity rather than a reproducible execution-environment identity.
+
+That changes the dependency graph for #114:
+
+- the **semantic** decision to use `ugarit-context-parsing@f0c4e666…` and its packaged comparator remains valid;
+- no schema-v2 digest may be promoted into `cacheability.reviewed_environments` merely because one replay run printed it;
+- #111 must first land a reviewed receipt/execution-identity contract that proves equivalent clean installations on one runtime/platform produce the same canonical execution identity while retaining raw full-tree tamper detection;
+- Burns Stage A must then install the exact candidate under that new contract and demonstrate the canonical identity is reproducible across at least two fresh equivalent managed installs in the target Ubuntu/Python cell, not only stable across two executions from one installation;
+- only one of those verified installations needs to perform the expensive two-run scholarly replay, provided both fresh installs are shown to share the same canonical identity and exact source/dependency/runtime closure;
+- Stage B may freeze only the new reproducible identity. Historical v2 identities are evidence/debug data, not reusable authority.
+
+The exact receipt schema number is intentionally not hard-coded here; #111 owns that migration decision. #114 consumes whatever reviewed reproducible identity contract #111 lands.
+
+## Revised conclusion
+
+The correct semantic replay target remains `ugarit-context-parsing@f0c4e666fa9783b455ef3cc1b86238f41bb6e8b6`, and promotion remains two-stage. However, #114 is now blocked on **both #103 and #111** before any managed identity can be attested. Stage A must use the post-#111 reproducible identity contract, prove equivalent fresh installs reproduce that identity, and then produce exact negative-tested semantic replay evidence. Only a later immutable Stage B commit may bind that canonical identity into `reusable` registry metadata.
