@@ -20,7 +20,10 @@ from urllib.request import Request, urlopen
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
-from scripts.agora_materialize import ManifestError, _validate_manifest_semantics
+if __package__:
+    from scripts.agora_materialize import ManifestError, _validate_manifest_semantics
+else:  # direct `python scripts/check_materializer_releases.py` execution
+    from agora_materialize import ManifestError, _validate_manifest_semantics
 
 
 ROOT = Path(__file__).resolve().parents[1]
