@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -38,10 +39,26 @@ def load_json(path: Path) -> Any:
         return json.load(fh)
 
 
+def _non_finite_json_number_errors(value: Any, label: str, path: tuple[Any, ...] = ()) -> list[str]:
+    errors: list[str] = []
+    if isinstance(value, float) and not math.isfinite(value):
+        rendered_path = ".".join(str(part) for part in path)
+        where = f"{label}:{rendered_path}" if rendered_path else label
+        errors.append(f"{where}: non-finite number {value!r} is not valid JSON")
+        return errors
+    if isinstance(value, dict):
+        for key, child in value.items():
+            errors.extend(_non_finite_json_number_errors(child, label, (*path, key)))
+    elif isinstance(value, (list, tuple)):
+        for index, child in enumerate(value):
+            errors.extend(_non_finite_json_number_errors(child, label, (*path, index)))
+    return errors
+
+
 def schema_errors(instance: Any, schema_path: Path, label: str) -> list[str]:
     schema = load_json(schema_path)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
-    errors: list[str] = []
+    errors = _non_finite_json_number_errors(instance, label)
     for error in sorted(validator.iter_errors(instance), key=lambda e: list(e.absolute_path)):
         path = ".".join(str(part) for part in error.absolute_path)
         where = f"{label}:{path}" if path else label
