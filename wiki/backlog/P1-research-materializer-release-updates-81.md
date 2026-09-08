@@ -2,7 +2,7 @@
 
 ## Status
 
-Research gate complete. The implementation must preserve the conclusions below and the stronger install-time binding contract identified during adversarial review.
+Research gate complete. The implementation must preserve the conclusions below and the stronger install-time binding and authentication contracts identified during adversarial review.
 
 ## Problem boundary
 
@@ -18,6 +18,7 @@ Primary GitHub documentation consulted:
 - Git references REST API: <https://docs.github.com/en/rest/git/refs>
 - Git tag-object REST API: <https://docs.github.com/en/rest/git/tags>
 - REST API rate limits: <https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api>
+- REST authentication: <https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api>
 - `GITHUB_TOKEN` behavior: <https://docs.github.com/en/actions/concepts/security/github_token>
 - Workflow triggering: <https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow>
 
@@ -104,9 +105,13 @@ The checker remains a normal deterministic CLI; scheduling is orchestration only
 
 ## API authentication and limits
 
-Use `GITHUB_TOKEN` when available, explicit GitHub JSON/API-version headers, bounded timeouts, and complete pagination. Avoid search endpoints and redundant per-release calls. Public upstream release/source metadata requires no third-party repository credential.
+V1 automated discovery only targets public GitHub repositories. GitHub documents the workflow `GITHUB_TOKEN` as a GitHub App installation token whose permissions are limited to the repository containing the workflow. It must therefore **not** be forwarded as generic authentication for release/tag/manifest reads from unrelated upstream repositories.
 
-HTTP, JSON, authentication, connectivity, or rate-limit failures must be actionable and must not mutate canonical state.
+The scheduled discovery step performs those public upstream REST reads unauthenticated. GitHub currently documents a primary unauthenticated REST limit of 60 requests/hour per source IP. The present opted-in registry is small enough for a daily serialized poll under that budget, and the checker minimizes requests by fully paginating releases but resolving tags/manifests only for the selected newer candidate.
+
+If the registry grows beyond that public-read budget, use an explicitly provisioned read-only GitHub App installation token whose installation actually covers the upstream repositories (or another deliberately scoped credential). Do not repurpose Agora's repository-scoped write token. The CLI may still accept an operator-supplied `GITHUB_TOKEN` environment value when that credential is intentionally authorized for the targets.
+
+All requests use explicit GitHub JSON/API-version headers, bounded timeouts, and complete pagination. Avoid search endpoints and redundant per-release calls. HTTP, JSON, authentication, connectivity, or rate-limit failures must be actionable and must not mutate canonical state.
 
 ## Deterministic proposal and idempotency
 
@@ -120,7 +125,7 @@ Use one fixed aggregate branch/PR, `automation/materializer-releases`. Each succ
 
 The scheduled job runs Agora-owned registry/generator/unit validation before any push. It uses only `contents: write` and `pull-requests: write`, never auto-merges, and does not require a PAT in v1.
 
-GitHub repositories may disable PR creation by Actions. The workflow should fail visibly if the `GITHUB_TOKEN` is not allowed to create/update a PR; it must not bypass review with another hidden credential. PR-triggered workflow behavior for bot-created changes is secondary evidence because the proposal workflow already validates before push.
+The repository `GITHUB_TOKEN` is reserved for operations against Agora itself: pushing the automation branch and creating/editing/closing its PR. GitHub repositories may disable PR creation by Actions; the workflow should fail visibly if that token is not allowed to create/update a PR and must not bypass review with another hidden credential. PR-triggered workflow behavior for bot-created changes is secondary evidence because the proposal workflow already validates before push.
 
 The release checker is a proposal engine, not a runtime updater or trust authority:
 
@@ -140,8 +145,9 @@ The release checker is a proposal engine, not a runtime updater or trust authori
 - cloning/installing/importing candidates: expands trust unnecessarily.
 - mandatory upstream webhooks: poor generic compatibility.
 - auto-merge: collapses proposal and trust review.
+- forwarding Agora's `GITHUB_TOKEN` to upstream discovery: repository-scoped installation credential with the wrong authorization boundary.
 - PAT by default: unnecessary long-lived credential burden.
 
 ## Research conclusion
 
-Proceed with explicit optional `release_tracking`, a passive injectable GitHub API client, strict SemVer release selection, recursive tag-to-commit dereferencing, proposal validation no weaker than install-time binding, deterministic byte-preserving registry mutation, and one scheduled/manual review-PR workflow always based on canonical `main`.
+Proceed with explicit optional `release_tracking`, a passive injectable GitHub API client, strict SemVer release selection, recursive tag-to-commit dereferencing, proposal validation no weaker than install-time binding, public unauthenticated upstream polling in v1, deterministic byte-preserving registry mutation, and one scheduled/manual review-PR workflow always based on canonical `main`.
