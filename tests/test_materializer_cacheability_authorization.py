@@ -342,7 +342,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
             root = Path(tmp)
             registry_path, _target, _actual_identity = self._installed_fixture(root)
             current = _plugin()
-            current["materializers"] = []
+            current["materializers"] = ["replacement-to-tf"]
             _write_registry(registry_path, current)
             with mock.patch.object(installer, "compare_cacheability_policy") as compare:
                 with self.assertRaisesRegex(
