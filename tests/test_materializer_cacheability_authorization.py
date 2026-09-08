@@ -171,7 +171,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
         return registry_path, target, receipt["execution_identity_sha256"]
 
     def test_authoritative_resolver_has_no_caller_execution_identity_parameter(self):
-        resolver = registered.resolve_installed_cacheability
+        resolver = registered.resolve_cacheability_authorization
         parameters = inspect.signature(resolver).parameters
         self.assertNotIn("execution_identity", parameters)
         self.assertNotIn("verified_execution_identity", parameters)
@@ -183,7 +183,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
             registry_path, _target, actual_identity = self._installed_fixture(root)
 
             _write_registry(registry_path, _plugin(cacheability=_reusable(UNREVIEWED_EXECUTION_ID)))
-            rejected = registered.resolve_installed_cacheability(
+            rejected = registered.resolve_cacheability_authorization(
                 "example-converter",
                 "example-to-tf",
                 install_root=root / "installed",
@@ -193,7 +193,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
             self.assertFalse(rejected["reuse_allowed"])
 
             _write_registry(registry_path, _plugin(cacheability=_reusable(actual_identity)))
-            accepted = registered.resolve_installed_cacheability(
+            accepted = registered.resolve_cacheability_authorization(
                 "example-converter",
                 "example-to-tf",
                 install_root=root / "installed",
@@ -222,7 +222,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
                 installer.MaterializerInstallError,
                 r"integrity verification",
             ):
-                registered.resolve_installed_cacheability(
+                registered.resolve_cacheability_authorization(
                     "example-converter",
                     "example-to-tf",
                     install_root=root / "installed",
@@ -246,7 +246,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
                     installer.MaterializerInstallError,
                     r"not installed",
                 ):
-                    registered.resolve_installed_cacheability(
+                    registered.resolve_cacheability_authorization(
                         "example-converter",
                         "example-to-tf",
                         install_root=install_root,
@@ -265,7 +265,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
             with mock.patch.object(installer, "fetch_materializer") as fetch, mock.patch.object(
                 installer, "install_materializer"
             ) as install, mock.patch.object(importlib, "import_module") as import_module:
-                result = registered.resolve_installed_cacheability(
+                result = registered.resolve_cacheability_authorization(
                     "example-converter",
                     "example-to-tf",
                     install_root=root / "installed",
@@ -296,7 +296,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
                     installer.MaterializerInstallError,
                     r"registry binding changed|integrity verification",
                 ):
-                    registered.resolve_installed_cacheability(
+                    registered.resolve_cacheability_authorization(
                         "example-converter",
                         "example-to-tf",
                         install_root=root / "installed",
@@ -329,7 +329,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
             with mock.patch.object(installer, "_lock", observing_lock), mock.patch.object(
                 installer, "_environment_current", side_effect=observing_current
             ):
-                result = registered.resolve_installed_cacheability(
+                result = registered.resolve_cacheability_authorization(
                     "example-converter",
                     "example-to-tf",
                     install_root=root / "installed",
@@ -349,7 +349,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
                     installer.MaterializerInstallError,
                     r"not approved|binding",
                 ):
-                    registered.resolve_installed_cacheability(
+                    registered.resolve_cacheability_authorization(
                         "example-converter",
                         "example-to-tf",
                         install_root=root / "installed",
