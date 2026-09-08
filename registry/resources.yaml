@@ -33,7 +33,7 @@ resources:
       agora_revision: bf5fb918d513fcf859bc925a10922e841b777b98
       environment: "macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7"
       evidence: "https://github.com/alexsosn/Agora/issues/38#issuecomment-5536924435"
-    notes: "Historical parent-only measurement; module combinations are excluded and may trigger separate overlay compilation tracked in #46."
+    notes: "Historical machine-specific observation; current-machine cost may differ. Parent-only measurement excludes module combinations and may trigger separate overlay compilation tracked in #46."
   source_snapshot: {source: 'Context-Fabric/context-fabric:CorporaTable.tsx', checked_at: '2026-08-29'}
 - id: dss
   name: Dead Sea Scrolls
@@ -297,6 +297,7 @@ resources:
       agora_revision: bf5fb918d513fcf859bc925a10922e841b777b98
       environment: "macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7"
       evidence: "https://github.com/alexsosn/Agora/issues/38#issuecomment-5536924435"
+    notes: "Historical machine-specific observation; current-machine cost may differ."
   source_snapshot: {source: 'Context-Fabric/context-fabric:CorporaTable.tsx', checked_at: '2026-08-29'}
 - id: athenaeus
   name: Athenaeus Deipnosophistae
@@ -529,6 +530,7 @@ resources:
       agora_revision: bf5fb918d513fcf859bc925a10922e841b777b98
       environment: "macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7"
       evidence: "https://github.com/alexsosn/Agora/issues/38#issuecomment-5536924435"
+    notes: "Historical machine-specific observation; current-machine cost may differ."
   source_snapshot: {source: 'Context-Fabric/context-fabric:CorporaTable.tsx', checked_at: '2026-08-29'}
 - id: dhammapada
   name: Dhammapada
@@ -748,5 +750,5 @@ resources:
       agora_revision: bf5fb918d513fcf859bc925a10922e841b777b98
       environment: "macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7"
       evidence: "https://github.com/alexsosn/Agora/issues/38#issuecomment-5536924435"
-    notes: "Historical observation; peak RSS came from the related earlier run rather than the final converged compile measurement."
+    notes: "Historical machine-specific observation; current-machine cost may differ. Peak RSS came from the related earlier run rather than the final converged compile measurement."
   source_snapshot: {source: alexsosn/TLHdig-TF, checked_at: '2026-09-01'}
