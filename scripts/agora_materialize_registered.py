@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -74,6 +75,83 @@ def resolve_installed_manifest(
             f"verified managed runtime manifest is missing for materializer plugin {plugin_id!r}"
         )
     return manifest.resolve()
+
+
+def resolve_cacheability_authorization(
+    plugin_id: str,
+    materializer_id: str,
+    *,
+    install_root: Path | None = None,
+    registry_path: Path | None = None,
+) -> dict:
+    """Return cacheability policy for the verified installed execution identity.
+
+    This is an authorization read, not an installation path. It never fetches,
+    installs, repairs, imports, or executes plugin code. The installer runtime
+    lock is held while the managed environment is re-verified, the current
+    registry/manifest binding is checked, and the verified receipt identity is
+    compared with the reviewed cacheability policy.
+    """
+    plugin, target = _registered_target(
+        plugin_id,
+        install_root=install_root,
+        registry_path=registry_path,
+    )
+    if not target.exists():
+        raise _not_installed(plugin_id)
+
+    lock_path = target.parent / f".{target.name}.lock"
+    with installer._lock(lock_path):
+        if not installer._environment_current(plugin, target):
+            raise installer.MaterializerInstallError(
+                f"materializer plugin {plugin_id!r} installation failed integrity verification; "
+                "refusing to authorize cache reuse"
+            )
+
+        runtime = (target / "runtime").resolve()
+        manifest = installer._contained(runtime, plugin["manifest"], "managed runtime manifest")
+        if not manifest.is_file():
+            raise installer.MaterializerInstallError(
+                f"verified managed runtime manifest is missing for materializer plugin {plugin_id!r}"
+            )
+
+        current_plugin, current_target = _registered_target(
+            plugin_id,
+            install_root=install_root,
+            registry_path=registry_path,
+        )
+        if current_target != target or manifest.parent != runtime:
+            raise installer.MaterializerInstallError(
+                f"materializer plugin {plugin_id!r} registry binding changed while acquiring its runtime lock"
+            )
+        installer._validate_binding(current_plugin, runtime)
+        if materializer_id not in current_plugin["materializers"]:
+            raise installer.MaterializerInstallError(
+                f"materializer {materializer_id!r} is not approved by registry plugin {plugin_id!r}"
+            )
+
+        receipt_path = target / installer.INSTALLATION_RECEIPT
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            execution_identity = receipt["execution_identity_sha256"]
+        except (KeyError, OSError, ValueError, json.JSONDecodeError) as exc:
+            raise installer.MaterializerInstallError(
+                f"materializer plugin {plugin_id!r} installation failed integrity verification; "
+                "verified execution identity receipt is unavailable"
+            ) from exc
+
+        policy = installer.compare_cacheability_policy(
+            current_plugin,
+            materializer_id,
+            verified_execution_identity=execution_identity,
+        )
+        return {
+            **policy,
+            "plugin_id": current_plugin["id"],
+            "materializer_id": materializer_id,
+            "plugin_ref": current_plugin["ref"],
+            "execution_identity_sha256": execution_identity,
+        }
 
 
 def materialize_registered(
