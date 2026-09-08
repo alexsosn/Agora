@@ -136,14 +136,26 @@ class CandidateBindingRegressionTests(unittest.TestCase):
 
 
 class WorkflowBaseRefRegressionTests(unittest.TestCase):
-    def test_manual_dispatch_checkout_is_explicitly_based_on_main(self):
-        text = (ROOT / ".github/workflows/materializer-release-updates.yml").read_text(
+    @staticmethod
+    def _workflow_text() -> str:
+        return (ROOT / ".github/workflows/materializer-release-updates.yml").read_text(
             encoding="utf-8"
         )
+
+    def test_manual_dispatch_checkout_is_explicitly_based_on_main(self):
+        text = self._workflow_text()
         checkout = text.index("uses: actions/checkout@v4")
         setup = text.index("- name: Set up Python", checkout)
         checkout_block = text[checkout:setup]
         self.assertIn("ref: main", checkout_block)
+
+    def test_cross_repository_discovery_does_not_receive_repo_scoped_github_token(self):
+        text = self._workflow_text()
+        discover = text.index("- name: Passively discover releases")
+        validate = text.index("- name: Validate proposed canonical state", discover)
+        discover_block = text[discover:validate]
+        self.assertNotIn("GITHUB_TOKEN:", discover_block)
+        self.assertNotIn("secrets.GITHUB_TOKEN", discover_block)
 
 
 if __name__ == "__main__":
