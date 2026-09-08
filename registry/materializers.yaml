@@ -6,6 +6,10 @@ plugins:
     repository: alexsosn/Pseudepigrapha-TF
     ref: 315439284e765c1d7ea89ffdefdd10f403aa1293
     version: 0.1.0
+    release_tracking:
+      mode: github-releases
+      channel: stable
+      tag_prefix: v
     manifest: agora.materializer.json
     package:
       type: python-project
