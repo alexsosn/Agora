@@ -68,6 +68,19 @@ The mechanism may be a deterministic trusted promotion helper/workflow or an exp
 
 If Stage B is not implemented in the first #108 slice, Stage A remains a truthful usable outcome: the update PR may carry the candidate at a downgraded status and require later reviewed promotion. It may **not** carry stale `verified` state for convenience.
 
+## Promotion-evidence trust boundary
+
+Stage B must not let a candidate PR manufacture its own proof by editing the verification executor, stable check definition, or evidence-consumer logic and then consuming that PR-authored run as authoritative evidence.
+
+A trusted Stage-B implementation must therefore do one of the following:
+
+- evaluate the promotion decision with code/workflow definitions loaded from reviewed `main`, while treating candidate-run outputs as data; or
+- prove before promotion that the candidate diff leaves the relevant verification check definition, workflow, smoke implementation, artifact contract, and promotion verifier byte-equivalent to the reviewed base.
+
+If any relevant evidence-producing or evidence-consuming executable surface differs from the trusted base, automatic Stage-B promotion fails closed and requires explicit review/re-establishment of the trust root.
+
+The ordinary final independent PR review remains required even after this guard; this rule prevents the PR from self-asserting `verified` before that review.
+
 ## Required RED contracts for #108
 
 Before implementation, add tests proving at least:
@@ -81,7 +94,9 @@ Before implementation, add tests proving at least:
 7. Stage-B promotion affects only the exact subjects whose required live claims passed;
 8. a `known-issue-canary` check cannot satisfy positive promotion claims;
 9. a candidate that has not completed Stage B remains non-verified even if the workflow/check definition itself has `evidence_level: verified`;
-10. final promoted state still passes the existing resource/member promotion validator from #19.
+10. final promoted state still passes the existing resource/member promotion validator from #19;
+11. candidate changes to the relevant verification workflow/check/smoke/promotion-verifier surface block automatic Stage-B promotion unless the trusted-base mechanism is used;
+12. candidate-produced evidence cannot cause promotion when the evidence consumer itself comes from unreviewed candidate code.
 
 These are in addition to the original RED4 compatibility/licensing tests and RED5 deterministic PR-automation tests.
 
