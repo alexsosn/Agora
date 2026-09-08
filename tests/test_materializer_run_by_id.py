@@ -7,6 +7,11 @@ from unittest import mock
 
 from scripts import agora_install_materializer as installer
 
+try:
+    from scripts import agora_materialize_registered as registered
+except ImportError:  # RED: module is intentionally absent before implementation.
+    registered = None
+
 
 PLUGIN = {
     "id": "example-converter",
@@ -31,10 +36,14 @@ REGISTRY = {"schema_version": 1, "plugins": [PLUGIN]}
 
 class RegisteredMaterializerResolverTests(unittest.TestCase):
     def _resolver(self):
-        resolver = getattr(installer, "resolve_installed_manifest", None)
+        self.assertIsNotNone(
+            registered,
+            "RED contract: scripts.agora_materialize_registered must exist",
+        )
+        resolver = getattr(registered, "resolve_installed_manifest", None)
         self.assertTrue(
             callable(resolver),
-            "RED contract: installer must expose resolve_installed_manifest()",
+            "RED contract: registered runner must expose resolve_installed_manifest()",
         )
         return resolver
 
