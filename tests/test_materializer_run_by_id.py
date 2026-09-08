@@ -128,76 +128,81 @@ class RegisteredMaterializerExecutionRed2Tests(unittest.TestCase):
 
     def test_registered_execution_resolves_rebinds_then_delegates_unchanged_to_host(self):
         runner = self._runner()
-        target = Path("/managed")
-        runtime = target / "runtime"
-        manifest = runtime / "agora.materializer.json"
-        output = Path("/tmp/out")
-        source = Path("/tmp/source")
-        install_root = Path("/managed-root")
-        registry_path = Path("/registry/materializers.yaml")
-        with (
-            mock.patch.object(registered, "_registered_target", return_value=(PLUGIN, target)) as target_mock,
-            mock.patch.object(registered, "resolve_installed_manifest", return_value=manifest) as resolve_mock,
-            mock.patch.object(installer, "_lock", return_value=nullcontext()) as lock_mock,
-            mock.patch.object(installer, "_validate_binding", return_value={}) as binding_mock,
-            mock.patch.object(host, "materialize", return_value=output) as materialize_mock,
-            mock.patch.object(installer, "fetch_materializer") as fetch_mock,
-            mock.patch.object(installer, "install_materializer") as install_mock,
-        ):
-            result = runner(
-                plugin_id="example-converter",
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed-environment"
+            runtime = target / "runtime"
+            runtime.mkdir(parents=True)
+            manifest = runtime / "agora.materializer.json"
+            output = root / "out"
+            source = root / "source"
+            install_root = root / "managed-root"
+            registry_path = root / "materializers.yaml"
+            with (
+                mock.patch.object(registered, "_registered_target", return_value=(PLUGIN, target)) as target_mock,
+                mock.patch.object(registered, "resolve_installed_manifest", return_value=manifest) as resolve_mock,
+                mock.patch.object(installer, "_lock", return_value=nullcontext()) as lock_mock,
+                mock.patch.object(installer, "_validate_binding", return_value={}) as binding_mock,
+                mock.patch.object(host, "materialize", return_value=output) as materialize_mock,
+                mock.patch.object(installer, "fetch_materializer") as fetch_mock,
+                mock.patch.object(installer, "install_materializer") as install_mock,
+            ):
+                result = runner(
+                    plugin_id="example-converter",
+                    materializer_id="example-to-tf",
+                    output=output,
+                    source=source,
+                    sandbox="off",
+                    install_root=install_root,
+                    registry_path=registry_path,
+                )
+            self.assertEqual(result, output)
+            self.assertEqual(target_mock.call_count, 2)
+            for call in target_mock.call_args_list:
+                self.assertEqual(call.args, ("example-converter",))
+                self.assertEqual(
+                    call.kwargs,
+                    {"install_root": install_root, "registry_path": registry_path},
+                )
+            lock_mock.assert_called_once_with(target.parent / f".{target.name}.lock")
+            resolve_mock.assert_called_once_with(
+                "example-converter",
+                install_root=install_root,
+                registry_path=registry_path,
+            )
+            binding_mock.assert_called_once_with(PLUGIN, runtime)
+            materialize_mock.assert_called_once_with(
+                manifest_path=manifest,
                 materializer_id="example-to-tf",
                 output=output,
                 source=source,
                 sandbox="off",
-                install_root=install_root,
-                registry_path=registry_path,
             )
-        self.assertEqual(result, output)
-        self.assertEqual(target_mock.call_count, 2)
-        for call in target_mock.call_args_list:
-            self.assertEqual(call.args, ("example-converter",))
-            self.assertEqual(
-                call.kwargs,
-                {"install_root": install_root, "registry_path": registry_path},
-            )
-        lock_mock.assert_called_once_with(target.parent / f".{target.name}.lock")
-        resolve_mock.assert_called_once_with(
-            "example-converter",
-            install_root=install_root,
-            registry_path=registry_path,
-        )
-        binding_mock.assert_called_once_with(PLUGIN, runtime)
-        materialize_mock.assert_called_once_with(
-            manifest_path=manifest,
-            materializer_id="example-to-tf",
-            output=output,
-            source=source,
-            sandbox="off",
-        )
-        fetch_mock.assert_not_called()
-        install_mock.assert_not_called()
+            fetch_mock.assert_not_called()
+            install_mock.assert_not_called()
 
     def test_resolution_failure_prevents_converter_host_invocation(self):
         runner = self._runner()
-        target = Path("/managed")
-        with (
-            mock.patch.object(registered, "_registered_target", return_value=(PLUGIN, target)),
-            mock.patch.object(installer, "_lock", return_value=nullcontext()),
-            mock.patch.object(
-                registered,
-                "resolve_installed_manifest",
-                side_effect=installer.MaterializerInstallError("integrity failure"),
-            ),
-            mock.patch.object(host, "materialize") as materialize_mock,
-        ):
-            with self.assertRaisesRegex(installer.MaterializerInstallError, "integrity"):
-                runner(
-                    plugin_id="example-converter",
-                    materializer_id="example-to-tf",
-                    output=Path("/tmp/out"),
-                )
-        materialize_mock.assert_not_called()
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "managed-environment"
+            target.mkdir()
+            with (
+                mock.patch.object(registered, "_registered_target", return_value=(PLUGIN, target)),
+                mock.patch.object(installer, "_lock", return_value=nullcontext()),
+                mock.patch.object(
+                    registered,
+                    "resolve_installed_manifest",
+                    side_effect=installer.MaterializerInstallError("integrity failure"),
+                ),
+                mock.patch.object(host, "materialize") as materialize_mock,
+            ):
+                with self.assertRaisesRegex(installer.MaterializerInstallError, "integrity"):
+                    runner(
+                        plugin_id="example-converter",
+                        materializer_id="example-to-tf",
+                        output=Path(tmp) / "out",
+                    )
+            materialize_mock.assert_not_called()
 
     def test_registered_cli_has_one_unambiguous_registry_trust_source(self):
         self.assertIsNotNone(registered)
