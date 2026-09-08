@@ -94,6 +94,25 @@ def _contained(root: Path, relative: str, label: str) -> Path:
     return path
 
 
+def _validate_cacheability_registry(plugin: dict[str, Any]) -> None:
+    registered = set(plugin["materializers"])
+    for materializer_id, policy in plugin.get("cacheability", {}).items():
+        if materializer_id not in registered:
+            raise MaterializerRegistryError(
+                f"cacheability entry {materializer_id!r} must name a registered materializer"
+            )
+        if policy.get("mode") != "reusable":
+            continue
+        identities = [
+            environment["execution_identity_sha256"]
+            for environment in policy["reviewed_environments"]
+        ]
+        if len(identities) != len(set(identities)):
+            raise MaterializerRegistryError(
+                f"cacheability entry {materializer_id!r} has duplicate reviewed execution identities"
+            )
+
+
 def load_registry(path: Path = REGISTRY_PATH) -> dict[str, Any]:
     try:
         doc = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
@@ -111,7 +130,70 @@ def load_registry(path: Path = REGISTRY_PATH) -> dict[str, Any]:
     ids = [item["id"] for item in doc["plugins"]]
     if len(ids) != len(set(ids)):
         raise MaterializerRegistryError("duplicate materializer plugin id")
+    for plugin in doc["plugins"]:
+        _validate_cacheability_registry(plugin)
     return doc
+
+
+def _no_reuse(mode: str) -> dict[str, Any]:
+    return {
+        "mode": mode,
+        "reuse_allowed": False,
+        "attestation_sha256": None,
+    }
+
+
+def compare_cacheability_policy(
+    plugin: dict[str, Any],
+    materializer_id: str,
+    *,
+    verified_execution_identity: str,
+) -> dict[str, Any]:
+    """Compare reviewed cache policy with an already-verified execution identity.
+
+    This is deterministic policy logic, not an authorization boundary. Callers
+    deciding whether to serve a cache hit must obtain the execution identity
+    from Agora's integrity-verified managed runtime under the runtime lock.
+    """
+    policy = plugin.get("cacheability", {}).get(materializer_id)
+    if policy is None:
+        return _no_reuse("unknown")
+    if policy["mode"] == "non-reusable":
+        return _no_reuse("non-reusable")
+    if policy["reviewed_ref"] != plugin["ref"]:
+        return _no_reuse("unknown")
+
+    selected = next(
+        (
+            environment
+            for environment in policy["reviewed_environments"]
+            if environment["execution_identity_sha256"] == verified_execution_identity
+        ),
+        None,
+    )
+    if selected is None:
+        return _no_reuse("unknown")
+
+    evidence = sorted(
+        selected["evidence"],
+        key=lambda value: json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ),
+    )
+    attestation = {
+        "schema_version": 1,
+        "plugin_id": plugin["id"],
+        "materializer_id": materializer_id,
+        "mode": "reusable",
+        "reviewed_ref": policy["reviewed_ref"],
+        "execution_identity_sha256": verified_execution_identity,
+        "evidence": evidence,
+    }
+    return {
+        "mode": "reusable",
+        "reuse_allowed": True,
+        "attestation_sha256": _json_hash(attestation),
+    }
 
 
 def select_plugin(doc: dict[str, Any], plugin_id: str) -> dict[str, Any]:
