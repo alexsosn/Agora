@@ -33,7 +33,7 @@ REGISTRY = {"schema_version": 1, "plugins": [PLUGIN]}
 
 
 class RegisteredMaterializerLifecycleTests(unittest.TestCase):
-    def test_final_integrity_check_and_execution_share_installer_runtime_lock(self):
+    def test_final_integrity_binding_and_execution_share_installer_runtime_lock(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             target = installer.installation_path(PLUGIN, root)
@@ -42,6 +42,7 @@ class RegisteredMaterializerLifecycleTests(unittest.TestCase):
             manifest.write_text("{}", encoding="utf-8")
             state = {"locked": False}
             checked_while_locked: list[bool] = []
+            bound_while_locked: list[bool] = []
             executed_while_locked: list[bool] = []
             lock_paths: list[Path] = []
 
@@ -61,6 +62,12 @@ class RegisteredMaterializerLifecycleTests(unittest.TestCase):
                 checked_while_locked.append(state["locked"])
                 return True
 
+            def fake_binding(plugin, runtime):
+                self.assertEqual(plugin, PLUGIN)
+                self.assertEqual(runtime, target / "runtime")
+                bound_while_locked.append(state["locked"])
+                return {"materializers": [{"id": "example-to-tf"}]}
+
             def fake_materialize(**_kwargs):
                 executed_while_locked.append(state["locked"])
                 return root / "output"
@@ -68,6 +75,7 @@ class RegisteredMaterializerLifecycleTests(unittest.TestCase):
             with (
                 mock.patch.object(installer, "load_registry", return_value=REGISTRY),
                 mock.patch.object(installer, "_environment_current", side_effect=fake_current),
+                mock.patch.object(installer, "_validate_binding", side_effect=fake_binding),
                 mock.patch.object(installer, "_lock", side_effect=fake_lock),
                 mock.patch.object(host, "materialize", side_effect=fake_materialize),
             ):
@@ -83,6 +91,7 @@ class RegisteredMaterializerLifecycleTests(unittest.TestCase):
         self.assertEqual(result, root / "output")
         self.assertTrue(checked_while_locked, "registered execution must re-check integrity")
         self.assertTrue(all(checked_while_locked), "integrity check escaped installer runtime lock")
+        self.assertEqual(bound_while_locked, [True], "registry binding check escaped installer runtime lock")
         self.assertEqual(executed_while_locked, [True], "materializer execution escaped installer runtime lock")
         expected_lock = target.parent / f".{target.name}.lock"
         self.assertEqual(lock_paths, [expected_lock])
