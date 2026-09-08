@@ -21,7 +21,7 @@ Make Context-Fabric load-test teardown obey the same explicit `load -> unload` o
 
 Instrument `ServiceColdCompileRuntimeTests` so every test captures `ResourceWarning` diagnostics for Context-Fabric cache-object lock files from setup through teardown. Teardown must force GC before inspecting the captured diagnostics, and fail if an unclosed warning names `cache/locks/cache-objects` (normalizing path separators for Windows).
 
-This instrumentation is the tests-only RED change. On current `main`, the four successful service-load tests that omit `unload()` are expected to fail; unrelated cold-compile failures/cancellation paths should remain green.
+This instrumentation is the tests-only RED change. On current `main`, the successful service-load tests that omit `unload()` are expected to fail; unrelated cold-compile failures/cancellation paths should remain green.
 
 The regression must target the confirmed warning signature rather than all Python `ResourceWarning` categories, avoiding unrelated false positives.
 
@@ -32,6 +32,17 @@ For each successful cold/warm service-load test that retains `fixture@1.0`, expl
 Do not use `unittest.addCleanup` for this ownership boundary: unittest cleanups run after the test method returns, which is too late because the nested `TemporaryDirectory` context has already removed the cache root.
 
 At least one successful path must additionally prove that after explicit unload the cache object is no longer protected by the lease and can be removed normally. This binds the warning cleanup to the actual runtime ownership contract instead of merely silencing diagnostics.
+
+## Adversarial review amendment
+
+The first GREEN head (`aefd8b27d442b506c7cb6710cfa490740324d543`) passed Foundation but did **not** satisfy the acceptance criterion below. Foundation run 823 still emitted two delayed unclosed cache-object lock warnings during the later load-smoke test.
+
+A fresh ownership trace found two additional successful runtime cases outside the original four-case regression:
+
+1. `test_active_status_exposes_progress_and_cancel_fields` starts a background `service.load("fixture")`, releases the compiler, joins the successful thread, and leaves the resulting lease loaded;
+2. `test_local_duplicate_is_fail_fast_and_does_not_spawn_second_worker` likewise lets its background load complete successfully after checking duplicate-load rejection, then exits without unloading the retained corpus.
+
+Both tests use `TemporaryDirectory`, so the same ownership defect applies: the backing cache tree is removed while the successful service lease is still live. The review sub-loop therefore requires a second RED that adds these exact two cases to the leak regression before applying any cleanup. The minimal second GREEN is explicit in-context `service.unload("fixture@1.0")` after each successful background thread has joined. Production locking behavior remains out of scope.
 
 ## Test gates
 
