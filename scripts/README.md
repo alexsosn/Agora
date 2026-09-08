@@ -114,16 +114,32 @@ By default data lives under `$AGORA_DATA_HOME/agora/materializers` when `AGORA_D
 
 ## Experimental local materialization
 
-The installer prints the execution manifest path after a successful installation. Pass that **managed runtime** manifest to the materialization host:
+### Run an approved installed materializer by registry ID
+
+After an explicit installation, use the registered runner instead of discovering and passing the managed runtime manifest path yourself. The runner re-verifies the current immutable registry pin, Python/runtime identity, source tree, dependency closure, runtime tree, manifest hashes, pip report, and execution identity before delegating to the existing sandboxed host. It never fetches, installs, repairs, or executes packaging hooks implicitly.
+
+For Burns Workbooks CSV input:
 
 ```bash
-python scripts/agora_materialize.py \
-  --manifest <installed-environment>/runtime/agora.materializer.json \
-  --materializer ocp-text-fabric \
-  --output /path/to/artifact
+python scripts/agora_install_materializer.py install ugarit-context-parsing \
+  --approve-code-execution
+
+python scripts/agora_materialize_registered.py \
+  --plugin ugarit-context-parsing \
+  --materializer burns-workbooks-csv-text-fabric \
+  --source /path/to/burns-output \
+  --output /path/to/burns-tf
 ```
 
-For any trusted unmanaged materializer manifest:
+For local Burns Workbook PDFs, use the same command with `--materializer burns-workbooks-pdf-text-fabric` and point `--source` at the Workbook PDF directory.
+
+Use `--install-root /path/to/root` only when the materializer was installed with that same managed root. `--registry /path/to/materializers.yaml` is available for an explicitly selected alternate registry; the installed environment must verify against that registry's immutable pin.
+
+A missing, stale, tampered, or runtime-incompatible installation fails closed before the converter host can acquire source data. Repair remains an explicit installation operation.
+
+### Explicit-manifest trust mode
+
+The existing explicit-manifest host remains available unchanged for a deliberately trusted unmanaged plugin, or for lower-level testing:
 
 ```bash
 python scripts/agora_materialize.py \
@@ -132,9 +148,11 @@ python scripts/agora_materialize.py \
   --output /path/to/artifact
 ```
 
+Supplying `--manifest` is an explicit **materializer execution** trust decision. By contrast, `agora_materialize_registered.py` resolves executable code only from an already-installed managed environment that still verifies against a selected registry entry.
+
 The host acquires a declared public Git source or accepts `--source /path/to/local/files`, validates the input contract, runs the materializer without a shell, requires an OS sandbox by default, validates the declared output, records immutable source/code provenance, and atomically publishes the finished artifact.
 
-Supplying `--manifest` remains the explicit **materializer execution** trust decision in this prototype. It is distinct from the earlier install-time build-code approval. Agora does not yet automatically bind a resource to an approved installed materializer.
+Agora does not yet automatically bind a resource to an approved materializer or automatically register/load the produced TF artifact in Context-Fabric/cfabric-mcp. Registry-ID execution removes manual runtime-path plumbing; resource selection, durable artifact caching, and consumer hand-off remain a separate composition problem.
 
 For a managed environment, its `runtime/` directory intentionally has no top-level `src/`; the existing materialization host therefore hashes the complete managed runtime tree as `plugin.code_sha256`. The same tree hash is recorded in `agora-installation.json`, binding artifact code provenance to the installed package/dependency contents rather than only to the upstream `src/` tree.
 
@@ -142,6 +160,6 @@ Contract v1 exposes `{source}`, `{output}`, and `{source_revision}` argument pla
 
 Linux requires a working bubblewrap installation with user/network namespaces enabled by the host policy. Some Ubuntu configurations install `bwrap` while AppArmor still blocks unprivileged user namespaces; Agora fails closed in that situation rather than silently running unsandboxed. The GitHub-hosted Ubuntu E2E adjusts that restriction only on its disposable CI VM. A persistent host should use its distribution's supported bubblewrap/AppArmor configuration instead of copying the CI sysctl blindly.
 
-The dedicated sandbox workflow exercises both OS backends with generic integration fixtures and performs a pinned Pseudepigrapha-TF/OCP reference smoke. A separate install smoke exercises passive source acquisition and explicit approved environment installation from `registry/materializers.yaml`. These checks validate Agora integration; converter semantics remain tested upstream.
+The dedicated sandbox workflow exercises both OS backends with generic integration fixtures and performs a pinned Pseudepigrapha-TF/OCP reference smoke. A separate install smoke exercises passive source acquisition and explicit approved environment installation from `registry/materializers.yaml`; its Burns path also executes the installed converter by registry ID under real bubblewrap isolation and reloads the resulting Text-Fabric artifact. These checks validate Agora integration; converter semantics remain tested upstream.
 
 See [`../wiki/architecture/ref-local-materialization.md`](../wiki/architecture/ref-local-materialization.md) for the ownership, sandbox, provenance, and trust boundaries.

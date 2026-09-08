@@ -1,6 +1,206 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/alexsosn/Agora/registry/schema/resources.schema.json",
+  "$defs": {
+    "loadCostMeasurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checked_at",
+        "agora_revision",
+        "environment",
+        "evidence"
+      ],
+      "properties": {
+        "checked_at": {
+          "type": "string",
+          "format": "date"
+        },
+        "agora_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://\\S+$"
+        }
+      }
+    },
+    "nonNegativeRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "resourceLoadCost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "measurement"
+      ],
+      "properties": {
+        "scope": {
+          "const": "resource"
+        },
+        "source_size_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "compiled_size_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "total_cache_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "peak_rss_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "first_load_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "warm_load_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "measurement": {
+          "$ref": "#/$defs/loadCostMeasurement"
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "source_size_mb"
+          ]
+        },
+        {
+          "required": [
+            "compiled_size_mb"
+          ]
+        },
+        {
+          "required": [
+            "total_cache_mb"
+          ]
+        },
+        {
+          "required": [
+            "peak_rss_mb"
+          ]
+        },
+        {
+          "required": [
+            "first_load_seconds"
+          ]
+        },
+        {
+          "required": [
+            "warm_load_seconds"
+          ]
+        }
+      ]
+    },
+    "collectionMemberLoadCost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "measurement"
+      ],
+      "properties": {
+        "scope": {
+          "const": "collection-member"
+        },
+        "typical_member_cache_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "typical_member_first_load_seconds": {
+          "$ref": "#/$defs/nonNegativeRange"
+        },
+        "discovery_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "discovery_cache_mb": {
+          "type": "number",
+          "minimum": 0
+        },
+        "measurement": {
+          "$ref": "#/$defs/loadCostMeasurement"
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "typical_member_cache_mb"
+          ]
+        },
+        {
+          "required": [
+            "typical_member_first_load_seconds"
+          ]
+        },
+        {
+          "required": [
+            "discovery_seconds"
+          ]
+        },
+        {
+          "required": [
+            "discovery_cache_mb"
+          ]
+        }
+      ]
+    },
+    "loadCost": {
+      "if": {
+        "properties": {
+          "scope": {
+            "const": "resource"
+          }
+        },
+        "required": [
+          "scope"
+        ]
+      },
+      "then": {
+        "$ref": "#/$defs/resourceLoadCost"
+      },
+      "else": {
+        "$ref": "#/$defs/collectionMemberLoadCost"
+      }
+    }
+  },
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "resources"],
@@ -46,6 +246,7 @@
           "disciplines": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
           "period": {"type": "string"},
           "description": {"type": "string", "minLength": 1},
+          "load_cost": {"$ref": "#/$defs/loadCost"},
           "upstream": {
             "type": "object",
             "additionalProperties": false,
@@ -193,7 +394,12 @@
           },
           {
             "if": {"properties": {"kind": {"const": "feature-module"}}},
-            "then": {"required": ["parent", "compatibility", "module"]},
+            "then": {
+              "allOf": [
+                {"required": ["parent", "compatibility", "module"]},
+                {"not": {"required": ["load_cost"]}}
+              ]
+            },
             "else": {
               "allOf": [
                 {"not": {"required": ["parent"]}},

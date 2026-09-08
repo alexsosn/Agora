@@ -10,8 +10,10 @@ on:
       - 'registry/schema/materializer-plugin.schema.json'
       - 'scripts/agora_install_materializer.py'
       - 'scripts/agora_materialize.py'
+      - 'scripts/agora_materialize_registered.py'
       - 'scripts/validate_registry.py'
       - 'tests/test_materializer_installation.py'
+      - 'tests/test_materializer_run_by_id.py'
       - 'tests/test_burns_materializer*.py'
       - 'tests/test_registry.py'
   pull_request:
@@ -22,8 +24,10 @@ on:
       - 'registry/schema/materializer-plugin.schema.json'
       - 'scripts/agora_install_materializer.py'
       - 'scripts/agora_materialize.py'
+      - 'scripts/agora_materialize_registered.py'
       - 'scripts/validate_registry.py'
       - 'tests/test_materializer_installation.py'
+      - 'tests/test_materializer_run_by_id.py'
       - 'tests/test_burns_materializer*.py'
       - 'tests/test_registry.py'
 
@@ -282,13 +286,14 @@ jobs:
               writer.writerow(row)
           PY
 
-      - name: Materialize synthetic CSV through installed runtime and real sandbox
+      - name: Materialize synthetic CSV through verified registry ID and real sandbox
         run: |
-          python scripts/agora_materialize.py \
-            --manifest "$UGARIT_RUNTIME/agora.materializer.json" \
+          python scripts/agora_materialize_registered.py \
+            --plugin ugarit-context-parsing \
             --materializer burns-workbooks-csv-text-fabric \
             --source "$RUNNER_TEMP/burns-source" \
-            --output "$RUNNER_TEMP/burns-tf"
+            --output "$RUNNER_TEMP/burns-tf" \
+            --install-root "$RUNNER_TEMP/materializers"
 
       - name: Verify Text-Fabric artifact, conversion report, and Agora provenance
         shell: bash
