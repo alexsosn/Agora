@@ -34,6 +34,13 @@ def _registered_target(
     return plugin, installer.installation_path(plugin, root)
 
 
+def _not_installed(plugin_id: str) -> installer.MaterializerInstallError:
+    return installer.MaterializerInstallError(
+        f"materializer plugin {plugin_id!r} is not installed for the current runtime; "
+        f"install {plugin_id} explicitly before running it"
+    )
+
+
 def resolve_installed_manifest(
     plugin_id: str,
     *,
@@ -52,10 +59,7 @@ def resolve_installed_manifest(
         registry_path=registry_path,
     )
     if not target.exists():
-        raise installer.MaterializerInstallError(
-            f"materializer plugin {plugin_id!r} is not installed for the current runtime; "
-            f"install {plugin_id} explicitly before running it"
-        )
+        raise _not_installed(plugin_id)
 
     if not installer._environment_current(plugin, target):
         raise installer.MaterializerInstallError(
@@ -84,15 +88,21 @@ def materialize_registered(
 ) -> Path:
     """Run one materializer from a verified, already-installed registry plugin.
 
-    The installer runtime lock is held from the final integrity verification
-    through converter completion so an explicit concurrent repair cannot replace
-    the managed environment after it has been approved for this execution.
+    The installer runtime lock is held from the final integrity and registry
+    binding checks through converter completion so an explicit concurrent repair
+    cannot replace the managed environment after it has been approved for this
+    execution.
     """
     _plugin, target = _registered_target(
         plugin_id,
         install_root=install_root,
         registry_path=registry_path,
     )
+    # Merely attempting to run an uninstalled plugin must not create managed
+    # directories or the installer's persistent lock marker.
+    if not target.exists():
+        raise _not_installed(plugin_id)
+
     lock_path = target.parent / f".{target.name}.lock"
     with installer._lock(lock_path):
         manifest = resolve_installed_manifest(
@@ -100,10 +110,23 @@ def materialize_registered(
             install_root=install_root,
             registry_path=registry_path,
         )
+        current_plugin, current_target = _registered_target(
+            plugin_id,
+            install_root=install_root,
+            registry_path=registry_path,
+        )
         expected_runtime = (target / "runtime").resolve()
-        if manifest.parent != expected_runtime:
+        if current_target != target or manifest.parent != expected_runtime:
             raise installer.MaterializerInstallError(
                 f"materializer plugin {plugin_id!r} registry binding changed while acquiring its runtime lock"
+            )
+        # The environment hash proves the installed bytes are intact; this
+        # binding check separately proves those bytes still declare exactly the
+        # materializers approved by the current registry entry.
+        installer._validate_binding(current_plugin, expected_runtime)
+        if materializer_id not in current_plugin["materializers"]:
+            raise installer.MaterializerInstallError(
+                f"materializer {materializer_id!r} is not approved by registry plugin {plugin_id!r}"
             )
         return host.materialize(
             manifest_path=manifest,
