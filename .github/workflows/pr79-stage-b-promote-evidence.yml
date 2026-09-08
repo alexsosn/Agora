@@ -1,0 +1,181 @@
+name: PR79 Stage B evidence promoter
+
+on:
+  push:
+    branches:
+      - implement/resource-member-verification-19
+
+permissions:
+  contents: write
+
+jobs:
+  promote-verified-evidence:
+    if: github.repository == 'alexsosn/Agora'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: implement/resource-member-verification-19
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install validation dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Promote only successful Stage A subjects
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from copy import deepcopy
+          from pathlib import Path
+          import re
+          import yaml
+
+          checks_path = Path('registry/verification-checks.yaml')
+          resources_path = Path('registry/resources.yaml')
+          greek_path = Path('registry/collections/greek_literature.yaml')
+
+          check_ids = (
+              'resource-load/bhsa',
+              'resource-load/cuc',
+              'member-load/greek-iliad',
+          )
+          canary_id = 'member-canary/greek-argonautica'
+          iliad_id = 'canonical-greeklit-tlg0012-tlg001-perseus-grc2-1-67402e1a'
+          argonautica_id = 'canonical-greeklit-tlg0001-tlg001-perseus-grc2-1-62c8ed02'
+
+          before_checks_doc = yaml.safe_load(checks_path.read_text(encoding='utf-8'))
+          before_checks = {item['id']: item for item in before_checks_doc['checks']}
+          for check_id in check_ids:
+              assert before_checks[check_id]['kind'] == 'live'
+              assert before_checks[check_id]['evidence_level'] == 'community'
+              assert set(before_checks[check_id]['claims']) == {
+                  'materialization', 'load', 'representative-content'
+              }
+          assert before_checks[canary_id]['evidence_level'] == 'community'
+          assert before_checks[canary_id]['claims'] == ['known-issue-canary']
+
+          before_resources_doc = yaml.safe_load(resources_path.read_text(encoding='utf-8'))
+          before_resources = {item['id']: item for item in before_resources_doc['resources']}
+          for resource_id, check_id in (
+              ('bhsa', 'resource-load/bhsa'),
+              ('cuc', 'resource-load/cuc'),
+          ):
+              assert before_resources[resource_id]['verification'] == {
+                  'status': 'community',
+                  'evidence': [{'check_id': check_id}],
+              }
+          greek_collection_before = deepcopy(before_resources['greek_literature']['verification'])
+          tlhdig_before = deepcopy(before_resources['TLHdig-TF']['verification'])
+
+          before_greek_doc = yaml.safe_load(greek_path.read_text(encoding='utf-8'))
+          before_members = {item['id']: item for item in before_greek_doc['members']}
+          assert before_members[iliad_id]['verification'] == {
+              'status': 'community',
+              'evidence': [{'check_id': 'member-load/greek-iliad'}],
+          }
+          argonautica_before = deepcopy(before_members[argonautica_id]['verification'])
+          assert argonautica_before['status'] == 'community'
+          assert any(
+              ref.get('issue_id') == 'context-fabric/duplicate-structure-levels'
+              for ref in argonautica_before.get('known_issues', [])
+          )
+
+          checks_text = checks_path.read_text(encoding='utf-8')
+          for check_id in check_ids:
+              pattern = re.compile(
+                  rf'(?ms)(^- id: {re.escape(check_id)}\n(?:(?!^- id: ).)*?^  evidence_level:) community$'
+              )
+              checks_text, count = pattern.subn(r'\1 verified', checks_text, count=1)
+              if count != 1:
+                  raise SystemExit(
+                      f'expected exactly one community evidence level for {check_id}, found {count}'
+                  )
+          checks_path.write_text(checks_text, encoding='utf-8')
+
+          resources_text = resources_path.read_text(encoding='utf-8')
+          for resource_id in ('bhsa', 'cuc'):
+              pattern = re.compile(
+                  rf'(?ms)(^- id: {re.escape(resource_id)}\n(?:(?!^- id: ).)*?^  verification:\n    status:) community$'
+              )
+              resources_text, count = pattern.subn(r'\1 verified', resources_text, count=1)
+              if count != 1:
+                  raise SystemExit(
+                      f'expected exactly one community resource status for {resource_id}, found {count}'
+                  )
+          resources_path.write_text(resources_text, encoding='utf-8')
+
+          greek_text = greek_path.read_text(encoding='utf-8')
+          pattern = re.compile(
+              rf'(?ms)(^- id: {re.escape(iliad_id)}\n(?:(?!^- id: ).)*?^  verification:\n    status:) community$'
+          )
+          greek_text, count = pattern.subn(r'\1 verified', greek_text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected exactly one community Iliad status, found {count}')
+          greek_path.write_text(greek_text, encoding='utf-8')
+
+          after_checks_doc = yaml.safe_load(checks_path.read_text(encoding='utf-8'))
+          after_checks = {item['id']: item for item in after_checks_doc['checks']}
+          for check_id in check_ids:
+              assert after_checks[check_id]['evidence_level'] == 'verified'
+          assert after_checks[canary_id] == before_checks[canary_id]
+
+          after_resources_doc = yaml.safe_load(resources_path.read_text(encoding='utf-8'))
+          after_resources = {item['id']: item for item in after_resources_doc['resources']}
+          assert after_resources['bhsa']['verification'] == {
+              'status': 'verified', 'evidence': [{'check_id': 'resource-load/bhsa'}]
+          }
+          assert after_resources['cuc']['verification'] == {
+              'status': 'verified', 'evidence': [{'check_id': 'resource-load/cuc'}]
+          }
+          assert after_resources['greek_literature']['verification'] == greek_collection_before
+          assert after_resources['TLHdig-TF']['verification'] == tlhdig_before
+
+          after_greek_doc = yaml.safe_load(greek_path.read_text(encoding='utf-8'))
+          after_members = {item['id']: item for item in after_greek_doc['members']}
+          assert after_members[iliad_id]['verification'] == {
+              'status': 'verified',
+              'evidence': [{'check_id': 'member-load/greek-iliad'}],
+          }
+          assert after_members[argonautica_id]['verification'] == argonautica_before
+          PY
+
+      - name: Regenerate Context-Fabric projections
+        run: python scripts/generate_context_fabric_catalog.py
+
+      - name: Validate promoted registry and projections
+        run: |
+          python scripts/validate_registry.py
+          python scripts/generate_context_fabric_catalog.py --check
+
+      - name: Commit Stage B promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add registry/verification-checks.yaml \
+            registry/resources.yaml \
+            registry/collections/greek_literature.yaml \
+            plugins/context-fabric/resources/catalog.yaml \
+            plugins/context-fabric/resources/collections/greek_literature.yaml
+          git diff --cached --check
+          changed="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' \
+            plugins/context-fabric/resources/catalog.yaml \
+            plugins/context-fabric/resources/collections/greek_literature.yaml \
+            registry/collections/greek_literature.yaml \
+            registry/resources.yaml \
+            registry/verification-checks.yaml | sort)"
+          if [ "$changed" != "$expected" ]; then
+            printf 'Unexpected Stage B change set:\n%s\n' "$changed" >&2
+            exit 1
+          fi
+          git commit -m 'Promote successful resource verification evidence'
+          git push origin HEAD:implement/resource-member-verification-19
