@@ -2,7 +2,7 @@
 
 ## Gate
 
-This is the implementation/TDD plan following `P1-research-materializer-release-updates-81.md`. The original production implementation was preceded by committed RED tests. Adversarial review later found additional binding/workflow gaps; those were also taken through a separate tests-only RED gate before revision.
+This is the implementation/TDD plan following `P1-research-materializer-release-updates-81.md`. The original production implementation was preceded by committed RED tests. Adversarial review later found additional binding/workflow/authentication gaps; those were also taken through separate tests-only RED gates before revision.
 
 ## Acceptance contract
 
@@ -60,7 +60,10 @@ The client:
 - fetches the manifest through Contents API at the resolved commit SHA;
 - sends explicit GitHub JSON accept/API-version headers and a bounded timeout;
 - accepts injected transport for deterministic tests;
-- turns HTTP/API/JSON failures into actionable release-discovery errors.
+- turns HTTP/API/JSON failures into actionable release-discovery errors;
+- omits `Authorization` when no deliberately supplied cross-repository credential exists.
+
+The CLI may accept an operator-supplied `GITHUB_TOKEN` environment value, but only as an explicit credential whose authorization covers the repositories being queried. The scheduled v1 workflow must not pass Agora's repository-scoped `GITHUB_TOKEN` into public upstream discovery.
 
 ## SemVer and candidate selection
 
@@ -132,7 +135,7 @@ python scripts/check_materializer_releases.py \
   [--apply]
 ```
 
-Default mode discovers/reports only. `--apply` writes the validated registry patch atomically. `GITHUB_TOKEN` comes from the environment, not argv. Errors exit non-zero and leave canonical remote state untouched.
+Default mode discovers/reports public upstream releases without authentication. `--apply` writes the validated registry patch atomically. An operator may provide `GITHUB_TOKEN` through the environment only when that credential intentionally covers the target repositories; it is never accepted via argv. Errors exit non-zero and leave canonical remote state untouched.
 
 ## Scheduled workflow
 
@@ -142,17 +145,19 @@ Required orchestration:
 
 1. explicitly check out `ref: main` with sufficient history; do not inherit a user-selected `workflow_dispatch` ref;
 2. set up Python/dependencies;
-3. run passive discovery with `--apply` against the working tree;
+3. run passive public-upstream discovery with `--apply` against the working tree **without** forwarding Agora's repository `GITHUB_TOKEN`;
 4. on discovery failure, push nothing and mutate no PR;
 5. on no diff, succeed and optionally close an obsolete fixed automation PR only after successful discovery;
 6. on diff, run registry validation, generator freshness checks, and the full unit suite before any push;
 7. recreate/update fixed branch `automation/materializer-releases` from that canonical-main checkout;
 8. commit only the registry update;
-9. push with lease protection;
-10. create or refresh one PR against `main` with deterministic provenance body;
+9. push with lease protection using Agora's repository token;
+10. create or refresh one PR against `main` with deterministic provenance body using that same repository token;
 11. never approve or merge automatically.
 
-Permissions stay `contents: write` and `pull-requests: write`. V1 uses the repository `GITHUB_TOKEN`; if repository policy disallows Actions-created PRs, the workflow should fail visibly instead of falling back to a PAT or bypassing review.
+Permissions stay `contents: write` and `pull-requests: write` because branch/PR maintenance requires them. The token is reserved for Agora-owned writes, not upstream discovery. If repository policy disallows Actions-created PRs, the workflow should fail visibly instead of falling back to a PAT or bypassing review.
+
+V1 relies on unauthenticated public GitHub REST reads, currently documented at 60 requests/hour per source IP. If registry scale makes that insufficient, the next design must introduce an explicitly installed read-only GitHub App (or equivalent deliberately scoped credential) covering the upstream repositories; do not widen the current repository token's role.
 
 ## TDD gates
 
@@ -171,14 +176,15 @@ The initial tests-only RED contract covers:
 - idempotent repeated application;
 - workflow scheduling, permissions, fixed branch/PR, validation-before-push, no candidate execution and no auto-merge.
 
-Adversarial review added a second tests-only RED tranche for discrepancies between proposal and install-time binding:
+Adversarial review added tests-only RED tranches for discrepancies between proposal/install binding and workflow trust boundaries:
 
 - plugin name drift must fail;
 - missing candidate `plugin.repository` must fail;
 - reordered materializer IDs must fail even when the set is unchanged;
-- workflow checkout must explicitly use canonical `main` for manual dispatch as well as schedule.
+- workflow checkout must explicitly use canonical `main` for manual dispatch as well as schedule;
+- public cross-repository discovery must not receive Agora's repository-scoped `GITHUB_TOKEN`.
 
-The review RED head produced 486 tests with exactly five failures (the three binding cases plus two independent main-checkout contract tests), while unrelated lock/cache lanes remained green. Production revision follows only after that evidence.
+The first review RED head produced 486 tests with exactly five failures (the three binding cases plus two independent main-checkout contract tests), while unrelated lock/cache lanes remained green. The later authentication RED produced exactly one failure with the remaining 485 tests green, plus green install-smoke and sandbox-E2E lanes.
 
 ## Validation sequence
 
@@ -207,7 +213,7 @@ Freeze the exact final head and challenge:
 - byte preservation and stale-base handling;
 - workflow-dispatch base correctness;
 - fixed branch force-with-lease/idempotency;
-- token permissions/secret exposure and PR-creation operational dependency;
+- token authorization boundaries, secret exposure, unauthenticated rate-budget assumptions, and PR-creation operational dependency;
 - no auto-merge and preservation of explicit install/build approval.
 
 No PR is finalized without green exact-head CI and this frozen-head review.
