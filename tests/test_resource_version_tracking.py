@@ -56,13 +56,17 @@ def _resource(*, kind: str = "corpus") -> dict:
     return resource
 
 
+def _release_discovery() -> dict:
+    return {
+        "mode": "github-releases",
+        "channel": "stable",
+        "tag_pattern": "^v(?P<version>[0-9]+\\.[0-9]+\\.[0-9]+)$",
+    }
+
+
 def _proposal_tracking() -> dict:
     return {
-        "discovery": {
-            "mode": "github-releases",
-            "channel": "stable",
-            "tag_pattern": "^v(?P<version>[0-9]+\\.[0-9]+\\.[0-9]+)$",
-        },
+        "discovery": _release_discovery(),
         "dataset": {
             "mode": "release-version-match",
             "root": "tf",
@@ -114,12 +118,12 @@ class ResourceVersionTrackingSchemaRed1Tests(unittest.TestCase):
     def test_collection_member_index_tracking_has_no_scalar_tf_path(self):
         resource = _resource(kind="collection")
         resource["version_tracking"] = {
-            "discovery": {"mode": "default-branch"},
+            "discovery": _release_discovery(),
             "dataset": {"mode": "member-index", "ordering": "none"},
             "promotion": {"mode": "proposal"},
             "accepted": {
-                "publication_version": "snapshot-2026-09-09",
-                "signal": "main@2026-09-09",
+                "publication_version": "1.2.3",
+                "signal": "v1.2.3",
                 "source_revision": COMMIT,
             },
         }
@@ -173,15 +177,34 @@ class ResourceVersionTrackingSemanticRed1Tests(unittest.TestCase):
         errors = _semantic_errors(resource)
         self.assertTrue(any("immutable" in error or "upstream.ref" in error for error in errors))
 
-    def test_collection_member_index_rejects_accepted_scalar_tf_path(self):
-        resource = _resource(kind="collection")
+    def test_default_branch_cannot_request_proposal_promotion(self):
+        resource = _resource()
         resource["version_tracking"] = {
             "discovery": {"mode": "default-branch"},
-            "dataset": {"mode": "member-index", "ordering": "none"},
+            "dataset": {"mode": "latest-root", "root": "tf", "ordering": "natural"},
             "promotion": {"mode": "proposal"},
             "accepted": {
                 "publication_version": "snapshot",
                 "signal": "main",
+                "source_revision": COMMIT,
+                "tf_path": "tf/1.2.3",
+            },
+        }
+        errors = _schema_errors(resource) + _semantic_errors(resource)
+        self.assertTrue(
+            any("default-branch" in error or "proposal" in error for error in errors),
+            errors,
+        )
+
+    def test_collection_member_index_rejects_accepted_scalar_tf_path(self):
+        resource = _resource(kind="collection")
+        resource["version_tracking"] = {
+            "discovery": _release_discovery(),
+            "dataset": {"mode": "member-index", "ordering": "none"},
+            "promotion": {"mode": "proposal"},
+            "accepted": {
+                "publication_version": "1.2.3",
+                "signal": "v1.2.3",
                 "source_revision": COMMIT,
                 "tf_path": "tf/1.0",
             },
