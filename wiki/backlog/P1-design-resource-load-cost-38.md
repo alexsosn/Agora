@@ -202,3 +202,7 @@ Freeze the exact final head and independently challenge:
 - backward compatibility for resources without measurements.
 
 Any blocking review finding receives a new regression RED, minimal fix, full GREEN, and fresh exact-head review before merge.
+
+### Review-harness hygiene
+
+Temporary agent/review workflows may be used only as disposable development scaffolding. They must not remain in the final feature diff, must not become part of Agora's runtime or CI contract, and must not leave write-capable branch-edit orchestration behind after the reviewed change is materialized. The final head must be testable by the repository's ordinary workflows under the normal contributor trust path.
