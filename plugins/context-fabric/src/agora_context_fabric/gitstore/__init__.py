@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import os
 import subprocess
+import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterator, Literal
+from typing import Any, Iterator, Literal
 
 from . import _core as _core_module
 
@@ -20,6 +21,12 @@ for _name, _value in vars(_core_module).items():
     globals().setdefault(_name, _value)
 
 _CoreGitStore = _core_module.GitStore
+
+# Repository metadata inspection is an additive package-level extension around
+# the mature core cache. Publish the constant on _core as well so historical
+# patch/import targets continue to work while the implementation remains here.
+DEFAULT_GIT_STATUS_BUDGET_SECONDS = 2.0
+_core_module.DEFAULT_GIT_STATUS_BUDGET_SECONDS = DEFAULT_GIT_STATUS_BUDGET_SECONDS
 
 SourceMode = Literal["prefer-fresh", "offline", "require-fresh"]
 
@@ -46,7 +53,7 @@ _SOURCE_POLICY: ContextVar[SourcePolicyState | None] = ContextVar(
 
 
 class GitStore(_CoreGitStore):
-    """Context-Fabric cache store with compile and source-resolution policy."""
+    """Context-Fabric cache store with source, compile and metadata policy."""
 
     SOURCE_MODES = frozenset({"prefer-fresh", "offline", "require-fresh"})
     _NON_CONNECTIVITY_MARKERS = (
@@ -91,6 +98,204 @@ class GitStore(_CoreGitStore):
         if any(marker in text for marker in cls._NON_CONNECTIVITY_MARKERS):
             return False
         return any(marker in text for marker in cls._CONNECTIVITY_MARKERS)
+
+    @staticmethod
+    def _parse_count_objects(output: str) -> dict[str, int]:
+        required = {
+            "count",
+            "size",
+            "in-pack",
+            "packs",
+            "size-pack",
+            "prune-packable",
+            "garbage",
+            "size-garbage",
+        }
+        values: dict[str, int] = {}
+        for raw_line in output.splitlines():
+            key, separator, raw_value = raw_line.partition(":")
+            key = key.strip()
+            if not separator or key not in required:
+                continue
+            if key in values:
+                raise ValueError(f"duplicate git count-objects field: {key}")
+            try:
+                value = int(raw_value.strip())
+            except ValueError as exc:
+                raise ValueError(f"malformed git count-objects field: {key}") from exc
+            if value < 0:
+                raise ValueError(f"negative git count-objects field: {key}")
+            values[key] = value
+
+        missing = sorted(required - values.keys())
+        if missing:
+            raise ValueError(
+                "missing git count-objects field(s): " + ", ".join(missing)
+            )
+        return {
+            "count": values["count"],
+            "size_bytes": values["size"] * 1024,
+            "in_pack": values["in-pack"],
+            "packs": values["packs"],
+            "size_pack_bytes": values["size-pack"] * 1024,
+            "prune_packable": values["prune-packable"],
+            "garbage": values["garbage"],
+            "garbage_bytes": values["size-garbage"] * 1024,
+        }
+
+    @staticmethod
+    def _directory_size_bounded(
+        path: Path,
+        *,
+        deadline: float,
+    ) -> tuple[int | None, bool]:
+        total = 0
+        for root, _dirs, files in os.walk(path):
+            if time.monotonic() >= deadline:
+                return None, False
+            for filename in files:
+                if time.monotonic() >= deadline:
+                    return None, False
+                candidate = Path(root) / filename
+                try:
+                    if not candidate.is_symlink():
+                        total += candidate.stat().st_size
+                except FileNotFoundError:
+                    continue
+        if time.monotonic() >= deadline:
+            return None, False
+        return total, True
+
+    def _git_count_objects(self, repo: Path, *, timeout: float) -> dict[str, int]:
+        if timeout <= 0:
+            raise subprocess.TimeoutExpired(["git", "count-objects", "-v"], timeout)
+        result = subprocess.run(
+            ["git", "-C", str(repo), "count-objects", "-v"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=timeout,
+        )
+        return self._parse_count_objects(result.stdout)
+
+    @staticmethod
+    def _repository_status_row(cache_key: str, repo: Path) -> dict[str, Any]:
+        return {
+            "cache_key": cache_key,
+            "path": str(repo),
+            "size_bytes": None,
+            "size_complete": False,
+            "packs": None,
+            "garbage_entries": None,
+            "garbage_bytes": None,
+            "busy": False,
+            "inspection_status": "budget-exhausted",
+        }
+
+    def _repository_status(self) -> dict[str, Any]:
+        budget = float(_core_module.DEFAULT_GIT_STATUS_BUDGET_SECONDS)
+        deadline = time.monotonic() + max(0.0, budget)
+        rows: list[dict[str, Any]] = []
+
+        repositories = sorted(
+            (path for path in self.repositories_dir.iterdir() if path.is_dir()),
+            key=lambda path: path.name,
+        )
+        for repo in repositories:
+            row = self._repository_status_row(repo.name, repo)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                rows.append(row)
+                continue
+
+            try:
+                with self._repository_lock(repo.name, timeout=remaining):
+                    git_ok = False
+                    remaining = deadline - time.monotonic()
+                    if remaining > 0:
+                        try:
+                            git = self._git_count_objects(repo, timeout=remaining)
+                        except subprocess.TimeoutExpired:
+                            row["inspection_status"] = "budget-exhausted"
+                        except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError):
+                            row["inspection_status"] = "error"
+                        else:
+                            row["packs"] = git["packs"]
+                            row["garbage_entries"] = git["garbage"]
+                            row["garbage_bytes"] = git["garbage_bytes"]
+                            git_ok = True
+                            row["inspection_status"] = "ok"
+
+                    remaining = deadline - time.monotonic()
+                    if remaining > 0:
+                        size, complete = self._directory_size_bounded(
+                            repo,
+                            deadline=deadline,
+                        )
+                        row["size_bytes"] = size
+                        row["size_complete"] = complete
+                        if not complete and row["inspection_status"] == "ok":
+                            row["inspection_status"] = "budget-exhausted"
+                    elif row["inspection_status"] == "ok" or git_ok:
+                        row["inspection_status"] = "budget-exhausted"
+            except TimeoutError:
+                row["busy"] = True
+                row["inspection_status"] = "busy"
+
+            rows.append(row)
+
+        bytes_complete = all(bool(row["size_complete"]) for row in rows)
+        repository_bytes = (
+            sum(int(row["size_bytes"]) for row in rows)
+            if bytes_complete
+            else None
+        )
+        git_complete = all(
+            row["packs"] is not None
+            and row["garbage_entries"] is not None
+            and row["garbage_bytes"] is not None
+            for row in rows
+        )
+        pack_count = (
+            sum(int(row["packs"]) for row in rows) if git_complete else None
+        )
+        garbage_entries = (
+            sum(int(row["garbage_entries"]) for row in rows)
+            if git_complete
+            else None
+        )
+        garbage_bytes = (
+            sum(int(row["garbage_bytes"]) for row in rows)
+            if git_complete
+            else None
+        )
+        budget_exhausted = (
+            time.monotonic() >= deadline
+            or any(row["inspection_status"] == "budget-exhausted" for row in rows)
+        )
+        return {
+            "repository_cache_bytes": repository_bytes,
+            "repository_cache_bytes_complete": bytes_complete,
+            "repository_cache_gb": (
+                self._gib(repository_bytes) if repository_bytes is not None else None
+            ),
+            "repository_git_metrics_complete": git_complete,
+            "repository_pack_count": pack_count,
+            "repository_garbage_entries": garbage_entries,
+            "repository_garbage_bytes": garbage_bytes,
+            "repository_garbage_gb": (
+                self._gib(garbage_bytes) if garbage_bytes is not None else None
+            ),
+            "repository_inspection_budget_seconds": budget,
+            "repository_inspection_budget_exhausted": budget_exhausted,
+            "repositories": rows,
+        }
+
+    def cache_status(self) -> dict[str, Any]:
+        status = super().cache_status()
+        status.update(self._repository_status())
+        return status
 
     def _run_refresh(self, *args: str, cwd: Path | None = None) -> str:
         command = ["git"]
