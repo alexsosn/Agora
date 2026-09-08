@@ -27,3 +27,31 @@ plugins:
         - Passive fetch validates the immutable upstream source and materializer manifest without executing plugin Python.
         - Explicit installation executes third-party Python packaging/build code and records the resolved runtime, distribution closure, source hash, and managed environment hash.
         - The upstream materializer contract remains exercised by Agora's sandboxed Pseudepigrapha-TF reference materialization.
+
+  - id: ugarit-context-parsing
+    name: Ugarit Context Parsing
+    description: Convert local Burns Workbooks CSV or PDF sources into CUC-aligned Text-Fabric contextual artifacts.
+    repository: alexsosn/ugarit-context-parsing
+    ref: e1218b88d9d849c58ee25541339f32b0d8f5a7d3
+    version: 0.2.0
+    release_tracking:
+      mode: disabled
+    manifest: agora.materializer.json
+    package:
+      type: python-project
+      path: .
+      install_trust: explicit-code-execution
+    materializers:
+      - burns-workbooks-csv-text-fabric
+      - burns-workbooks-pdf-text-fabric
+    disciplines: [assyriology, digital-philology, semitic-linguistics]
+    licenses:
+      software: NOASSERTION
+      data: CC BY-NC-ND 2.5 Burns-derived local-only output
+    verification:
+      status: experimental
+      notes:
+        - Passive fetch validates the immutable converter source and materializer manifest without executing plugin Python.
+        - Explicit installation executes third-party Python packaging/build code and records source/runtime/dependency identity.
+        - Burns source data and generated CSV/TF artifacts remain user-local and are not redistributed by Agora.
+        - CUC compatibility is limited to documented identifier/language conventions; the converter does not fabricate diplomatic text structure.
