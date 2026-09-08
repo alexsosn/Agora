@@ -113,7 +113,10 @@ class RepositoryStatusRedTests(GitMetadataFixture):
             pack_dir = repo / ".git" / "objects" / "pack"
             pack_dir.mkdir(parents=True, exist_ok=True)
             garbage = pack_dir / "tmp_pack_agora_fixture"
-            garbage.write_bytes(b"garbage" * 32)
+            # git count-objects reports size-garbage in whole KiB. Keep this
+            # fixture comfortably above that reporting floor so the byte-level
+            # assertion is portable across Git versions/filesystems.
+            garbage.write_bytes(b"garbage" * 1024)
 
             status = store.cache_status()
             row = status["repositories"][0]
