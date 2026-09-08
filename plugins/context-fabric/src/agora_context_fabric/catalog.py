@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Iterator
@@ -37,6 +38,7 @@ class ResourceSpec:
     verification_notes: tuple[str, ...] = ()
     verification_known_issues: tuple[dict[str, Any], ...] = ()
     licenses: dict[str, Any] = field(default_factory=dict)
+    load_cost: dict[str, Any] = field(default_factory=dict)
     integration_issues: tuple[str, ...] = ()
     source_snapshot: dict[str, Any] = field(default_factory=dict)
 
@@ -128,6 +130,7 @@ class Catalog:
                         if isinstance(value, dict)
                     ),
                     licenses=dict(item.get("licenses") or {}),
+                    load_cost=copy.deepcopy(item.get("load_cost") or {}),
                     integration_issues=tuple(item.get("integration_issues") or ()),
                     source_snapshot=dict(item.get("source_snapshot") or {}),
                 )

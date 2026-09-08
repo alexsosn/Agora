@@ -138,6 +138,42 @@ def validate_license_evidence(
         )
 
 
+def validate_load_cost(resource: dict[str, Any], errors: list[str]) -> None:
+    cost = resource.get("load_cost")
+    if not isinstance(cost, dict):
+        return
+
+    prefix = f"resource {resource['id']}.load_cost"
+    kind = resource.get("kind")
+    scope = cost.get("scope")
+    expected_scope = {
+        "corpus": "resource",
+        "collection": "collection-member",
+    }.get(kind)
+    if expected_scope is not None and scope != expected_scope:
+        errors.append(
+            f"{prefix}.scope: {kind} resources must be {expected_scope!r}, got {scope!r}"
+        )
+    if kind == "feature-module":
+        errors.append(f"{prefix}: feature modules cannot declare standalone load cost")
+
+    observed_range = cost.get("typical_member_first_load_seconds")
+    if isinstance(observed_range, dict):
+        minimum = observed_range.get("min")
+        maximum = observed_range.get("max")
+        numeric = (int, float)
+        if (
+            isinstance(minimum, numeric)
+            and not isinstance(minimum, bool)
+            and isinstance(maximum, numeric)
+            and not isinstance(maximum, bool)
+            and minimum > maximum
+        ):
+            errors.append(
+                f"{prefix}.typical_member_first_load_seconds: min must be <= max"
+            )
+
+
 def validate_registry(root: Path = ROOT) -> list[str]:
     root = Path(root)
     registry = root / "registry"
@@ -316,6 +352,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                 errors,
             )
         validate_license_evidence(resource, license_evidence_statuses, errors)
+        validate_load_cost(resource, errors)
         ensure_vocab(resource["verification"]["status"], verification, f"{prefix}.verification.status", errors)
 
         if resource["kind"] == "feature-module":
