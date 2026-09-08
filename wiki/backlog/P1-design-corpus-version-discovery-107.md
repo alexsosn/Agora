@@ -18,7 +18,7 @@ This design owns Agora registry tracking policy and the contracts consumed by #1
 
 ## Registry direction
 
-Add an optional resource tracking object whose semantics separate three axes. Exact schema names may be normalized during #108, but the information model is normative:
+Add an optional resource tracking object whose semantics separate discovery, dataset selection, promotion, **and the last accepted publication state**. Exact schema names may be normalized during #108, but the information model is normative:
 
 ```yaml
 version_tracking:
@@ -32,7 +32,16 @@ version_tracking:
     ordering: semver | natural | none
   promotion:
     mode: proposal | discovery-only | pinned
+  accepted:                     # present when a tracked publication/default has been reviewed
+    publication_version: 1.8.1  # logical release/directory version, not assumed equal to TF version
+    signal: v1.8.1              # exact accepted release tag/signal when applicable
+    source_revision: <40-hex commit>
+    tf_path: tf/2021            # corpus only; omitted for member-index collections
 ```
+
+`accepted` is necessary because a release version is not generally recoverable from either `upstream.ref` or `upstream.tf_path`: BHSA's release `v1.8.1` maps to TF `2021`, and a release may later be deleted or retagged. The updater must remember which logical publication was actually accepted in order to compare upgrades and detect same-version/different-commit anomalies deterministically.
+
+The runtime source of truth remains `upstream.ref` / `upstream.tf_path`; accepted state is tracking provenance and must cross-validate with those fields when promotion is enabled. A proposal that accepts a corpus candidate writes the immutable validated `candidate_source_revision` to `upstream.ref` and the validated `candidate_tf_path` to `upstream.tf_path`, together with matching `version_tracking.accepted` state. It must never validate one commit/path and then leave runtime resolution floating on a mutable branch.
 
 Rules:
 
@@ -43,7 +52,11 @@ Rules:
 5. collections use `member-index` rather than a fabricated scalar dataset version;
 6. a GitHub release/tag always resolves to a terminal immutable commit before corpus inspection;
 7. a moving branch used for TF-directory discovery is first resolved to an immutable observed commit;
-8. dataset selection is evaluated against TF roots at that immutable commit, not current branch state after discovery.
+8. dataset selection is evaluated against TF roots at that immutable commit, not current branch state after discovery;
+9. accepted proposal-mode corpus state must agree with canonical `upstream.ref` and `upstream.tf_path`; contradictory tracking/runtime state fails validation rather than choosing one silently;
+10. logical accepted publication version/tag is stored separately from TF version/path and immutable commit;
+11. a same accepted logical publication resolving later to a different commit is a retag/supply-chain anomaly, not an ordinary update;
+12. first-time opt-in/migration is performed by #109 with explicit accepted state or an explicit discovery-only/no-accepted-state disposition; #108 does not guess historical accepted versions from current paths.
 
 ## Candidate record
 
@@ -51,9 +64,12 @@ The updater should produce an internal/report record equivalent to:
 
 ```text
 resource_id
+current_publication_version | null
+current_signal | null
 current_source_revision | null
 current_tf_path | null
 discovery_mode
+candidate_publication_version | null
 candidate_signal          # release/tag/branch observation
 candidate_source_revision # immutable commit
 candidate_tf_path | null
@@ -63,7 +79,7 @@ blocking_reasons[]
 validation_evidence[]
 ```
 
-The immutable commit and TF root are separate fields even when their version strings happen to match.
+The logical publication version, immutable commit, and TF root are separate fields even when their strings happen to match.
 
 ## #108 TDD sequence
 
@@ -77,7 +93,11 @@ Commit tests before implementation requiring:
 - collections cannot use corpus-only scalar TF promotion modes;
 - deliberate `pinned` tracking cannot be combined with automatic promotion;
 - malformed tag patterns/order modes are rejected;
-- feature modules do not independently redefine their parent corpus default policy.
+- feature modules do not independently redefine their parent corpus default policy;
+- accepted publication version/tag, immutable source revision, and TF path remain distinct fields;
+- proposal-mode accepted corpus state must agree with canonical `upstream.ref` / `upstream.tf_path`;
+- a collection accepted state cannot invent a scalar `tf_path` where member-index semantics apply;
+- an opted-in resource with no safely known historical accepted publication can explicitly remain discovery-only rather than having one inferred.
 
 ### GREEN 1
 
@@ -91,10 +111,11 @@ Freeze:
 - strict SemVer comparison only where the configured release policy requests it;
 - resource-maintained tag extraction for nonstandard tags such as TLHdig;
 - lightweight/annotated tag dereference to terminal full commit SHA with cycle/depth bounds;
-- same logical version/different commit ambiguity fails closed;
+- same logical version/different commit ambiguity fails closed, including a current accepted publication whose tag is now retargeted;
 - selected invalid highest release does not silently fall back to a lower release;
 - public upstream REST reads do not receive Agora's repository-scoped token;
-- branch/directory discovery records the immutable branch-head commit before inspecting TF roots.
+- branch/directory discovery records the immutable branch-head commit before inspecting TF roots;
+- release comparison uses accepted logical publication state rather than trying to derive it from `tf_path`.
 
 ### GREEN 2
 
@@ -107,6 +128,7 @@ Use synthetic repository/API fixtures plus representative policy fixtures to req
 - CUC-style release version → matching `tf/<version>`;
 - TLHdig-style configured tag capture → matching TF root while ignoring newer unreleased branch roots;
 - BHSA-style release version distinct from latest/selected TF root;
+- Pseudepigrapha-style evidence where `v0.1.0` and `tf/0.1` differ is representable without equality inference;
 - non-SemVer TF labels are not forced through SemVer;
 - configured `semver`, `natural`, and `none` ordering behave deterministically;
 - missing/malformed TF root rejects or blocks promotion;
@@ -139,6 +161,8 @@ Add a proposal classifier/report with explicit blockers/caveats. Do not guess mo
 Freeze:
 
 - only policy-owned canonical fields change;
+- accepted corpus promotion atomically updates `upstream.ref`, `upstream.tf_path`, and the matching accepted publication state;
+- a proposal never validates an immutable candidate but leaves runtime resolution on a mutable branch;
 - unrelated YAML bytes/semantics are preserved;
 - generated Context-Fabric catalog is refreshed/lossless when canonical metadata changes;
 - no-op/idempotent runs do not create duplicate PRs;
@@ -160,6 +184,8 @@ After #108 policy/schema exists, #109 must inventory every current corpus and co
 - default-branch discovery-only;
 - deliberate pinned/disabled;
 - collection/member-specific.
+
+For proposal/pinned resources, #109 must also establish the initial accepted publication state from primary evidence. If current historical state cannot be mapped safely to a publication version/tag, migrate as discovery-only or disabled rather than reverse-engineering a version from `tf_path`.
 
 No mechanical migration.
 
@@ -203,7 +229,8 @@ Collection update behavior is source-revision/index oriented:
 2. regenerate/validate member index;
 3. diff member identities/TF paths;
 4. preserve member-level version/licence/verification semantics;
-5. never derive a collection version from `max(member.version)`.
+5. never derive a collection version from `max(member.version)`;
+6. record accepted source/publication identity where the collection has a real publication signal, without synthesizing a collection TF version.
 
 ## Validation gates before final #108 merge
 
@@ -223,18 +250,20 @@ Collection update behavior is source-revision/index oriented:
 Challenge the implementation for:
 
 1. conflating release version with TF root version;
-2. using mutable branch/tag text as immutable identity;
-3. treating directory presence as publication/acceptance;
-4. global SemVer assumptions over historical TF labels;
-5. retag/same-version commit substitution;
-6. silent fallback after selected-candidate failure;
-7. feature-module compatibility drift;
-8. verification/licensing strengthening without evidence;
-9. collection scalar-version invention;
-10. upstream credential leakage;
-11. YAML churn outside owned fields;
-12. duplicate/no-op PR races;
-13. any automatic merge or bypass of ordinary Agora review.
+2. lacking durable accepted publication identity, especially when release and TF versions differ;
+3. validating one immutable candidate but leaving runtime resolution floating on a branch;
+4. using mutable branch/tag text as immutable identity;
+5. treating directory presence as publication/acceptance;
+6. global SemVer assumptions over historical TF labels;
+7. retag/same-version commit substitution;
+8. silent fallback after selected-candidate failure;
+9. feature-module compatibility drift;
+10. verification/licensing strengthening without evidence;
+11. collection scalar-version invention;
+12. upstream credential leakage;
+13. YAML churn outside owned fields;
+14. duplicate/no-op PR races;
+15. any automatic merge or bypass of ordinary Agora review.
 
 Every material finding becomes a focused RED regression before its minimal fix.
 
