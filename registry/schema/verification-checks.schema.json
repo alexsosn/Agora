@@ -17,6 +17,10 @@
       "type": "string",
       "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
     },
+    "resourceId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
     "platform": {
       "type": "object",
       "additionalProperties": false,
@@ -26,7 +30,50 @@
         "arch": {"enum": ["x86_64", "arm64"]}
       }
     },
+    "subject": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "resource_id"],
+          "properties": {
+            "type": {"const": "resource"},
+            "resource_id": {"$ref": "#/$defs/resourceId"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "resource_id", "member_id"],
+          "properties": {
+            "type": {"const": "collection-member"},
+            "resource_id": {"$ref": "#/$defs/resourceId"},
+            "member_id": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "discovery",
+          "materialization",
+          "load",
+          "representative-content",
+          "known-issue-canary"
+        ]
+      }
+    },
     "check": {
+      "oneOf": [
+        {"$ref": "#/$defs/clientCheck"},
+        {"$ref": "#/$defs/resourceCheck"}
+      ]
+    },
+    "clientCheck": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "kind", "plugin", "client", "transport", "evidence_level", "executor"],
@@ -39,6 +86,26 @@
         "transport": {"type": "string", "minLength": 1},
         "evidence_level": {"enum": ["community", "verified"]},
         "platform": {"$ref": "#/$defs/platform"},
+        "executor": {
+          "oneOf": [
+            {"$ref": "#/$defs/unittestExecutor"},
+            {"$ref": "#/$defs/actionsExecutor"}
+          ]
+        }
+      }
+    },
+    "resourceCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "plugin", "provider", "evidence_level", "subject", "claims", "executor"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "kind": {"enum": ["deterministic", "live"]},
+        "plugin": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "provider": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "evidence_level": {"enum": ["community", "verified"]},
+        "subject": {"$ref": "#/$defs/subject"},
+        "claims": {"$ref": "#/$defs/claims"},
         "executor": {
           "oneOf": [
             {"$ref": "#/$defs/unittestExecutor"},
