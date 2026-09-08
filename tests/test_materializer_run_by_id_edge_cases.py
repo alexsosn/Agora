@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
 from unittest import mock
 
+from scripts import agora_install_materializer as installer
 from scripts import agora_materialize as host
 from scripts import agora_materialize_registered as registered
 
@@ -51,14 +53,22 @@ class RegisteredMaterializerEdgeCaseTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            manifest = root / "agora.materializer.json"
+            target = root / "environment"
+            manifest = target / "runtime" / "agora.materializer.json"
+            manifest.parent.mkdir(parents=True)
             manifest.write_text(json.dumps(manifest_doc), encoding="utf-8")
             with (
+                mock.patch.object(
+                    registered,
+                    "_registered_target",
+                    return_value=({"id": "example-converter"}, target),
+                ),
                 mock.patch.object(
                     registered,
                     "resolve_installed_manifest",
                     return_value=manifest,
                 ),
+                mock.patch.object(installer, "_lock", return_value=nullcontext()),
                 mock.patch.object(host, "acquire_source") as acquire_mock,
             ):
                 with self.assertRaisesRegex(KeyError, "unknown materializer"):
