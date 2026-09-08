@@ -525,7 +525,10 @@ class ServiceColdCompileRuntimeTests(unittest.TestCase):
             release.set()
             thread.join(2)
             self.assertFalse(thread.is_alive())
-            self.assertEqual(errors, [])
+            try:
+                self.assertEqual(errors, [])
+            finally:
+                service.unload("fixture@1.0")
 
     @staticmethod
     def _capture(errors, func, *args, **kwargs):
@@ -554,7 +557,11 @@ class ServiceColdCompileRuntimeTests(unittest.TestCase):
             self.assertEqual(len(cold.calls), 1)
             release.set()
             thread.join(2)
-            self.assertEqual(errors, [])
+            self.assertFalse(thread.is_alive())
+            try:
+                self.assertEqual(errors, [])
+            finally:
+                service.unload("fixture@1.0")
 
     def test_cancel_api_stops_active_worker_and_is_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
