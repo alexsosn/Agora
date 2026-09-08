@@ -71,11 +71,23 @@ This does not make `.cfm` trusted scholarly data. It is a consumer cache. Existi
 
 The public artifact/provenance response must continue to describe converter payload identity, not `.cfm` byte state.
 
+## Compile-lock boundary discovered during review
+
+Current `GitStore.compile_lock(path)` is intentionally scoped to GitStore-managed cache objects. It calls `_managed_path(path)`, and `_managed_path` accepts only paths below the Context-Fabric GitStore `snapshots/` or `overlays/` roots. It then derives a lock identity from that managed cache-relative path.
+
+That behavior is correct for canonical Git-backed resources, but a #99 managed artifact deliberately lives in a separate Agora artifact namespace. Passing its path into `GitStore.compile_lock()` would fail before compilation and weakening `_managed_path()` to accept arbitrary external directories would blur GitStore's eviction/lease trust boundary.
+
+Therefore managed-artifact loading needs a separate compile-lock identity based on the already validated `artifact_id`, not on a caller path. The lock should live in the managed-artifact lock namespace (or an explicitly separate Context-Fabric managed-artifact namespace) and remain cross-process/crash-safe. Canonical `GitStore.compile_lock` stays unchanged.
+
+This is also a security property: a public caller must never choose which lock is acquired by supplying an arbitrary path. Artifact ID/receipt validation selects both the filesystem payload and the compile-lock identity.
+
 ## Concurrency consequence
 
 Artifact publication remains transactional before any `.cfm` exists. Equivalent materialization builders synchronize around the converter-owned payload publication/reuse decision. Context-Fabric compile locking remains a separate consumer concern after an artifact is published.
 
-#99 and #100 must ensure their lock ordering does not create a cycle between artifact-validation/build locks and Context-Fabric compile/cache locks. Artifact payload validation should complete before entering long-running Context-Fabric cold compilation.
+#99 and #100 must ensure their lock ordering does not create a cycle between artifact-validation/build locks and the artifact-ID compile/CFM lock. Artifact payload validation should complete before entering long-running Context-Fabric cold compilation.
+
+The managed-artifact compile lock must serialize the same artifact ID across processes, permit different artifact IDs concurrently, release on process death, and use a finite timeout. No long compile should hold a publication lock unless a later proof shows that ordering is required and acyclic.
 
 ## TDD additions
 
@@ -87,7 +99,8 @@ Add contracts proving:
 - published receipt enumerates/hash-binds all converter-owned payload paths;
 - adding valid `.cfm/<version>/...` after publication does not invalidate converter payload integrity;
 - modifying/deleting any recorded payload file still fails closed even when `.cfm` exists;
-- an unrelated unexpected unmanifested file is not silently ignored merely because `.cfm` is allowed.
+- an unrelated unexpected unmanifested file is not silently ignored merely because `.cfm` is allowed;
+- artifact-scoped lock identity is stable from validated `artifact_id`, not absolute path spelling.
 
 ### #100
 
@@ -96,9 +109,13 @@ Add contracts proving:
 - loading a verified managed TF artifact may create `.cfm` without changing artifact ID/payload provenance;
 - the same artifact still validates after cold compile;
 - removal/rebuild of `.cfm` does not alter payload identity;
-- canonical Git-backed Context-Fabric cache behavior remains unchanged;
+- two processes cannot cold-compile the same artifact ID concurrently;
+- different artifact IDs do not block one another;
+- process death releases the artifact compile lock;
+- no arbitrary path can select the compile-lock identity;
+- canonical Git-backed `GitStore.compile_lock` behavior remains unchanged;
 - public provenance does not expose `.cfm` filesystem details as materializer output.
 
 ## Conclusion
 
-The immutable unit is the **converter-owned payload manifest**, not every future byte below the load directory. Context-Fabric's known `.cfm/` compile namespace is separately owned, disposable consumer state. This split is required before #99/#100 can safely combine materializer integrity with Context-Fabric loading.
+The immutable unit is the **converter-owned payload manifest**, not every future byte below the load directory. Context-Fabric's known `.cfm/` compile namespace is separately owned, disposable consumer state. Managed artifacts additionally require an artifact-ID–scoped compile-lock domain because the canonical GitStore lock is intentionally restricted to GitStore paths. Both boundaries must be explicit before #99/#100 can safely combine materializer integrity with Context-Fabric loading.
