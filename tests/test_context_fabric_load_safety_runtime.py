@@ -412,9 +412,12 @@ class ServiceColdCompileRuntimeTests(unittest.TestCase):
                 max_compile_gb=0.000000001,
                 max_compile_minutes=0.000000001,
             )
-            self.assertEqual(result["logical_name"], "fixture@1.0")
-            self.assertEqual(cold.calls, [])
-            self.assertEqual(len(loader.calls), 1)
+            try:
+                self.assertEqual(result["logical_name"], "fixture@1.0")
+                self.assertEqual(cold.calls, [])
+                self.assertEqual(len(loader.calls), 1)
+            finally:
+                service.unload("fixture@1.0")
 
     def test_successful_cold_worker_is_followed_by_parent_warm_load(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -428,15 +431,19 @@ class ServiceColdCompileRuntimeTests(unittest.TestCase):
                 max_compile_gb=1,
                 max_compile_minutes=2,
             )
-            self.assertEqual(result["logical_name"], "fixture@1.0")
-            self.assertEqual(len(cold.calls), 1)
-            call = cold.calls[0]
-            self.assertEqual(Path(call["path"]), path)
-            self.assertEqual(call["logical_name"], "fixture@1.0")
-            self.assertEqual(call["features"], ["lemma"])
-            self.assertEqual(len(loader.calls), 1)
-            self.assertTrue((path / ".cfm" / "1" / "meta.json").is_file())
-            self.assertEqual(service.cache_status()["active_loads"], [])
+            try:
+                self.assertEqual(result["logical_name"], "fixture@1.0")
+                self.assertEqual(len(cold.calls), 1)
+                call = cold.calls[0]
+                self.assertEqual(Path(call["path"]), path)
+                self.assertEqual(call["logical_name"], "fixture@1.0")
+                self.assertEqual(call["features"], ["lemma"])
+                self.assertEqual(len(loader.calls), 1)
+                self.assertTrue((path / ".cfm" / "1" / "meta.json").is_file())
+                self.assertEqual(service.cache_status()["active_loads"], [])
+            finally:
+                service.unload("fixture@1.0")
+            self.assertEqual(store.remove_cache_object(path)["removed_entries"], 1)
 
     def test_zero_exit_without_marker_fails_closed_and_cleans_current_version(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -518,7 +525,10 @@ class ServiceColdCompileRuntimeTests(unittest.TestCase):
             release.set()
             thread.join(2)
             self.assertFalse(thread.is_alive())
-            self.assertEqual(errors, [])
+            try:
+                self.assertEqual(errors, [])
+            finally:
+                service.unload("fixture@1.0")
 
     @staticmethod
     def _capture(errors, func, *args, **kwargs):
@@ -547,7 +557,11 @@ class ServiceColdCompileRuntimeTests(unittest.TestCase):
             self.assertEqual(len(cold.calls), 1)
             release.set()
             thread.join(2)
-            self.assertEqual(errors, [])
+            self.assertFalse(thread.is_alive())
+            try:
+                self.assertEqual(errors, [])
+            finally:
+                service.unload("fixture@1.0")
 
     def test_cancel_api_stops_active_worker_and_is_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -617,8 +631,11 @@ class ServiceColdCompileRuntimeTests(unittest.TestCase):
             store.compile_lock = completes_before_lock_body
             service = self._service(store, prepared, loader, cold)
             service.load("fixture")
-            self.assertEqual(cold.calls, [])
-            self.assertEqual(len(loader.calls), 1)
+            try:
+                self.assertEqual(cold.calls, [])
+                self.assertEqual(len(loader.calls), 1)
+            finally:
+                service.unload("fixture@1.0")
 
     def test_cache_transition_is_not_held_during_cold_worker(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -633,6 +650,7 @@ class ServiceColdCompileRuntimeTests(unittest.TestCase):
 
             service = self._service(store, prepared, _Loader(), Compiler())
             service.load("fixture")
+            service.unload("fixture@1.0")
 
 
 if __name__ == "__main__":
