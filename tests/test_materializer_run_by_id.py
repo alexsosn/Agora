@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
 from unittest import mock
 
@@ -127,13 +128,16 @@ class RegisteredMaterializerExecutionRed2Tests(unittest.TestCase):
 
     def test_registered_execution_resolves_then_delegates_unchanged_to_host(self):
         runner = self._runner()
-        manifest = Path("/managed/runtime/agora.materializer.json")
+        target = Path("/managed")
+        manifest = target / "runtime" / "agora.materializer.json"
         output = Path("/tmp/out")
         source = Path("/tmp/source")
-        install_root = Path("/managed")
+        install_root = Path("/managed-root")
         registry_path = Path("/registry/materializers.yaml")
         with (
+            mock.patch.object(registered, "_registered_target", return_value=(PLUGIN, target)) as target_mock,
             mock.patch.object(registered, "resolve_installed_manifest", return_value=manifest) as resolve_mock,
+            mock.patch.object(installer, "_lock", return_value=nullcontext()) as lock_mock,
             mock.patch.object(host, "materialize", return_value=output) as materialize_mock,
             mock.patch.object(installer, "fetch_materializer") as fetch_mock,
             mock.patch.object(installer, "install_materializer") as install_mock,
@@ -148,6 +152,12 @@ class RegisteredMaterializerExecutionRed2Tests(unittest.TestCase):
                 registry_path=registry_path,
             )
         self.assertEqual(result, output)
+        target_mock.assert_called_once_with(
+            "example-converter",
+            install_root=install_root,
+            registry_path=registry_path,
+        )
+        lock_mock.assert_called_once_with(target.parent / f".{target.name}.lock")
         resolve_mock.assert_called_once_with(
             "example-converter",
             install_root=install_root,
@@ -165,7 +175,10 @@ class RegisteredMaterializerExecutionRed2Tests(unittest.TestCase):
 
     def test_resolution_failure_prevents_converter_host_invocation(self):
         runner = self._runner()
+        target = Path("/managed")
         with (
+            mock.patch.object(registered, "_registered_target", return_value=(PLUGIN, target)),
+            mock.patch.object(installer, "_lock", return_value=nullcontext()),
             mock.patch.object(
                 registered,
                 "resolve_installed_manifest",
