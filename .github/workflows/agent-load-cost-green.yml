@@ -29,7 +29,9 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
 
       - name: Apply guarded production transformations
-        run: python scripts/_apply_load_cost_green.py
+        run: |
+          python scripts/_apply_load_cost_green.py
+          python scripts/_refine_load_cost_schema.py
 
       - name: Regenerate bundled Context-Fabric catalog
         run: python scripts/generate_context_fabric_catalog.py
