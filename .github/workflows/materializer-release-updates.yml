@@ -1,0 +1,122 @@
+name: Materializer release updates
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: materializer-release-updates
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    name: Discover and propose materializer releases
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install Agora validation dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Passively discover releases
+        id: discover
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/materializer-release-report.json"
+          body="$RUNNER_TEMP/materializer-release-pr.md"
+          python scripts/check_materializer_releases.py \
+            --registry registry/materializers.yaml \
+            --report "$report" \
+            --pr-body "$body" \
+            --apply
+          if git diff --quiet -- registry/materializers.yaml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "report=$report" >> "$GITHUB_OUTPUT"
+          echo "body=$body" >> "$GITHUB_OUTPUT"
+
+      - name: Validate proposed canonical state
+        if: steps.discover.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          python scripts/validate_registry.py
+          python scripts/generate_marketplaces.py --check
+          python scripts/generate_context_fabric_catalog.py --check
+          python scripts/generate_release_status.py --check
+          python -m unittest discover -s tests -v
+
+      - name: Create or refresh the fixed review PR
+        if: steps.discover.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          branch="automation/materializer-releases"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$branch"
+          git add registry/materializers.yaml
+          git commit -m "registry: propose materializer release updates"
+
+          remote_sha="$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)"
+          if [[ -n "$remote_sha" ]]; then
+            git push \
+              --force-with-lease="refs/heads/$branch:$remote_sha" \
+              origin "HEAD:refs/heads/$branch"
+          else
+            git push origin "HEAD:refs/heads/$branch"
+          fi
+
+          number="$(gh pr list \
+            --base main \
+            --head automation/materializer-releases \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+          if [[ -z "$number" ]]; then
+            gh pr create \
+              --base main \
+              --head automation/materializer-releases \
+              --title "registry: propose materializer release updates" \
+              --body-file "${{ steps.discover.outputs.body }}"
+          else
+            gh pr edit "$number" \
+              --title "registry: propose materializer release updates" \
+              --body-file "${{ steps.discover.outputs.body }}"
+          fi
+
+      - name: Close obsolete fixed review PR after successful no-op discovery
+        if: steps.discover.outputs.changed == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          number="$(gh pr list \
+            --base main \
+            --head automation/materializer-releases \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+          if [[ -n "$number" ]]; then
+            gh pr close "$number" \
+              --comment "A successful passive release check now produces no materializer update proposal; closing the obsolete automation PR."
+          fi

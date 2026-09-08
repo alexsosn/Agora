@@ -604,7 +604,7 @@ def _create_staging_output(final: Path) -> StagingOutput:
         tempfile.mkdtemp(prefix=f".{final.name}.agora-stage-", dir=final.parent)
     ).resolve()
     output = root / "output"
-    output.mkdir()
+    output.mkdir(mode=0o700)
     return StagingOutput(root=root, output=output)
 
 
