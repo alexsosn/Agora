@@ -151,24 +151,23 @@ jobs:
               next_start = resources.find('\n- id: ', start + len(marker))
               end = len(resources) if next_start < 0 else next_start + 1
               block = resources[start:end]
-              if '  load_cost:\n' not in block:
-                  raise SystemExit(f'missing load_cost for {resource_id}')
-              source_anchor = '  source_snapshot:'
-              pos = block.find(source_anchor)
-              if pos < 0:
-                  raise SystemExit(f'missing source_snapshot for {resource_id}')
-              before = block[:pos]
-              after = block[pos:]
-              lines = before.splitlines(keepends=True)
+              load_anchor = '  load_cost:\n'
+              load_pos = block.find(load_anchor)
+              source_pos = block.find('  source_snapshot:', load_pos)
+              if load_pos < 0 or source_pos < 0 or source_pos <= load_pos:
+                  raise SystemExit(f'load_cost boundary drifted for {resource_id}')
+              prefix = block[:load_pos]
+              cost = block[load_pos:source_pos]
+              suffix = block[source_pos:]
+              lines = cost.splitlines(keepends=True)
               note_indexes = [i for i, line in enumerate(lines) if line.startswith('    notes:')]
+              if len(note_indexes) > 1:
+                  raise SystemExit(f'ambiguous load_cost notes for {resource_id}')
               if note_indexes:
-                  if len(note_indexes) != 1:
-                      raise SystemExit(f'ambiguous load_cost notes for {resource_id}')
-                  i = note_indexes[0]
-                  lines[i] = f'    notes: "{note}"\n'
+                  lines[note_indexes[0]] = f'    notes: "{note}"\n'
               else:
                   lines.append(f'    notes: "{note}"\n')
-              new_block = ''.join(lines) + after
+              new_block = prefix + ''.join(lines) + suffix
               resources = resources[:start] + new_block + resources[end:]
           resources_path.write_text(resources, encoding='utf-8')
           PY
