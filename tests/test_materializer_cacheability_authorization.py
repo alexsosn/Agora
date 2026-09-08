@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import inspect
 import json
 import tempfile
 import unittest
@@ -11,6 +12,7 @@ from unittest import mock
 import yaml
 
 from scripts import agora_install_materializer as installer
+from scripts import agora_materialize as host
 from scripts import agora_materialize_registered as registered
 
 
@@ -168,13 +170,20 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
         )
         return registry_path, target, receipt["execution_identity_sha256"]
 
+    def test_authoritative_resolver_has_no_caller_execution_identity_parameter(self):
+        resolver = registered.resolve_installed_cacheability
+        parameters = inspect.signature(resolver).parameters
+        self.assertNotIn("execution_identity", parameters)
+        self.assertNotIn("verified_execution_identity", parameters)
+        self.assertNotIn("execution_identity_sha256", parameters)
+
     def test_authorization_uses_verified_installed_identity_not_a_caller_digest(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             registry_path, _target, actual_identity = self._installed_fixture(root)
 
             _write_registry(registry_path, _plugin(cacheability=_reusable(UNREVIEWED_EXECUTION_ID)))
-            rejected = registered.resolve_cacheability_authorization(
+            rejected = registered.resolve_installed_cacheability(
                 "example-converter",
                 "example-to-tf",
                 install_root=root / "installed",
@@ -184,7 +193,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
             self.assertFalse(rejected["reuse_allowed"])
 
             _write_registry(registry_path, _plugin(cacheability=_reusable(actual_identity)))
-            accepted = registered.resolve_cacheability_authorization(
+            accepted = registered.resolve_installed_cacheability(
                 "example-converter",
                 "example-to-tf",
                 install_root=root / "installed",
@@ -193,6 +202,9 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
             self.assertEqual(accepted["mode"], "reusable")
             self.assertTrue(accepted["reuse_allowed"])
             self.assertEqual(accepted["execution_identity_sha256"], actual_identity)
+            self.assertEqual(accepted["plugin_id"], "example-converter")
+            self.assertEqual(accepted["materializer_id"], "example-to-tf")
+            self.assertEqual(accepted["plugin_ref"], REF)
             self.assertRegex(accepted["attestation_sha256"], r"^[0-9a-f]{64}$")
 
     def test_tampered_installation_receipt_cannot_authorize_reuse(self):
@@ -210,7 +222,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
                 installer.MaterializerInstallError,
                 r"integrity verification",
             ):
-                registered.resolve_cacheability_authorization(
+                registered.resolve_installed_cacheability(
                     "example-converter",
                     "example-to-tf",
                     install_root=root / "installed",
@@ -234,7 +246,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
                     installer.MaterializerInstallError,
                     r"not installed",
                 ):
-                    registered.resolve_cacheability_authorization(
+                    registered.resolve_installed_cacheability(
                         "example-converter",
                         "example-to-tf",
                         install_root=install_root,
@@ -253,7 +265,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
             with mock.patch.object(installer, "fetch_materializer") as fetch, mock.patch.object(
                 installer, "install_materializer"
             ) as install, mock.patch.object(importlib, "import_module") as import_module:
-                result = registered.resolve_cacheability_authorization(
+                result = registered.resolve_installed_cacheability(
                     "example-converter",
                     "example-to-tf",
                     install_root=root / "installed",
@@ -280,8 +292,11 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
                     yield
 
             with mock.patch.object(installer, "_lock", changing_lock):
-                with self.assertRaises(installer.MaterializerInstallError):
-                    registered.resolve_cacheability_authorization(
+                with self.assertRaisesRegex(
+                    installer.MaterializerInstallError,
+                    r"registry binding changed|integrity verification",
+                ):
+                    registered.resolve_installed_cacheability(
                         "example-converter",
                         "example-to-tf",
                         install_root=root / "installed",
@@ -314,13 +329,66 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
             with mock.patch.object(installer, "_lock", observing_lock), mock.patch.object(
                 installer, "_environment_current", side_effect=observing_current
             ):
-                result = registered.resolve_cacheability_authorization(
+                result = registered.resolve_installed_cacheability(
                     "example-converter",
                     "example-to-tf",
                     install_root=root / "installed",
                     registry_path=registry_path,
                 )
             self.assertTrue(result["reuse_allowed"])
+
+    def test_removed_materializer_cannot_receive_authorization_from_stale_installation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            registry_path, _target, _actual_identity = self._installed_fixture(root)
+            current = _plugin()
+            current["materializers"] = []
+            _write_registry(registry_path, current)
+            with mock.patch.object(installer, "compare_cacheability_policy") as compare:
+                with self.assertRaisesRegex(
+                    installer.MaterializerInstallError,
+                    r"not approved|binding",
+                ):
+                    registered.resolve_installed_cacheability(
+                        "example-converter",
+                        "example-to-tf",
+                        install_root=root / "installed",
+                        registry_path=registry_path,
+                    )
+            compare.assert_not_called()
+
+    def test_direct_execution_does_not_consult_cacheability_policy(self):
+        plugin = _plugin()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "managed-environment"
+            runtime = target / "runtime"
+            runtime.mkdir(parents=True)
+            manifest = runtime / plugin["manifest"]
+            output = root / "out"
+            with (
+                mock.patch.object(registered, "_registered_target", return_value=(plugin, target)),
+                mock.patch.object(registered, "resolve_installed_manifest", return_value=manifest),
+                mock.patch.object(
+                    installer,
+                    "_lock",
+                    return_value=mock.MagicMock(
+                        __enter__=lambda self: None,
+                        __exit__=lambda self, *args: False,
+                    ),
+                ),
+                mock.patch.object(installer, "_validate_binding", return_value={}),
+                mock.patch.object(installer, "compare_cacheability_policy") as compare,
+                mock.patch.object(host, "materialize", return_value=output),
+            ):
+                result = registered.materialize_registered(
+                    plugin_id="example-converter",
+                    materializer_id="example-to-tf",
+                    output=output,
+                    install_root=root,
+                )
+            self.assertEqual(result, output)
+            compare.assert_not_called()
 
 
 if __name__ == "__main__":
