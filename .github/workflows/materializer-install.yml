@@ -12,6 +12,7 @@ on:
       - 'scripts/agora_materialize.py'
       - 'scripts/validate_registry.py'
       - 'tests/test_materializer_installation.py'
+      - 'tests/test_burns_materializer*.py'
       - 'tests/test_registry.py'
   pull_request:
     paths:
@@ -23,6 +24,7 @@ on:
       - 'scripts/agora_materialize.py'
       - 'scripts/validate_registry.py'
       - 'tests/test_materializer_installation.py'
+      - 'tests/test_burns_materializer*.py'
       - 'tests/test_registry.py'
 
 permissions:
@@ -114,3 +116,214 @@ jobs:
           python scripts/agora_install_materializer.py install pseudepigrapha-tf \
             --approve-code-execution \
             --root "$RUNNER_TEMP/materializers"
+
+  ugarit-context-parsing:
+    name: Fetch, install, and materialize Burns Workbooks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out Agora
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Agora registry dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Validate canonical registry
+        run: python scripts/validate_registry.py
+
+      - name: Resolve the registered Burns commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref=$(python -c "from scripts.agora_install_materializer import load_registry, select_plugin; print(select_plugin(load_registry(), 'ugarit-context-parsing')['ref'])")
+          echo "UGARIT_CONTEXT_PARSING_COMMIT=$ref" >> "$GITHUB_ENV"
+
+      - name: Discover registered materializer
+        run: python scripts/agora_install_materializer.py list | grep -F 'ugarit-context-parsing'
+
+      - name: Passively fetch immutable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/agora_install_materializer.py fetch ugarit-context-parsing --root "$RUNNER_TEMP/materializers"
+          source_root="$RUNNER_TEMP/materializers/ugarit-context-parsing/$UGARIT_CONTEXT_PARSING_COMMIT/source"
+          test -f "$source_root/agora.materializer.json"
+          test -f "$RUNNER_TEMP/materializers/ugarit-context-parsing/$UGARIT_CONTEXT_PARSING_COMMIT/agora-source.json"
+          test ! -d "$RUNNER_TEMP/materializers/ugarit-context-parsing/$UGARIT_CONTEXT_PARSING_COMMIT/environments"
+
+      - name: Explicitly approve and install Python environment
+        run: |
+          python scripts/agora_install_materializer.py install ugarit-context-parsing \
+            --approve-code-execution \
+            --root "$RUNNER_TEMP/materializers"
+
+      - name: Resolve installed runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          runtime=$(MATERIALIZER_ROOT="$RUNNER_TEMP/materializers" python - <<'PY'
+          import os
+          from pathlib import Path
+          from scripts.agora_install_materializer import installation_path, load_registry, select_plugin
+          plugin = select_plugin(load_registry(), 'ugarit-context-parsing')
+          print(installation_path(plugin, Path(os.environ['MATERIALIZER_ROOT'])) / 'runtime')
+          PY
+          )
+          echo "UGARIT_RUNTIME=$runtime" >> "$GITHUB_ENV"
+
+      - name: Verify receipt, dependency closure, and manifest identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          MATERIALIZER_ROOT="$RUNNER_TEMP/materializers" python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          from scripts.agora_install_materializer import installation_path, load_registry, select_plugin
+          from scripts.agora_materialize import load_manifest
+
+          root = Path(os.environ['MATERIALIZER_ROOT'])
+          plugin = select_plugin(load_registry(), 'ugarit-context-parsing')
+          target = installation_path(plugin, root)
+          runtime = target / 'runtime'
+          receipt = json.loads((target / 'agora-installation.json').read_text(encoding='utf-8'))
+          manifest = load_manifest(runtime / 'agora.materializer.json')
+
+          assert receipt['schema_version'] == 2
+          assert receipt['plugin']['commit'] == os.environ['UGARIT_CONTEXT_PARSING_COMMIT']
+          assert receipt['environment']['install_trust'] == 'explicit-code-execution'
+          assert len(receipt['source']['tree_sha256']) == 64
+          assert len(receipt['environment']['tree_sha256']) == 64
+          assert len(receipt['execution_identity_sha256']) == 64
+          distributions = {row['name'].lower(): row['version'] for row in receipt['environment']['distributions']}
+          assert distributions['ugarit-context-parsing'] == '0.2.0'
+          assert distributions['text-fabric'].startswith('13.')
+          assert 'pdfplumber' in distributions
+          assert manifest['plugin']['id'] == 'ugarit-context-parsing'
+          assert [item['id'] for item in manifest['materializers']] == [
+              'burns-workbooks-csv-text-fabric',
+              'burns-workbooks-pdf-text-fabric',
+          ]
+
+          sys.path.insert(0, str(runtime))
+          import ugarit_context_parsing.cli  # noqa: F401
+          PY
+
+      - name: Verify packaged existing PDF parser in an isolated import process
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          PYTHONPATH="$UGARIT_RUNTIME" python - <<'PY'
+          import importlib
+          parser = importlib.import_module('scripts.parse_workbooks_to_csv')
+          assert callable(parser.parse_pdf)
+          PY
+
+      - name: Verify idempotent integrity check
+        run: |
+          python scripts/agora_install_materializer.py install ugarit-context-parsing \
+            --approve-code-execution \
+            --root "$RUNNER_TEMP/materializers"
+
+      - name: Install bubblewrap
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+
+      - name: Allow bubblewrap user/network namespaces on Ubuntu runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --unshare-all --ro-bind / / /bin/true
+
+      - name: Create synthetic Burns Workbook CSV source
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_ROOT="$RUNNER_TEMP/burns-source" python - <<'PY'
+          import csv
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ['SOURCE_ROOT'])
+          path = root / 'Cultic Actions' / 'Worksheet 1.csv'
+          path.parent.mkdir(parents=True)
+          fields = [
+              'source_page', 'section', 'root', 'headword', 'ktu', 'references',
+              'locus', 'room', 'point', 'depth', 'disputed', 'comments',
+          ]
+          row = {
+              'source_page': 1,
+              'section': 'Synthetic section',
+              'root': '',
+              'headword': 'bʿl',
+              'ktu': '1.14',
+              'references': 'synthetic',
+              'locus': 'GP',
+              'room': '1',
+              'point': '',
+              'depth': '',
+              'disputed': 'n',
+              'comments': 'Agora synthetic smoke only',
+          }
+          with path.open('w', encoding='utf-8', newline='') as handle:
+              writer = csv.DictWriter(handle, fieldnames=fields)
+              writer.writeheader()
+              writer.writerow(row)
+          PY
+
+      - name: Materialize synthetic CSV through installed runtime and real sandbox
+        run: |
+          python scripts/agora_materialize.py \
+            --manifest "$UGARIT_RUNTIME/agora.materializer.json" \
+            --materializer burns-workbooks-csv-text-fabric \
+            --source "$RUNNER_TEMP/burns-source" \
+            --output "$RUNNER_TEMP/burns-tf"
+
+      - name: Verify Text-Fabric artifact, conversion report, and Agora provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          PYTHONPATH="$UGARIT_RUNTIME" ARTIFACT="$RUNNER_TEMP/burns-tf" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from tf.fabric import Fabric
+
+          artifact = Path(os.environ['ARTIFACT'])
+          for required in (
+              'otype.tf', 'oslots.tf', 'otext.tf',
+              'conversion-report.json', 'agora-materialization.json',
+          ):
+              assert (artifact / required).is_file(), required
+
+          report = json.loads((artifact / 'conversion-report.json').read_text(encoding='utf-8'))
+          provenance = json.loads((artifact / 'agora-materialization.json').read_text(encoding='utf-8'))
+          assert report['status'] == 'ok'
+          assert report['counts']['records'] == 1
+          assert provenance['plugin']['id'] == 'ugarit-context-parsing'
+          assert provenance['materializer'] == 'burns-workbooks-csv-text-fabric'
+          assert provenance['source']['type'] == 'user-local'
+          assert provenance['sandbox'] == 'bubblewrap'
+
+          api = Fabric(locations=[str(artifact)], modules=[''], silent='deep').load(
+              'headword ktu cuc_tablet', silent='deep'
+          )
+          assert api is not None
+          records = tuple(api.F.otype.s('record'))
+          assert records == (1,)
+          assert api.F.headword.v(1) == 'bʿl'
+          assert api.F.ktu.v(1) == '1.14'
+          assert api.F.cuc_tablet.v(1) == 'KTU 1.14'
+          PY
