@@ -37,8 +37,6 @@ jobs:
 
       - name: Passively discover releases
         id: discover
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           report="$RUNNER_TEMP/materializer-release-report.json"
