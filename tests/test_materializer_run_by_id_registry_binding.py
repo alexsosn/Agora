@@ -124,6 +124,40 @@ class RegisteredMaterializerRegistryBindingTests(unittest.TestCase):
             materialize_mock.assert_not_called()
             self.assertFalse(target.parent.joinpath(f".{target.name}.lock").exists())
 
+    def test_registry_target_change_while_waiting_for_lock_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            old_target = root / "old-environment"
+            new_target = root / "new-environment"
+            manifest = old_target / "runtime" / PLUGIN["manifest"]
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text("{}", encoding="utf-8")
+            with (
+                mock.patch.object(
+                    registered,
+                    "_registered_target",
+                    side_effect=[(PLUGIN, old_target), (PLUGIN, new_target)],
+                ),
+                mock.patch.object(
+                    registered,
+                    "resolve_installed_manifest",
+                    return_value=manifest,
+                ),
+                mock.patch.object(installer, "_lock", return_value=nullcontext()),
+                mock.patch.object(installer, "_validate_binding") as binding_mock,
+                mock.patch.object(host, "materialize") as materialize_mock,
+            ):
+                with self.assertRaisesRegex(installer.MaterializerInstallError, "binding changed"):
+                    registered.materialize_registered(
+                        plugin_id=PLUGIN["id"],
+                        materializer_id="allowed-to-tf",
+                        output=root / "output",
+                        source=root / "source",
+                        sandbox="off",
+                    )
+            binding_mock.assert_not_called()
+            materialize_mock.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
