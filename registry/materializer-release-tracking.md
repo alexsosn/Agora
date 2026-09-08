@@ -40,7 +40,11 @@ Discovery does not clone, build, install, import, or execute candidate plugin co
 
 ## Proposal workflow
 
-`.github/workflows/materializer-release-updates.yml` runs daily and can also be dispatched manually. The workflow explicitly checks out canonical `main` even for `workflow_dispatch`, so the fixed bot branch is always rebuilt from current main rather than from an arbitrary selected dispatch ref. It uses the repository `GITHUB_TOKEN`, applies proposals only to a working copy, runs Agora's registry/generator/unit validation before any push, and maintains one fixed review branch/PR: `automation/materializer-releases`.
+`.github/workflows/materializer-release-updates.yml` runs daily and can also be dispatched manually. The workflow explicitly checks out canonical `main` even for `workflow_dispatch`, so the fixed bot branch is always rebuilt from current main rather than from an arbitrary selected dispatch ref.
+
+V1 release discovery targets public GitHub repositories and performs those upstream REST reads without forwarding Agora's repository-scoped `GITHUB_TOKEN`. The token is reserved for operations against Agora itself: pushing the fixed automation branch and creating, editing, or closing the review PR. This avoids treating an Agora-scoped installation token as generic authentication for unrelated upstream repositories.
+
+The workflow applies proposals only to a working copy, runs Agora's registry/generator/unit validation before any push, and maintains one fixed review branch/PR: `automation/materializer-releases`.
 
 The registry patcher changes only the selected entries' `version` and `ref` scalar bytes and verifies the resulting YAML semantically. Repeated successful runs are idempotent. A failure produces no partial aggregate proposal; a successful no-update run may close an obsolete automation PR.
 
@@ -50,20 +54,22 @@ Automation PRs are review artifacts, not trust decisions. The workflow never mer
 
 ## Manual check
 
-Discovery/report only:
+Public-repository discovery/report only needs no token:
 
 ```bash
-GITHUB_TOKEN=... python scripts/check_materializer_releases.py \
+python scripts/check_materializer_releases.py \
   --report /tmp/materializer-release-report.json
 ```
 
 Apply validated proposals to the local registry working tree:
 
 ```bash
-GITHUB_TOKEN=... python scripts/check_materializer_releases.py \
+python scripts/check_materializer_releases.py \
   --apply \
   --report /tmp/materializer-release-report.json \
   --pr-body /tmp/materializer-release-pr.md
 ```
+
+The CLI still accepts `GITHUB_TOKEN` from the environment for an operator-supplied credential whose scope actually covers the target repositories, but the scheduled public-upstream workflow deliberately does not pass Agora's repository token into discovery.
 
 Run `python scripts/validate_registry.py` and the normal generated-artifact/unit gates before committing any resulting registry change.
