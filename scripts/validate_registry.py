@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -38,10 +39,26 @@ def load_json(path: Path) -> Any:
         return json.load(fh)
 
 
+def _non_finite_json_number_errors(value: Any, label: str, path: tuple[Any, ...] = ()) -> list[str]:
+    errors: list[str] = []
+    if isinstance(value, float) and not math.isfinite(value):
+        rendered_path = ".".join(str(part) for part in path)
+        where = f"{label}:{rendered_path}" if rendered_path else label
+        errors.append(f"{where}: non-finite number {value!r} is not valid JSON")
+        return errors
+    if isinstance(value, dict):
+        for key, child in value.items():
+            errors.extend(_non_finite_json_number_errors(child, label, (*path, key)))
+    elif isinstance(value, (list, tuple)):
+        for index, child in enumerate(value):
+            errors.extend(_non_finite_json_number_errors(child, label, (*path, index)))
+    return errors
+
+
 def schema_errors(instance: Any, schema_path: Path, label: str) -> list[str]:
     schema = load_json(schema_path)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
-    errors: list[str] = []
+    errors = _non_finite_json_number_errors(instance, label)
     for error in sorted(validator.iter_errors(instance), key=lambda e: list(e.absolute_path)):
         path = ".".join(str(part) for part in error.absolute_path)
         where = f"{label}:{path}" if path else label
@@ -136,6 +153,42 @@ def validate_license_evidence(
         errors.append(
             f"{prefix}.notes: {status} evidence requires explanatory notes"
         )
+
+
+def validate_load_cost(resource: dict[str, Any], errors: list[str]) -> None:
+    cost = resource.get("load_cost")
+    if not isinstance(cost, dict):
+        return
+
+    prefix = f"resource {resource['id']}.load_cost"
+    kind = resource.get("kind")
+    scope = cost.get("scope")
+    expected_scope = {
+        "corpus": "resource",
+        "collection": "collection-member",
+    }.get(kind)
+    if expected_scope is not None and scope != expected_scope:
+        errors.append(
+            f"{prefix}.scope: {kind} resources must be {expected_scope!r}, got {scope!r}"
+        )
+    if kind == "feature-module":
+        errors.append(f"{prefix}: feature modules cannot declare standalone load cost")
+
+    observed_range = cost.get("typical_member_first_load_seconds")
+    if isinstance(observed_range, dict):
+        minimum = observed_range.get("min")
+        maximum = observed_range.get("max")
+        numeric = (int, float)
+        if (
+            isinstance(minimum, numeric)
+            and not isinstance(minimum, bool)
+            and isinstance(maximum, numeric)
+            and not isinstance(maximum, bool)
+            and minimum > maximum
+        ):
+            errors.append(
+                f"{prefix}.typical_member_first_load_seconds: min must be <= max"
+            )
 
 
 def validate_registry(root: Path = ROOT) -> list[str]:
@@ -316,6 +369,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                 errors,
             )
         validate_license_evidence(resource, license_evidence_statuses, errors)
+        validate_load_cost(resource, errors)
         ensure_vocab(resource["verification"]["status"], verification, f"{prefix}.verification.status", errors)
 
         if resource["kind"] == "feature-module":

@@ -20,6 +20,20 @@ resources:
     status: verified
     evidence:
     - check_id: resource-load/bhsa
+  load_cost:
+    scope: resource
+    source_size_mb: 165
+    compiled_size_mb: 866
+    total_cache_mb: 1100
+    peak_rss_mb: 2580
+    first_load_seconds: 630
+    warm_load_seconds: 7.7
+    measurement:
+      checked_at: '2026-09-04'
+      agora_revision: bf5fb918d513fcf859bc925a10922e841b777b98
+      environment: "macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7"
+      evidence: "https://github.com/alexsosn/Agora/issues/38#issuecomment-5536924435"
+    notes: "Historical machine-specific observation; current-machine cost may differ. Parent-only measurement excludes module combinations and may trigger separate overlay compilation tracked in #46."
   source_snapshot: {source: 'Context-Fabric/context-fabric:CorporaTable.tsx', checked_at: '2026-08-29'}
 - id: dss
   name: Dead Sea Scrolls
@@ -272,6 +286,18 @@ resources:
       upstream:
       - {repository: Context-Fabric/context-fabric, url: https://github.com/Context-Fabric/context-fabric/pull/7}
       - {repository: pthu/greek_literature, url: https://github.com/pthu/greek_literature/pull/1}
+  load_cost:
+    scope: collection-member
+    typical_member_cache_mb: 10
+    typical_member_first_load_seconds: {min: 20, max: 33}
+    discovery_seconds: 5.2
+    discovery_cache_mb: 1.7
+    measurement:
+      checked_at: '2026-09-04'
+      agora_revision: bf5fb918d513fcf859bc925a10922e841b777b98
+      environment: "macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7"
+      evidence: "https://github.com/alexsosn/Agora/issues/38#issuecomment-5536924435"
+    notes: "Historical machine-specific observation; current-machine cost may differ."
   source_snapshot: {source: 'Context-Fabric/context-fabric:CorporaTable.tsx', checked_at: '2026-08-29'}
 - id: athenaeus
   name: Athenaeus Deipnosophistae
@@ -491,6 +517,20 @@ resources:
     status: verified
     evidence:
     - check_id: resource-load/cuc
+  load_cost:
+    scope: resource
+    source_size_mb: 3.1
+    compiled_size_mb: 20
+    total_cache_mb: 24
+    peak_rss_mb: 288
+    first_load_seconds: 30
+    warm_load_seconds: 1.5
+    measurement:
+      checked_at: '2026-09-04'
+      agora_revision: bf5fb918d513fcf859bc925a10922e841b777b98
+      environment: "macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7"
+      evidence: "https://github.com/alexsosn/Agora/issues/38#issuecomment-5536924435"
+    notes: "Historical machine-specific observation; current-machine cost may differ."
   source_snapshot: {source: 'Context-Fabric/context-fabric:CorporaTable.tsx', checked_at: '2026-08-29'}
 - id: dhammapada
   name: Dhammapada
@@ -698,4 +738,17 @@ resources:
     notes: Upstream source data and generated TF/TF-provenance datasets are CC BY 4.0; code/docs are MIT.
     evidence: {status: resolved, checked_at: '2026-09-06', sources: [https://github.com/alexsosn/TLHdig-TF/blob/main/README.md#licensing]}
   verification: {status: community}
+  load_cost:
+    scope: resource
+    source_size_mb: 388
+    compiled_size_mb: 4600
+    total_cache_mb: 5100
+    peak_rss_mb: 2100
+    first_load_seconds: 1740
+    measurement:
+      checked_at: '2026-09-04'
+      agora_revision: bf5fb918d513fcf859bc925a10922e841b777b98
+      environment: "macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7"
+      evidence: "https://github.com/alexsosn/Agora/issues/38#issuecomment-5536924435"
+    notes: "Historical machine-specific observation; current-machine cost may differ. Peak RSS came from the related earlier run rather than the final converged compile measurement."
   source_snapshot: {source: alexsosn/TLHdig-TF, checked_at: '2026-09-01'}

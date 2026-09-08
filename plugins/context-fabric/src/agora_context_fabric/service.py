@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import shutil
 import threading
 import time
@@ -148,6 +149,7 @@ class ContextFabricService:
             ),
             "verification": verification,
             "licenses": dict(resource.licenses),
+            "load_cost": copy.deepcopy(resource.load_cost) if resource.load_cost else None,
             "integration_issues": list(resource.integration_issues),
             "source_snapshot": dict(resource.source_snapshot),
             "source": {
