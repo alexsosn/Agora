@@ -126,10 +126,11 @@ class RegisteredMaterializerExecutionRed2Tests(unittest.TestCase):
         )
         return runner
 
-    def test_registered_execution_resolves_then_delegates_unchanged_to_host(self):
+    def test_registered_execution_resolves_rebinds_then_delegates_unchanged_to_host(self):
         runner = self._runner()
         target = Path("/managed")
-        manifest = target / "runtime" / "agora.materializer.json"
+        runtime = target / "runtime"
+        manifest = runtime / "agora.materializer.json"
         output = Path("/tmp/out")
         source = Path("/tmp/source")
         install_root = Path("/managed-root")
@@ -138,6 +139,7 @@ class RegisteredMaterializerExecutionRed2Tests(unittest.TestCase):
             mock.patch.object(registered, "_registered_target", return_value=(PLUGIN, target)) as target_mock,
             mock.patch.object(registered, "resolve_installed_manifest", return_value=manifest) as resolve_mock,
             mock.patch.object(installer, "_lock", return_value=nullcontext()) as lock_mock,
+            mock.patch.object(installer, "_validate_binding", return_value={}) as binding_mock,
             mock.patch.object(host, "materialize", return_value=output) as materialize_mock,
             mock.patch.object(installer, "fetch_materializer") as fetch_mock,
             mock.patch.object(installer, "install_materializer") as install_mock,
@@ -152,17 +154,20 @@ class RegisteredMaterializerExecutionRed2Tests(unittest.TestCase):
                 registry_path=registry_path,
             )
         self.assertEqual(result, output)
-        target_mock.assert_called_once_with(
-            "example-converter",
-            install_root=install_root,
-            registry_path=registry_path,
-        )
+        self.assertEqual(target_mock.call_count, 2)
+        for call in target_mock.call_args_list:
+            self.assertEqual(call.args, ("example-converter",))
+            self.assertEqual(
+                call.kwargs,
+                {"install_root": install_root, "registry_path": registry_path},
+            )
         lock_mock.assert_called_once_with(target.parent / f".{target.name}.lock")
         resolve_mock.assert_called_once_with(
             "example-converter",
             install_root=install_root,
             registry_path=registry_path,
         )
+        binding_mock.assert_called_once_with(PLUGIN, runtime)
         materialize_mock.assert_called_once_with(
             manifest_path=manifest,
             materializer_id="example-to-tf",
