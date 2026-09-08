@@ -2,7 +2,9 @@
 
 ## Question
 
-What is the smallest safe Agora-owned architecture that turns the output of an already approved/installed materializer into a reusable local artifact that Context-Fabric/cfabric-mcp can load without manual filesystem wiring, while preserving installation trust, sandboxing, provenance, cache safety, and local-only licensing?
+What is the smallest safe Agora-owned architecture that turns the output of an already approved/installed materializer into a managed local artifact that Context-Fabric/cfabric-mcp can load without manual filesystem wiring, while preserving installation trust, sandboxing, provenance, cache safety, local-only licensing, and the materializer's execution semantics?
+
+The cacheability/privacy findings in `P1-research-materialization-composition-97-determinism-amendment.md` are normative: reusable request-identity caching is permitted only after #103 defines an explicit reviewed cacheability contract. Unknown/legacy materializers remain executable but are not memoized/reused by request identity.
 
 ## Baseline inspected
 
@@ -10,7 +12,7 @@ What is the smallest safe Agora-owned architecture that turns the output of an a
 - Context-Fabric upstream `master`: `3a38ca80e617d872ce1664e0f0740486d0e7e8ac`.
 - Agora Context-Fabric runtime pins `cfabric-mcp==0.1.7`; upstream `libs/mcp/pyproject.toml` is also `0.1.7` at the inspected commit.
 - Burns Workbooks materializer: registered `ugarit-context-parsing` 0.2.0, local-only Burns-derived output.
-- Dependency: the registered materializer-by-ID runner (#94/#95) must merge before production implementation here.
+- Dependency: the registered materializer-by-ID runner (#94/#95) must merge before production implementation here; reusable caching additionally depends on #103.
 
 ## Findings
 
@@ -45,9 +47,9 @@ The registered installer additionally records `execution_identity_sha256`, bindi
 
 Composition should reuse these identities rather than introduce a second incompatible hashing model.
 
-### Recommended canonical artifact identity
+### Canonical artifact identity and cacheability are separate contracts
 
-For the first supported version, the deterministic artifact key should be a canonical JSON hash over at least:
+A stable artifact/receipt key can be a canonical JSON hash over at least:
 
 - source identity: `type`, source `tree_sha256`, and immutable source revision when available;
 - registered plugin id + immutable registry commit;
@@ -55,11 +57,12 @@ For the first supported version, the deterministic artifact key should be a cano
 - materializer id;
 - execution manifest SHA-256;
 - explicit materializer options/arguments once the contract supports options;
-- output format / composition schema version.
+- output format / composition schema version;
+- the reviewed cacheability policy/attestation identity when request-identity reuse is allowed.
 
-Timestamps, destination paths, cache roots, and other machine-local values must not affect the key.
+Timestamps, destination paths, cache roots, and other machine-local values must not affect the stable request identity. The current `plugin.code_sha256` remains valuable artifact provenance, but `execution_identity_sha256` is the stronger invalidation input because it explicitly binds dependency/runtime identity.
 
-The current `plugin.code_sha256` remains valuable artifact provenance, but `execution_identity_sha256` is the stronger cache invalidation input because it explicitly binds dependency/runtime identity.
+Crucially, identity equality does **not** by itself imply safe reuse. The current materializer-plugin v1 schema does not declare determinism/cacheability. A nondeterministic converter with identical known inputs may legitimately produce a fresh result on every execution. Therefore #103 must define the reviewed semantic cacheability contract before #99 serves request-identity cache hits. Exact output-tree hashing proves stored-byte integrity; it does not prove rerun determinism.
 
 ### Cache ownership should remain Agora-wide, not Context-Fabric's Git cache
 
@@ -77,22 +80,27 @@ Proposed ownership shape (exact names are design-stage, not yet contract):
     agora-artifact.json        # Agora composition/cache receipt
 ```
 
-The receipt should bind the artifact key, source identity, plugin registry commit, execution identity, manifest/materializer identity, output tree hash, format, and local-only/redistribution policy where relevant.
+The receipt should bind the artifact key, source identity, plugin registry commit, execution identity, manifest/materializer identity, cacheability disposition/attestation where applicable, output tree hash, format, and local-only/redistribution policy.
 
 ### Publication/reuse must fail closed
 
-Reuse should require:
+A managed artifact must be validated before Context-Fabric receives it. Request-identity reuse additionally requires an explicit #103-approved reusable disposition.
+
+Validation/reuse should require:
 
 1. a complete receipt with the expected schema/version;
-2. deterministic key recomputation;
+2. stable identity/key recomputation;
 3. output tree hash match;
 4. required materializer output paths still present;
 5. materializer installation still current/approved against the selected registry before *new execution*;
-6. no symlink/path escape inside managed artifact state.
+6. no symlink/path escape inside managed artifact state;
+7. for reuse, a current reviewed cacheability policy/attestation matching the receipt/key.
+
+Unknown/legacy or explicitly non-cacheable materializers may still execute and produce managed one-shot artifacts, but they must not be served as request-identity cache hits.
 
 A tampered/incomplete cache entry must not be passed to Context-Fabric. Repair/rebuild may be an explicit operation or an automatic *derived-artifact* rebuild, but it must never implicitly install/repair third-party Python.
 
-Equivalent concurrent requests need a per-artifact lock. Build into a private sibling staging directory, validate, write the cache receipt with protected creation semantics, and atomically rename into the final key. A losing process should validate/reuse the winner rather than publish competing output.
+Equivalent concurrent reusable requests need a per-artifact lock. Build into a private sibling staging directory, validate, write the cache receipt with protected creation semantics, and atomically rename into the final key. A losing process may validate/reuse the winner only where #103 permits request-identity reuse; non-cacheable executions must retain direct-execution semantics.
 
 ### Context-Fabric hand-off should be a dedicated local-artifact API
 
@@ -136,6 +144,8 @@ Burns-derived outputs must remain local because of the upstream CC BY-NC-ND 2.5 
 
 The managed artifact receipt should record a redistribution policy/classification derived from the registered materializer/data-license metadata where available. The first implementation does not need a universal license reasoner, but it must at least preserve `local-only` for Burns and avoid treating cache entries as marketplace-distributable resources.
 
+The current local materialization provenance records a source directory basename. That is acceptable for local audit state, but public MCP/tool projections must omit both the absolute local source path and basename by default because a basename can itself contain user-sensitive project/document naming. Public provenance should expose content identity/type/revision and approved converter identity instead.
+
 ### Script-level host should be refactored only as far as necessary
 
 #95 adds a supported registry-ID execution seam but the core host remains under `scripts/`. Composition needs programmatic access to materialization results and identities, so a small Agora-owned library module may now be justified.
@@ -144,29 +154,33 @@ Do not migrate all script code pre-emptively. Extract only the stable functions/
 
 ## Recommended implementation decomposition
 
-This ticket is large enough to split if review independence benefits:
+The reviewed dependency sequence is:
 
-1. **Artifact cache/receipt primitive** — deterministic identity, validation, locking, transactional publication/reuse; no Context-Fabric changes.
-2. **Context-Fabric managed-artifact load seam** — load/unload a validated artifact descriptor without canonical catalog mutation.
-3. **End-to-end composition** — approved installed materializer → cache → Context-Fabric tool flow, with synthetic Burns and Pseudepigrapha coverage.
+1. **#103 cacheability contract** — define when a materializer may be reused and evidence Burns/Pseudepigrapha dispositions.
+2. **#99 artifact cache/receipt primitive** — identity, validation, locking, transactional publication and policy-gated reuse; no Context-Fabric changes.
+3. **#100 Context-Fabric managed-artifact load seam** — load/unload a validated artifact descriptor without canonical catalog mutation.
+4. **#101 end-to-end composition** — approved installed materializer → managed artifact → Context-Fabric tool flow, with synthetic Burns and Pseudepigrapha coverage.
 
-Research recommends filing these as separate implementation tickets if the plan confirms they can be logically independent. That produces smaller adversarial-review surfaces and avoids coupling cache correctness to MCP ergonomics.
+This produces smaller adversarial-review surfaces and avoids coupling cache correctness to MCP ergonomics.
 
 ## TDD implications
 
-Before production changes, RED contracts should cover at least:
+Before production changes, RED contracts across #103/#99/#100/#101 should cover at least:
 
-- same source + same execution identity/materializer/options -> same artifact key and reuse;
-- source tree or execution identity change -> different artifact key;
-- timestamps/absolute cache roots do not change identity;
+- unspecified/legacy cacheability never produces a reusable request-identity hit while direct execution remains available;
+- explicitly non-cacheable materializers execute rather than being memoized;
+- same source + same execution identity/materializer/options/cacheability attestation -> same reusable key only for a reviewed cacheable materializer;
+- source tree, execution identity, materializer options, or cacheability attestation change invalidates reuse;
+- timestamps/absolute cache roots do not change stable request identity;
 - incomplete/tampered cached artifact fails closed;
-- concurrent equivalent builds publish one valid artifact;
+- concurrent equivalent cacheable builds publish one valid reusable artifact;
 - failed conversion never exposes final artifact state;
 - composition never invokes materializer fetch/install/repair implicitly;
 - arbitrary filesystem paths cannot masquerade as managed artifacts;
 - synthetic TF artifact loads through cfabric-mcp `CorpusManager`/Agora service without canonical catalog mutation;
 - unload releases the local-artifact load cleanly;
-- Burns synthetic CSV reaches queryable Context-Fabric through the real materializer sandbox, while no Burns-derived data are committed/uploaded.
+- public responses omit sensitive local source path/basename;
+- Burns synthetic CSV reaches queryable Context-Fabric through the real materializer sandbox, while no Burns-derived data are committed/uploaded and any reuse claim is backed by #103 evidence.
 
 ## Out of scope for first composition slice
 
@@ -180,4 +194,4 @@ Before production changes, RED contracts should cover at least:
 
 ## Conclusion
 
-The smallest safe architecture is fully Agora-owned: use the approved registered materializer runner to create a deterministic managed local artifact; cache and verify that artifact in its own namespace with source + installer execution identity provenance; then hand the validated artifact to Context-Fabric through a dedicated managed-artifact load API that reuses cfabric-mcp's existing local-directory loader without modifying the canonical Git-backed catalog.
+The smallest safe architecture is fully Agora-owned: use the approved registered materializer runner to create a managed local artifact; bind and verify that artifact in its own namespace with source + installer execution identity provenance; gate request-identity reuse on an explicit reviewed #103 cacheability disposition; then hand the validated artifact to Context-Fabric through a dedicated managed-artifact load API that reuses cfabric-mcp's existing local-directory loader without modifying the canonical Git-backed catalog.
