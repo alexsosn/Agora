@@ -90,7 +90,7 @@ jobs:
           checks_text = checks_path.read_text(encoding='utf-8')
           for check_id in check_ids:
               pattern = re.compile(
-                  rf'(?ms)(^- id: {re.escape(check_id)}\n(?:(?!^- id: ).)*?^  evidence_level:) community$'
+                  rf'(?ms)(^  - id: {re.escape(check_id)}\n(?:(?!^  - id: ).)*?^    evidence_level:) community$'
               )
               checks_text, count = pattern.subn(r'\1 verified', checks_text, count=1)
               if count != 1:
