@@ -84,7 +84,9 @@ class LoadCostSchemaTests(unittest.TestCase):
         )
 
     def test_existing_resource_without_load_cost_remains_valid(self):
-        self.assertEqual(self._schema_errors_for(_resource("cuc")), [])
+        resource = _resource("cuc")
+        resource.pop("load_cost", None)
+        self.assertEqual(self._schema_errors_for(resource), [])
 
     def test_corpus_resource_scope_is_accepted(self):
         resource = _resource("cuc")
