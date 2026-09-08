@@ -19,6 +19,7 @@ Agora owns its local Git metadata cache, source selection, acquisition coordinat
 5. Existing snapshot/overlay `cache_bytes` and `snapshot_soft_limit_bytes` semantics must not change silently.
 6. `prune_corpus_cache` is already the explicit housekeeping operation; ordinary prepare/load stays free of unconditional maintenance sweeps.
 7. Bounded latency is a whole-operation property, not a per-repository timeout multiplied by repository count.
+8. Best-effort status must never turn a partial repository scan into an exact-looking aggregate.
 
 ## Public behavior
 
@@ -30,6 +31,7 @@ Keep existing logical cache fields unchanged. Add a separate metadata-repository
 repository_cache_bytes
 repository_cache_bytes_complete
 repository_cache_gb
+repository_git_metrics_complete
 repository_pack_count
 repository_garbage_entries
 repository_garbage_bytes
@@ -66,6 +68,10 @@ Every blocking operation receives at most the remaining whole-operation budget. 
 If a live acquisition keeps a repository busy, report `busy: true` rather than waiting beyond the remaining budget. Once the deadline expires, remaining rows report `inspection_status: budget-exhausted` without further Git inspection or recursive size walks.
 
 Never publish a partial byte count as exact. If a repository size walk is interrupted, that row uses `size_bytes: null`, `size_complete: false`. If any repository size is incomplete, aggregate `repository_cache_bytes`/`repository_cache_gb` are `null` and `repository_cache_bytes_complete: false` rather than a deceptively low partial total.
+
+Apply the same truthfulness rule independently to Git object metrics. Per-repository `packs`, `garbage_entries`, and `garbage_bytes` are populated only after that repository's `git count-objects -v` succeeds. If **any** persistent repository is `busy`, `budget-exhausted`, or `error` before a successful count-objects result, aggregate `repository_pack_count`, `repository_garbage_entries`, `repository_garbage_bytes`, and `repository_garbage_gb` are `null` and `repository_git_metrics_complete: false`. Successfully inspected row metrics remain visible; they are not promoted into a misleading partial aggregate. Only when every persistent repository has a successful count-objects result is `repository_git_metrics_complete: true` and are those aggregate values exact.
+
+Filesystem-size completeness and Git-metrics completeness are independent. A repository may have complete `git count-objects` metrics but an interrupted recursive size walk; in that case Git aggregates may remain complete while repository byte aggregates are null/incomplete. Conversely, no partial Git aggregate is inferred from filesystem size.
 
 The same truthfulness rule applies to the requested whole-cache filesystem count: expose it only when its deadline-aware traversal completes; otherwise expose an explicit incomplete/null result. Existing logical `cache_bytes` remains exact within its current scope and is not redefined.
 
@@ -152,6 +158,7 @@ Extend the cache lifecycle reference and user guide to state:
 - their non-checkout `git status` is not source-snapshot integrity evidence;
 - served source bytes live under immutable revision snapshots;
 - `corpus_cache_status` exposes repository storage/garbage/pack health under a bounded best-effort deadline and reports incomplete measurements honestly;
+- aggregate repository byte metrics and aggregate Git pack/garbage metrics each carry independent completeness state and are null when incomplete;
 - `prune_corpus_cache` is the explicit bounded maintenance trigger with one whole-operation budget;
 - ordinary prepare/load do not run full Git maintenance.
 
@@ -169,7 +176,10 @@ Before production code, add tests requiring:
 6. many busy repositories cannot multiply the wait ceiling;
 7. a deliberately slow `count-objects` process is terminated by the remaining global status budget;
 8. a deliberately slow/large filesystem walk consumes the same status budget and yields `size_bytes: null`, `size_complete: false` rather than a partial exact-looking value;
-9. an incomplete repository-size scan makes the aggregate repository/whole-cache byte totals explicitly incomplete/null.
+9. an incomplete repository-size scan makes the aggregate repository/whole-cache byte totals explicitly incomplete/null;
+10. one busy/error/budget-exhausted repository makes aggregate pack/garbage metrics explicitly incomplete/null instead of summing only successful rows;
+11. successful row-level pack/garbage metrics remain visible even when the aggregate is incomplete;
+12. when every repository count-objects inspection succeeds, aggregate pack/garbage metrics equal the exact sum and `repository_git_metrics_complete` is true.
 
 Expected initial failure: no repository-maintenance status surface exists.
 
@@ -240,8 +250,9 @@ Challenge the frozen final diff for:
 6. maintenance failure/budget exhaustion suppressing logical LRU results;
 7. repository bytes being double-counted or silently redefining quota semantics;
 8. malformed Git status becoming false healthy state;
-9. pack tests that mock strings or assume one final pack rather than exercising real Git behavior;
-10. upstream scholarly semantics or a bare-repository migration slipping into scope.
+9. partial successful rows becoming false-exact aggregate pack/garbage totals;
+10. pack tests that mock strings or assume one final pack rather than exercising real Git behavior;
+11. upstream scholarly semantics or a bare-repository migration slipping into scope.
 
 Every blocker gets a focused regression RED first, the minimal fix, exact-head GREEN, and a fresh independent review.
 
