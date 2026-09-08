@@ -240,7 +240,7 @@ checks:
     kind: live
     plugin: context-fabric
     provider: context-fabric
-    evidence_level: community
+    evidence_level: verified
     subject: {type: resource, resource_id: bhsa}
     claims: [materialization, load, representative-content]
     executor:
@@ -254,7 +254,7 @@ checks:
     kind: live
     plugin: context-fabric
     provider: context-fabric
-    evidence_level: community
+    evidence_level: verified
     subject: {type: resource, resource_id: cuc}
     claims: [materialization, load, representative-content]
     executor:
@@ -268,7 +268,7 @@ checks:
     kind: live
     plugin: context-fabric
     provider: context-fabric
-    evidence_level: community
+    evidence_level: verified
     subject:
       type: collection-member
       resource_id: greek_literature

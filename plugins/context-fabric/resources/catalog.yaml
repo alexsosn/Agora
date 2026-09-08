@@ -27,7 +27,7 @@ resources:
       sources:
       - https://github.com/ETCBC/bhsa/blob/master/README.md
   verification:
-    status: community
+    status: verified
     evidence:
     - check_id: resource-load/bhsa
   source_snapshot:
@@ -844,7 +844,7 @@ resources:
       sources:
       - https://github.com/DT-UCPH/cuc/blob/main/README.md
   verification:
-    status: community
+    status: verified
     evidence:
     - check_id: resource-load/cuc
   source_snapshot:
