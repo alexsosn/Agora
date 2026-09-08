@@ -14,6 +14,7 @@ from scripts.validate_registry import validate_registry
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCE_SCHEMA = ROOT / "registry/schema/resources.schema.json"
 CHECK_SCHEMA = ROOT / "registry/schema/verification-checks.schema.json"
+REGISTRY_README = ROOT / "registry/README.md"
 
 
 def _load_yaml(path: Path):
@@ -229,6 +230,21 @@ class ResourceMemberVerificationEvidenceRed1Tests(unittest.TestCase):
             ),
             errors,
         )
+
+    def test_registry_docs_describe_resource_member_evidence_as_current(self):
+        text = REGISTRY_README.read_text(encoding="utf-8")
+        self.assertNotIn(
+            "Resource/member executable evidence is a separate trust-layer workstream.",
+            text,
+        )
+        for expected in (
+            "**Provider/service health**",
+            "**Plugin/client integration evidence**",
+            "**Resource/member verification evidence**",
+            "exact subject",
+            "does not promote",
+        ):
+            self.assertIn(expected, text)
 
 
 if __name__ == "__main__":
