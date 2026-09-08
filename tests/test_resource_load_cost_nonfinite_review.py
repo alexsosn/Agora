@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import math
 import sys
 import unittest
 from pathlib import Path
@@ -50,6 +51,21 @@ class LoadCostFiniteNumberReviewTests(unittest.TestCase):
                 self.assertTrue(
                     errors,
                     "load_cost ranges must contain finite JSON numbers, not YAML NaN/Infinity",
+                )
+
+    def test_yaml_non_finite_literals_are_rejected_after_parsing(self):
+        for literal in (".nan", ".inf"):
+            with self.subTest(literal=literal):
+                parsed = yaml.safe_load(f"value: {literal}\n")["value"]
+                self.assertIsInstance(parsed, float)
+                self.assertFalse(math.isfinite(parsed))
+
+                resource = _resource("cuc")
+                resource["load_cost"]["compiled_size_mb"] = parsed
+                errors = _schema_errors(resource)
+                self.assertTrue(
+                    any("not valid JSON" in error for error in errors),
+                    errors,
                 )
 
 
