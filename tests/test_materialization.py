@@ -322,11 +322,12 @@ class MaterializerSandboxConstructionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root / "source"
-            output = root / "output"
+            staging_parent = root / "private-stage"
+            output = staging_parent / "output"
             plugin_root = root / "plugin"
             work = root / "work"
             for path in (source, output, plugin_root, work):
-                path.mkdir()
+                path.mkdir(parents=True)
             command, backend = build_sandbox_command(
                 plugin_root=plugin_root,
                 source=source,
@@ -340,8 +341,10 @@ class MaterializerSandboxConstructionTests(unittest.TestCase):
         self.assertIn("--ro-bind", command)
         self.assertIn(str(source.resolve()), command)
         self.assertIn("/input", command)
-        self.assertIn(str(output.resolve()), command)
-        self.assertIn("/output", command)
+        self.assertIn(str(staging_parent.resolve()), command)
+        self.assertIn("/agora-output", command)
+        self.assertIn("/agora-output/output", command)
+        self.assertNotIn(str(output.resolve()), command)
         self.assertNotIn("sh", command[:2])
 
     @mock.patch("scripts.agora_materialize.platform.system", return_value="Darwin")
@@ -349,21 +352,27 @@ class MaterializerSandboxConstructionTests(unittest.TestCase):
     def test_macos_profile_grants_output_read_and_write(self, _which, _system):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            for name in ("source", "output", "plugin", "work"):
-                (root / name).mkdir()
+            source = root / "source"
+            staging_parent = root / "private-stage"
+            output = staging_parent / "output"
+            plugin = root / "plugin"
+            work = root / "work"
+            for path in (source, output, plugin, work):
+                path.mkdir(parents=True)
             command, backend = build_sandbox_command(
-                plugin_root=root / "plugin",
-                source=root / "source",
-                output=root / "output",
-                work_dir=root / "work",
+                plugin_root=plugin,
+                source=source,
+                output=output,
+                work_dir=work,
                 module="example.cli",
                 args=["{source}", "{output}"],
             )
-            profile = (root / "work" / "materializer.sb").read_text(encoding="utf-8")
+            profile = (work / "materializer.sb").read_text(encoding="utf-8")
         self.assertEqual(backend, "sandbox-exec")
-        self.assertIn(str((root / "output").resolve()), profile)
+        self.assertIn(str(staging_parent.resolve()), profile)
         self.assertIn("allow file-read*", profile)
         self.assertIn("allow file-write*", profile)
+        self.assertIn(str(output.resolve()), command)
         self.assertEqual(command[0], "/usr/bin/sandbox-exec")
 
     @mock.patch("scripts.agora_materialize.platform.system", return_value="Windows")
