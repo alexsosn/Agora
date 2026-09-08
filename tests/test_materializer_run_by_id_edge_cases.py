@@ -12,6 +12,16 @@ from scripts import agora_materialize as host
 from scripts import agora_materialize_registered as registered
 
 
+PLUGIN = {
+    "id": "example-converter",
+    "name": "Example converter",
+    "version": "1.2.3",
+    "repository": "example/converter",
+    "manifest": "agora.materializer.json",
+    "materializers": ["example-to-tf"],
+}
+
+
 class RegisteredMaterializerEdgeCaseTests(unittest.TestCase):
     def test_unknown_materializer_id_fails_before_source_acquisition(self):
         manifest_doc = {
@@ -61,7 +71,7 @@ class RegisteredMaterializerEdgeCaseTests(unittest.TestCase):
                 mock.patch.object(
                     registered,
                     "_registered_target",
-                    return_value=({"id": "example-converter"}, target),
+                    return_value=(PLUGIN, target),
                 ),
                 mock.patch.object(
                     registered,
@@ -69,9 +79,10 @@ class RegisteredMaterializerEdgeCaseTests(unittest.TestCase):
                     return_value=manifest,
                 ),
                 mock.patch.object(installer, "_lock", return_value=nullcontext()),
+                mock.patch.object(installer, "_validate_binding", return_value=manifest_doc),
                 mock.patch.object(host, "acquire_source") as acquire_mock,
             ):
-                with self.assertRaisesRegex(KeyError, "unknown materializer"):
+                with self.assertRaisesRegex(installer.MaterializerInstallError, "not approved"):
                     registered.materialize_registered(
                         plugin_id="example-converter",
                         materializer_id="missing-materializer",
