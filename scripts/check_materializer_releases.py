@@ -346,7 +346,9 @@ def _validate_candidate_document(document: Any) -> dict[str, Any]:
     return document
 
 
-def _candidate_manifest(plugin: dict[str, Any], api: Any, version: SemVer, commit: str) -> tuple[dict[str, Any], str]:
+def _candidate_manifest(
+    plugin: dict[str, Any], api: Any, version: SemVer, commit: str
+) -> tuple[dict[str, Any], str]:
     try:
         raw = api.get_file(plugin["repository"], plugin["manifest"], commit)
     except ReleaseDiscoveryError:
@@ -361,30 +363,31 @@ def _candidate_manifest(plugin: dict[str, Any], api: Any, version: SemVer, commi
     try:
         document = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ReleaseDiscoveryError(f"candidate materializer manifest is not valid UTF-8 JSON: {exc}") from exc
+        raise ReleaseDiscoveryError(
+            f"candidate materializer manifest is not valid UTF-8 JSON: {exc}"
+        ) from exc
     document = _validate_candidate_document(document)
 
     manifest_plugin = document["plugin"]
-    if manifest_plugin["id"] != plugin["id"]:
-        raise ReleaseDiscoveryError(
-            f"candidate plugin id drift: expected {plugin['id']!r}, got {manifest_plugin['id']!r}"
-        )
-    manifest_repository = manifest_plugin.get("repository")
-    if manifest_repository is not None and manifest_repository != plugin["repository"]:
-        raise ReleaseDiscoveryError(
-            f"candidate repository drift: expected {plugin['repository']!r}, got {manifest_repository!r}"
-        )
-    candidate_version = str(version)
-    if manifest_plugin["version"] != candidate_version:
-        raise ReleaseDiscoveryError(
-            f"candidate manifest version mismatch: tag is {candidate_version!r}, manifest is {manifest_plugin['version']!r}"
-        )
-    expected_ids = set(plugin["materializers"])
-    actual_ids = {item["id"] for item in document["materializers"]}
+    expected_identity = {
+        "id": plugin["id"],
+        "name": plugin["name"],
+        "version": str(version),
+        "repository": plugin["repository"],
+    }
+    for field, expected in expected_identity.items():
+        actual = manifest_plugin.get(field)
+        if actual != expected:
+            raise ReleaseDiscoveryError(
+                f"candidate plugin {field} drift: expected {expected!r}, got {actual!r}"
+            )
+
+    expected_ids = list(plugin["materializers"])
+    actual_ids = [item["id"] for item in document["materializers"]]
     if actual_ids != expected_ids:
         raise ReleaseDiscoveryError(
             "candidate materializer identity drift: "
-            f"expected {sorted(expected_ids)!r}, got {sorted(actual_ids)!r}"
+            f"expected ordered ids {expected_ids!r}, got {actual_ids!r}"
         )
     return document, hashlib.sha256(raw).hexdigest()
 
@@ -481,7 +484,9 @@ def _validate_registry_document(document: Any) -> dict[str, Any]:
         schema = json.loads(REGISTRY_SCHEMA_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover - repository corruption
         raise RuntimeError(f"cannot read materializer registry schema: {exc}") from exc
-    errors = sorted(Draft202012Validator(schema).iter_errors(document), key=lambda item: item.json_path)
+    errors = sorted(
+        Draft202012Validator(schema).iter_errors(document), key=lambda item: item.json_path
+    )
     if errors:
         error = errors[0]
         location = error.json_path if getattr(error, "json_path", None) else "$"
@@ -635,7 +640,9 @@ def _write_atomic(path: Path, data: bytes) -> None:
             temporary.unlink()
 
 
-def _report_payload(state: str, proposals: list[ReleaseProposal], error: str | None = None) -> dict[str, Any]:
+def _report_payload(
+    state: str, proposals: list[ReleaseProposal], error: str | None = None
+) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "schema_version": 1,
         "state": state,
@@ -649,7 +656,9 @@ def _report_payload(state: str, proposals: list[ReleaseProposal], error: str | N
 def _write_report(path: Path | None, payload: dict[str, Any]) -> None:
     if path is None:
         return
-    encoded = (json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    encoded = (json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode(
+        "utf-8"
+    )
     _write_atomic(path, encoded)
 
 
@@ -678,7 +687,9 @@ def render_pr_body(proposals: list[ReleaseProposal]) -> str:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Passively discover registered materializer releases.")
+    parser = argparse.ArgumentParser(
+        description="Passively discover registered materializer releases."
+    )
     parser.add_argument(
         "--registry",
         type=Path,
@@ -687,7 +698,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--report", type=Path, default=None, help="write deterministic JSON report")
     parser.add_argument("--pr-body", type=Path, default=None, help="write deterministic review PR body")
-    parser.add_argument("--apply", action="store_true", help="atomically apply validated version/ref proposals")
+    parser.add_argument(
+        "--apply", action="store_true", help="atomically apply validated version/ref proposals"
+    )
     return parser
 
 
