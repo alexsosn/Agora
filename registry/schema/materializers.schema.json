@@ -18,6 +18,32 @@
       "minLength": 1,
       "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
     },
+    "releaseTracking": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": {"const": "disabled"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "channel", "tag_prefix"],
+          "properties": {
+            "mode": {"const": "github-releases"},
+            "channel": {"const": "stable"},
+            "tag_prefix": {
+              "type": "string",
+              "maxLength": 16,
+              "pattern": "^[A-Za-z0-9._-]*$"
+            }
+          }
+        }
+      ]
+    },
     "plugin": {
       "type": "object",
       "additionalProperties": false,
@@ -43,6 +69,7 @@
         "ref": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
         "version": {"type": "string", "minLength": 1},
         "manifest": {"$ref": "#/$defs/safeRelativePath"},
+        "release_tracking": {"$ref": "#/$defs/releaseTracking"},
         "package": {
           "type": "object",
           "additionalProperties": false,
