@@ -69,16 +69,23 @@ def _materializer(materializer_id: str) -> dict:
     }
 
 
-def _manifest(*, name: str = "Example converter", ids: list[str] | None = None) -> dict:
+def _manifest(
+    *,
+    name: str = "Example converter",
+    repository: str | None = "example/converter",
+    ids: list[str] | None = None,
+) -> dict:
     ids = ids or ["first", "second"]
+    plugin = {
+        "id": "example-converter",
+        "name": name,
+        "version": "1.2.4",
+    }
+    if repository is not None:
+        plugin["repository"] = repository
     return {
         "schema_version": 1,
-        "plugin": {
-            "id": "example-converter",
-            "name": name,
-            "version": "1.2.4",
-            "repository": "example/converter",
-        },
+        "plugin": plugin,
         "materializers": [_materializer(materializer_id) for materializer_id in ids],
     }
 
@@ -111,6 +118,13 @@ class CandidateBindingRegressionTests(unittest.TestCase):
             updates.discover_plugin_update(
                 _plugin(),
                 FakeApi(_manifest(name="Renamed converter")),
+            )
+
+    def test_candidate_missing_repository_is_rejected_like_install_time_binding(self):
+        with self.assertRaisesRegex(updates.ReleaseDiscoveryError, "repository"):
+            updates.discover_plugin_update(
+                _plugin(),
+                FakeApi(_manifest(repository=None)),
             )
 
     def test_candidate_materializer_order_drift_is_rejected_like_install_time_binding(self):
