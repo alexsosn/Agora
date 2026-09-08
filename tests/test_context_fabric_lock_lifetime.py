@@ -16,6 +16,8 @@ import test_context_fabric_load_safety_runtime as runtime_tests
 SUCCESSFUL_LOAD_CASES = (
     "test_warm_marker_bypasses_cold_compiler_and_limits",
     "test_successful_cold_worker_is_followed_by_parent_warm_load",
+    "test_active_status_exposes_progress_and_cancel_fields",
+    "test_local_duplicate_is_fail_fast_and_does_not_spawn_second_worker",
     "test_cold_warm_race_rechecks_marker_after_compile_lock",
     "test_cache_transition_is_not_held_during_cold_worker",
 )
