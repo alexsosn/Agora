@@ -59,14 +59,13 @@ def _plugin() -> dict:
 
 class CacheabilityReceiptBindingRed3Tests(unittest.TestCase):
     def test_receipt_swap_after_integrity_verification_cannot_authorize_reuse(self):
-        """Authorization must use the exact receipt snapshot that was verified.
+        """Authorization consumes the exact receipt object accepted by verification.
 
         A non-cooperating filesystem writer is not serialized by Agora's runtime
-        lock. Simulate the receipt changing immediately after the integrity
-        verifier has accepted ACTUAL_IDENTITY but before the authorization path
-        consumes the identity. The replacement identity is deliberately one that
-        the registry reviews, so a second unbound receipt read would authorize
-        the wrong managed runtime.
+        lock. Simulate the receipt changing immediately after the verifier has
+        accepted ACTUAL_IDENTITY. The replacement identity is deliberately the
+        one reviewed by the registry, so any later unbound receipt read would
+        incorrectly authorize reuse.
         """
         plugin = _plugin()
         with tempfile.TemporaryDirectory() as tmp:
@@ -85,28 +84,40 @@ class CacheabilityReceiptBindingRed3Tests(unittest.TestCase):
             def fake_lock(_path: Path):
                 yield
 
-            def verify_then_swap(_plugin: dict, _target: Path) -> bool:
-                receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-                self.assertEqual(receipt["execution_identity_sha256"], ACTUAL_IDENTITY)
-                receipt["execution_identity_sha256"] = REVIEWED_IDENTITY
-                receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
-                return True
+            def verify_then_swap(_plugin: dict, _target: Path) -> dict:
+                verified_receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+                self.assertEqual(
+                    verified_receipt["execution_identity_sha256"], ACTUAL_IDENTITY
+                )
+                receipt_path.write_text(
+                    json.dumps(
+                        {
+                            "schema_version": 2,
+                            "execution_identity_sha256": REVIEWED_IDENTITY,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                return verified_receipt
 
             with (
                 mock.patch.object(registered, "_registered_target", return_value=(plugin, target)),
                 mock.patch.object(installer, "_lock", side_effect=fake_lock),
-                mock.patch.object(installer, "_environment_current", side_effect=verify_then_swap),
+                mock.patch.object(
+                    installer,
+                    "_verified_environment_receipt",
+                    side_effect=verify_then_swap,
+                ),
                 mock.patch.object(installer, "_validate_binding", return_value={}),
             ):
-                try:
-                    result = registered.resolve_cacheability_authorization(
-                        "example-converter",
-                        "example-to-tf",
-                        install_root=root,
-                    )
-                except installer.MaterializerInstallError:
-                    return
+                result = registered.resolve_cacheability_authorization(
+                    "example-converter",
+                    "example-to-tf",
+                    install_root=root,
+                )
 
+            self.assertEqual(result["execution_identity_sha256"], ACTUAL_IDENTITY)
+            self.assertEqual(result["mode"], "unknown")
             self.assertFalse(
                 result["reuse_allowed"],
                 "a receipt identity not present in the verified snapshot must not authorize reuse",
