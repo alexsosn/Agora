@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 import json
 import unittest
 
@@ -107,34 +108,24 @@ class ManagedArtifactIdentityRed1Tests(unittest.TestCase):
             with self.subTest(mutation=mutation):
                 self.assertNotEqual(baseline.key, self.build(**mutation).key)
 
-    def test_non_identity_local_observations_cannot_perturb_or_leak_into_request(self):
+    def test_private_local_observations_are_not_part_of_identity_api_or_document(self):
         module = self.require_module()
-        kwargs = _request_kwargs()
-        first = module.build_reusable_request_identity(
-            **kwargs,
-            local_observations={
-                "source_path": "/SECRET/location/Alpha Corpus",
-                "source_basename": "Alpha Corpus",
-                "output_path": "/SECRET/output",
-                "cache_root": "/SECRET/cache-a",
-                "created_at": "2026-09-09T01:02:03Z",
-            },
-        )
-        second = module.build_reusable_request_identity(
-            **kwargs,
-            local_observations={
-                "source_path": "/DIFFERENT/location/Beta Corpus",
-                "source_basename": "Beta Corpus",
-                "output_path": "/DIFFERENT/output",
-                "cache_root": "/DIFFERENT/cache-b",
-                "created_at": "2030-01-01T00:00:00Z",
-            },
-        )
-        self.assertEqual(first.key, second.key)
-        self.assertEqual(first.canonical_json, second.canonical_json)
-        serialized = first.canonical_json
-        for secret in ("SECRET", "Alpha Corpus", "source_path", "output_path", "cache_root", "created_at"):
-            self.assertNotIn(secret, serialized)
+        signature = inspect.signature(module.build_reusable_request_identity)
+        forbidden = {
+            "source_path",
+            "source_basename",
+            "output_path",
+            "cache_root",
+            "created_at",
+            "local_observations",
+        }
+        self.assertTrue(forbidden.isdisjoint(signature.parameters))
+
+        identity = module.build_reusable_request_identity(**_request_kwargs())
+        serialized = identity.canonical_json
+        for private_name in forbidden:
+            self.assertNotIn(private_name, serialized)
+        self.assertNotIn("/SECRET/", serialized)
 
     def test_unknown_and_non_reusable_authorization_never_build_reusable_key(self):
         module = self.require_module()
@@ -197,8 +188,6 @@ class ManagedArtifactIdentityRed1Tests(unittest.TestCase):
     def test_artifact_id_validation_is_pure_and_does_not_touch_filesystem(self):
         module = self.require_module()
         generated = module.new_artifact_id()
-        # RED1 is a pure identity slice: validation returns a normalized/validated
-        # opaque ID and has no store root/path parameter through which to touch IO.
         self.assertEqual(module.validate_artifact_id(generated), generated)
 
 
