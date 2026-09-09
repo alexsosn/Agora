@@ -609,42 +609,57 @@ def _distributions(runtime: Path) -> list[dict[str, str]]:
     return sorted(rows, key=lambda row: (row["name"].lower(), row["version"]))
 
 
-def _environment_current(plugin: dict[str, Any], target: Path) -> bool:
+def _verified_environment_receipt(
+    plugin: dict[str, Any], target: Path
+) -> dict[str, Any] | None:
+    """Return the exact parsed installation receipt iff that snapshot verifies.
+
+    Authorization callers must consume this returned object rather than re-read
+    the receipt after verification. This keeps the execution identity bound to
+    the same receipt snapshot whose source/runtime/environment predicates were
+    checked.
+    """
     receipt_path, runtime = target / INSTALLATION_RECEIPT, target / "runtime"
     if not receipt_path.is_file() or not runtime.is_dir():
-        return False
+        return None
     try:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
         marker = json.loads((runtime / ENVIRONMENT_MARKER).read_text(encoding="utf-8"))
         source = target.parent.parent / "source"
         distributions = _distributions(runtime)
+        rt = runtime_identity()
         env_hash = _tree_hash(runtime, excludes=RUNTIME_TREE_EXCLUDES)
         source_hash = _tree_hash(source)
-        return (
+        valid = (
             receipt.get("schema_version") == 2
             and receipt["plugin"]["id"] == plugin["id"]
             and receipt["plugin"]["commit"] == plugin["ref"]
-            and receipt["runtime"] == runtime_identity()
+            and receipt["runtime"] == rt
             and receipt["source"]["tree_sha256"] == source_hash
             and receipt["environment"]["tree_sha256"] == env_hash
             and receipt["environment"]["distributions"] == distributions
             and receipt["environment"]["descriptor_sha256"]
-                == _json_hash({"runtime": runtime_identity(), "distributions": distributions})
+                == _json_hash({"runtime": rt, "distributions": distributions})
             and receipt["environment"]["pip_report_sha256"] == _file_hash(target / PIP_REPORT)
             and receipt["environment"]["install_trust"] == "explicit-code-execution"
             and receipt["manifest"]["source_sha256"] == _file_hash(source / plugin["manifest"])
             and receipt["manifest"]["execution_sha256"] == _file_hash(runtime / plugin["manifest"])
             and marker["managed"] is True
-            and marker["runtime"] == runtime_identity()
+            and marker["runtime"] == rt
             and marker["distributions"] == distributions
             and marker["source_tree_sha256"] == source_hash
             and receipt["execution_identity_sha256"]
                 == _json_hash({"source_tree_sha256": source_hash,
                                "environment_tree_sha256": env_hash,
-                               "runtime": runtime_identity()})
+                               "runtime": rt})
         )
+        return receipt if valid else None
     except (KeyError, OSError, ValueError, json.JSONDecodeError):
-        return False
+        return None
+
+
+def _environment_current(plugin: dict[str, Any], target: Path) -> bool:
+    return _verified_environment_receipt(plugin, target) is not None
 
 
 def install_materializer(
