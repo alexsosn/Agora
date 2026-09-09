@@ -114,7 +114,7 @@ def _canonical_record_bytes(
     direct_url_rel: str,
     raw_direct_url: bytes,
     canonical_direct_url: bytes,
-    launcher_overrides: dict[str, tuple[bytes, bytes]],
+    launcher_overrides: dict[str, tuple[str, bytes, bytes]],
 ) -> bytes:
     try:
         text = record_path.read_text(encoding="utf-8")
@@ -149,19 +149,21 @@ def _canonical_record_bytes(
     rows[direct_index][1] = _sha256_record_value(canonical_direct_url)
     rows[direct_index][2] = str(len(canonical_direct_url))
 
-    for launcher_name, (raw_launcher, canonical_launcher) in sorted(launcher_overrides.items()):
+    for launcher_name, (expected_record_path, raw_launcher, canonical_launcher) in sorted(
+        launcher_overrides.items()
+    ):
         expected_hash = _sha256_record_value(raw_launcher)
         expected_size = str(len(raw_launcher))
-        basename = f"{launcher_name}.exe"
         matches = [
             index
             for index, row in enumerate(rows)
-            if row[0].replace("\\", "/").rsplit("/", 1)[-1] == basename
+            if row[0].replace("\\", "/") == expected_record_path
             and row[1:] == [expected_hash, expected_size]
         ]
         if len(matches) != 1:
             raise CanonicalExecutionIdentityError(
-                f"RECORD must contain exactly one integrity-matching row for Windows launcher {basename!r}"
+                "RECORD must contain exactly one integrity-matching row corresponding "
+                f"to Windows launcher {launcher_name!r} at {expected_record_path!r}"
             )
         index = matches[0]
         rows[index][1] = _sha256_record_value(canonical_launcher)
@@ -280,7 +282,7 @@ def canonical_execution_tree_hash(
                 f"cannot parse entry_points.txt: {exc}"
             ) from exc
 
-    launcher_record_overrides: dict[str, tuple[bytes, bytes]] = {}
+    launcher_record_overrides: dict[str, tuple[str, bytes, bytes]] = {}
     for name in sorted(launcher_names):
         candidates = [
             runtime / "bin" / f"{name}.exe",
@@ -293,10 +295,20 @@ def canonical_execution_tree_hash(
             )
         if existing:
             launcher = existing[0]
+            launcher_rel = launcher.relative_to(runtime).as_posix()
             raw_launcher = launcher.read_bytes()
             canonical_launcher = _canonical_distlib_launcher(raw_launcher)
-            overrides[launcher.relative_to(runtime).as_posix()] = canonical_launcher
-            launcher_record_overrides[name] = (raw_launcher, canonical_launcher)
+            overrides[launcher_rel] = canonical_launcher
+            # pip's observed --target RECORD representation addresses generated
+            # scripts as ../../<runtime-relative path>. Bind normalization to
+            # that exact corresponding path as well as the raw hash and size;
+            # a same-basename row elsewhere is unrelated metadata.
+            expected_record_path = f"../../{launcher_rel}"
+            launcher_record_overrides[name] = (
+                expected_record_path,
+                raw_launcher,
+                canonical_launcher,
+            )
 
     canonical_record = _canonical_record_bytes(
         record_path,
