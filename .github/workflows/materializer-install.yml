@@ -9,6 +9,7 @@ on:
       - 'registry/schema/materializers.schema.json'
       - 'registry/schema/materializer-plugin.schema.json'
       - 'scripts/agora_install_materializer.py'
+      - 'scripts/materializer_execution_identity.py'
       - 'scripts/agora_materialize.py'
       - 'scripts/agora_materialize_registered.py'
       - 'scripts/validate_registry.py'
@@ -23,6 +24,7 @@ on:
       - 'registry/schema/materializers.schema.json'
       - 'registry/schema/materializer-plugin.schema.json'
       - 'scripts/agora_install_materializer.py'
+      - 'scripts/materializer_execution_identity.py'
       - 'scripts/agora_materialize.py'
       - 'scripts/agora_materialize_registered.py'
       - 'scripts/validate_registry.py'
@@ -99,11 +101,12 @@ jobs:
           receipt = json.loads((target / 'agora-installation.json').read_text(encoding='utf-8'))
           manifest = load_manifest(runtime / 'agora.materializer.json')
 
-          assert receipt['schema_version'] == 2
+          assert receipt['schema_version'] == 3
           assert receipt['plugin']['commit'] == os.environ['PSEUDEPIGRAPHA_TF_COMMIT']
           assert receipt['environment']['install_trust'] == 'explicit-code-execution'
           assert len(receipt['source']['tree_sha256']) == 64
           assert len(receipt['environment']['tree_sha256']) == 64
+          assert len(receipt['environment']['execution_tree_sha256']) == 64
           assert len(receipt['execution_identity_sha256']) == 64
           distributions = {row['name'].lower(): row['version'] for row in receipt['environment']['distributions']}
           assert distributions['pseudepigrapha-tf'] == '0.1.0'
@@ -201,11 +204,12 @@ jobs:
           receipt = json.loads((target / 'agora-installation.json').read_text(encoding='utf-8'))
           manifest = load_manifest(runtime / 'agora.materializer.json')
 
-          assert receipt['schema_version'] == 2
+          assert receipt['schema_version'] == 3
           assert receipt['plugin']['commit'] == os.environ['UGARIT_CONTEXT_PARSING_COMMIT']
           assert receipt['environment']['install_trust'] == 'explicit-code-execution'
           assert len(receipt['source']['tree_sha256']) == 64
           assert len(receipt['environment']['tree_sha256']) == 64
+          assert len(receipt['environment']['execution_tree_sha256']) == 64
           assert len(receipt['execution_identity_sha256']) == 64
           distributions = {row['name'].lower(): row['version'] for row in receipt['environment']['distributions']}
           assert distributions['ugarit-context-parsing'] == '0.2.0'
