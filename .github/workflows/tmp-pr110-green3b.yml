@@ -1,0 +1,51 @@
+name: Temporary PR110 GREEN3b applicator
+
+on:
+  push:
+    branches:
+      - feat/context-fabric-git-maintenance-45
+    paths:
+      - .github/workflows/tmp-pr110-green3b.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/context-fabric-git-maintenance-45
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply exact GREEN3b change
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('plugins/context-fabric/src/agora_context_fabric/gitstore/__init__.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''                    if not before_size_complete:\n                        budget_exhausted = time.monotonic() >= deadline\n                        row["maintenance_status"] = (\n                            "budget-exhausted" if budget_exhausted else "failed"\n                        )\n                        rows.append(row)\n                        continue\n\n                    needs_maintenance = bool(\n'''
+          new = '''                    needs_maintenance = bool(\n'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one exact GREEN3b anchor, found {text.count(old)}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+      - name: Run focused maintenance regressions
+        run: |
+          python -m pip install portalocker==4.3.0
+          python -m unittest -v \
+            tests.test_context_fabric_git_maintenance_review \
+            tests.test_context_fabric_git_maintenance_red3 \
+            tests.test_context_fabric_git_metadata_maintenance \
+            tests.test_context_fabric_git_repository_lock_domain
+      - name: Commit GREEN and remove applicator
+        run: |
+          rm .github/workflows/tmp-pr110-green3b.yml
+          git config user.name 'Agora automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add plugins/context-fabric/src/agora_context_fabric/gitstore/__init__.py .github/workflows/tmp-pr110-green3b.yml
+          git commit -m 'fix: decouple Git maintenance from byte measurement'
+          git push origin HEAD:feat/context-fabric-git-maintenance-45
