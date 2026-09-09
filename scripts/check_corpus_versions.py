@@ -157,9 +157,11 @@ def public_github_api(
 
 def _tag_pattern(discovery: dict[str, Any]) -> re.Pattern[str]:
     value = discovery.get("tag_pattern")
-    if not isinstance(value, str) or not value:
+    if value is None:
+        value = r"^v(?P<version>[0-9]+\.[0-9]+\.[0-9]+)$"
+    elif not isinstance(value, str) or not value:
         raise ReleaseDiscoveryError(
-            "github-releases corpus discovery requires a non-empty tag_pattern"
+            "github-releases corpus discovery requires a non-empty tag_pattern when configured"
         )
     try:
         pattern = re.compile(value)
