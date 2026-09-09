@@ -115,13 +115,19 @@ def resolve_cacheability_authorization(
             raise installer.MaterializerInstallError(
                 f"verified managed runtime manifest is missing for materializer plugin {plugin_id!r}"
             )
+        manifest = manifest.resolve()
 
         current_plugin, current_target = _registered_target(
             plugin_id,
             install_root=install_root,
             registry_path=registry_path,
         )
-        if current_target != target or manifest.parent != runtime:
+        current_manifest = installer._contained(
+            runtime,
+            current_plugin["manifest"],
+            "current managed runtime manifest",
+        ).resolve()
+        if current_target != target or current_manifest != manifest:
             raise installer.MaterializerInstallError(
                 f"materializer plugin {plugin_id!r} registry binding changed while acquiring its runtime lock"
             )
