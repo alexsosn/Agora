@@ -347,7 +347,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
             with mock.patch.object(installer, "compare_cacheability_policy") as compare:
                 with self.assertRaisesRegex(
                     installer.MaterializerInstallError,
-                    r"not approved|binding",
+                    r"not approved|binding|manifest materializer ids do not match registry",
                 ):
                     registered.resolve_cacheability_authorization(
                         "example-converter",
