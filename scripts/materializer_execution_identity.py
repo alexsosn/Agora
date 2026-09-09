@@ -114,6 +114,7 @@ def _canonical_record_bytes(
     direct_url_rel: str,
     raw_direct_url: bytes,
     canonical_direct_url: bytes,
+    launcher_overrides: dict[str, tuple[bytes, bytes]],
 ) -> bytes:
     try:
         text = record_path.read_text(encoding="utf-8")
@@ -125,19 +126,6 @@ def _canonical_record_bytes(
             "RECORD must contain exactly three columns per row"
         )
 
-    matches = [index for index, row in enumerate(rows) if row[0] == direct_url_rel]
-    if len(matches) != 1:
-        raise CanonicalExecutionIdentityError(
-            "RECORD must contain exactly one row for managed direct_url.json"
-        )
-    index = matches[0]
-    expected_hash = _sha256_record_value(raw_direct_url)
-    expected_size = str(len(raw_direct_url))
-    if rows[index][1:] != [expected_hash, expected_size]:
-        raise CanonicalExecutionIdentityError(
-            "RECORD direct_url.json row does not match installed bytes"
-        )
-
     seen: set[str] = set()
     for row in rows:
         if not row[0] or row[0] in seen:
@@ -146,8 +134,39 @@ def _canonical_record_bytes(
             )
         seen.add(row[0])
 
-    rows[index][1] = _sha256_record_value(canonical_direct_url)
-    rows[index][2] = str(len(canonical_direct_url))
+    direct_matches = [index for index, row in enumerate(rows) if row[0] == direct_url_rel]
+    if len(direct_matches) != 1:
+        raise CanonicalExecutionIdentityError(
+            "RECORD must contain exactly one row for managed direct_url.json"
+        )
+    direct_index = direct_matches[0]
+    expected_hash = _sha256_record_value(raw_direct_url)
+    expected_size = str(len(raw_direct_url))
+    if rows[direct_index][1:] != [expected_hash, expected_size]:
+        raise CanonicalExecutionIdentityError(
+            "RECORD direct_url.json row does not match installed bytes"
+        )
+    rows[direct_index][1] = _sha256_record_value(canonical_direct_url)
+    rows[direct_index][2] = str(len(canonical_direct_url))
+
+    for launcher_name, (raw_launcher, canonical_launcher) in sorted(launcher_overrides.items()):
+        expected_hash = _sha256_record_value(raw_launcher)
+        expected_size = str(len(raw_launcher))
+        basename = f"{launcher_name}.exe"
+        matches = [
+            index
+            for index, row in enumerate(rows)
+            if row[0].replace("\\", "/").rsplit("/", 1)[-1] == basename
+            and row[1:] == [expected_hash, expected_size]
+        ]
+        if len(matches) != 1:
+            raise CanonicalExecutionIdentityError(
+                f"RECORD must contain exactly one integrity-matching row for Windows launcher {basename!r}"
+            )
+        index = matches[0]
+        rows[index][1] = _sha256_record_value(canonical_launcher)
+        rows[index][2] = str(len(canonical_launcher))
+
     out = io.StringIO(newline="")
     writer = csv.writer(out, lineterminator="\n")
     writer.writerows(rows)
@@ -235,13 +254,9 @@ def canonical_execution_tree_hash(
     if not record_path.is_file():
         raise CanonicalExecutionIdentityError("managed distribution RECORD is missing")
     direct_rel = direct_path.relative_to(runtime).as_posix()
-    canonical_record = _canonical_record_bytes(
-        record_path, direct_rel, raw_direct, canonical_direct
-    )
 
     overrides: dict[str, bytes] = {
         direct_rel: canonical_direct,
-        record_path.relative_to(runtime).as_posix(): canonical_record,
     }
 
     entry_points = dist_info / "entry_points.txt"
@@ -265,6 +280,7 @@ def canonical_execution_tree_hash(
                 f"cannot parse entry_points.txt: {exc}"
             ) from exc
 
+    launcher_record_overrides: dict[str, tuple[bytes, bytes]] = {}
     for name in sorted(launcher_names):
         candidates = [
             runtime / "bin" / f"{name}.exe",
@@ -277,9 +293,19 @@ def canonical_execution_tree_hash(
             )
         if existing:
             launcher = existing[0]
-            overrides[launcher.relative_to(runtime).as_posix()] = (
-                _canonical_distlib_launcher(launcher.read_bytes())
-            )
+            raw_launcher = launcher.read_bytes()
+            canonical_launcher = _canonical_distlib_launcher(raw_launcher)
+            overrides[launcher.relative_to(runtime).as_posix()] = canonical_launcher
+            launcher_record_overrides[name] = (raw_launcher, canonical_launcher)
+
+    canonical_record = _canonical_record_bytes(
+        record_path,
+        direct_rel,
+        raw_direct,
+        canonical_direct,
+        launcher_record_overrides,
+    )
+    overrides[record_path.relative_to(runtime).as_posix()] = canonical_record
 
     digest = hashlib.sha256()
     for path in sorted(
