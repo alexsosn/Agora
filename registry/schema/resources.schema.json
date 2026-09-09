@@ -5,199 +5,148 @@
     "loadCostMeasurement": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "checked_at",
-        "agora_revision",
-        "environment",
-        "evidence"
-      ],
+      "required": ["checked_at", "agora_revision", "environment", "evidence"],
       "properties": {
-        "checked_at": {
-          "type": "string",
-          "format": "date"
-        },
-        "agora_revision": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{40}$"
-        },
-        "environment": {
-          "type": "string",
-          "minLength": 1
-        },
-        "evidence": {
-          "type": "string",
-          "format": "uri",
-          "pattern": "^https?://\\S+$"
-        }
+        "checked_at": {"type": "string", "format": "date"},
+        "agora_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "environment": {"type": "string", "minLength": 1},
+        "evidence": {"type": "string", "format": "uri", "pattern": "^https?://\\S+$"}
       }
     },
     "nonNegativeRange": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "min",
-        "max"
-      ],
+      "required": ["min", "max"],
       "properties": {
-        "min": {
-          "type": "number",
-          "minimum": 0
-        },
-        "max": {
-          "type": "number",
-          "minimum": 0
-        }
+        "min": {"type": "number", "minimum": 0},
+        "max": {"type": "number", "minimum": 0}
       }
     },
     "resourceLoadCost": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "scope",
-        "measurement"
-      ],
+      "required": ["scope", "measurement"],
       "properties": {
-        "scope": {
-          "const": "resource"
-        },
-        "source_size_mb": {
-          "type": "number",
-          "minimum": 0
-        },
-        "compiled_size_mb": {
-          "type": "number",
-          "minimum": 0
-        },
-        "total_cache_mb": {
-          "type": "number",
-          "minimum": 0
-        },
-        "peak_rss_mb": {
-          "type": "number",
-          "minimum": 0
-        },
-        "first_load_seconds": {
-          "type": "number",
-          "minimum": 0
-        },
-        "warm_load_seconds": {
-          "type": "number",
-          "minimum": 0
-        },
-        "measurement": {
-          "$ref": "#/$defs/loadCostMeasurement"
-        },
-        "notes": {
-          "type": "string",
-          "minLength": 1
-        }
+        "scope": {"const": "resource"},
+        "source_size_mb": {"type": "number", "minimum": 0},
+        "compiled_size_mb": {"type": "number", "minimum": 0},
+        "total_cache_mb": {"type": "number", "minimum": 0},
+        "peak_rss_mb": {"type": "number", "minimum": 0},
+        "first_load_seconds": {"type": "number", "minimum": 0},
+        "warm_load_seconds": {"type": "number", "minimum": 0},
+        "measurement": {"$ref": "#/$defs/loadCostMeasurement"},
+        "notes": {"type": "string", "minLength": 1}
       },
       "anyOf": [
-        {
-          "required": [
-            "source_size_mb"
-          ]
-        },
-        {
-          "required": [
-            "compiled_size_mb"
-          ]
-        },
-        {
-          "required": [
-            "total_cache_mb"
-          ]
-        },
-        {
-          "required": [
-            "peak_rss_mb"
-          ]
-        },
-        {
-          "required": [
-            "first_load_seconds"
-          ]
-        },
-        {
-          "required": [
-            "warm_load_seconds"
-          ]
-        }
+        {"required": ["source_size_mb"]},
+        {"required": ["compiled_size_mb"]},
+        {"required": ["total_cache_mb"]},
+        {"required": ["peak_rss_mb"]},
+        {"required": ["first_load_seconds"]},
+        {"required": ["warm_load_seconds"]}
       ]
     },
     "collectionMemberLoadCost": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "scope",
-        "measurement"
-      ],
+      "required": ["scope", "measurement"],
       "properties": {
-        "scope": {
-          "const": "collection-member"
-        },
-        "typical_member_cache_mb": {
-          "type": "number",
-          "minimum": 0
-        },
-        "typical_member_first_load_seconds": {
-          "$ref": "#/$defs/nonNegativeRange"
-        },
-        "discovery_seconds": {
-          "type": "number",
-          "minimum": 0
-        },
-        "discovery_cache_mb": {
-          "type": "number",
-          "minimum": 0
-        },
-        "measurement": {
-          "$ref": "#/$defs/loadCostMeasurement"
-        },
-        "notes": {
-          "type": "string",
-          "minLength": 1
-        }
+        "scope": {"const": "collection-member"},
+        "typical_member_cache_mb": {"type": "number", "minimum": 0},
+        "typical_member_first_load_seconds": {"$ref": "#/$defs/nonNegativeRange"},
+        "discovery_seconds": {"type": "number", "minimum": 0},
+        "discovery_cache_mb": {"type": "number", "minimum": 0},
+        "measurement": {"$ref": "#/$defs/loadCostMeasurement"},
+        "notes": {"type": "string", "minLength": 1}
       },
       "anyOf": [
-        {
-          "required": [
-            "typical_member_cache_mb"
-          ]
-        },
-        {
-          "required": [
-            "typical_member_first_load_seconds"
-          ]
-        },
-        {
-          "required": [
-            "discovery_seconds"
-          ]
-        },
-        {
-          "required": [
-            "discovery_cache_mb"
-          ]
-        }
+        {"required": ["typical_member_cache_mb"]},
+        {"required": ["typical_member_first_load_seconds"]},
+        {"required": ["discovery_seconds"]},
+        {"required": ["discovery_cache_mb"]}
       ]
     },
     "loadCost": {
       "if": {
-        "properties": {
-          "scope": {
-            "const": "resource"
-          }
+        "properties": {"scope": {"const": "resource"}},
+        "required": ["scope"]
+      },
+      "then": {"$ref": "#/$defs/resourceLoadCost"},
+      "else": {"$ref": "#/$defs/collectionMemberLoadCost"}
+    },
+    "versionDiscovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {"enum": ["github-releases", "tf-directories", "default-branch", "disabled"]},
+        "channel": {"enum": ["stable"]},
+        "tag_pattern": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "github-releases"}}, "required": ["mode"]},
+          "then": {"required": ["channel"]}
         },
-        "required": [
-          "scope"
-        ]
+        {
+          "if": {"properties": {"mode": {"enum": ["default-branch", "disabled"]}}, "required": ["mode"]},
+          "then": {
+            "allOf": [
+              {"not": {"required": ["channel"]}},
+              {"not": {"required": ["tag_pattern"]}}
+            ]
+          }
+        }
+      ]
+    },
+    "versionDataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "ordering"],
+      "properties": {
+        "mode": {"enum": ["release-version-match", "captured-version", "latest-root", "fixed", "member-index"]},
+        "root": {"type": "string", "minLength": 1},
+        "ordering": {"enum": ["semver", "natural", "none"]}
       },
-      "then": {
-        "$ref": "#/$defs/resourceLoadCost"
-      },
-      "else": {
-        "$ref": "#/$defs/collectionMemberLoadCost"
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"enum": ["release-version-match", "captured-version", "latest-root", "fixed"]}}, "required": ["mode"]},
+          "then": {"required": ["root"]}
+        },
+        {
+          "if": {"properties": {"mode": {"const": "member-index"}}, "required": ["mode"]},
+          "then": {"not": {"required": ["root"]}}
+        }
+      ]
+    },
+    "versionPromotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {"enum": ["proposal", "discovery-only", "pinned"]}
+      }
+    },
+    "versionAccepted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["publication_version", "signal", "source_revision"],
+      "properties": {
+        "publication_version": {"type": "string", "minLength": 1},
+        "signal": {"type": "string", "minLength": 1},
+        "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "tf_path": {"type": "string", "minLength": 1}
+      }
+    },
+    "versionTracking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discovery", "dataset", "promotion"],
+      "properties": {
+        "discovery": {"$ref": "#/$defs/versionDiscovery"},
+        "dataset": {"$ref": "#/$defs/versionDataset"},
+        "promotion": {"$ref": "#/$defs/versionPromotion"},
+        "accepted": {"$ref": "#/$defs/versionAccepted"}
       }
     }
   },
@@ -247,6 +196,7 @@
           "period": {"type": "string"},
           "description": {"type": "string", "minLength": 1},
           "load_cost": {"$ref": "#/$defs/loadCost"},
+          "version_tracking": {"$ref": "#/$defs/versionTracking"},
           "upstream": {
             "type": "object",
             "additionalProperties": false,
@@ -334,10 +284,7 @@
                   "additionalProperties": false,
                   "required": ["check_id"],
                   "properties": {
-                    "check_id": {
-                      "type": "string",
-                      "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
-                    }
+                    "check_id": {"type": "string", "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"}
                   }
                 }
               },
@@ -349,10 +296,7 @@
                   "additionalProperties": false,
                   "required": ["id", "severity", "impact", "signature", "summary"],
                   "properties": {
-                    "id": {
-                      "type": "string",
-                      "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"
-                    },
+                    "id": {"type": "string", "pattern": "^[a-z0-9-]+/[a-z0-9-]+$"},
                     "severity": {"enum": ["advisory", "blocking"]},
                     "impact": {"enum": ["resource", "member"]},
                     "signature": {"type": "string", "minLength": 1},
@@ -397,7 +341,8 @@
             "then": {
               "allOf": [
                 {"required": ["parent", "compatibility", "module"]},
-                {"not": {"required": ["load_cost"]}}
+                {"not": {"required": ["load_cost"]}},
+                {"not": {"required": ["version_tracking"]}}
               ]
             },
             "else": {
