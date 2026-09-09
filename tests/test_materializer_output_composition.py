@@ -97,6 +97,13 @@ class MaterializerOutputCompositionManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ManifestError, "violates schema"):
             self.load(doc)
 
+    def test_feature_module_composition_requires_text_fabric_output(self):
+        doc = _manifest()
+        doc["materializers"][0]["output"]["format"] = "csv"
+        doc["materializers"][0]["output"]["composition"] = copy.deepcopy(COMPOSITION)
+        with self.assertRaisesRegex(ManifestError, "violates schema"):
+            self.load(doc)
+
     def test_empty_or_duplicate_parent_versions_are_rejected(self):
         for versions in ([], ["0.2.8", "0.2.8"]):
             with self.subTest(versions=versions):
