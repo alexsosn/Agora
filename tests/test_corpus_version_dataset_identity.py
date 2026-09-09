@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 
 from scripts import check_corpus_versions as versions
@@ -170,6 +171,70 @@ class CorpusDatasetIdentityRed3Tests(unittest.TestCase):
 
         with self.assertRaisesRegex(versions.ReleaseDiscoveryError, r"path|root|unsafe|escape"):
             self.resolve(resource, _source(), api)
+
+
+class PublicDatasetInspectionRed3bTests(unittest.TestCase):
+    def test_public_api_lists_immediate_tf_roots_at_exact_commit_without_auth(self):
+        calls: list[tuple[str, dict[str, str]]] = []
+
+        def requester(url: str, *, headers: dict[str, str], timeout: int) -> bytes:
+            calls.append((url, dict(headers)))
+            return json.dumps(
+                {
+                    "sha": COMMIT,
+                    "truncated": False,
+                    "tree": [
+                        {"path": "tf/1.2.3/otype.tf", "type": "blob"},
+                        {"path": "tf/1.2.3/word.tf", "type": "blob"},
+                        {"path": "tf/1.2.4/otype.tf", "type": "blob"},
+                        {"path": "tf/nested/deeper/otype.tf", "type": "blob"},
+                        {"path": "other/9.9.9/otype.tf", "type": "blob"},
+                    ],
+                }
+            ).encode()
+
+        api = versions.public_github_api(
+            requester=requester,
+            api_base="https://api.example.invalid",
+        )
+        roots = api.list_tf_roots("example/corpus", COMMIT, "tf")
+
+        self.assertEqual(roots, ["1.2.3", "1.2.4"])
+        self.assertEqual(len(calls), 1)
+        url, headers = calls[0]
+        self.assertEqual(
+            url,
+            f"https://api.example.invalid/repos/example/corpus/git/trees/{COMMIT}?recursive=1",
+        )
+        self.assertNotIn("Authorization", headers)
+
+    def test_public_api_rejects_truncated_tree_instead_of_guessing_partial_roots(self):
+        def requester(url: str, *, headers: dict[str, str], timeout: int) -> bytes:
+            return json.dumps(
+                {
+                    "sha": COMMIT,
+                    "truncated": True,
+                    "tree": [{"path": "tf/1.2.4/otype.tf", "type": "blob"}],
+                }
+            ).encode()
+
+        api = versions.public_github_api(requester=requester)
+        with self.assertRaisesRegex(versions.ReleaseDiscoveryError, r"truncat|complete|tree"):
+            api.list_tf_roots("example/corpus", COMMIT, "tf")
+
+    def test_public_api_rejects_malformed_tree_records_fail_closed(self):
+        def requester(url: str, *, headers: dict[str, str], timeout: int) -> bytes:
+            return json.dumps(
+                {
+                    "sha": COMMIT,
+                    "truncated": False,
+                    "tree": [{"path": 123, "type": "blob"}],
+                }
+            ).encode()
+
+        api = versions.public_github_api(requester=requester)
+        with self.assertRaisesRegex(versions.ReleaseDiscoveryError, r"malformed|tree|path"):
+            api.list_tf_roots("example/corpus", COMMIT, "tf")
 
 
 if __name__ == "__main__":
