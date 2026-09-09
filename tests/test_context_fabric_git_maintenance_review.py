@@ -9,7 +9,7 @@ from test_context_fabric_git_metadata_maintenance import GitMetadataFixture
 
 
 class GitMaintenanceMeasurementIndependenceReviewTests(GitMetadataFixture):
-    """Adversarial RED3b: byte observation cannot veto proven Git maintenance debt."""
+    """Adversarial RED3b/c: Git debt and byte measurement stay independent."""
 
     def _plant_garbage(self, store) -> None:
         repo = store.repositories_dir / "fixture-0"
@@ -57,6 +57,25 @@ class GitMaintenanceMeasurementIndependenceReviewTests(GitMetadataFixture):
             self.assertEqual(row["garbage_entries_after"], 0)
             self.assertGreater(row["garbage_entries_removed"], 0)
             self.assertFalse(result["repository_reclamation_complete"])
+
+    def test_skipped_healthy_repo_does_not_invent_complete_byte_measurement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(Path(tmp))
+            with patch.object(
+                store,
+                "_directory_size_bounded",
+                return_value=(None, False),
+            ), patch.object(store, "_git_maintenance") as maintain:
+                result = store.prune(target_bytes=0)
+
+            maintain.assert_not_called()
+            row = result["repository_maintenance"][0]
+            self.assertEqual(row["maintenance_status"], "skipped")
+            self.assertFalse(row["before_measurement_complete"])
+            self.assertFalse(row["after_measurement_complete"])
+            self.assertIsNone(row["bytes_before"])
+            self.assertIsNone(row["bytes_after"])
+            self.assertIsNone(row["bytes_reclaimed"])
 
 
 if __name__ == "__main__":
