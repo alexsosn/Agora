@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 import re
 from typing import Any, Callable
 from urllib.parse import quote
@@ -24,6 +25,18 @@ class SourceCandidate:
     publication_version: str | None
     signal: str
     source_revision: str
+    release_url: str | None = None
+
+
+@dataclass(frozen=True)
+class DatasetCandidate:
+    """Passive Text-Fabric dataset identity observed at one frozen source commit."""
+
+    resource_id: str
+    publication_version: str | None
+    signal: str
+    source_revision: str
+    tf_path: str
     release_url: str | None = None
 
 
@@ -279,9 +292,174 @@ def discover_source_candidate(resource: dict[str, Any], api: Any) -> SourceCandi
     if mode == "default-branch":
         return _discover_default_branch_source(resource, api)
     if mode == "tf-directories":
-        # RED3 owns dataset-root inspection. The source commit must still be
-        # frozen before that inspection, so reuse the default-branch source seam.
         return _discover_default_branch_source(resource, api)
     raise ReleaseDiscoveryError(
         f"unsupported version discovery mode {mode!r} for resource {resource.get('id')!r}"
+    )
+
+
+def _safe_tf_component(value: Any, *, where: str) -> str:
+    if not isinstance(value, str) or not value or value in {".", ".."}:
+        raise ReleaseDiscoveryError(f"unsafe or malformed TF root {value!r} at {where}")
+    path = PurePosixPath(value)
+    if path.is_absolute() or len(path.parts) != 1 or value != path.as_posix():
+        raise ReleaseDiscoveryError(f"unsafe or escaping TF root {value!r} at {where}")
+    if "/" in value or "\\" in value:
+        raise ReleaseDiscoveryError(f"unsafe TF root {value!r} at {where}")
+    return value
+
+
+def _safe_fixed_tf_path(value: Any, *, where: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ReleaseDiscoveryError(f"malformed fixed TF path at {where}")
+    if "\\" in value:
+        raise ReleaseDiscoveryError(f"unsafe fixed TF path {value!r} at {where}")
+    path = PurePosixPath(value)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        raise ReleaseDiscoveryError(f"unsafe fixed TF path {value!r} at {where}")
+    return path.as_posix()
+
+
+def _natural_key(value: str) -> tuple[tuple[int, Any], ...]:
+    parts = re.split(r"([0-9]+)", value)
+    return tuple(
+        (0, int(part)) if part.isdigit() else (1, part.casefold())
+        for part in parts
+        if part != ""
+    )
+
+
+def _ordered_latest(labels: list[str], ordering: str, *, resource_id: str) -> str:
+    if not labels:
+        raise ReleaseDiscoveryError(f"no Text-Fabric dataset roots found for resource {resource_id!r}")
+    if ordering == "none":
+        if len(labels) != 1:
+            raise ReleaseDiscoveryError(
+                f"ambiguous multiple Text-Fabric roots for resource {resource_id!r} with ordering 'none'"
+            )
+        return labels[0]
+    if ordering == "natural":
+        return max(labels, key=lambda value: (_natural_key(value), value))
+    if ordering == "semver":
+        parsed: list[tuple[SemVer, str]] = []
+        for label in labels:
+            try:
+                version = SemVer.parse(label)
+            except ValueError as exc:
+                raise ReleaseDiscoveryError(
+                    f"Text-Fabric root {label!r} for resource {resource_id!r} is not strict SemVer"
+                ) from exc
+            parsed.append((version, label))
+        highest = max(version for version, _ in parsed)
+        winners = [label for version, label in parsed if version == highest]
+        if len(winners) != 1:
+            raise ReleaseDiscoveryError(
+                f"ambiguous highest Text-Fabric root for resource {resource_id!r}: {winners!r}"
+            )
+        return winners[0]
+    raise ReleaseDiscoveryError(
+        f"unsupported Text-Fabric root ordering {ordering!r} for resource {resource_id!r}"
+    )
+
+
+def _captured_tf_version(resource: dict[str, Any], source: SourceCandidate) -> str:
+    pattern = _tag_pattern(resource["version_tracking"]["discovery"])
+    if "tf_version" not in pattern.groupindex:
+        raise ReleaseDiscoveryError(
+            f"captured-version dataset for resource {resource.get('id')!r} requires named 'tf_version' capture"
+        )
+    match = pattern.fullmatch(source.signal)
+    if match is None:
+        raise ReleaseDiscoveryError(
+            f"source signal {source.signal!r} for resource {resource.get('id')!r} does not match configured tag pattern"
+        )
+    return _safe_tf_component(
+        match.group("tf_version"),
+        where=f"captured tf_version for resource {resource.get('id')!r}",
+    )
+
+
+def discover_dataset_candidate(
+    resource: dict[str, Any], source: SourceCandidate, api: Any
+) -> DatasetCandidate:
+    """Resolve TF dataset identity passively at the already-frozen source commit."""
+
+    if source.resource_id != resource.get("id"):
+        raise ReleaseDiscoveryError(
+            f"source candidate {source.resource_id!r} does not match resource {resource.get('id')!r}"
+        )
+    source_revision = _commit_sha(
+        source.source_revision,
+        where=f"dataset source revision for resource {resource.get('id')!r}",
+    )
+    tracking = resource.get("version_tracking")
+    if not isinstance(tracking, dict) or not isinstance(tracking.get("dataset"), dict):
+        raise ReleaseDiscoveryError(
+            f"resource {resource.get('id')!r} has malformed dataset tracking policy"
+        )
+    dataset = tracking["dataset"]
+    mode = dataset.get("mode")
+    ordering = dataset.get("ordering")
+
+    if mode == "fixed":
+        tf_path = _safe_fixed_tf_path(
+            dataset.get("root"), where=f"resource {resource.get('id')!r}"
+        )
+    else:
+        root = _safe_fixed_tf_path(
+            dataset.get("root"), where=f"dataset root for resource {resource.get('id')!r}"
+        )
+        repository = resource["upstream"]["repository"]
+        try:
+            raw_labels = api.list_tf_roots(repository, source_revision, root)
+        except ReleaseDiscoveryError:
+            raise
+        except Exception as exc:
+            raise ReleaseDiscoveryError(
+                f"cannot inspect Text-Fabric roots for resource {resource.get('id')!r}: {exc}"
+            ) from exc
+        if not isinstance(raw_labels, list):
+            raise ReleaseDiscoveryError(
+                f"Text-Fabric root listing for resource {resource.get('id')!r} is not a list"
+            )
+        labels = [
+            _safe_tf_component(label, where=f"resource {resource.get('id')!r}")
+            for label in raw_labels
+        ]
+        if len(labels) != len(set(labels)):
+            raise ReleaseDiscoveryError(
+                f"duplicate Text-Fabric roots for resource {resource.get('id')!r}"
+            )
+
+        if mode == "release-version-match":
+            if source.publication_version is None:
+                raise ReleaseDiscoveryError(
+                    f"release-version-match dataset for resource {resource.get('id')!r} has no publication version"
+                )
+            selected = source.publication_version
+            if selected not in labels:
+                raise ReleaseDiscoveryError(
+                    f"matching Text-Fabric dataset {selected!r} is missing for resource {resource.get('id')!r}"
+                )
+        elif mode == "captured-version":
+            selected = _captured_tf_version(resource, source)
+            if selected not in labels:
+                raise ReleaseDiscoveryError(
+                    f"captured Text-Fabric dataset {selected!r} is missing for resource {resource.get('id')!r}"
+                )
+        elif mode == "latest-root":
+            selected = _ordered_latest(labels, str(ordering), resource_id=str(resource.get("id")))
+        else:
+            raise ReleaseDiscoveryError(
+                f"unsupported dataset discovery mode {mode!r} for resource {resource.get('id')!r}"
+            )
+        tf_path = f"{root.rstrip('/')}/{selected}"
+
+    return DatasetCandidate(
+        resource_id=source.resource_id,
+        publication_version=source.publication_version,
+        signal=source.signal,
+        source_revision=source_revision,
+        tf_path=tf_path,
+        release_url=source.release_url,
     )
