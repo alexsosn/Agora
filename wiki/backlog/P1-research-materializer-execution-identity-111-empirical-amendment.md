@@ -4,9 +4,9 @@
 
 ## Experiment actually run
 
-PR #113 head `5f29c84258e1897082881b00e9d4db28b96f430b` ran the production `install_materializer()` path twice from identical synthetic immutable source in distinct managed roots, using real pip local-project installation and an offline deterministic PEP 517 fixture.
+PR #113 first established the complete three-platform runtime diff at head `5f29c84258e1897082881b00e9d4db28b96f430b`, workflow `Materializer execution identity research` run `34323481318`. A later strengthened probe at head `91be91f74fd9a1a9fd70154ed52cdeb09f9a3f20`, run `34362793257`, directly parsed the Windows launcher emitted by the runner and passed on Ubuntu, macOS, and Windows.
 
-Workflow: `Materializer execution identity research`, run `34323481318`.
+Both probes run the production `install_materializer()` path twice from identical synthetic immutable source in distinct managed roots, using real pip local-project installation and an offline deterministic PEP 517 fixture.
 
 Platforms:
 
@@ -64,7 +64,18 @@ Exactly three runtime paths differed:
 
 The origin and `RECORD` classifications are the same as POSIX.
 
-The generated launcher had identical size (`108357` bytes) and differed at exactly two byte offsets in the detailed probe. No differing build-root/install-root/interpreter-path text was found in the launcher strings. The two byte values each advanced by one between successive installs.
+The generated launcher had identical size (`108357` bytes) and the first detailed probe observed exactly two changed byte offsets, with no differing build-root/install-root/interpreter-path string.
+
+The strengthened run `34362793257` then parsed the actual appended launcher ZIP from both installed executables. Its assertions proved directly that, between the two clean installs:
+
+- the ZIP starts at the same executable offset;
+- the complete executable prefix before the ZIP has the same SHA-256;
+- the archive contains the same single `__main__.py` entry;
+- the embedded `__main__.py` payload has the same SHA-256;
+- every compared `ZipInfo` field other than `date_time` is equal, including compression mode, flags, CRC, sizes, external/internal attributes, comment, and extra metadata;
+- `date_time` differs.
+
+This is direct runner evidence that the Windows-only executable drift is confined to ZIP timestamp metadata.
 
 ## Windows launcher cause
 
@@ -76,7 +87,7 @@ launcher stub + shebang + ZIP archive containing __main__.py
 
 At upstream distlib commit `454a87c64f0b545138dc4798aa833a4ff8ac2377`, the ZIP member receives a deterministic `ZipInfo.date_time` only when `SOURCE_DATE_EPOCH` is set. Otherwise distlib calls `ZipFile.writestr('__main__.py', script_bytes)` and the ZIP implementation records the current time.
 
-That implementation, together with the observed fixed-size launcher and exactly two changed bytes with no path-string drift, classifies the Windows-only difference as installer-generated ZIP timestamp metadata. It is not evidence that the launcher executes a different module, interpreter, target path, or payload.
+The upstream implementation explains the directly observed runner behavior; the classification no longer depends on inference from two changed byte offsets alone.
 
 The launcher still remains execution-bearing. The implementation must therefore normalize only the recognized ZIP timestamp metadata in the canonical execution representation, or make that timestamp deterministic at install time without changing other launcher bytes. It must not ignore the launcher file.
 
@@ -98,7 +109,7 @@ The pip report is receipt/integrity provenance and is not part of the current ru
 | --- | --- | --- | --- |
 | `*.dist-info/direct_url.json` local `file://` URL | Linux/macOS/Windows | direct Agora staging provenance | canonicalize only the proven random staging URI, fail closed on unexpected/non-local shape |
 | corresponding `RECORD` row | Linux/macOS/Windows | cryptographic derivative of canonicalized origin | recompute digest/size from canonical `direct_url.json`; preserve all unrelated rows byte-semantically |
-| Windows `bin/*.exe` ZIP member timestamp | Windows | generated volatile installer timestamp | canonicalize only recognized ZIP timestamp fields or deterministically produce them; preserve stub, shebang, payload and all other archive bytes/metadata |
+| Windows `bin/*.exe` ZIP member timestamp | Windows | directly observed generated volatile installer timestamp | canonicalize only recognized ZIP timestamp fields or deterministically produce them; preserve stub, shebang, payload and all other archive bytes/metadata |
 | `pip-report.json $.install[0].download_info.url` | Linux/macOS/Windows | raw installation provenance | retain raw receipt hash; do not include this volatile URL in canonical execution identity |
 
 No category-(4) unexplained runtime difference remains in this synthetic real-pip experiment.
