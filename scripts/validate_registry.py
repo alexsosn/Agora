@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -27,6 +28,7 @@ except ModuleNotFoundError:
 
 ROOT = Path(__file__).resolve().parents[1]
 VERIFICATION_RANK = {"experimental": 0, "community": 1, "verified": 2}
+IMMUTABLE_COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 def load_yaml(path: Path) -> Any:
@@ -97,7 +99,6 @@ def validate_license_evidence(
     licenses = resource.get("licenses") or {}
     evidence = licenses.get("evidence")
     if not isinstance(evidence, dict):
-        # Presence/shape is enforced by JSON Schema for corpus/collection records.
         return
 
     status = evidence.get("status")
@@ -189,6 +190,71 @@ def validate_load_cost(resource: dict[str, Any], errors: list[str]) -> None:
             errors.append(
                 f"{prefix}.typical_member_first_load_seconds: min must be <= max"
             )
+
+
+def validate_version_tracking(resource: dict[str, Any], errors: list[str]) -> None:
+    """Validate tracking/runtime combinations that JSON Schema cannot compare."""
+    tracking = resource.get("version_tracking")
+    if not isinstance(tracking, dict):
+        return
+
+    prefix = f"resource {resource['id']}.version_tracking"
+    kind = resource.get("kind")
+    discovery = tracking.get("discovery") or {}
+    dataset = tracking.get("dataset") or {}
+    promotion = tracking.get("promotion") or {}
+    accepted = tracking.get("accepted")
+    upstream = resource.get("upstream") or {}
+
+    if kind == "feature-module":
+        errors.append(f"{prefix}: feature modules cannot define independent version tracking")
+        return
+
+    discovery_mode = discovery.get("mode")
+    promotion_mode = promotion.get("mode")
+    dataset_mode = dataset.get("mode")
+
+    if discovery_mode == "default-branch" and promotion_mode == "proposal":
+        errors.append(
+            f"{prefix}: default-branch discovery is discovery-only in v1 and cannot use proposal promotion"
+        )
+
+    if kind == "collection" and dataset_mode != "member-index":
+        errors.append(f"{prefix}.dataset.mode: collections must use 'member-index'")
+    if kind == "corpus" and dataset_mode == "member-index":
+        errors.append(f"{prefix}.dataset.mode: corpus resources cannot use 'member-index'")
+
+    if promotion_mode != "proposal":
+        return
+
+    if not isinstance(accepted, dict):
+        errors.append(f"{prefix}.accepted: proposal promotion requires accepted publication state")
+        return
+
+    source_revision = accepted.get("source_revision")
+    runtime_ref = upstream.get("ref")
+    if not isinstance(runtime_ref, str) or not IMMUTABLE_COMMIT_RE.fullmatch(runtime_ref):
+        errors.append(
+            f"{prefix}.accepted.source_revision: proposal runtime upstream.ref must be an immutable 40-hex commit"
+        )
+    if source_revision != runtime_ref:
+        errors.append(
+            f"{prefix}.accepted.source_revision: must match canonical upstream.ref"
+        )
+
+    if kind == "collection":
+        if "tf_path" in accepted:
+            errors.append(
+                f"{prefix}.accepted.tf_path: collection member-index tracking cannot define a scalar tf_path"
+            )
+        return
+
+    accepted_tf_path = accepted.get("tf_path")
+    runtime_tf_path = upstream.get("tf_path")
+    if accepted_tf_path != runtime_tf_path:
+        errors.append(
+            f"{prefix}.accepted.tf_path: must match canonical upstream.tf_path"
+        )
 
 
 def validate_registry(root: Path = ROOT) -> list[str]:
@@ -370,6 +436,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
             )
         validate_license_evidence(resource, license_evidence_statuses, errors)
         validate_load_cost(resource, errors)
+        validate_version_tracking(resource, errors)
         ensure_vocab(resource["verification"]["status"], verification, f"{prefix}.verification.status", errors)
 
         if resource["kind"] == "feature-module":
