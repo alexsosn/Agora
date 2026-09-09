@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -89,8 +88,9 @@ def resolve_cacheability_authorization(
     This is an authorization read, not an installation path. It never fetches,
     installs, repairs, imports, or executes plugin code. The installer runtime
     lock is held while the managed environment is re-verified, the current
-    registry/manifest binding is checked, and the verified receipt identity is
-    compared with the reviewed cacheability policy.
+    registry/manifest binding is checked, and the execution identity from that
+    exact verified receipt snapshot is compared with reviewed cacheability
+    policy.
     """
     plugin, target = _registered_target(
         plugin_id,
@@ -102,7 +102,8 @@ def resolve_cacheability_authorization(
 
     lock_path = target.parent / f".{target.name}.lock"
     with installer._lock(lock_path):
-        if not installer._environment_current(plugin, target):
+        receipt = installer._verified_environment_receipt(plugin, target)
+        if receipt is None:
             raise installer.MaterializerInstallError(
                 f"materializer plugin {plugin_id!r} installation failed integrity verification; "
                 "refusing to authorize cache reuse"
@@ -130,16 +131,7 @@ def resolve_cacheability_authorization(
                 f"materializer {materializer_id!r} is not approved by registry plugin {plugin_id!r}"
             )
 
-        receipt_path = target / installer.INSTALLATION_RECEIPT
-        try:
-            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-            execution_identity = receipt["execution_identity_sha256"]
-        except (KeyError, OSError, ValueError, json.JSONDecodeError) as exc:
-            raise installer.MaterializerInstallError(
-                f"materializer plugin {plugin_id!r} installation failed integrity verification; "
-                "verified execution identity receipt is unavailable"
-            ) from exc
-
+        execution_identity = receipt["execution_identity_sha256"]
         policy = installer.compare_cacheability_policy(
             current_plugin,
             materializer_id,
