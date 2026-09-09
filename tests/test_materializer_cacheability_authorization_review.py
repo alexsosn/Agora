@@ -106,6 +106,49 @@ class MaterializerCacheabilityAuthorizationReviewTests(
             self.assertTrue(result["reuse_allowed"])
             self.assertEqual(result["execution_identity_sha256"], identity)
 
+    def test_manifest_path_change_while_locked_cannot_authorize_stale_verified_manifest(self):
+        identity = "a" * 64
+        original_plugin = _plugin(cacheability=_reusable(identity))
+        current_plugin = _plugin(cacheability=_reusable(identity))
+        current_plugin["manifest"] = "alternate.materializer.json"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "managed-environment"
+            runtime = target / "runtime"
+            runtime.mkdir(parents=True)
+            (runtime / original_plugin["manifest"]).write_text("{}", encoding="utf-8")
+
+            @contextlib.contextmanager
+            def fake_lock(_path: Path):
+                yield
+
+            with (
+                mock.patch.object(
+                    registered,
+                    "_registered_target",
+                    side_effect=[
+                        (original_plugin, target),
+                        (current_plugin, target),
+                    ],
+                ),
+                mock.patch.object(installer, "_lock", side_effect=fake_lock),
+                mock.patch.object(
+                    installer,
+                    "_verified_environment_receipt",
+                    return_value={"execution_identity_sha256": identity},
+                ),
+                mock.patch.object(installer, "_validate_binding", return_value={}),
+            ):
+                with self.assertRaisesRegex(
+                    installer.MaterializerInstallError,
+                    r"registry binding changed|manifest.*changed|manifest.*binding",
+                ):
+                    registered.resolve_cacheability_authorization(
+                        "example-converter",
+                        "example-to-tf",
+                        install_root=target.parent,
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()
