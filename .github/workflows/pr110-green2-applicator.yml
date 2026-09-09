@@ -26,53 +26,55 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           core_path = Path('plugins/context-fabric/src/agora_context_fabric/gitstore/_core.py')
           core = core_path.read_text(encoding='utf-8')
 
-          old_lock = '''    @contextmanager
-              def _repository_lock(self, key: str, timeout: float = 30.0) -> Iterator[None]:
-                  """Serialize repository mutation with an OS-backed crash-safe lock."""
-                  lock_path = self.locks_dir / f"repository-{self.safe_cache_key(key)}.lock"
-                  lock = self._acquire_file_lock(
-                      lock_path,
-                      shared=False,
-                      timeout=timeout,
-                      description="Git cache lock",
-                  )
-                  try:
-                      yield
-                  finally:
-                      lock.release()
-          '''.replace('              ', '')
-          new_lock = '''    @contextmanager
-              def _repository_lock(
-                  self,
-                  key: str,
-                  timeout: float = 30.0,
-                  *,
-                  shared: bool = False,
-              ) -> Iterator[None]:
-                  """Coordinate persistent repository use with a crash-safe lock."""
-                  lock_path = self.locks_dir / f"repository-{self.safe_cache_key(key)}.lock"
-                  lock = self._acquire_file_lock(
-                      lock_path,
-                      shared=shared,
-                      timeout=timeout,
-                      description="Git cache lock",
-                  )
-                  try:
-                      yield
-                  finally:
-                      lock.release()
-          '''.replace('              ', '')
+          def replace_one(label: str, pattern: str, replacement: str) -> None:
+              global core
+              core, count = re.subn(pattern, replacement, core, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f'{label} anchor count is {count}, expected 1')
 
-          old_show = '''    def _git_show_lines(
+          replace_one(
+              'repository lock',
+              r'    @contextmanager\n    def _repository_lock\(.*?\n\n    @contextmanager\n    def cache_transition',
+              '''    @contextmanager
+          def _repository_lock(
               self,
-              repo: Path,
-              relative_path: str,
-              revision: str | None = None,
-          ) -> Iterator[str]:
+              key: str,
+              timeout: float = 30.0,
+              *,
+              shared: bool = False,
+          ) -> Iterator[None]:
+              """Coordinate persistent repository use with a crash-safe lock."""
+              lock_path = self.locks_dir / f"repository-{self.safe_cache_key(key)}.lock"
+              lock = self._acquire_file_lock(
+                  lock_path,
+                  shared=shared,
+                  timeout=timeout,
+                  description="Git cache lock",
+              )
+              try:
+                  yield
+              finally:
+                  lock.release()
+
+          @contextmanager
+          def cache_transition'''.replace('          ', '    '),
+          )
+
+          replace_one(
+              'git show generator',
+              r'    def _git_show_lines\(.*?\n\n    def tf_header_metadata\(',
+              '''    def _git_show_lines(
+          self,
+          repo: Path,
+          relative_path: str,
+          revision: str | None = None,
+      ) -> Iterator[str]:
+          with self._repository_lock(repo.name, shared=True):
               relative = self._safe_relative_path(relative_path)
               treeish = self._treeish(repo, revision)
               spec = f"{treeish}:{relative}"
@@ -98,48 +100,21 @@ jobs:
                           ["git", "show", spec],
                           stderr=stderr,
                       )
-          '''.replace('          ', '')
-          new_show = '''    def _git_show_lines(
-              self,
-              repo: Path,
-              relative_path: str,
-              revision: str | None = None,
-          ) -> Iterator[str]:
-              with self._repository_lock(repo.name, shared=True):
-                  relative = self._safe_relative_path(relative_path)
-                  treeish = self._treeish(repo, revision)
-                  spec = f"{treeish}:{relative}"
-                  process = subprocess.Popen(
-                      ["git", "-C", str(repo), "show", spec],
-                      text=True,
-                      stdout=subprocess.PIPE,
-                      stderr=subprocess.PIPE,
-                  )
-                  assert process.stdout is not None
-                  try:
-                      for line in process.stdout:
-                          yield line.rstrip("\\r\\n")
-                  finally:
-                      process.stdout.close()
-                      stderr = process.stderr.read() if process.stderr is not None else ""
-                      returncode = process.wait()
-                      if process.stderr is not None:
-                          process.stderr.close()
-                      if returncode:
-                          raise subprocess.CalledProcessError(
-                              returncode,
-                              ["git", "show", spec],
-                              stderr=stderr,
-                          )
-          '''.replace('          ', '')
 
-          old_header = '''    def tf_header_metadata(
-              self,
-              repo: Path,
-              relative_path: str,
-              revision: str | None = None,
-          ) -> dict[str, Any]:
-              """Read Text-Fabric metadata header fields without consuming feature rows."""
+      def tf_header_metadata(''',
+          )
+
+          replace_one(
+              'header reader',
+              r'    def tf_header_metadata\(.*?\n\n    def tf_feature_summary\(',
+              '''    def tf_header_metadata(
+          self,
+          repo: Path,
+          relative_path: str,
+          revision: str | None = None,
+      ) -> dict[str, Any]:
+          """Read Text-Fabric metadata header fields without consuming feature rows."""
+          with self._repository_lock(repo.name, shared=True):
               relative = self._safe_relative_path(relative_path)
               treeish = self._treeish(repo, revision)
               spec = f"{treeish}:{relative}"
@@ -176,61 +151,10 @@ jobs:
                           stderr=stderr,
                       )
               return metadata
-          '''.replace('          ', '')
-          new_header = '''    def tf_header_metadata(
-              self,
-              repo: Path,
-              relative_path: str,
-              revision: str | None = None,
-          ) -> dict[str, Any]:
-              """Read Text-Fabric metadata header fields without consuming feature rows."""
-              with self._repository_lock(repo.name, shared=True):
-                  relative = self._safe_relative_path(relative_path)
-                  treeish = self._treeish(repo, revision)
-                  spec = f"{treeish}:{relative}"
-                  command = ["git", "-C", str(repo), "show", spec]
-                  process = subprocess.Popen(
-                      command,
-                      text=True,
-                      stdout=subprocess.PIPE,
-                      stderr=subprocess.PIPE,
-                  )
-                  assert process.stdout is not None
-                  metadata: dict[str, Any] = {}
-                  header_complete = False
-                  try:
-                      for raw_line in process.stdout:
-                          line = raw_line.rstrip("\\r\\n")
-                          if not line or not line.startswith("@"):
-                              header_complete = True
-                              break
-                          if "=" in line:
-                              key, value = line[1:].split("=", 1)
-                              if key:
-                                  metadata[key] = value
-                  finally:
-                      process.stdout.close()
-                      stderr = process.stderr.read() if process.stderr is not None else ""
-                      returncode = process.wait()
-                      if process.stderr is not None:
-                          process.stderr.close()
-                      if returncode and not header_complete:
-                          raise subprocess.CalledProcessError(
-                              returncode,
-                              command,
-                              stderr=stderr,
-                          )
-                  return metadata
-          '''.replace('          ', '')
 
-          for label, old, new in (
-              ('repository lock', old_lock, new_lock),
-              ('git show generator', old_show, new_show),
-              ('header reader', old_header, new_header),
-          ):
-              if core.count(old) != 1:
-                  raise SystemExit(f'{label} anchor count is {core.count(old)}, expected 1')
-              core = core.replace(old, new)
+      def tf_feature_summary(''',
+          )
+
           core_path.write_text(core, encoding='utf-8')
 
           status_path = Path('plugins/context-fabric/src/agora_context_fabric/gitstore/__init__.py')
@@ -241,6 +165,8 @@ jobs:
               raise SystemExit(f'status lock anchor count is {status.count(old)}, expected 1')
           status_path.write_text(status.replace(old, new), encoding='utf-8')
           PY
+      - name: Compile edited modules
+        run: python -m py_compile plugins/context-fabric/src/agora_context_fabric/gitstore/_core.py plugins/context-fabric/src/agora_context_fabric/gitstore/__init__.py
       - name: Run focused RED2 contract
         run: python -m unittest discover -s tests -p 'test_context_fabric_git_repository_lock_domain.py' -v
       - name: Run prior Git metadata contracts
