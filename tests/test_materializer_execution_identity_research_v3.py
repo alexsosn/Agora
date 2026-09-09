@@ -99,6 +99,31 @@ class MaterializerExecutionIdentityV3Red1Tests(unittest.TestCase):
             runtime_file.write_text("def main():\n    return 99\n", encoding="utf-8")
             self.assertIsNone(installer._verified_environment_receipt(_plugin(), target))
 
+    def test_canonical_execution_tree_changes_when_runtime_code_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            registry = _registry(root / "materializers.yaml")
+            with mock.patch.object(installer, "_checkout", side_effect=_populate):
+                target = installer.install_materializer(
+                    "research-probe",
+                    install_root=root / "installed",
+                    registry_path=registry,
+                    approve_code_execution=True,
+                )
+
+            receipt = json.loads(
+                (target / installer.INSTALLATION_RECEIPT).read_text(encoding="utf-8")
+            )
+            original = receipt["environment"]["execution_tree_sha256"]
+            runtime_file = target / "runtime" / "research_probe" / "cli.py"
+            runtime_file.write_text("def main():\n    return 99\n", encoding="utf-8")
+            changed = installer.canonical_execution_tree_hash(
+                target / "runtime",
+                target / installer.PIP_REPORT,
+                excludes=installer.RUNTIME_TREE_EXCLUDES,
+            )
+            self.assertNotEqual(original, changed)
+
 
 if __name__ == "__main__":
     unittest.main()
