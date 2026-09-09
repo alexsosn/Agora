@@ -129,6 +129,22 @@ class CorpusSourceDiscoveryRed2Tests(unittest.TestCase):
         self.assertEqual(candidate.publication_version, "1.2.4")
         self.assertEqual(candidate.signal, "TLHdig-v1.2.4")
 
+    def test_malformed_tag_pattern_fails_closed_before_release_resolution(self):
+        module = self.require_module()
+        resource = _resource(tag_pattern=r"^(?P<version>[0-9]+$")
+        api = FakeReleaseApi([self.release("v1.2.4")])
+        with self.assertRaisesRegex(module.ReleaseDiscoveryError, r"tag.pattern|regex|pattern"):
+            module.discover_source_candidate(resource, api)
+        self.assertFalse(any(call[0] == "get_ref" for call in api.calls))
+
+    def test_tag_pattern_without_named_version_capture_fails_closed(self):
+        module = self.require_module()
+        resource = _resource(tag_pattern=r"^v([0-9]+\.[0-9]+\.[0-9]+)$")
+        api = FakeReleaseApi([self.release("v1.2.4")])
+        with self.assertRaisesRegex(module.ReleaseDiscoveryError, r"version|capture|tag.pattern"):
+            module.discover_source_candidate(resource, api)
+        self.assertFalse(any(call[0] == "get_ref" for call in api.calls))
+
     def test_annotated_release_tag_resolves_to_terminal_full_commit(self):
         module = self.require_module()
         api = FakeReleaseApi(
