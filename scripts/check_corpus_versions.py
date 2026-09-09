@@ -86,6 +86,59 @@ class PublicGitHubApi(GitHubApi):
             where=f"default branch head for {repository!r}",
         )
 
+    def list_tf_roots(
+        self,
+        repository: str,
+        source_revision: str,
+        root: str,
+    ) -> list[str]:
+        """List immediate TF dataset directories from one immutable Git tree."""
+
+        repository_path = self._repository_path(repository)
+        commit = _commit_sha(
+            source_revision,
+            where=f"dataset source revision for {repository!r}",
+        )
+        safe_root = _safe_fixed_tf_path(root, where=f"dataset root for {repository!r}")
+        payload = self._json(
+            f"{self.api_base}/repos/{repository_path}/git/trees/{commit}?recursive=1"
+        )
+        if not isinstance(payload, dict):
+            raise ReleaseDiscoveryError(
+                f"GitHub tree response for {repository!r}@{commit} is not an object"
+            )
+        if payload.get("truncated") is not False:
+            raise ReleaseDiscoveryError(
+                f"GitHub tree response for {repository!r}@{commit} is truncated or incomplete"
+            )
+        tree = payload.get("tree")
+        if not isinstance(tree, list):
+            raise ReleaseDiscoveryError(
+                f"GitHub tree response for {repository!r}@{commit} has malformed tree data"
+            )
+
+        prefix = f"{safe_root.rstrip('/')}/"
+        roots: set[str] = set()
+        for item in tree:
+            if not isinstance(item, dict):
+                raise ReleaseDiscoveryError(
+                    f"GitHub tree response for {repository!r}@{commit} has malformed tree record"
+                )
+            path = item.get("path")
+            item_type = item.get("type")
+            if not isinstance(path, str) or not isinstance(item_type, str):
+                raise ReleaseDiscoveryError(
+                    f"GitHub tree response for {repository!r}@{commit} has malformed tree path/type"
+                )
+            if not path.startswith(prefix):
+                continue
+            relative = path[len(prefix):]
+            parts = PurePosixPath(relative).parts
+            if len(parts) == 2 and item_type == "blob" and parts[1] == "otype.tf":
+                roots.add(_safe_tf_component(parts[0], where=f"GitHub tree for {repository!r}"))
+
+        return sorted(roots)
+
 
 def public_github_api(
     *,
