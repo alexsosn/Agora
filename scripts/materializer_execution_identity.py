@@ -199,6 +199,22 @@ def _canonical_distlib_launcher(data: bytes) -> bytes:
             "Windows launcher is not the recognized distlib single-entry format"
         )
 
+    prefix = data[:parsed_start]
+    if not prefix.startswith(b"MZ"):
+        raise CanonicalExecutionIdentityError(
+            "Windows launcher lacks the researched native distlib launcher prefix"
+        )
+    shebang_start = prefix.rfind(b"#!")
+    if shebang_start < 2 or not prefix.endswith(b"\n"):
+        raise CanonicalExecutionIdentityError(
+            "Windows launcher lacks the researched distlib shebang before its ZIP"
+        )
+    shebang = prefix[shebang_start:]
+    if len(shebang) <= 3 or shebang.count(b"\n") != 1 or b"\0" in shebang:
+        raise CanonicalExecutionIdentityError(
+            "Windows launcher has an unexpected distlib shebang format"
+        )
+
     archive_bytes = bytearray(data[parsed_start:])
     local_offset = info.header_offset
     if archive_bytes[local_offset : local_offset + 4] != b"PK\x03\x04":
