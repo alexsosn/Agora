@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import io
 import json
 import re
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -93,6 +96,57 @@ def _byte_diff_summary(left: bytes, right: bytes) -> dict:
     }
 
 
+def _zip_info_without_time(info: zipfile.ZipInfo) -> tuple:
+    return (
+        info.filename,
+        info.compress_type,
+        info.comment,
+        info.extra,
+        info.create_system,
+        info.create_version,
+        info.extract_version,
+        info.flag_bits,
+        info.volume,
+        info.internal_attr,
+        info.external_attr,
+        info.CRC,
+        info.compress_size,
+        info.file_size,
+        info.header_offset,
+    )
+
+
+def _launcher_zip(data: bytes) -> dict | None:
+    """Parse the appended distlib ZIP without assuming a PE/stub length."""
+    signature = b"PK\x03\x04"
+    starts = [match.start() for match in re.finditer(re.escape(signature), data)]
+    for start in reversed(starts):
+        try:
+            with zipfile.ZipFile(io.BytesIO(data[start:]), "r") as archive:
+                infos = archive.infolist()
+                if not infos:
+                    continue
+                entries = []
+                for info in infos:
+                    payload = archive.read(info.filename)
+                    entries.append(
+                        {
+                            "filename": info.filename,
+                            "date_time": info.date_time,
+                            "metadata_without_time": _zip_info_without_time(info),
+                            "payload_sha256": hashlib.sha256(payload).hexdigest(),
+                        }
+                    )
+                return {
+                    "zip_start": start,
+                    "prefix_sha256": hashlib.sha256(data[:start]).hexdigest(),
+                    "entries": entries,
+                }
+        except (OSError, ValueError, zipfile.BadZipFile):
+            continue
+    return None
+
+
 class MaterializerExecutionIdentityResearchDetailProbe(unittest.TestCase):
     def test_inventory_pip_report_and_binary_launcher_drift(self):
         """Classify every remaining path-sensitive current-install difference."""
@@ -125,6 +179,7 @@ class MaterializerExecutionIdentityResearchDetailProbe(unittest.TestCase):
             ]
 
             binary_details = {}
+            launcher_details = {}
             for rel in differing_paths:
                 left_path = left_runtime / rel
                 right_path = right_runtime / rel
@@ -137,6 +192,11 @@ class MaterializerExecutionIdentityResearchDetailProbe(unittest.TestCase):
                     right_bytes.decode("utf-8")
                 except UnicodeDecodeError:
                     binary_details[rel] = _byte_diff_summary(left_bytes, right_bytes)
+                    if rel.lower().endswith(".exe"):
+                        launcher_details[rel] = {
+                            "left": _launcher_zip(left_bytes),
+                            "right": _launcher_zip(right_bytes),
+                        }
 
             left_report = json.loads((left_target / installer.PIP_REPORT).read_text(encoding="utf-8"))
             right_report = json.loads((right_target / installer.PIP_REPORT).read_text(encoding="utf-8"))
@@ -146,18 +206,62 @@ class MaterializerExecutionIdentityResearchDetailProbe(unittest.TestCase):
                 "differing_runtime_paths": differing_paths,
                 "pip_report_differences": pip_differences,
                 "binary_runtime_differences": binary_details,
+                "launcher_zip_differences": launcher_details,
             }
             print("EXECUTION_IDENTITY_RESEARCH_DETAIL=" + json.dumps(diagnostic, sort_keys=True))
 
             self.assertTrue(pip_differences, diagnostic)
+            self.assertEqual(
+                [row["path"] for row in pip_differences],
+                ["$.install[0].download_info.url"],
+                diagnostic,
+            )
             self.assertTrue(
-                any("agora-materializer-build-" in json.dumps(row) for row in pip_differences),
+                all("agora-materializer-build-" in json.dumps(row) for row in pip_differences),
                 diagnostic,
             )
             for rel in differing_paths:
-                if rel.lower().endswith(".exe"):
-                    self.assertIn(rel, binary_details, diagnostic)
-                    self.assertGreater(binary_details[rel]["differing_byte_count"], 0)
+                if not rel.lower().endswith(".exe"):
+                    continue
+                self.assertIn(rel, binary_details, diagnostic)
+                self.assertGreater(binary_details[rel]["differing_byte_count"], 0)
+
+                parsed = launcher_details[rel]
+                self.assertIsNotNone(parsed["left"], diagnostic)
+                self.assertIsNotNone(parsed["right"], diagnostic)
+                left_zip = parsed["left"]
+                right_zip = parsed["right"]
+                assert left_zip is not None and right_zip is not None
+
+                # Directly classify the bytes emitted by this runner rather than
+                # inferring launcher semantics from an unrelated installation.
+                self.assertEqual(left_zip["zip_start"], right_zip["zip_start"], diagnostic)
+                self.assertEqual(left_zip["prefix_sha256"], right_zip["prefix_sha256"], diagnostic)
+                self.assertEqual(
+                    [entry["filename"] for entry in left_zip["entries"]],
+                    ["__main__.py"],
+                    diagnostic,
+                )
+                self.assertEqual(
+                    [entry["filename"] for entry in right_zip["entries"]],
+                    ["__main__.py"],
+                    diagnostic,
+                )
+                self.assertEqual(
+                    [entry["payload_sha256"] for entry in left_zip["entries"]],
+                    [entry["payload_sha256"] for entry in right_zip["entries"]],
+                    diagnostic,
+                )
+                self.assertEqual(
+                    [entry["metadata_without_time"] for entry in left_zip["entries"]],
+                    [entry["metadata_without_time"] for entry in right_zip["entries"]],
+                    diagnostic,
+                )
+                self.assertNotEqual(
+                    [entry["date_time"] for entry in left_zip["entries"]],
+                    [entry["date_time"] for entry in right_zip["entries"]],
+                    diagnostic,
+                )
 
 
 if __name__ == "__main__":
