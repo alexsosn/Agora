@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
       - name: Apply exact GREEN3b change
         run: |
           python - <<'PY'
@@ -34,13 +36,14 @@ jobs:
           path.write_text(text.replace(old, new), encoding='utf-8')
           PY
       - name: Run focused maintenance regressions
+        env:
+          PYTHONPATH: tests
         run: |
-          python -m pip install portalocker==4.3.0
           python -m unittest -v \
-            tests.test_context_fabric_git_maintenance_review \
-            tests.test_context_fabric_git_maintenance_red3 \
-            tests.test_context_fabric_git_metadata_maintenance \
-            tests.test_context_fabric_git_repository_lock_domain
+            test_context_fabric_git_maintenance_review \
+            test_context_fabric_git_maintenance_red3 \
+            test_context_fabric_git_metadata_maintenance \
+            test_context_fabric_git_repository_lock_domain
       - name: Commit GREEN and remove applicator
         run: |
           rm .github/workflows/tmp-pr110-green3b.yml
