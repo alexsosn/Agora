@@ -115,7 +115,13 @@
               "items": {"$ref": "#/$defs/safeRelativePath"}
             },
             "composition": {"$ref": "#/$defs/featureModuleComposition"}
-          }
+          },
+          "allOf": [
+            {
+              "if": {"required": ["composition"]},
+              "then": {"properties": {"format": {"const": "text-fabric"}}}
+            }
+          ]
         }
       }
     },
