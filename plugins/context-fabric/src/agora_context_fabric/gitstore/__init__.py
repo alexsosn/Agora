@@ -23,10 +23,12 @@ for _name, _value in vars(_core_module).items():
 _CoreGitStore = _core_module.GitStore
 
 # Repository metadata inspection is an additive package-level extension around
-# the mature core cache. Publish the constant on _core as well so historical
+# the mature core cache. Publish the constants on _core as well so historical
 # patch/import targets continue to work while the implementation remains here.
 DEFAULT_GIT_STATUS_BUDGET_SECONDS = 2.0
+DEFAULT_GIT_MAINTENANCE_PACK_LIMIT = 16
 _core_module.DEFAULT_GIT_STATUS_BUDGET_SECONDS = DEFAULT_GIT_STATUS_BUDGET_SECONDS
+_core_module.DEFAULT_GIT_MAINTENANCE_PACK_LIMIT = DEFAULT_GIT_MAINTENANCE_PACK_LIMIT
 
 SourceMode = Literal["prefer-fresh", "offline", "require-fresh"]
 
@@ -189,6 +191,7 @@ class GitStore(_CoreGitStore):
             "packs": None,
             "garbage_entries": None,
             "garbage_bytes": None,
+            "maintenance_needed": None,
             "busy": False,
             "inspection_status": "budget-exhausted",
         }
@@ -224,19 +227,27 @@ class GitStore(_CoreGitStore):
                             row["packs"] = git["packs"]
                             row["garbage_entries"] = git["garbage"]
                             row["garbage_bytes"] = git["garbage_bytes"]
+                            row["maintenance_needed"] = bool(
+                                git["garbage"] > 0
+                                or git["packs"] > _core_module.DEFAULT_GIT_MAINTENANCE_PACK_LIMIT
+                            )
                             git_ok = True
                             row["inspection_status"] = "ok"
 
                     remaining = deadline - time.monotonic()
                     if remaining > 0:
-                        size, complete = self._directory_size_bounded(
-                            repo,
-                            deadline=deadline,
-                        )
-                        row["size_bytes"] = size
-                        row["size_complete"] = complete
-                        if not complete and row["inspection_status"] == "ok":
-                            row["inspection_status"] = "budget-exhausted"
+                        try:
+                            size, complete = self._directory_size_bounded(
+                                repo,
+                                deadline=deadline,
+                            )
+                        except OSError:
+                            row["inspection_status"] = "error"
+                        else:
+                            row["size_bytes"] = size
+                            row["size_complete"] = complete
+                            if not complete and row["inspection_status"] == "ok":
+                                row["inspection_status"] = "budget-exhausted"
                     elif row["inspection_status"] == "ok" or git_ok:
                         row["inspection_status"] = "budget-exhausted"
             except TimeoutError:
