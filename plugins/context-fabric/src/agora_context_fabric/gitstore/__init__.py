@@ -391,14 +391,6 @@ class GitStore(_CoreGitStore):
                         before_size, before_size_complete = None, False
                     row["bytes_before"] = before_size
                     row["before_measurement_complete"] = bool(before_size_complete)
-                    if not before_size_complete:
-                        budget_exhausted = time.monotonic() >= deadline
-                        row["maintenance_status"] = (
-                            "budget-exhausted" if budget_exhausted else "failed"
-                        )
-                        rows.append(row)
-                        continue
-
                     needs_maintenance = bool(
                         before_git["garbage"] > 0
                         or before_git["packs"] > _core_module.DEFAULT_GIT_MAINTENANCE_PACK_LIMIT
