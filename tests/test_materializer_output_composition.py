@@ -7,7 +7,6 @@ import unittest
 from pathlib import Path
 
 from scripts.agora_materialize import ManifestError, load_manifest, materialize
-from tests.test_materialization import _manifest, _write_manifest
 
 
 COMPOSITION = {
@@ -15,6 +14,49 @@ COMPOSITION = {
     "parent": "cuc",
     "compatibility": {"parent_versions": ["0.2.8"]},
 }
+
+
+def _manifest() -> dict:
+    return {
+        "schema_version": 1,
+        "plugin": {
+            "id": "example-converter",
+            "name": "Example converter",
+            "version": "1.0.0",
+        },
+        "materializers": [
+            {
+                "id": "example-to-tf",
+                "description": "Convert example source files to Text-Fabric.",
+                "acquisition": [
+                    {
+                        "type": "user-local",
+                        "path_type": "directory",
+                        "prompt": "Select the source data directory",
+                    }
+                ],
+                "input": {
+                    "type": "directory",
+                    "required_globs": ["*.xml"],
+                    "allow_symlinks": False,
+                },
+                "execution": {
+                    "type": "python-module",
+                    "module": "example_converter.cli",
+                    "args": ["convert", "{source}", "--output", "{output}"],
+                    "network": "deny",
+                },
+                "output": {
+                    "format": "text-fabric",
+                    "required_paths": ["otype.tf", "oslots.tf"],
+                },
+            }
+        ],
+    }
+
+
+def _write_manifest(path: Path, doc: dict) -> None:
+    path.write_text(json.dumps(doc), encoding="utf-8")
 
 
 class MaterializerOutputCompositionManifestTests(unittest.TestCase):
