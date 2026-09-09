@@ -133,6 +133,18 @@ class ExecutionIdentityReviewRed2Tests(unittest.TestCase):
             ):
                 canonical_execution_tree_hash(runtime, report)
 
+    def test_native_prefix_without_shebang_is_not_treated_as_distlib_launcher(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, report = _write_runtime(
+                Path(tmp),
+                launcher_prefix=b"MZ" + (b"\0" * 64),
+            )
+            with self.assertRaisesRegex(
+                CanonicalExecutionIdentityError,
+                r"distlib|launcher|shebang|format",
+            ):
+                canonical_execution_tree_hash(runtime, report)
+
     def test_unrelated_record_row_remains_identity_significant(self):
         with tempfile.TemporaryDirectory() as tmp:
             runtime, report = _write_runtime(Path(tmp))
