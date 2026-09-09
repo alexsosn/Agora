@@ -9,6 +9,7 @@ from typing import Any, Mapping
 
 
 REQUEST_IDENTITY_SCHEMA_VERSION = 1
+MATERIALIZATION_HOST_SCHEMA_VERSION = 1
 ARTIFACT_ID_RE = re.compile(r"^art-[0-9a-f]{32}$")
 _HEX_40_RE = re.compile(r"^[0-9a-f]{40}$")
 _HEX_64_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -112,6 +113,7 @@ def build_reusable_request_identity(
     auth = _validated_authorization(authorization)
     document = {
         "schema_version": REQUEST_IDENTITY_SCHEMA_VERSION,
+        "host_schema_version": MATERIALIZATION_HOST_SCHEMA_VERSION,
         "plugin": {
             "id": auth["plugin_id"],
             "repository": _require_text(plugin_repository, name="plugin_repository"),
