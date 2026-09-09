@@ -146,82 +146,26 @@ def _stable_release_candidates(
     return candidates
 
 
-def _verify_accepted_release_not_retargeted(
-    resource: dict[str, Any],
-    api: Any,
-    accepted: dict[str, Any] | None,
-) -> SemVer | None:
+def _accepted_version(resource: dict[str, Any]) -> SemVer | None:
+    accepted = resource["version_tracking"].get("accepted")
     if not isinstance(accepted, dict):
         return None
     version_text = accepted.get("publication_version")
-    signal = accepted.get("signal")
-    source_revision = accepted.get("source_revision")
     if not isinstance(version_text, str):
         raise ReleaseDiscoveryError(
             f"accepted publication version for {resource.get('id')!r} is missing"
         )
     try:
-        version = SemVer.parse(version_text)
+        return SemVer.parse(version_text)
     except ValueError as exc:
         raise ReleaseDiscoveryError(
             f"accepted publication version for {resource.get('id')!r} is not strict SemVer: {exc}"
         ) from exc
-    if not isinstance(signal, str) or not signal:
-        raise ReleaseDiscoveryError(
-            f"accepted release signal for {resource.get('id')!r} is missing"
-        )
-    repository = resource["upstream"]["repository"]
-    try:
-        resolved = resolve_tag_commit(api, repository, signal)
-    except ReleaseDiscoveryError:
-        raise
-    except Exception as exc:
-        raise ReleaseDiscoveryError(
-            f"cannot resolve accepted release {signal!r} for {resource.get('id')!r}: {exc}"
-        ) from exc
-    expected = _commit_sha(
-        source_revision,
-        where=f"accepted source revision for {resource.get('id')!r}",
-    )
-    if resolved != expected:
-        raise ReleaseDiscoveryError(
-            f"accepted release {signal!r} for {resource.get('id')!r} was retargeted: "
-            f"same publication version {version_text!r} now resolves to {resolved}, "
-            f"but accepted commit is {expected}"
-        )
-    return version
 
 
-def _discover_release_source(resource: dict[str, Any], api: Any) -> SourceCandidate | None:
-    tracking = resource["version_tracking"]
-    discovery = tracking["discovery"]
-    if discovery.get("channel") != "stable":
-        raise ReleaseDiscoveryError(
-            f"unsupported release channel for resource {resource.get('id')!r}"
-        )
-    pattern = _tag_pattern(discovery)
-    accepted = tracking.get("accepted")
-    accepted_version = _verify_accepted_release_not_retargeted(resource, api, accepted)
-    candidates = _stable_release_candidates(resource, api, pattern)
-
-    if accepted_version is not None:
-        candidates = [item for item in candidates if item[0] > accepted_version]
-    if not candidates:
-        return None
-
-    highest = max(version for version, _ in candidates)
-    selected = [(version, release) for version, release in candidates if version == highest]
-    if len(selected) != 1:
-        identities = [
-            (release.get("id"), release.get("tag_name"))
-            for _, release in selected
-        ]
-        raise ReleaseDiscoveryError(
-            f"ambiguous highest release {highest} for resource {resource.get('id')!r}: "
-            f"{identities!r}"
-        )
-
-    version, release = selected[0]
+def _resolve_selected_release(
+    resource: dict[str, Any], api: Any, version: SemVer, release: dict[str, Any]
+) -> SourceCandidate:
     tag = release.get("tag_name")
     if not isinstance(tag, str) or not tag:
         raise ReleaseDiscoveryError(
@@ -245,6 +189,56 @@ def _discover_release_source(resource: dict[str, Any], api: Any) -> SourceCandid
         source_revision=commit,
         release_url=release_url,
     )
+
+
+def _discover_release_source(resource: dict[str, Any], api: Any) -> SourceCandidate | None:
+    tracking = resource["version_tracking"]
+    discovery = tracking["discovery"]
+    if discovery.get("channel") != "stable":
+        raise ReleaseDiscoveryError(
+            f"unsupported release channel for resource {resource.get('id')!r}"
+        )
+    pattern = _tag_pattern(discovery)
+    candidates = _stable_release_candidates(resource, api, pattern)
+    if not candidates:
+        return None
+
+    highest = max(version for version, _ in candidates)
+    selected = [(version, release) for version, release in candidates if version == highest]
+    if len(selected) != 1:
+        identities = [
+            (release.get("id"), release.get("tag_name"))
+            for _, release in selected
+        ]
+        raise ReleaseDiscoveryError(
+            f"ambiguous highest release {highest} for resource {resource.get('id')!r}: "
+            f"{identities!r}"
+        )
+
+    accepted_version = _accepted_version(resource)
+    if accepted_version is not None and highest < accepted_version:
+        return None
+
+    version, release = selected[0]
+    resolved = _resolve_selected_release(resource, api, version, release)
+
+    if accepted_version is not None and highest == accepted_version:
+        accepted = tracking["accepted"]
+        accepted_signal = accepted.get("signal")
+        expected_commit = _commit_sha(
+            accepted.get("source_revision"),
+            where=f"accepted source revision for {resource.get('id')!r}",
+        )
+        if resolved.signal != accepted_signal or resolved.source_revision != expected_commit:
+            raise ReleaseDiscoveryError(
+                f"accepted release for {resource.get('id')!r} was retargeted or replaced: "
+                f"same publication version {str(highest)!r} resolves as "
+                f"{resolved.signal!r}@{resolved.source_revision}, but accepted commit is "
+                f"{accepted_signal!r}@{expected_commit}"
+            )
+        return None
+
+    return resolved
 
 
 def _discover_default_branch_source(resource: dict[str, Any], api: Any) -> SourceCandidate:
