@@ -96,24 +96,25 @@ def _byte_diff_summary(left: bytes, right: bytes) -> dict:
     }
 
 
-def _zip_info_without_time(info: zipfile.ZipInfo) -> tuple:
-    return (
-        info.filename,
-        info.compress_type,
-        info.comment,
-        info.extra,
-        info.create_system,
-        info.create_version,
-        info.extract_version,
-        info.flag_bits,
-        info.volume,
-        info.internal_attr,
-        info.external_attr,
-        info.CRC,
-        info.compress_size,
-        info.file_size,
-        info.header_offset,
-    )
+def _zip_info_without_time(info: zipfile.ZipInfo) -> dict:
+    """Return all compared ZipInfo fields except date/time in JSON-safe form."""
+    return {
+        "filename": info.filename,
+        "compress_type": info.compress_type,
+        "comment_hex": info.comment.hex(),
+        "extra_hex": info.extra.hex(),
+        "create_system": info.create_system,
+        "create_version": info.create_version,
+        "extract_version": info.extract_version,
+        "flag_bits": info.flag_bits,
+        "volume": info.volume,
+        "internal_attr": info.internal_attr,
+        "external_attr": info.external_attr,
+        "crc": info.CRC,
+        "compress_size": info.compress_size,
+        "file_size": info.file_size,
+        "header_offset": info.header_offset,
+    }
 
 
 def _launcher_zip(data: bytes) -> dict | None:
