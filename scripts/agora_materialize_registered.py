@@ -138,11 +138,21 @@ def resolve_cacheability_authorization(
             )
 
         execution_identity = receipt["execution_identity_sha256"]
-        policy = installer.compare_cacheability_policy(
-            current_plugin,
-            materializer_id,
-            verified_execution_identity=execution_identity,
-        )
+        if receipt.get("schema_version") == 3:
+            policy = installer.compare_cacheability_policy(
+                current_plugin,
+                materializer_id,
+                verified_execution_identity=execution_identity,
+            )
+        else:
+            # Receipt v2 remains a supported integrity/execution compatibility
+            # format, but its identity includes ephemeral install provenance.
+            # It therefore cannot satisfy an attestation for reusable cache hits.
+            policy = {
+                "mode": "unknown",
+                "reuse_allowed": False,
+                "attestation_sha256": None,
+            }
         return {
             **policy,
             "plugin_id": current_plugin["id"],
