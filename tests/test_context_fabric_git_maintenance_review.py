@@ -9,7 +9,7 @@ from test_context_fabric_git_metadata_maintenance import GitMetadataFixture
 
 
 class GitMaintenanceMeasurementIndependenceReviewTests(GitMetadataFixture):
-    """Adversarial RED3b/c: Git debt and byte measurement stay independent."""
+    """Adversarial RED3b/c/d: maintenance, byte and Git observations stay independent."""
 
     def _plant_garbage(self, store) -> None:
         repo = store.repositories_dir / "fixture-0"
@@ -56,7 +56,15 @@ class GitMaintenanceMeasurementIndependenceReviewTests(GitMetadataFixture):
             self.assertGreater(row["garbage_entries_before"], 0)
             self.assertEqual(row["garbage_entries_after"], 0)
             self.assertGreater(row["garbage_entries_removed"], 0)
+
+            # Byte aggregate is incomplete, but the independently observed Git
+            # debt delta remains exact and must not be thrown away with it.
             self.assertFalse(result["repository_reclamation_complete"])
+            self.assertIsNone(result["repository_bytes_reclaimed"])
+            self.assertTrue(result["repository_git_reclamation_complete"])
+            self.assertGreater(result["repository_garbage_entries_removed"], 0)
+            self.assertIsInstance(result["repository_packs_before"], int)
+            self.assertIsInstance(result["repository_packs_after"], int)
 
     def test_skipped_healthy_repo_does_not_invent_complete_byte_measurement(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -76,6 +84,39 @@ class GitMaintenanceMeasurementIndependenceReviewTests(GitMetadataFixture):
             self.assertIsNone(row["bytes_before"])
             self.assertIsNone(row["bytes_after"])
             self.assertIsNone(row["bytes_reclaimed"])
+            self.assertIsNone(row["garbage_entries_after"])
+            self.assertIsNone(row["garbage_entries_removed"])
+            self.assertIsNone(row["packs_after"])
+
+            # No maintenance attempt means the aggregate maintenance effect is
+            # exactly zero even though no synthetic post-observation is claimed.
+            self.assertTrue(result["repository_reclamation_complete"])
+            self.assertEqual(result["repository_bytes_reclaimed"], 0)
+            self.assertTrue(result["repository_git_reclamation_complete"])
+            self.assertEqual(result["repository_garbage_entries_removed"], 0)
+
+    def test_normal_skipped_repo_does_not_synthesize_post_observations(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self.make_store(Path(tmp))
+            result = store.prune(target_bytes=0)
+
+            row = result["repository_maintenance"][0]
+            self.assertEqual(row["maintenance_status"], "skipped")
+            self.assertTrue(row["before_measurement_complete"])
+            self.assertFalse(row["after_measurement_complete"])
+            self.assertIsInstance(row["bytes_before"], int)
+            self.assertIsNone(row["bytes_after"])
+            self.assertIsNone(row["bytes_reclaimed"])
+            self.assertIsInstance(row["garbage_entries_before"], int)
+            self.assertIsNone(row["garbage_entries_after"])
+            self.assertIsNone(row["garbage_entries_removed"])
+            self.assertIsInstance(row["packs_before"], int)
+            self.assertIsNone(row["packs_after"])
+
+            self.assertTrue(result["repository_reclamation_complete"])
+            self.assertEqual(result["repository_bytes_reclaimed"], 0)
+            self.assertTrue(result["repository_git_reclamation_complete"])
+            self.assertEqual(result["repository_garbage_entries_removed"], 0)
 
 
 if __name__ == "__main__":
