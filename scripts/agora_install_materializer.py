@@ -27,6 +27,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from scripts.agora_materialize import load_manifest
+from scripts.materializer_execution_identity import (
+    CanonicalExecutionIdentityError,
+    canonical_execution_tree_hash,
+)
 
 REGISTRY_PATH = ROOT / "registry/materializers.yaml"
 SCHEMA_PATH = ROOT / "registry/schema/materializers.schema.json"
@@ -630,13 +634,27 @@ def _verified_environment_receipt(
         rt = runtime_identity()
         env_hash = _tree_hash(runtime, excludes=RUNTIME_TREE_EXCLUDES)
         source_hash = _tree_hash(source)
+        schema_version = receipt.get("schema_version")
+        if schema_version == 3:
+            execution_tree_hash = canonical_execution_tree_hash(
+                runtime,
+                target / PIP_REPORT,
+                excludes=RUNTIME_TREE_EXCLUDES,
+            )
+        elif schema_version == 2:
+            execution_tree_hash = env_hash
+        else:
+            return None
         valid = (
-            receipt.get("schema_version") == 2
-            and receipt["plugin"]["id"] == plugin["id"]
+            receipt["plugin"]["id"] == plugin["id"]
             and receipt["plugin"]["commit"] == plugin["ref"]
             and receipt["runtime"] == rt
             and receipt["source"]["tree_sha256"] == source_hash
             and receipt["environment"]["tree_sha256"] == env_hash
+            and (
+                schema_version != 3
+                or receipt["environment"]["execution_tree_sha256"] == execution_tree_hash
+            )
             and receipt["environment"]["distributions"] == distributions
             and receipt["environment"]["descriptor_sha256"]
                 == _json_hash({"runtime": rt, "distributions": distributions})
@@ -650,11 +668,17 @@ def _verified_environment_receipt(
             and marker["source_tree_sha256"] == source_hash
             and receipt["execution_identity_sha256"]
                 == _json_hash({"source_tree_sha256": source_hash,
-                               "environment_tree_sha256": env_hash,
+                               "environment_tree_sha256": execution_tree_hash,
                                "runtime": rt})
         )
         return receipt if valid else None
-    except (KeyError, OSError, ValueError, json.JSONDecodeError):
+    except (
+        CanonicalExecutionIdentityError,
+        KeyError,
+        OSError,
+        ValueError,
+        json.JSONDecodeError,
+    ):
         return None
 
 
@@ -712,8 +736,18 @@ def install_materializer(
             _write_json(runtime / ENVIRONMENT_MARKER, marker)
             _verify_execution_modules_static(manifest, runtime)
             env_hash = _tree_hash(runtime, excludes=RUNTIME_TREE_EXCLUDES)
+            try:
+                execution_tree_hash = canonical_execution_tree_hash(
+                    runtime,
+                    staging / PIP_REPORT,
+                    excludes=RUNTIME_TREE_EXCLUDES,
+                )
+            except CanonicalExecutionIdentityError as exc:
+                raise MaterializerInstallError(
+                    f"cannot establish canonical materializer execution identity: {exc}"
+                ) from exc
             receipt = {
-                "schema_version": 2,
+                "schema_version": 3,
                 "plugin": {"id": plugin["id"], "version": plugin["version"],
                            "repository": plugin["repository"], "commit": plugin["ref"]},
                 "manifest": {"source_path": plugin["manifest"],
@@ -723,11 +757,13 @@ def install_materializer(
                 "source": {"path": "../../source", "tree_sha256": source_hash},
                 "materializers": list(plugin["materializers"]), "runtime": rt,
                 "environment": {"runtime_root": "runtime", "tree_sha256": env_hash,
+                                "execution_tree_sha256": execution_tree_hash,
                                 "distributions": distributions, "descriptor_sha256": descriptor,
                                 "pip_report_sha256": _file_hash(staging / PIP_REPORT),
                                 "install_trust": "explicit-code-execution"},
                 "execution_identity_sha256": _json_hash({
-                    "source_tree_sha256": source_hash, "environment_tree_sha256": env_hash,
+                    "source_tree_sha256": source_hash,
+                    "environment_tree_sha256": execution_tree_hash,
                     "runtime": rt,
                 }),
                 "installed_at": datetime.now(timezone.utc).isoformat(),
