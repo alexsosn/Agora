@@ -21,17 +21,25 @@ def _record_hash(data: bytes) -> str:
     return f"sha256={encoded}"
 
 
-def _launcher_bytes(payload: bytes = b"print('ok')\n") -> bytes:
+def _launcher_bytes(payload: bytes = b"print('ok')\n", *, prefix: bytes | None = None) -> bytes:
     archive = io.BytesIO()
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("__main__.py", payload)
-    # distlib launchers are native stubs with an appended single-entry ZIP.
-    # The production classifier intentionally accepts the prefix opaquely and
-    # classifies only the appended archive shape.
-    return b"synthetic-distlib-stub\n" + archive.getvalue()
+    # Minimal structural stand-in for the researched distlib layout: a native
+    # Windows launcher prefix, an appended shebang, then a single-entry ZIP.
+    # Production must not classify an arbitrary opaque prefix as distlib merely
+    # because a parseable __main__.py ZIP happens to be appended.
+    if prefix is None:
+        prefix = b"MZ" + (b"\0" * 30) + b"#!C:/Python/python.exe\n"
+    return prefix + archive.getvalue()
 
 
-def _write_runtime(root: Path, *, launcher_record_path: str = "../../bin/probe.exe") -> tuple[Path, Path]:
+def _write_runtime(
+    root: Path,
+    *,
+    launcher_record_path: str = "../../bin/probe.exe",
+    launcher_prefix: bytes | None = None,
+) -> tuple[Path, Path]:
     runtime = root / "runtime"
     dist_info = runtime / "research_probe-1.0.0.dist-info"
     package = runtime / "research_probe"
@@ -53,7 +61,7 @@ def _write_runtime(root: Path, *, launcher_record_path: str = "../../bin/probe.e
     direct_bytes = json.dumps({"dir_info": {}, "url": source_uri}).encode("utf-8")
     (dist_info / "direct_url.json").write_bytes(direct_bytes)
 
-    launcher_bytes = _launcher_bytes()
+    launcher_bytes = _launcher_bytes(prefix=launcher_prefix)
     launcher.write_bytes(launcher_bytes)
 
     rows = [
@@ -110,6 +118,18 @@ class ExecutionIdentityReviewRed2Tests(unittest.TestCase):
             with self.assertRaisesRegex(
                 CanonicalExecutionIdentityError,
                 r"RECORD|launcher|correspond|path",
+            ):
+                canonical_execution_tree_hash(runtime, report)
+
+    def test_arbitrary_opaque_prefix_is_not_treated_as_distlib_launcher(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime, report = _write_runtime(
+                Path(tmp),
+                launcher_prefix=b"custom-program-with-self-inspected-zip-metadata\n",
+            )
+            with self.assertRaisesRegex(
+                CanonicalExecutionIdentityError,
+                r"distlib|launcher|native|shebang|format",
             ):
                 canonical_execution_tree_hash(runtime, report)
 
