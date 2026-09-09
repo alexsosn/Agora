@@ -213,7 +213,7 @@ class GitStore(_CoreGitStore):
                 continue
 
             try:
-                with self._repository_lock(repo.name, timeout=remaining):
+                with self._repository_lock(repo.name, timeout=remaining, shared=True):
                     git_ok = False
                     remaining = deadline - time.monotonic()
                     if remaining > 0:
