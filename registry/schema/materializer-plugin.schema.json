@@ -33,6 +33,28 @@
       "type": "string",
       "pattern": "^(?:[^{}]|\\{(?:source|output|source_revision)\\})*$"
     },
+    "featureModuleComposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "parent", "compatibility"],
+      "properties": {
+        "kind": {"const": "feature-module"},
+        "parent": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+        "compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["parent_versions"],
+          "properties": {
+            "parent_versions": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    },
     "materializer": {
       "type": "object",
       "additionalProperties": false,
@@ -91,7 +113,8 @@
               "type": "array",
               "minItems": 1,
               "items": {"$ref": "#/$defs/safeRelativePath"}
-            }
+            },
+            "composition": {"$ref": "#/$defs/featureModuleComposition"}
           }
         }
       }
