@@ -36,5 +36,11 @@ jobs:
       - name: Install research dependencies
         run: python -m pip install -r requirements-dev.txt
 
-      - name: Inventory and verify two clean managed installs
-        run: python -m unittest discover -s tests -p 'test_materializer_execution_identity_research*.py' -v
+      - name: Verify raw clean-install inventory contract
+        run: python -m unittest discover -s tests -p 'test_materializer_execution_identity_research.py' -v
+
+      - name: Verify platform-specific provenance classification
+        run: python -m unittest discover -s tests -p 'test_materializer_execution_identity_research_details.py' -v
+
+      - name: Verify receipt-v3 desired state
+        run: python -m unittest discover -s tests -p 'test_materializer_execution_identity_research_v3.py' -v
