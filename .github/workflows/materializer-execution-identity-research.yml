@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - scripts/agora_install_materializer.py
+      - scripts/materializer_execution_identity.py
       - tests/test_materializer_execution_identity_research.py
       - tests/test_materializer_execution_identity_research_details.py
       - tests/test_materializer_execution_identity_research_v3.py
