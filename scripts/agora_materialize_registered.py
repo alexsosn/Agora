@@ -171,6 +171,7 @@ def materialize_registered(
     sandbox: str = "required",
     install_root: Path | None = None,
     registry_path: Path | None = None,
+    parent: host.ParentResourceBinding | None = None,
 ) -> Path:
     """Run one materializer from a verified, already-installed registry plugin.
 
@@ -220,6 +221,7 @@ def materialize_registered(
             output=Path(output),
             source=None if source is None else Path(source),
             sandbox=sandbox,
+            parent=parent,
         )
 
 
