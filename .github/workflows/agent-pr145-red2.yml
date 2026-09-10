@@ -21,7 +21,7 @@ jobs:
       - name: Guard exact invocation and update stale test identity
         shell: bash
         env:
-          EXPECTED_BEFORE: 72496bf5e3a414bc6c6ac38a68cfa84c2eafc524
+          EXPECTED_BEFORE: f48ffb668b51ab0ae2eb34f6900a3f5eb40a3295
         run: |
           set -euo pipefail
           test "${{ github.event.before }}" = "$EXPECTED_BEFORE"
