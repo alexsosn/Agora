@@ -343,7 +343,7 @@ class GitStore(_CoreGitStore):
             "packs_after": None,
         }
 
-    def _repository_maintenance(self) -> dict[str, Any]:
+    def _repository_maintenance(self, *, lock_timeout: float = 30.0) -> dict[str, Any]:
         budget = float(_core_module.DEFAULT_GIT_MAINTENANCE_BUDGET_SECONDS)
         deadline = time.monotonic() + max(0.0, budget)
         rows: list[dict[str, Any]] = []
@@ -361,8 +361,13 @@ class GitStore(_CoreGitStore):
                 continue
 
             remaining = deadline - time.monotonic()
+            repository_lock_timeout = min(max(0.0, float(lock_timeout)), remaining)
             try:
-                with self._repository_lock(repo.name, timeout=remaining, shared=False):
+                with self._repository_lock(
+                    repo.name,
+                    timeout=repository_lock_timeout,
+                    shared=False,
+                ):
                     remaining = deadline - time.monotonic()
                     if remaining <= 0:
                         budget_exhausted = True
@@ -391,6 +396,8 @@ class GitStore(_CoreGitStore):
                         before_size, before_size_complete = None, False
                     row["bytes_before"] = before_size
                     row["before_measurement_complete"] = bool(before_size_complete)
+                    if not before_size_complete and time.monotonic() >= deadline:
+                        budget_exhausted = True
                     needs_maintenance = bool(
                         before_git["garbage"] > 0
                         or before_git["packs"] > _core_module.DEFAULT_GIT_MAINTENANCE_PACK_LIMIT
@@ -551,7 +558,7 @@ class GitStore(_CoreGitStore):
         }
 
     def prune(self, *, target_bytes: int | None = None, timeout: float = 30.0) -> dict[str, Any]:
-        maintenance = self._repository_maintenance()
+        maintenance = self._repository_maintenance(lock_timeout=timeout)
         logical = super().prune(target_bytes=target_bytes, timeout=timeout)
         logical.update(maintenance)
         return logical
