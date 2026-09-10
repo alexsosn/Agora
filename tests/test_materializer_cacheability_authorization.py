@@ -128,6 +128,8 @@ def _write_fixture_plugin(path: Path) -> None:
 
 
 def _fake_install(_plugin: dict, build_source: Path, runtime: Path, report: Path) -> None:
+    import base64
+    import hashlib
     import shutil
 
     shutil.copytree(build_source / "src/example_converter", runtime / "example_converter")
@@ -137,7 +139,32 @@ def _fake_install(_plugin: dict, build_source: Path, runtime: Path, report: Path
         "Metadata-Version: 2.1\nName: example-converter\nVersion: 1.2.3\n",
         encoding="utf-8",
     )
-    report.write_text(json.dumps({"version": "1", "install": []}), encoding="utf-8")
+
+    source_uri = build_source.resolve().as_uri()
+    dist_info = metadata.parent
+    direct_url = dist_info / "direct_url.json"
+    direct_bytes = json.dumps({"dir_info": {}, "url": source_uri}).encode("utf-8")
+    direct_url.write_bytes(direct_bytes)
+    digest = base64.urlsafe_b64encode(hashlib.sha256(direct_bytes).digest()).rstrip(b"=").decode("ascii")
+    (dist_info / "RECORD").write_text(
+        f"example_converter-1.2.3.dist-info/direct_url.json,sha256={digest},{len(direct_bytes)}\n",
+        encoding="utf-8",
+    )
+    report.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "install": [
+                    {
+                        "download_info": {"url": source_uri, "dir_info": {}},
+                        "is_direct": True,
+                        "requested": True,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def _write_registry(path: Path, plugin: dict) -> None:

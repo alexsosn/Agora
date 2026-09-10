@@ -130,6 +130,8 @@ def _write_fixture_plugin(path: Path, *, repository: str = "example/converter") 
 
 
 def _fake_install(_plugin, build_source: Path, runtime_root: Path, report: Path) -> None:
+    import base64
+    import hashlib
     import shutil
 
     shutil.copytree(build_source / "src/example_converter", runtime_root / "example_converter")
@@ -139,7 +141,32 @@ def _fake_install(_plugin, build_source: Path, runtime_root: Path, report: Path)
         metadata.write_text(
             f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n", encoding="utf-8"
         )
-    report.write_text(json.dumps({"version": "1", "install": []}), encoding="utf-8")
+
+    source_uri = build_source.resolve().as_uri()
+    dist_info = runtime_root / "example_converter-1.2.3.dist-info"
+    direct_url = dist_info / "direct_url.json"
+    direct_bytes = json.dumps({"dir_info": {}, "url": source_uri}).encode("utf-8")
+    direct_url.write_bytes(direct_bytes)
+    digest = base64.urlsafe_b64encode(hashlib.sha256(direct_bytes).digest()).rstrip(b"=").decode("ascii")
+    (dist_info / "RECORD").write_text(
+        f"example_converter-1.2.3.dist-info/direct_url.json,sha256={digest},{len(direct_bytes)}\n",
+        encoding="utf-8",
+    )
+    report.write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "install": [
+                    {
+                        "download_info": {"url": source_uri, "dir_info": {}},
+                        "is_direct": True,
+                        "requested": True,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def _hold_install_lock(path: str, ready, release) -> None:
@@ -223,11 +250,12 @@ class MaterializerInstallerTests(unittest.TestCase):
             receipt = json.loads((target / INSTALLATION_RECEIPT).read_text(encoding="utf-8"))
             marker = json.loads((target / "runtime" / ENVIRONMENT_MARKER).read_text(encoding="utf-8"))
 
-        self.assertEqual(receipt["schema_version"], 2)
+        self.assertEqual(receipt["schema_version"], 3)
         self.assertEqual(receipt["plugin"]["id"], "example-converter")
         self.assertEqual(receipt["environment"]["install_trust"], "explicit-code-execution")
         self.assertRegex(receipt["source"]["tree_sha256"], r"^[0-9a-f]{64}$")
         self.assertRegex(receipt["environment"]["tree_sha256"], r"^[0-9a-f]{64}$")
+        self.assertRegex(receipt["environment"]["execution_tree_sha256"], r"^[0-9a-f]{64}$")
         self.assertRegex(receipt["environment"]["descriptor_sha256"], r"^[0-9a-f]{64}$")
         self.assertEqual(marker["descriptor_sha256"], receipt["environment"]["descriptor_sha256"])
         self.assertEqual(

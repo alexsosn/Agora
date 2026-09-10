@@ -192,13 +192,11 @@ def _text_excerpt(path: Path) -> str | None:
 
 
 class MaterializerExecutionIdentityResearchProbe(unittest.TestCase):
-    def test_two_real_clean_installs_inventory_current_identity_drift(self):
-        """Temporary research probe for #111; remove after evidence is recorded.
+    def test_two_real_clean_installs_inventory_only_classified_raw_drift(self):
+        """Keep the empirical inventory while asserting the v3 desired state.
 
-        This deliberately asserts the *current* defect, not the desired final
-        contract. Its job is to produce empirical evidence before the design is
-        finalized. The later TDD RED must instead require equal canonical
-        execution identities and fail until production is fixed.
+        Raw installer provenance is expected to remain different. The canonical
+        receipt-v3 execution identity must no longer inherit that drift.
         """
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -264,8 +262,6 @@ class MaterializerExecutionIdentityResearchProbe(unittest.TestCase):
             }
             print("EXECUTION_IDENTITY_RESEARCH=" + json.dumps(diagnostic, sort_keys=True))
 
-            # Standards-backed expectation to verify against the real production
-            # pip path. If this is false, the hypothesis must be revised.
             direct_url_paths = [rel for rel in differing if rel.endswith(".dist-info/direct_url.json")]
             self.assertTrue(direct_url_paths, diagnostic)
             direct_url_text = "\n".join(
@@ -274,14 +270,19 @@ class MaterializerExecutionIdentityResearchProbe(unittest.TestCase):
             )
             self.assertIn("agora-materializer-build-", direct_url_text)
 
-            # The issue hypothesis is only established if the raw environment
-            # and therefore schema-v2 execution identity really differ.
             self.assertNotEqual(
                 left["environment"]["tree_sha256"],
                 right["environment"]["tree_sha256"],
                 diagnostic,
             )
-            self.assertNotEqual(
+            self.assertEqual(left["schema_version"], 3)
+            self.assertEqual(right["schema_version"], 3)
+            self.assertEqual(
+                left["environment"]["execution_tree_sha256"],
+                right["environment"]["execution_tree_sha256"],
+                diagnostic,
+            )
+            self.assertEqual(
                 left["execution_identity_sha256"],
                 right["execution_identity_sha256"],
                 diagnostic,

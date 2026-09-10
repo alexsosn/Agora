@@ -143,6 +143,16 @@ def resolve_cacheability_authorization(
             materializer_id,
             verified_execution_identity=execution_identity,
         )
+        if receipt.get("schema_version") != 3 and policy["reuse_allowed"]:
+            # Receipt v2 remains a supported integrity/execution compatibility
+            # format, but its identity includes ephemeral install provenance.
+            # Suppress only positive reusable authorization; an explicit
+            # non-reusable registry disposition remains authoritative and visible.
+            policy = {
+                "mode": "unknown",
+                "reuse_allowed": False,
+                "attestation_sha256": None,
+            }
         return {
             **policy,
             "plugin_id": current_plugin["id"],
