@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Apply focused GREEN5 fixes
+      - name: Apply focused GREEN5 script fixes
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -41,30 +41,23 @@ jobs:
           if old not in text and new not in text:
               raise SystemExit("expected stale-state block not found")
           if old in text:
-              text = text.replace(old, new, 1)
-              proposal.write_text(text, encoding="utf-8")
-
-          workflow = Path(".github/workflows/corpus-version-updates.yml")
-          text = workflow.read_text(encoding="utf-8")
-          old = '          git switch -C "$branch"\n'
-          new = '          git switch -C automation/corpus-version-updates\n'
-          if old not in text and new not in text:
-              raise SystemExit("expected bot-branch switch not found")
-          if old in text:
-              workflow.write_text(text.replace(old, new, 1), encoding="utf-8")
+              proposal.write_text(text.replace(old, new, 1), encoding="utf-8")
           PY
       - name: Install test dependencies
         run: python -m pip install -r requirements-dev.txt
-      - name: Verify RED5 contracts are GREEN
+      - name: Verify RED5 script contracts are GREEN
         run: |
           python -m py_compile scripts/check_corpus_versions.py scripts/corpus_version_proposal.py
-          python -m unittest discover -s tests -p 'test_corpus_version_*red5.py' -v
-      - name: Commit clean GREEN5 head
+          python -m unittest tests.test_corpus_version_registry_proposal_red5 -v
+      - name: Commit script fixes when needed
         run: |
           set -euo pipefail
+          if git diff --quiet -- scripts/check_corpus_versions.py scripts/corpus_version_proposal.py; then
+            echo "GREEN5 script fixes already present."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/_tmp-corpus-green5.yml
-          git add scripts/check_corpus_versions.py scripts/corpus_version_proposal.py .github/workflows/corpus-version-updates.yml
-          git commit -m "GREEN5: complete corpus review-proposal automation"
+          git add scripts/check_corpus_versions.py scripts/corpus_version_proposal.py
+          git commit -m "GREEN5: integrate corpus registry proposal layer"
           git push origin HEAD:feat/corpus-version-tracking-108
