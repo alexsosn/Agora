@@ -62,8 +62,22 @@ After a failed, cancelled, or limited cold worker has died, Agora removes only i
 
 If the completion marker exists but the compiled cache is corrupt, the pinned Context-Fabric warm loader raises its own load error; Agora does not silently fall back to a main-process cold compile.
 
+## Persistent Git metadata repositories
+
+Agora keeps partial/promisor Git repositories internally so it can resolve source revisions and lazily obtain metadata or blobs needed to create immutable source snapshots. These repositories are **not** the served corpus snapshots, and their non-checkout `git status` is not a corpus-integrity signal.
+
+`corpus_cache_status` reports this repository storage separately from the logical snapshot/overlay cache. `repository_cache_bytes`, pack counts, Git-recognized garbage, per-repository inspection status, and `maintenance_needed` describe metadata-repository debt; they are not folded into `cache_bytes`, the snapshot soft limit, or snapshot/overlay LRU accounting. If the status budget expires or a repository cannot be inspected, the corresponding completeness fields remain false/null rather than reporting a misleading zero.
+
+`maintenance_needed` is advisory and is derived from Git's own metadata: it becomes true when Git reports garbage or when pack fragmentation exceeds Agora's documented maintenance threshold. A busy repository may be reported as busy rather than blocking status indefinitely.
+
+Persistent lazy `git show` operations participate in the same repository-use lock domain as source selection and maintenance. Readers use a shared lock; repository mutation and maintenance use an exclusive lock. This prevents explicit maintenance from racing a lazy promisor-object fetch while allowing independent safe readers to coexist.
+
+Git maintenance is **not** run during server startup, describe, prepare, or load. In v1 it is attempted only as part of an explicit `prune_corpus_cache` operation, and only for repositories that currently need it. The maintenance phase has one global time budget plus a bounded per-repository `git gc --prune=now` timeout, so a collection of slow repositories cannot multiply an interactive timeout without bound.
+
+Maintenance results are best-effort and reported separately from ordinary snapshot/overlay pruning. A Git maintenance failure or timeout does not cancel logical cache reclamation. Before/after byte, garbage, and pack deltas are reported only when the corresponding measurements actually completed; successful `git gc` followed by an incomplete measurement is not presented as a fabricated exact saving. Running prune again after debt has been cleared is expected to skip healthy repositories.
+
 ## Reclaiming cache space
 
-Use `corpus_cache_status` to inspect cache usage and active leases. `prune_corpus_cache` reclaims unused managed cache objects while respecting active leases and the configured free-space guardrail. `remove_cached_corpus` removes matching unused objects for a selected registered resource.
+Use `corpus_cache_status` to inspect cache usage, active leases, and persistent Git metadata debt. `prune_corpus_cache` reclaims unused managed cache objects while respecting active leases and the configured free-space guardrail; it also performs the bounded metadata-repository maintenance described above. `remove_cached_corpus` removes matching unused objects for a selected registered resource.
 
 Agora's cache is deliberately managed independently from conventional user Text-Fabric data directories. Clearing Agora's cache therefore discards Agora-managed compiled artifacts; another Text-Fabric installation does not implicitly share them.

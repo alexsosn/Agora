@@ -236,12 +236,18 @@ class GitStore:
         return result.stdout.strip()
 
     @contextmanager
-    def _repository_lock(self, key: str, timeout: float = 30.0) -> Iterator[None]:
-        """Serialize repository mutation with an OS-backed crash-safe lock."""
+    def _repository_lock(
+        self,
+        key: str,
+        timeout: float = 30.0,
+        *,
+        shared: bool = False,
+    ) -> Iterator[None]:
+        """Coordinate persistent repository use with a crash-safe lock."""
         lock_path = self.locks_dir / f"repository-{self.safe_cache_key(key)}.lock"
         lock = self._acquire_file_lock(
             lock_path,
-            shared=False,
+            shared=shared,
             timeout=timeout,
             description="Git cache lock",
         )
@@ -413,31 +419,32 @@ class GitStore:
         relative_path: str,
         revision: str | None = None,
     ) -> Iterator[str]:
-        relative = self._safe_relative_path(relative_path)
-        treeish = self._treeish(repo, revision)
-        spec = f"{treeish}:{relative}"
-        process = subprocess.Popen(
-            ["git", "-C", str(repo), "show", spec],
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        assert process.stdout is not None
-        try:
-            for line in process.stdout:
-                yield line.rstrip("\r\n")
-        finally:
-            process.stdout.close()
-            stderr = process.stderr.read() if process.stderr is not None else ""
-            returncode = process.wait()
-            if process.stderr is not None:
-                process.stderr.close()
-            if returncode:
-                raise subprocess.CalledProcessError(
-                    returncode,
-                    ["git", "show", spec],
-                    stderr=stderr,
-                )
+        with self._repository_lock(repo.name, shared=True):
+            relative = self._safe_relative_path(relative_path)
+            treeish = self._treeish(repo, revision)
+            spec = f"{treeish}:{relative}"
+            process = subprocess.Popen(
+                ["git", "-C", str(repo), "show", spec],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            assert process.stdout is not None
+            try:
+                for line in process.stdout:
+                    yield line.rstrip("\r\n")
+            finally:
+                process.stdout.close()
+                stderr = process.stderr.read() if process.stderr is not None else ""
+                returncode = process.wait()
+                if process.stderr is not None:
+                    process.stderr.close()
+                if returncode:
+                    raise subprocess.CalledProcessError(
+                        returncode,
+                        ["git", "show", spec],
+                        stderr=stderr,
+                    )
 
     def tf_header_metadata(
         self,
@@ -446,42 +453,43 @@ class GitStore:
         revision: str | None = None,
     ) -> dict[str, Any]:
         """Read Text-Fabric metadata header fields without consuming feature rows."""
-        relative = self._safe_relative_path(relative_path)
-        treeish = self._treeish(repo, revision)
-        spec = f"{treeish}:{relative}"
-        command = ["git", "-C", str(repo), "show", spec]
-        process = subprocess.Popen(
-            command,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        assert process.stdout is not None
-        metadata: dict[str, Any] = {}
-        header_complete = False
-        try:
-            for raw_line in process.stdout:
-                line = raw_line.rstrip("\r\n")
-                if not line or not line.startswith("@"):
-                    header_complete = True
-                    break
-                if "=" in line:
-                    key, value = line[1:].split("=", 1)
-                    if key:
-                        metadata[key] = value
-        finally:
-            process.stdout.close()
-            stderr = process.stderr.read() if process.stderr is not None else ""
-            returncode = process.wait()
-            if process.stderr is not None:
-                process.stderr.close()
-            if returncode and not header_complete:
-                raise subprocess.CalledProcessError(
-                    returncode,
-                    command,
-                    stderr=stderr,
-                )
-        return metadata
+        with self._repository_lock(repo.name, shared=True):
+            relative = self._safe_relative_path(relative_path)
+            treeish = self._treeish(repo, revision)
+            spec = f"{treeish}:{relative}"
+            command = ["git", "-C", str(repo), "show", spec]
+            process = subprocess.Popen(
+                command,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            assert process.stdout is not None
+            metadata: dict[str, Any] = {}
+            header_complete = False
+            try:
+                for raw_line in process.stdout:
+                    line = raw_line.rstrip("\r\n")
+                    if not line or not line.startswith("@"):
+                        header_complete = True
+                        break
+                    if "=" in line:
+                        key, value = line[1:].split("=", 1)
+                        if key:
+                            metadata[key] = value
+            finally:
+                process.stdout.close()
+                stderr = process.stderr.read() if process.stderr is not None else ""
+                returncode = process.wait()
+                if process.stderr is not None:
+                    process.stderr.close()
+                if returncode and not header_complete:
+                    raise subprocess.CalledProcessError(
+                        returncode,
+                        command,
+                        stderr=stderr,
+                    )
+            return metadata
 
     def tf_feature_summary(
         self,
