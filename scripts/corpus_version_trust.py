@@ -120,6 +120,12 @@ def _fingerprint_drift(
     for name in sorted(_REQUIRED_TRUST_FINGERPRINTS):
         trusted_value = trusted.get(name)
         candidate_value = candidate.get(name)
+        if not isinstance(trusted_value, str) or not trusted_value:
+            reasons.append(f"trusted base {name} fingerprint is missing")
+            continue
+        if not isinstance(candidate_value, str) or not candidate_value:
+            reasons.append(f"candidate {name} fingerprint is missing")
+            continue
         if trusted_value != candidate_value:
             reasons.append(
                 f"candidate {name} fingerprint differs from the trusted base"
