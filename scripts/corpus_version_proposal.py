@@ -285,7 +285,12 @@ def apply_promotions_to_text(
             raise ReleaseDiscoveryError(f"resource {resource_id!r} has no version_tracking state")
         previous = promotion.get("previous")
         current_accepted = tracking.get("accepted")
-        if current_accepted != previous:
+        comparable_current = copy.deepcopy(current_accepted)
+        if isinstance(comparable_current, Mapping) and isinstance(previous, Mapping):
+            current_revision = comparable_current.get("source_revision")
+            if current_revision is not None:
+                comparable_current["source_revision"] = str(current_revision)
+        if comparable_current != previous:
             raise ReleaseDiscoveryError(
                 f"stale accepted state for resource {resource_id!r}: current state changed from expected previous state"
             )

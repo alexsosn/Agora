@@ -522,3 +522,10 @@ def discover_dataset_candidate(
         tf_path=tf_path,
         release_url=source.release_url,
     )
+
+# GREEN5 proposal-layer integration
+from scripts.corpus_version_proposal import apply_promotions_to_text as apply_promotions_to_text
+
+if __name__ == "__main__":
+    from scripts.corpus_version_proposal import main as _corpus_version_proposal_main
+    raise SystemExit(_corpus_version_proposal_main())
