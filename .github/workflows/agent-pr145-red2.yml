@@ -1,4 +1,4 @@
-name: PR145 one-shot GREEN helper
+name: PR145 one-shot test GREEN helper
 
 on:
   push:
@@ -11,26 +11,25 @@ permissions:
   contents: write
 
 jobs:
-  green:
+  green-test-only:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: update/144-pseudepigrapha-v0.2.0
           fetch-depth: 0
-      - name: Guard exact invocation and apply bounded replacements
+      - name: Guard exact invocation and update stale test identity
         shell: bash
         env:
-          EXPECTED_BEFORE: 6b17998c173bc9aa493796ed0b34beba87c9c438
+          EXPECTED_BEFORE: 72496bf5e3a414bc6c6ac38a68cfa84c2eafc524
         run: |
           set -euo pipefail
           test "${{ github.event.before }}" = "$EXPECTED_BEFORE"
           test "${{ github.ref_name }}" = "update/144-pseudepigrapha-v0.2.0"
           python - <<'PY'
           from pathlib import Path
-
-          test_path = Path('tests/test_materializer_installation.py')
-          text = test_path.read_text(encoding='utf-8')
+          path = Path('tests/test_materializer_installation.py')
+          text = path.read_text(encoding='utf-8')
           replacements = {
               'PSEUDEPIGRAPHA_TF_COMMIT = "315439284e765c1d7ea89ffdefdd10f403aa1293"':
                   'PSEUDEPIGRAPHA_TF_COMMIT = "317e960e05ca7f36f35a11fcf567285312951095"',
@@ -41,25 +40,16 @@ jobs:
               if text.count(old) != 1:
                   raise SystemExit(f'unexpected occurrence count for {old!r}: {text.count(old)}')
               text = text.replace(old, new)
-          test_path.write_text(text, encoding='utf-8')
-
-          workflow_path = Path('.github/workflows/materializer-install.yml')
-          workflow = workflow_path.read_text(encoding='utf-8')
-          old = "assert distributions['pseudepigrapha-tf'] == '0.1.0'"
-          new = "assert distributions['pseudepigrapha-tf'] == plugin['version']"
-          if workflow.count(old) != 1:
-              raise SystemExit(f'unexpected occurrence count for install version assertion: {workflow.count(old)}')
-          workflow_path.write_text(workflow.replace(old, new), encoding='utf-8')
+          path.write_text(text, encoding='utf-8')
           PY
           git diff --check
-          git diff -- tests/test_materializer_installation.py .github/workflows/materializer-install.yml
-      - name: Commit bounded GREEN changes and remove helper
+          git diff -- tests/test_materializer_installation.py
+      - name: Commit test-only GREEN change
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/agent-pr145-red2.yml
-          git add tests/test_materializer_installation.py .github/workflows/materializer-install.yml
-          git commit -m "test: bind Pseudepigrapha promotion to registry version"
+          git add tests/test_materializer_installation.py
+          git commit -m "test: update Pseudepigrapha release identity"
           git push origin HEAD:update/144-pseudepigrapha-v0.2.0
