@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unittest
 from pathlib import Path
 
 import yaml
@@ -15,16 +16,24 @@ def _entry() -> dict:
     return next(item for item in document["plugins"] if item["id"] == "pseudepigrapha-tf")
 
 
-def test_pseudepigrapha_stable_registry_points_at_verified_v020_release():
-    plugin = _entry()
+class PseudepigraphaMaterializerPromotionRedTests(unittest.TestCase):
+    def test_stable_registry_points_at_verified_v020_release(self):
+        plugin = _entry()
 
-    assert plugin["version"] == "0.2.0"
-    assert plugin["ref"] == EXPECTED_REF
-    assert len(plugin["ref"]) == 40
-    assert plugin["repository"] == "alexsosn/Pseudepigrapha-TF"
-    assert plugin["release_tracking"] == {
-        "mode": "github-releases",
-        "channel": "stable",
-        "tag_prefix": "v",
-    }
-    assert plugin["materializers"] == ["ocp-text-fabric"]
+        self.assertEqual(plugin["version"], "0.2.0")
+        self.assertEqual(plugin["ref"], EXPECTED_REF)
+        self.assertEqual(len(plugin["ref"]), 40)
+        self.assertEqual(plugin["repository"], "alexsosn/Pseudepigrapha-TF")
+        self.assertEqual(
+            plugin["release_tracking"],
+            {
+                "mode": "github-releases",
+                "channel": "stable",
+                "tag_prefix": "v",
+            },
+        )
+        self.assertEqual(plugin["materializers"], ["ocp-text-fabric"])
+
+
+if __name__ == "__main__":
+    unittest.main()
