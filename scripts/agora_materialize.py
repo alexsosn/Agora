@@ -21,6 +21,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "registry/schema/materializer-plugin.schema.json"
 GIT_TIMEOUT_SECONDS = 120
 SANDBOX_OUTPUT_ROOT = "/agora-output"
+SANDBOX_PARENT_ROOT = "/agora-parent"
 _TREE_EXCLUDES = {
     ".git",
     ".hg",
@@ -458,6 +459,7 @@ def _build_linux_sandbox(
     module: str,
     args: list[str],
     source_revision: str,
+    parent: Path | None = None,
 ) -> list[str]:
     python_inside, runtime_bind = _linux_python_path()
     sandbox_output = str(PurePosixPath(SANDBOX_OUTPUT_ROOT) / output.name)
@@ -479,6 +481,11 @@ def _build_linux_sandbox(
     command.extend(runtime_bind)
     if runtime_bind:
         command.extend(["--setenv", "LD_LIBRARY_PATH", "/runtime/lib"])
+    parent_bind = (
+        ["--ro-bind", str(parent), SANDBOX_PARENT_ROOT]
+        if parent is not None
+        else []
+    )
     command.extend(
         [
             "--ro-bind",
@@ -487,6 +494,7 @@ def _build_linux_sandbox(
             "--ro-bind",
             str(source),
             "/input",
+            *parent_bind,
             "--bind",
             str(output.parent),
             SANDBOX_OUTPUT_ROOT,
@@ -515,6 +523,7 @@ def _build_linux_sandbox(
                 source="/input",
                 output=sandbox_output,
                 source_revision=source_revision,
+                parent=SANDBOX_PARENT_ROOT if parent is not None else None,
             ),
         ]
     )
@@ -535,6 +544,7 @@ def _build_macos_sandbox(
     module: str,
     args: list[str],
     source_revision: str,
+    parent: Path | None = None,
 ) -> list[str]:
     output_parent = output.parent.resolve()
     readable = {
@@ -550,6 +560,8 @@ def _build_macos_sandbox(
         output_parent,
         work_dir.resolve(),
     }
+    if parent is not None:
+        readable.add(parent.resolve())
     read_rules = "\n".join(
         f"(allow file-read* (subpath {_sandbox_profile_path(path)}))"
         for path in sorted(readable, key=str)
@@ -582,6 +594,7 @@ def _build_macos_sandbox(
             source=str(source),
             output=str(output),
             source_revision=source_revision,
+            parent=str(parent) if parent is not None else None,
         ),
     ]
 
@@ -595,10 +608,12 @@ def build_sandbox_command(
     module: str,
     args: list[str],
     source_revision: str = "",
+    parent: Path | None = None,
 ) -> tuple[list[str], str]:
     plugin_root = Path(plugin_root).resolve()
     source = Path(source).resolve()
     output = Path(output).resolve()
+    parent = Path(parent).resolve() if parent is not None else None
     work_dir = Path(work_dir).resolve()
     backend, executable = _sandbox_backend_preflight("required")
 
@@ -613,6 +628,7 @@ def build_sandbox_command(
                 module=module,
                 args=args,
                 source_revision=source_revision,
+                parent=parent,
             ),
             backend,
         )
@@ -628,6 +644,7 @@ def build_sandbox_command(
                 module=module,
                 args=args,
                 source_revision=source_revision,
+                parent=parent,
             ),
             backend,
         )
@@ -775,6 +792,11 @@ def materialize(
                 module=execution["module"],
                 args=execution["args"],
                 source_revision=source_revision,
+                parent=(
+                    validated_parent.path
+                    if validated_parent is not None
+                    else None
+                ),
             )
         else:
             command = [
