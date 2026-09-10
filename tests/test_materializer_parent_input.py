@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from dataclasses import FrozenInstanceError
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import agora_materialize as host
 
@@ -164,6 +165,146 @@ class ParentResourceBindingTests(unittest.TestCase):
                     _manifest(composition=False, parent_arg=False)["materializers"][0],
                     self.binding(parent),
                 )
+
+
+class ParentRuntimeExecutionTests(unittest.TestCase):
+    def _fixture(self, root: Path):
+        plugin = root / "plugin"
+        source = root / "source"
+        parent = root / "cuc"
+        output = root / "artifact"
+        plugin.mkdir()
+        source.mkdir()
+        parent.mkdir()
+        (source / "book.xml").write_text("source", encoding="utf-8")
+        (parent / "marker.txt").write_text("parent", encoding="utf-8")
+        (plugin / "fixture_parent_converter.py").write_text(
+            "from pathlib import Path\n"
+            "import sys\n"
+            "source = Path(sys.argv[1])\n"
+            "parent = Path(sys.argv[2])\n"
+            "output = Path(sys.argv[3])\n"
+            "assert source.resolve() != parent.resolve()\n"
+            "payload = (source / 'book.xml').read_text() + '|' + (parent / 'marker.txt').read_text()\n"
+            "(output / 'burns_annotations.tf').write_text(payload, encoding='utf-8')\n",
+            encoding="utf-8",
+        )
+        doc = _manifest(composition=True, parent_arg=True)
+        materializer = doc["materializers"][0]
+        materializer["execution"] = {
+            "type": "python-module",
+            "module": "fixture_parent_converter",
+            "args": ["{source}", "{parent}", "{output}"],
+            "network": "deny",
+        }
+        manifest = plugin / "agora.materializer.json"
+        manifest.write_text(json.dumps(doc), encoding="utf-8")
+        binding = host.ParentResourceBinding(
+            resource_id="cuc",
+            version="0.2.8",
+            source_revision=REVISION,
+            path=parent,
+        )
+        return manifest, source, parent, output, binding
+
+    def test_unsandboxed_execution_receives_distinct_source_and_parent_and_records_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, source, parent, output, binding = self._fixture(Path(tmp))
+            result = host.materialize(
+                manifest_path=manifest,
+                materializer_id="example-to-tf",
+                source=source,
+                output=output,
+                sandbox="off",
+                parent=binding,
+            )
+            self.assertEqual(
+                (result / "burns_annotations.tf").read_text(encoding="utf-8"),
+                "source|parent",
+            )
+            receipt_text = (result / "agora-materialization.json").read_text(encoding="utf-8")
+            receipt = json.loads(receipt_text)
+            self.assertEqual(
+                receipt["parent"],
+                {
+                    "resource_id": "cuc",
+                    "version": "0.2.8",
+                    "source_revision": REVISION,
+                },
+            )
+            self.assertNotIn(str(parent.resolve()), receipt_text)
+
+    def test_parent_placeholder_without_binding_fails_before_source_acquisition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest, source, _, output, _ = self._fixture(Path(tmp))
+            with patch.object(host, "acquire_source") as acquire:
+                with self.assertRaisesRegex(ValueError, "parent|binding"):
+                    host.materialize(
+                        manifest_path=manifest,
+                        materializer_id="example-to-tf",
+                        source=source,
+                        output=output,
+                        sandbox="off",
+                        parent=None,
+                    )
+                acquire.assert_not_called()
+
+    def test_parent_inside_writable_output_boundary_fails_before_source_acquisition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest, source, parent, _, binding = self._fixture(root)
+            output = parent / "derived"
+            with patch.object(host, "acquire_source") as acquire:
+                with self.assertRaisesRegex(ValueError, "parent|output|overlap"):
+                    host.materialize(
+                        manifest_path=manifest,
+                        materializer_id="example-to-tf",
+                        source=source,
+                        output=output,
+                        sandbox="off",
+                        parent=binding,
+                    )
+                acquire.assert_not_called()
+
+
+class StandaloneRuntimeCompatibilityTests(unittest.TestCase):
+    def test_ordinary_one_source_receipt_has_no_parent_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plugin = root / "plugin"
+            source = root / "source"
+            output = root / "artifact"
+            plugin.mkdir()
+            source.mkdir()
+            (source / "book.xml").write_text("source", encoding="utf-8")
+            (plugin / "fixture_single_converter.py").write_text(
+                "from pathlib import Path\n"
+                "import sys\n"
+                "output = Path(sys.argv[2])\n"
+                "(output / 'burns_annotations.tf').write_text('ok', encoding='utf-8')\n",
+                encoding="utf-8",
+            )
+            doc = _manifest()
+            materializer = doc["materializers"][0]
+            materializer["execution"] = {
+                "type": "python-module",
+                "module": "fixture_single_converter",
+                "args": ["{source}", "{output}"],
+                "network": "deny",
+            }
+            manifest = plugin / "agora.materializer.json"
+            manifest.write_text(json.dumps(doc), encoding="utf-8")
+            result = host.materialize(
+                manifest_path=manifest,
+                materializer_id="example-to-tf",
+                source=source,
+                output=output,
+                sandbox="off",
+            )
+            receipt = json.loads(
+                (result / "agora-materialization.json").read_text(encoding="utf-8")
+            )
+            self.assertNotIn("parent", receipt)
 
 
 if __name__ == "__main__":
