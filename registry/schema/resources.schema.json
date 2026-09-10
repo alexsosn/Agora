@@ -89,7 +89,7 @@
           "then": {"required": ["channel"]}
         },
         {
-          "if": {"properties": {"mode": {"enum": ["default-branch", "disabled"]}}, "required": ["mode"]},
+          "if": {"properties": {"mode": {"enum": ["tf-directories", "default-branch", "disabled"]}}, "required": ["mode"]},
           "then": {
             "allOf": [
               {"not": {"required": ["channel"]}},
