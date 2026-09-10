@@ -215,6 +215,14 @@ def materialize_registered(
             raise installer.MaterializerInstallError(
                 f"materializer {materializer_id!r} is not approved by registry plugin {plugin_id!r}"
             )
+        if parent is None:
+            return host.materialize(
+                manifest_path=manifest,
+                materializer_id=materializer_id,
+                output=Path(output),
+                source=None if source is None else Path(source),
+                sandbox=sandbox,
+            )
         return host.materialize(
             manifest_path=manifest,
             materializer_id=materializer_id,
