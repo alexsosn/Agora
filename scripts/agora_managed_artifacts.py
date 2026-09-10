@@ -9,6 +9,8 @@ from pathlib import Path, PurePosixPath
 import re
 import stat
 import uuid
+
+import portalocker
 from typing import Any, Mapping, Sequence
 
 
@@ -584,6 +586,88 @@ class ManagedArtifactStore:
 
     def __init__(self, root: Path) -> None:
         self.root = Path(root)
+
+    @staticmethod
+    def _lock_timeout(timeout: float) -> float:
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+            raise TypeError("managed artifact lock timeout must be a finite non-negative number")
+        value = float(timeout)
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("managed artifact lock timeout must be a finite non-negative number")
+        return value
+
+    def _lock_path(self, namespace: str, identity: str) -> Path:
+        self.ensure_private_root()
+        locks = self.root / "locks"
+        if locks.is_symlink():
+            raise ValueError("managed artifact lock directory cannot be a symlink")
+        locks.mkdir(parents=False, exist_ok=True, mode=0o700)
+        if os.name != "nt":
+            os.chmod(locks, 0o700)
+        self._assert_safe_existing(locks)
+        return locks / f"{namespace}-{identity}.lock"
+
+    def _exclusive_lock(self, namespace: str, identity: str, *, timeout: float):
+        lock_timeout = self._lock_timeout(timeout)
+        lock_path = self._lock_path(namespace, identity)
+        if lock_path.is_symlink():
+            raise ValueError("managed artifact lock file cannot be a symlink")
+        lock = portalocker.Lock(
+            str(lock_path),
+            mode="a+b",
+            timeout=lock_timeout,
+            check_interval=0.05,
+            flags=portalocker.LockFlags.EXCLUSIVE | portalocker.LockFlags.NON_BLOCKING,
+        )
+
+        class _HeldLock:
+            def __enter__(inner_self):
+                try:
+                    handle = lock.acquire()
+                except portalocker.exceptions.AlreadyLocked as exc:
+                    try:
+                        lock.release()
+                    except Exception:
+                        pass
+                    raise TimeoutError(
+                        f"managed artifact {namespace} lock timed out after {lock_timeout:g}s"
+                    ) from exc
+                except portalocker.exceptions.LockException as exc:
+                    try:
+                        lock.release()
+                    except Exception:
+                        pass
+                    raise RuntimeError(
+                        f"could not acquire managed artifact {namespace} lock: {exc}"
+                    ) from exc
+                try:
+                    if lock_path.is_symlink():
+                        raise ValueError("managed artifact lock file cannot be a symlink")
+                    handle_stat = os.fstat(handle.fileno())
+                    path_stat = lock_path.stat()
+                    if not stat.S_ISREG(handle_stat.st_mode):
+                        raise ValueError("managed artifact lock object must be a regular file")
+                    if (handle_stat.st_dev, handle_stat.st_ino) != (path_stat.st_dev, path_stat.st_ino):
+                        raise ValueError("managed artifact lock path changed while acquiring the lock")
+                    inner_self.handle = handle
+                    return None
+                except Exception:
+                    lock.release()
+                    raise
+
+            def __exit__(inner_self, exc_type, exc, tb):
+                lock.release()
+                return False
+
+        return _HeldLock()
+
+    def publication_lock(self, request_key: str, *, timeout: float = 60.0):
+        key = _require_digest(request_key, name="request_key")
+        return self._exclusive_lock("publication", key, timeout=timeout)
+
+    def compile_lock(self, artifact_id: str, *, timeout: float = 60.0):
+        artifact = validate_artifact_id(artifact_id)
+        return self._exclusive_lock("compile", artifact, timeout=timeout)
 
     def ensure_private_root(self) -> Path:
         if self.root.is_symlink():
