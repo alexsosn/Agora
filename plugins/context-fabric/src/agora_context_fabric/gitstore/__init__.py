@@ -396,13 +396,10 @@ class GitStore(_CoreGitStore):
                         or before_git["packs"] > _core_module.DEFAULT_GIT_MAINTENANCE_PACK_LIMIT
                     )
                     if not needs_maintenance:
+                        # No mutation occurred, so the maintenance effect is exactly zero,
+                        # but no post-maintenance observation was performed. Keep row-level
+                        # after fields unset instead of presenting copied pre-state as measured.
                         row["maintenance_status"] = "skipped"
-                        row["after_measurement_complete"] = True
-                        row["bytes_after"] = before_size
-                        row["bytes_reclaimed"] = 0
-                        row["garbage_entries_after"] = before_git["garbage"]
-                        row["garbage_entries_removed"] = 0
-                        row["packs_after"] = before_git["packs"]
                         rows.append(row)
                         continue
 
@@ -490,13 +487,32 @@ class GitStore(_CoreGitStore):
             for row in rows
         )
         bytes_reclaimed = (
-            sum(int(row["bytes_reclaimed"]) for row in rows)
+            sum(
+                0 if row["maintenance_status"] == "skipped" else int(row["bytes_reclaimed"])
+                for row in rows
+            )
             if reclamation_complete
             else None
         )
+        git_reclamation_complete = all(
+            row["maintenance_status"] == "skipped"
+            or (
+                row["maintenance_status"] == "success"
+                and row["garbage_entries_before"] is not None
+                and row["garbage_entries_after"] is not None
+                and row["packs_before"] is not None
+                and row["packs_after"] is not None
+            )
+            for row in rows
+        )
         garbage_removed = (
-            sum(int(row["garbage_entries_removed"]) for row in rows)
-            if reclamation_complete
+            sum(
+                0
+                if row["maintenance_status"] == "skipped"
+                else int(row["garbage_entries_removed"])
+                for row in rows
+            )
+            if git_reclamation_complete
             else None
         )
         packs_before = (
@@ -505,8 +521,13 @@ class GitStore(_CoreGitStore):
             else None
         )
         packs_after = (
-            sum(int(row["packs_after"]) for row in rows)
-            if all(row["packs_after"] is not None for row in rows)
+            sum(
+                int(row["packs_before"])
+                if row["maintenance_status"] == "skipped"
+                else int(row["packs_after"])
+                for row in rows
+            )
+            if git_reclamation_complete
             else None
         )
         return {
@@ -522,6 +543,7 @@ class GitStore(_CoreGitStore):
             "repository_maintenance_skipped_budget": skipped_budget,
             "repository_reclamation_complete": reclamation_complete,
             "repository_bytes_reclaimed": bytes_reclaimed,
+            "repository_git_reclamation_complete": git_reclamation_complete,
             "repository_garbage_entries_removed": garbage_removed,
             "repository_packs_before": packs_before,
             "repository_packs_after": packs_after,
