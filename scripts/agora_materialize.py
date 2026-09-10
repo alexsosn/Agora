@@ -725,6 +725,12 @@ def materialize(
         _validate_staging_output(staging)
         validate_output(staging.output, spec)
 
+        output_provenance = {"format": spec["output"]["format"]}
+        if "composition" in spec["output"]:
+            output_provenance["composition"] = json.loads(
+                json.dumps(spec["output"]["composition"])
+            )
+
         provenance = {
             "schema_version": 1,
             "plugin": {
@@ -734,7 +740,7 @@ def materialize(
             },
             "materializer": materializer_id,
             "source": prepared.provenance,
-            "output": {"format": spec["output"]["format"]},
+            "output": output_provenance,
             "sandbox": sandbox_backend,
             "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
             "created_at": datetime.now(timezone.utc).isoformat(),
