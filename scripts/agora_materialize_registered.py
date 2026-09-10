@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Callable, ContextManager
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -172,14 +173,21 @@ def materialize_registered(
     install_root: Path | None = None,
     registry_path: Path | None = None,
     parent: host.ParentResourceBinding | None = None,
+    parent_lease_factory: Callable[[], ContextManager[object]] | None = None,
 ) -> Path:
     """Run one materializer from a verified, already-installed registry plugin.
 
     The installer runtime lock is held from the final integrity and registry
     binding checks through converter completion so an explicit concurrent repair
     cannot replace the managed environment after it has been approved for this
-    execution.
+    execution. Managed parent bindings are paired with a lazy provider-owned
+    lifetime context that remains active for the complete host call.
     """
+    if parent is None and parent_lease_factory is not None:
+        raise ValueError("parent lease factory requires a trusted parent binding")
+    if parent is not None and parent_lease_factory is None:
+        raise ValueError("trusted parent binding requires a parent lease factory")
+
     _plugin, target = _registered_target(
         plugin_id,
         install_root=install_root,
@@ -223,14 +231,17 @@ def materialize_registered(
                 source=None if source is None else Path(source),
                 sandbox=sandbox,
             )
-        return host.materialize(
-            manifest_path=manifest,
-            materializer_id=materializer_id,
-            output=Path(output),
-            source=None if source is None else Path(source),
-            sandbox=sandbox,
-            parent=parent,
-        )
+
+        assert parent_lease_factory is not None
+        with parent_lease_factory():
+            return host.materialize(
+                manifest_path=manifest,
+                materializer_id=materializer_id,
+                output=Path(output),
+                source=None if source is None else Path(source),
+                sandbox=sandbox,
+                parent=parent,
+            )
 
 
 def _parser() -> argparse.ArgumentParser:
