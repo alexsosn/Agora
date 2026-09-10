@@ -388,12 +388,15 @@ def _render_args(
     source: str,
     output: str,
     source_revision: str = "",
+    parent: str | None = None,
 ) -> list[str]:
     values = {
         "{source}": source,
         "{output}": output,
         "{source_revision}": source_revision,
     }
+    if parent is not None:
+        values["{parent}"] = parent
     rendered: list[str] = []
     for arg in args:
         value = arg
@@ -631,6 +634,12 @@ def build_sandbox_command(
     raise AssertionError(f"unexpected sandbox backend {backend}")
 
 
+def _paths_overlap(left: Path, right: Path) -> bool:
+    left = left.resolve(strict=False)
+    right = right.resolve(strict=False)
+    return left == right or left in right.parents or right in left.parents
+
+
 def _preflight_output(path: Path) -> Path:
     requested = Path(path).expanduser()
     if requested.is_symlink():
@@ -721,11 +730,24 @@ def materialize(
     output: Path,
     source: Path | None = None,
     sandbox: str = "required",
+    parent: ParentResourceBinding | None = None,
 ) -> Path:
     manifest_path = Path(manifest_path).resolve()
     manifest = load_manifest(manifest_path)
     spec = select_materializer(manifest, materializer_id)
     plugin_root = manifest_path.parent
+
+    uses_parent = any("{parent}" in arg for arg in spec["execution"]["args"])
+    validated_parent: ParentResourceBinding | None = None
+    if parent is not None:
+        validated_parent = validate_parent_binding(spec, parent)
+    elif uses_parent:
+        raise ValueError("feature-module materializer requires a trusted parent binding")
+
+    if validated_parent is not None:
+        requested_output = Path(output).expanduser().resolve(strict=False)
+        if _paths_overlap(validated_parent.path, requested_output):
+            raise ValueError("parent resource path overlaps the writable output boundary")
 
     # Fail before acquisition/network side effects when the destination or sandbox is unusable.
     final_output = _preflight_output(output)
@@ -764,6 +786,11 @@ def materialize(
                     source=str(prepared.path),
                     output=str(staging.output),
                     source_revision=source_revision,
+                    parent=(
+                        str(validated_parent.path)
+                        if validated_parent is not None
+                        else None
+                    ),
                 ),
             ]
             sandbox_backend = preflight_backend
@@ -797,6 +824,12 @@ def materialize(
             "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
+        if validated_parent is not None:
+            provenance["parent"] = {
+                "resource_id": validated_parent.resource_id,
+                "version": validated_parent.version,
+                "source_revision": validated_parent.source_revision,
+            }
         _write_provenance(staging.output / "agora-materialization.json", provenance)
 
         os.replace(staging.output, final_output)
