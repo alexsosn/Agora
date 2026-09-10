@@ -75,7 +75,7 @@ jobs:
           branch="automation/corpus-version-updates"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -C "$branch"
+          git switch -C automation/corpus-version-updates
           git add registry/resources.yaml plugins/context-fabric/resources/catalog.yaml
           git commit -m "registry: propose corpus version updates"
 
