@@ -59,6 +59,49 @@ Agora tests should prove Agora claims: registry validity, generated metadata, in
 
 A smoke operation is evidence that the integration reaches the upstream service; it is not an invitation to reproduce upstream's semantic test suite. When a test would primarily prove that a third-party algorithm or scholarly operation is correct, that test and its fix belong upstream.
 
+## Development and review gates
+
+Agora uses TDD for behavior changes and logically independent adversarial review for finalized pull requests. The amount of ceremony and CI must be proportional to the risk and scope of the change.
+
+### High-risk changes
+
+Runtime execution, sandbox/trust boundaries, acquisition integrity, cache/data integrity, destructive operations, concurrency, and changes that can cause resource exhaustion should receive the full evidence path appropriate to the risk:
+
+1. reproduce and research the current behavior and the relevant source contracts;
+2. write a plan when the change crosses components or requires a material design choice;
+3. preserve a focused failing regression before the production fix;
+4. implement the smallest change that satisfies the stated user contract;
+5. run focused tests plus the directly relevant integration/end-to-end gates and Foundation;
+6. independently review the frozen final head.
+
+The research and plan may be concise, but they should make unresolved assumptions explicit.
+
+### Ordinary bug fixes
+
+For a localized Agora-owned bug, reproduce the user-visible failure, add a focused regression, implement the fix, run affected tests and Foundation where applicable, then independently review the final head. A separate research document, design document, or dedicated preserved RED commit is optional unless it provides real evidence or resolves uncertainty.
+
+### Registry, version, and generated-metadata changes
+
+For a bounded metadata or upstream-version change:
+
+- verify the authoritative upstream identity and the fields Agora owns;
+- change the canonical registry source rather than generated projections;
+- regenerate client-native artifacts;
+- run schema/generation checks and a directly relevant launch/install smoke when the executable pin changed;
+- independently review the final head for identity drift, accidental scope expansion, and stale generated artifacts.
+
+Do not require a broad architecture study, unrelated platform matrix, or full materialization suite for a metadata-only change unless the changed metadata can affect those paths.
+
+### Documentation-only changes
+
+Verify commands, links, client names, version claims, and limitations against current behavior. Run lightweight documentation or generated-artifact checks where relevant. Runtime RED/GREEN history and unrelated live smokes are unnecessary.
+
+### Review findings and scope control
+
+Review should challenge the PR's stated contract, user impact, regressions, and architectural boundary. A finding should block or expand the current PR only when it affects that contract, safety, correctness, or the active release criteria.
+
+Other useful findings should be recorded as follow-up work without becoming prerequisites for the current PR. During Agora 1.0 release mode, post-release findings must not displace the active release queue in [#148](https://github.com/alexsosn/Agora/issues/148).
+
 ## Generated files
 
 Claude Code and ChatGPT/Codex marketplace/plugin metadata is generated from the canonical registry:
@@ -85,3 +128,5 @@ Antigravity artifacts are not part of the current v0.1 generation target.
 ## Before opening a PR
 
 For plugin-related work, state explicitly which Agora-owned responsibility the change serves. If the motivation is an upstream bug or missing feature, link the upstream report and keep the Agora change to metadata, version constraints, integration glue, or documentation unless the problem is genuinely caused by Agora itself.
+
+During the Agora 1.0 release cycle, state whether the PR serves an item in [#148](https://github.com/alexsosn/Agora/issues/148). If it does not, explain why it should consume pre-release review and CI capacity instead of remaining post-1.0.
