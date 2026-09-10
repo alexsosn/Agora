@@ -1,0 +1,118 @@
+name: Patch parent sandbox GREEN3 135
+
+on:
+  push:
+    branches:
+      - feat/materializer-parent-input-135-v2
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[parent-green3]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/materializer-parent-input-135-v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply parent sandbox GREEN
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/agora_materialize.py')
+          text = path.read_text(encoding='utf-8')
+
+          old = 'SANDBOX_OUTPUT_ROOT = "/agora-output"\n'
+          new = 'SANDBOX_OUTPUT_ROOT = "/agora-output"\nSANDBOX_PARENT_ROOT = "/agora-parent"\n'
+          if text.count(old) != 1:
+              raise SystemExit('sandbox constant insertion point not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    source: Path,\n    output: Path,\n    module: str,\n    args: list[str],\n    source_revision: str,\n) -> list[str]:\n    python_inside, runtime_bind = _linux_python_path()\n'''
+          new = '''    source: Path,\n    output: Path,\n    module: str,\n    args: list[str],\n    source_revision: str,\n    parent: Path | None = None,\n) -> list[str]:\n    python_inside, runtime_bind = _linux_python_path()\n'''
+          if text.count(old) != 1:
+              raise SystemExit('linux signature anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    command.extend(runtime_bind)\n    if runtime_bind:\n        command.extend(["--setenv", "LD_LIBRARY_PATH", "/runtime/lib"])\n    command.extend(\n        [\n'''
+          new = '''    command.extend(runtime_bind)\n    if runtime_bind:\n        command.extend(["--setenv", "LD_LIBRARY_PATH", "/runtime/lib"])\n    parent_bind = (\n        ["--ro-bind", str(parent), SANDBOX_PARENT_ROOT]\n        if parent is not None\n        else []\n    )\n    command.extend(\n        [\n'''
+          if text.count(old) != 1:
+              raise SystemExit('linux parent bind anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''            "--ro-bind",\n            str(source),\n            "/input",\n            "--bind",\n'''
+          new = '''            "--ro-bind",\n            str(source),\n            "/input",\n            *parent_bind,\n            "--bind",\n'''
+          if text.count(old) != 1:
+              raise SystemExit('linux mount insertion point not found')
+          text = text.replace(old, new, 1)
+
+          old = '''                source="/input",\n                output=sandbox_output,\n                source_revision=source_revision,\n            ),\n'''
+          new = '''                source="/input",\n                output=sandbox_output,\n                source_revision=source_revision,\n                parent=SANDBOX_PARENT_ROOT if parent is not None else None,\n            ),\n'''
+          if text.count(old) != 1:
+              raise SystemExit('linux render insertion point not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    work_dir: Path,\n    module: str,\n    args: list[str],\n    source_revision: str,\n) -> list[str]:\n    output_parent = output.parent.resolve()\n'''
+          new = '''    work_dir: Path,\n    module: str,\n    args: list[str],\n    source_revision: str,\n    parent: Path | None = None,\n) -> list[str]:\n    output_parent = output.parent.resolve()\n'''
+          if text.count(old) != 1:
+              raise SystemExit('mac signature anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''        work_dir.resolve(),\n    }\n    read_rules = "\\n".join(\n'''
+          new = '''        work_dir.resolve(),\n    }\n    if parent is not None:\n        readable.add(parent.resolve())\n    read_rules = "\\n".join(\n'''
+          if text.count(old) != 1:
+              raise SystemExit('mac readable insertion point not found')
+          text = text.replace(old, new, 1)
+
+          old = '''            source=str(source),\n            output=str(output),\n            source_revision=source_revision,\n        ),\n    ]\n\n\ndef build_sandbox_command(\n'''
+          new = '''            source=str(source),\n            output=str(output),\n            source_revision=source_revision,\n            parent=str(parent) if parent is not None else None,\n        ),\n    ]\n\n\ndef build_sandbox_command(\n'''
+          if text.count(old) != 1:
+              raise SystemExit('mac render insertion point not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    args: list[str],\n    source_revision: str = "",\n) -> tuple[list[str], str]:\n    plugin_root = Path(plugin_root).resolve()\n    source = Path(source).resolve()\n    output = Path(output).resolve()\n'''
+          new = '''    args: list[str],\n    source_revision: str = "",\n    parent: Path | None = None,\n) -> tuple[list[str], str]:\n    plugin_root = Path(plugin_root).resolve()\n    source = Path(source).resolve()\n    output = Path(output).resolve()\n    parent = Path(parent).resolve() if parent is not None else None\n'''
+          if text.count(old) != 1:
+              raise SystemExit('sandbox facade signature anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''                args=args,\n                source_revision=source_revision,\n            ),\n            backend,\n        )\n    if backend == "sandbox-exec":\n'''
+          new = '''                args=args,\n                source_revision=source_revision,\n                parent=parent,\n            ),\n            backend,\n        )\n    if backend == "sandbox-exec":\n'''
+          if text.count(old) != 1:
+              raise SystemExit('linux facade forwarding anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''                args=args,\n                source_revision=source_revision,\n            ),\n            backend,\n        )\n    raise AssertionError(f"unexpected sandbox backend {backend}")\n'''
+          new = '''                args=args,\n                source_revision=source_revision,\n                parent=parent,\n            ),\n            backend,\n        )\n    raise AssertionError(f"unexpected sandbox backend {backend}")\n'''
+          if text.count(old) != 1:
+              raise SystemExit('mac facade forwarding anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''                args=execution["args"],\n                source_revision=source_revision,\n            )\n        else:\n'''
+          new = '''                args=execution["args"],\n                source_revision=source_revision,\n                parent=(\n                    validated_parent.path\n                    if validated_parent is not None\n                    else None\n                ),\n            )\n        else:\n'''
+          if text.count(old) != 1:
+              raise SystemExit('materialize sandbox forwarding anchor not found')
+          text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
+      - name: Run parent and existing sandbox contracts
+        shell: bash
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m unittest tests.test_materializer_parent_sandbox tests.test_materializer_parent_input tests.test_materialization.MaterializerSandboxConstructionTests -v
+      - name: Commit GREEN3 and remove patch runner
+        shell: bash
+        run: |
+          rm .github/workflows/patch-parent-sandbox-green3-135.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/agora_materialize.py .github/workflows/patch-parent-sandbox-green3-135.yml
+          git commit -m 'Mount trusted parent read-only in sandbox [parent-green3]'
+          git push origin HEAD:feat/materializer-parent-input-135-v2
