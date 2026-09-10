@@ -15,6 +15,10 @@ from scripts.check_materializer_releases import (
     _commit_sha,
     resolve_tag_commit,
 )
+from scripts.corpus_version_trust import (
+    assess_stage_a_candidate,
+    assess_stage_b_promotion,
+)
 
 
 @dataclass(frozen=True)
