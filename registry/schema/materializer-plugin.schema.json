@@ -31,7 +31,7 @@
     },
     "executionArgument": {
       "type": "string",
-      "pattern": "^(?:[^{}]|\\{(?:source|output|source_revision)\\})*$"
+      "pattern": "^(?:[^{}]|\\{(?:source|output|source_revision|parent)\\})*$"
     },
     "featureModuleComposition": {
       "type": "object",

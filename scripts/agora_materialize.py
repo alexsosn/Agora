@@ -45,6 +45,16 @@ class AcquisitionError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class ParentResourceBinding:
+    """Trusted identity and prepared local path for a feature-module parent."""
+
+    resource_id: str
+    version: str
+    source_revision: str
+    path: Path
+
+
+@dataclass(frozen=True)
 class PreparedSource:
     path: Path
     provenance: dict[str, Any]
@@ -62,6 +72,36 @@ class StagingOutput:
 
     def cleanup(self) -> None:
         shutil.rmtree(self.root, ignore_errors=True)
+
+
+def validate_parent_binding(
+    materializer: dict[str, Any],
+    binding: ParentResourceBinding,
+) -> ParentResourceBinding:
+    """Validate a prepared parent against trusted feature-module composition metadata."""
+
+    composition = materializer["output"].get("composition")
+    if not isinstance(composition, dict) or composition.get("kind") != "feature-module":
+        raise ValueError("parent binding is valid only for a feature-module composition")
+    if binding.resource_id != composition["parent"]:
+        raise ValueError("parent resource id does not match feature-module composition parent")
+    compatible_versions = composition["compatibility"]["parent_versions"]
+    if binding.version not in compatible_versions:
+        raise ValueError("parent version is not compatible with feature-module composition")
+    revision = binding.source_revision
+    if len(revision) not in (40, 64) or any(
+        char.lower() not in "0123456789abcdef" for char in revision
+    ):
+        raise ValueError("parent source revision must be a full immutable hex digest")
+    path = Path(binding.path).expanduser()
+    if not path.is_dir():
+        raise ValueError("parent resource path must exist as a directory")
+    return ParentResourceBinding(
+        resource_id=binding.resource_id,
+        version=binding.version,
+        source_revision=binding.source_revision,
+        path=path.resolve(),
+    )
 
 
 def _safe_relative(value: str, *, where: str) -> str:
@@ -85,6 +125,18 @@ def _validate_manifest_semantics(doc: dict[str, Any]) -> None:
         if materializer_id in ids:
             raise ManifestError(f"duplicate materializer id {materializer_id!r}")
         ids.add(materializer_id)
+
+        uses_parent = any(
+            "{parent}" in arg for arg in materializer["execution"]["args"]
+        )
+        composition = materializer["output"].get("composition")
+        if uses_parent and not (
+            isinstance(composition, dict)
+            and composition.get("kind") == "feature-module"
+        ):
+            raise ManifestError(
+                f"materializers[{index}] uses {{parent}} without feature-module composition"
+            )
 
         seen_types: set[str] = set()
         for ai, strategy in enumerate(materializer["acquisition"]):
