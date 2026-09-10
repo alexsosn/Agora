@@ -124,11 +124,11 @@ For the exact client/transport/platform evidence boundary, see the [compatibilit
 - [Installation guide](wiki/guides/installation.md)
 - [Compatibility and verification](wiki/guides/compatibility.md)
 - [Wiki index](wiki/README.md)
+- [Agora 1.0 release plan](wiki/releases/v1.0-plan.md)
 - [v0.1 scope](wiki/releases/v0.1-scope-frozen.md)
 - [Implementation details](wiki/architecture/ref-implementation-details.md)
 - [Marketplace architecture](wiki/architecture/ref-marketplace-architecture.md)
 - [Greek/Context-Fabric collection handling](wiki/architecture/ref-context-fabric-collections.md)
-- [Current implementation plan](wiki/releases/v0.1-plan-active.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Contributing
