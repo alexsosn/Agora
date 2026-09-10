@@ -1,0 +1,59 @@
+name: Temporary managed-artifact GREEN3
+
+on:
+  push:
+    branches:
+      - feat/managed-artifact-cache-99
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/managed-artifact-cache-99
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Apply focused GREEN3 lock implementation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/agora_managed_artifacts.py")
+          text = path.read_text(encoding="utf-8")
+          if "import portalocker\n" not in text:
+              text = text.replace("import uuid\n", "import uuid\n\nimport portalocker\n", 1)
+
+          marker = "    def publication_lock(self, request_key: str, *, timeout: float = 60.0):"
+          if marker not in text:
+              needle = '''    def __init__(self, root: Path) -> None:\n        self.root = Path(root)\n\n    def ensure_private_root(self) -> Path:\n'''
+              replacement = '''    def __init__(self, root: Path) -> None:\n        self.root = Path(root)\n\n    @staticmethod\n    def _lock_timeout(timeout: float) -> float:\n        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):\n            raise TypeError("managed artifact lock timeout must be a finite non-negative number")\n        value = float(timeout)\n        if not math.isfinite(value) or value < 0:\n            raise ValueError("managed artifact lock timeout must be a finite non-negative number")\n        return value\n\n    def _lock_path(self, namespace: str, identity: str) -> Path:\n        self.ensure_private_root()\n        locks = self.root / "locks"\n        if locks.is_symlink():\n            raise ValueError("managed artifact lock directory cannot be a symlink")\n        locks.mkdir(parents=False, exist_ok=True, mode=0o700)\n        if os.name != "nt":\n            os.chmod(locks, 0o700)\n        self._assert_safe_existing(locks)\n        return locks / f"{namespace}-{identity}.lock"\n\n    def _exclusive_lock(self, namespace: str, identity: str, *, timeout: float):\n        lock_timeout = self._lock_timeout(timeout)\n        lock_path = self._lock_path(namespace, identity)\n        if lock_path.is_symlink():\n            raise ValueError("managed artifact lock file cannot be a symlink")\n        lock = portalocker.Lock(\n            str(lock_path),\n            mode="a+b",\n            timeout=lock_timeout,\n            check_interval=0.05,\n            flags=portalocker.LockFlags.EXCLUSIVE | portalocker.LockFlags.NON_BLOCKING,\n        )\n\n        class _HeldLock:\n            def __enter__(inner_self):\n                try:\n                    handle = lock.acquire()\n                except portalocker.exceptions.AlreadyLocked as exc:\n                    try:\n                        lock.release()\n                    except Exception:\n                        pass\n                    raise TimeoutError(\n                        f"managed artifact {namespace} lock timed out after {lock_timeout:g}s"\n                    ) from exc\n                except portalocker.exceptions.LockException as exc:\n                    try:\n                        lock.release()\n                    except Exception:\n                        pass\n                    raise RuntimeError(\n                        f"could not acquire managed artifact {namespace} lock: {exc}"\n                    ) from exc\n                try:\n                    if lock_path.is_symlink():\n                        raise ValueError("managed artifact lock file cannot be a symlink")\n                    handle_stat = os.fstat(handle.fileno())\n                    path_stat = lock_path.stat()\n                    if not stat.S_ISREG(handle_stat.st_mode):\n                        raise ValueError("managed artifact lock object must be a regular file")\n                    if (handle_stat.st_dev, handle_stat.st_ino) != (path_stat.st_dev, path_stat.st_ino):\n                        raise ValueError("managed artifact lock path changed while acquiring the lock")\n                    inner_self.handle = handle\n                    return None\n                except Exception:\n                    lock.release()\n                    raise\n\n            def __exit__(inner_self, exc_type, exc, tb):\n                lock.release()\n                return False\n\n        return _HeldLock()\n\n    def publication_lock(self, request_key: str, *, timeout: float = 60.0):\n        key = _require_digest(request_key, name="request_key")\n        return self._exclusive_lock("publication", key, timeout=timeout)\n\n    def compile_lock(self, artifact_id: str, *, timeout: float = 60.0):\n        artifact = validate_artifact_id(artifact_id)\n        return self._exclusive_lock("compile", artifact, timeout=timeout)\n\n    def ensure_private_root(self) -> Path:\n'''
+              if needle not in text:
+                  raise SystemExit("ManagedArtifactStore insertion point not found")
+              text = text.replace(needle, replacement, 1)
+              path.write_text(text, encoding="utf-8")
+          PY
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Verify RED3 lock contracts are GREEN
+        run: |
+          python -m py_compile scripts/agora_managed_artifacts.py
+          python -m unittest tests.test_managed_artifact_locks_red3 -v
+      - name: Commit GREEN3 implementation when needed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- scripts/agora_managed_artifacts.py; then
+            echo "GREEN3 lock implementation already present."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/agora_managed_artifacts.py
+          git commit -m "GREEN3: add managed artifact lock namespace"
+          git push origin HEAD:feat/managed-artifact-cache-99
