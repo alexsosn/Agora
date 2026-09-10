@@ -8,6 +8,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "registry" / "materializers.yaml"
+INSTALL_WORKFLOW = ROOT / ".github" / "workflows" / "materializer-install.yml"
 EXPECTED_REF = "317e960e05ca7f36f35a11fcf567285312951095"
 
 
@@ -33,6 +34,11 @@ class PseudepigraphaMaterializerPromotionRedTests(unittest.TestCase):
             },
         )
         self.assertEqual(plugin["materializers"], ["ocp-text-fabric"])
+
+    def test_install_smoke_compares_distribution_to_registry_version(self):
+        workflow = INSTALL_WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn("distributions['pseudepigrapha-tf'] == '0.1.0'", workflow)
+        self.assertIn("distributions['pseudepigrapha-tf'] == plugin['version']", workflow)
 
 
 if __name__ == "__main__":
