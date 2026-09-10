@@ -52,6 +52,7 @@ class RegisteredParentForwardingTests(unittest.TestCase):
                 source_revision="a" * 40,
                 path=parent_path,
             )
+            lease_factory = mock.Mock(return_value=nullcontext())
 
             with (
                 mock.patch.object(registered, "_registered_target", return_value=(PLUGIN, target)),
@@ -71,10 +72,12 @@ class RegisteredParentForwardingTests(unittest.TestCase):
                     install_root=install_root,
                     registry_path=registry_path,
                     parent=parent,
+                    parent_lease_factory=lease_factory,
                 )
 
             self.assertEqual(result, output)
             lock_mock.assert_called_once_with(target.parent / f".{target.name}.lock")
+            lease_factory.assert_called_once_with()
             materialize_mock.assert_called_once_with(
                 manifest_path=manifest,
                 materializer_id="example-to-tf",
