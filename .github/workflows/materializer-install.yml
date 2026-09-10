@@ -109,7 +109,7 @@ jobs:
           assert len(receipt['environment']['execution_tree_sha256']) == 64
           assert len(receipt['execution_identity_sha256']) == 64
           distributions = {row['name'].lower(): row['version'] for row in receipt['environment']['distributions']}
-          assert distributions['pseudepigrapha-tf'] == '0.1.0'
+          assert distributions['pseudepigrapha-tf'] == plugin['version']
           assert distributions['text-fabric'].startswith('13.')
           assert manifest['plugin']['id'] == 'pseudepigrapha-tf'
           assert [item['id'] for item in manifest['materializers']] == ['ocp-text-fabric']
