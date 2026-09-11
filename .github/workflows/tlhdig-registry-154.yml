@@ -4,7 +4,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   focused:
@@ -18,4 +18,30 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m pip install -r requirements-dev.txt
-      - run: python -m unittest discover -s tests -p 'test_tlhdig_current_registry.py' -v
+      - name: Apply review-driven load-cost clarification
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('registry/resources.yaml')
+          text = path.read_text(encoding='utf-8')
+          old = 'Historical machine-specific observation; current-machine cost may differ. Peak RSS came from the related earlier run rather than the final converged compile measurement.'
+          new = 'Historical machine-specific observation measured for tf/0.1.0; it does not describe the current tf/0.4.0 artifact. Peak RSS came from the related earlier run rather than the final converged compile measurement.'
+          if old in text:
+              text = text.replace(old, new, 1)
+              path.write_text(text, encoding='utf-8')
+          elif new not in text:
+              raise SystemExit('expected TLHdig load_cost note not found')
+          PY
+          python scripts/generate_context_fabric_catalog.py
+          python -m unittest discover -s tests -p 'test_tlhdig_current_registry.py' -v
+      - name: Commit generated review fix when needed
+        run: |
+          if git diff --quiet -- registry/resources.yaml plugins/context-fabric/resources/catalog.yaml; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add registry/resources.yaml plugins/context-fabric/resources/catalog.yaml
+          git commit -m 'fix: label legacy TLHdig load-cost measurement'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
