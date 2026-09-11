@@ -15,7 +15,7 @@ Agora plugins can also include **scholarly skills**: source-specific guidance th
 
 ## What you can do
 
-With the current v0.1 plugins you can, for example:
+With the current plugins you can, for example:
 
 - query morphology and syntax in the **BHSA Hebrew Bible**;
 - work with **Ugaritic** and **Hittite** Text-Fabric corpora through the same provider interface;
