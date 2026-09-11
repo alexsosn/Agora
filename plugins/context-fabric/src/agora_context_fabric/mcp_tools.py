@@ -35,11 +35,19 @@ async def _drain_operation_stages(ctx: Any, stages: queue.SimpleQueue[str]) -> N
         except queue.Empty:
             return
         if ctx is not None:
-            await ctx.report_progress(
-                progress=_STAGE_PROGRESS.get(stage, 0.0),
-                total=4.0,
-                message=stage,
-            )
+            try:
+                await ctx.report_progress(
+                    progress=_STAGE_PROGRESS.get(stage, 0.0),
+                    total=4.0,
+                    message=stage,
+                )
+            except Exception:
+                # Progress notifications are advisory. A client that declines or
+                # fails to accept one must not turn already-completed corpus work
+                # into a false operation failure or hide the returned logical name.
+                # Task/protocol cancellation is a BaseException and still follows
+                # the cancellation bridge in _run_long_operation.
+                continue
 
 
 async def _join_cancelled_worker(done: threading.Event) -> None:
