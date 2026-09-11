@@ -204,10 +204,10 @@ jobs:
           expected_os = os.environ["EXPECTED_OS"]
           expected_arch = os.environ["EXPECTED_ARCH"]
           if (actual_os, actual_arch) != (expected_os, expected_arch):
-            raise SystemExit(
-              f"platform mismatch: expected {expected_os}/{expected_arch}, "
-              f"got {actual_os}/{actual_arch}"
-            )
+              raise SystemExit(
+                  f"platform mismatch: expected {expected_os}/{expected_arch}, "
+                  f"got {actual_os}/{actual_arch}"
+              )
           print(f"Verified runtime platform: {actual_os}/{actual_arch}")
           PY
 
