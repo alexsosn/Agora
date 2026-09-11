@@ -28,6 +28,37 @@ Before starting a cold worker, Agora measures the direct `*.tf` files in the pre
 
 These are polling guardrails, not filesystem quotas. Writes can occur between observations. The minimum-free-space reserve is retained as safety headroom rather than advertised as an exact residual-byte guarantee.
 
+## Feature-module overlays
+
+Selecting feature modules creates a derived overlay for that exact parent revision and ordered module combination. The overlay is a complete Text-Fabric source directory, so a small module does not imply a proportionally small compile. A previously unseen combination can require a **parent-scale** cold compile and its own current-format `.cfm` cache.
+
+Call `prepare_corpus(..., modules=[...])` before an unfamiliar or potentially expensive combination. Its `load_preflight` object reports:
+
+- `cache_kind="overlay"`;
+- `module_order` and `module_order_semantics="ordered-last-wins"`;
+- `exact_combination_warm` and `full_compile_required` for the current CFM version;
+- direct overlay `source_bytes`;
+- the default `compile_budget_bytes` and `compile_timeout_seconds` that would govern a cold load unless the caller supplies stricter per-load overrides;
+- the configured `min_free_bytes` host reserve;
+- `cost_expectation="parent-scale-possible"`;
+- `parent_historical_load_cost` when the parent resource has a measured historical record.
+
+The warm/cold fields are a point-in-time observation. Another process may compile or evict the exact overlay after prepare returns, so `load_corpus` rechecks the current-format marker after taking the exact-object compile lock before deciding whether to start a worker.
+
+Module order is semantic. Agora overlays module feature files in caller order, and if two modules expose the same feature filename the later module replaces the earlier one. The same module set in another order can therefore intentionally produce a different overlay; Agora must not sort module IDs merely to increase cache reuse.
+
+Historical BHSA release investigation for issue #46 observed that adding two small feature modules (about 6 MB each) could add roughly **1.14 GB** of cache and about **7.5 minutes** of cold compilation on the measured machine. Those numbers are evidence of possible parent-scale amplification, not a guaranteed estimate for another machine, Context-Fabric version, corpus revision, or module combination. The canonical parent `load_cost` record is likewise historical context, not a promise of current runtime cost.
+
+Recommended expensive-module workflow:
+
+1. `prepare_corpus(..., modules=[...])`;
+2. inspect `load_preflight` and, when disk pressure matters, `corpus_cache_status`;
+3. call `load_corpus` only if the disclosed cold/warm state and limits are acceptable, optionally with stricter `max_compile_gb` / `max_compile_minutes`;
+4. use `corpus_cache_status` while a cold worker runs and `cancel_corpus_load` when cancellation is needed;
+5. after unload, use `prune_corpus_cache` or `remove_cached_corpus` to reclaim unused overlays.
+
+Derived overlays are indexed as independent `kind="overlay"` cache objects. Their bytes are attributable in `corpus_cache_status`, active overlays are protected by leases, and unused overlays can be evicted without deleting the immutable parent or module source snapshots.
+
 ## Defaults
 
 The server-side defaults are:

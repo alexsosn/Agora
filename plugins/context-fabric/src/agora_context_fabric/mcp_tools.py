@@ -85,6 +85,18 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         `source_mode='require-fresh'` requires a successful remote refresh and is
         incompatible with an explicit immutable `source_revision`.
 
+        When modules are selected, the response includes `load_preflight` for
+        the exact derived overlay: warm/cold state, whether a full compile is
+        currently required, direct source bytes, default compile byte/time
+        guardrails, host free-space reserve, ordered module precedence, and the
+        parent's historical load-cost reference when one exists. Module order is
+        `ordered-last-wins`: if two modules expose the same feature filename, the
+        later module wins, so reversing module order can intentionally produce a
+        different overlay. A new cold overlay can require a parent-scale compile
+        even when the module files themselves are small. Treat warm/cold state as
+        a point-in-time preflight observation; load_corpus rechecks it under the
+        exact-object compile lock.
+
         Prepared paths are cache-resident but evictable after this call returns;
         use load_corpus when a corpus must stay protected for active use.
         """
@@ -118,13 +130,17 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         freshness provenance. The response also includes `logical_name`; pass
         that value to unload_corpus.
 
-        A genuinely warm current-format cache follows the normal upstream loader
-        path. Cold compilation runs in a contained worker with Agora-owned
-        observed disk/time guardrails. `max_compile_gb` and
-        `max_compile_minutes` are optional positive per-load overrides; neither
-        disables the server's configured minimum-free-space reserve. Use
-        corpus_cache_status to inspect active cold loads and cancel_corpus_load
-        with the reported load_id when cancellation is needed.
+        For an unfamiliar or potentially expensive feature-module combination,
+        call prepare_corpus first and inspect its `load_preflight` plus
+        corpus_cache_status before loading. A genuinely warm current-format cache
+        follows the normal upstream loader path. Cold compilation runs in a
+        contained worker with Agora-owned observed disk/time guardrails.
+        `max_compile_gb` and `max_compile_minutes` are optional positive per-load
+        overrides and may be used to set stricter limits than the defaults shown
+        by prepare_corpus; neither disables the server's configured
+        minimum-free-space reserve. Use corpus_cache_status to inspect active cold
+        loads and cancel_corpus_load with the reported load_id when cancellation
+        is needed.
         """
         kwargs: dict[str, Any] = {
             "member_id": member_id,
