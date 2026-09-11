@@ -14,6 +14,11 @@ try:  # Foundation unit tests intentionally do not install the MCP runtime.
 except ImportError:  # pragma: no cover - exercised by the lightweight unit environment
     MCPContext = Any  # type: ignore[misc,assignment]
 
+try:  # Runtime MCP depends on AnyIO; lightweight Foundation tests do not.
+    import anyio
+except ImportError:  # pragma: no cover - fallback is exercised in Foundation
+    anyio = None  # type: ignore[assignment]
+
 
 _STAGE_PROGRESS = {
     "resolving": 1.0,
@@ -40,12 +45,21 @@ async def _drain_operation_stages(ctx: Any, stages: queue.SimpleQueue[str]) -> N
 async def _join_cancelled_worker(done: threading.Event) -> None:
     """Wait through repeated task cancellation until owned worker mutation stops."""
 
+    if anyio is not None:
+        # AnyIO cancellation is level-triggered. A shielded scope prevents a
+        # cancelled MCP request from repeatedly cancelling the cleanup wait and
+        # turning it into a hot loop while the owned worker is still stopping.
+        with anyio.CancelScope(shield=True):
+            while not done.is_set():
+                await anyio.sleep(0.02)
+        return
+
     while not done.is_set():
         try:
             await asyncio.shield(asyncio.sleep(0.02))
         except asyncio.CancelledError:
-            # MCP/client cancellation can be delivered more than once. The
-            # handler still owns the worker and must not abandon it mid-mutation.
+            # Lightweight asyncio-only tests can still deliver repeated
+            # cancellation; keep ownership until the worker is actually done.
             continue
 
 
