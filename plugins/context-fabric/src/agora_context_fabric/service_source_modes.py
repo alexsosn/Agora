@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import copy
 from contextlib import nullcontext
+from pathlib import Path
 from typing import Any
 
 from . import service as _service_module
 from .gitstore import GitStore, SourcePolicyState
+from .load_safety import compile_budget_bytes, compile_timeout_seconds, source_tf_bytes
 
 
 _BaseContextFabricService = _service_module.ContextFabricService
@@ -15,8 +18,9 @@ class ContextFabricService(_BaseContextFabricService):
 
     The mature load/cache lifecycle remains in ``service.py``. This subclass
     scopes acquisition policy around those operations, pins collection work to
-    the revision selected at the start of the operation, and adds provenance to
-    the existing response shape without reimplementing load/compile semantics.
+    the revision selected at the start of the operation, and adds provenance and
+    pre-execution disclosure to the existing response shape without
+    reimplementing load/compile semantics.
     """
 
     @staticmethod
@@ -113,6 +117,53 @@ class ContextFabricService(_BaseContextFabricService):
                 annotated_modules.append(item)
             annotated["modules"] = annotated_modules
         return annotated
+
+    def _module_load_preflight(
+        self,
+        result: dict[str, Any],
+        resource,
+    ) -> dict[str, Any] | None:
+        modules = result.get("modules")
+        if not isinstance(modules, list) or not modules:
+            return None
+
+        path = Path(str(result["path"]))
+        source_bytes = source_tf_bytes(path)
+        managed_compile = self.cold_compiler is not None and self.cfm_version is not None
+        warm = self._is_warm(path) if managed_compile else None
+        module_order = [
+            str(module["id"])
+            for module in modules
+            if isinstance(module, dict) and isinstance(module.get("id"), str)
+        ]
+        return {
+            "cache_kind": "overlay",
+            "module_order": module_order,
+            # Feature files are overlaid in caller order. If two modules expose
+            # the same filename, the later module replaces the earlier one.
+            "module_order_semantics": "ordered-last-wins",
+            # This is a point-in-time observation. load_corpus rechecks the
+            # marker under the exact-object compile lock before compiling.
+            "exact_combination_warm": warm,
+            "full_compile_required": (not warm) if warm is not None else None,
+            "cfm_version": self.cfm_version,
+            "source_bytes": source_bytes,
+            # These are the server defaults. Explicit load_corpus overrides may
+            # choose stricter per-load values without changing the host reserve.
+            "compile_budget_bytes": compile_budget_bytes(source_bytes),
+            "compile_timeout_seconds": compile_timeout_seconds(),
+            "min_free_bytes": (
+                int(getattr(self.store, "min_free_bytes", 0))
+                if self.store is not None
+                else None
+            ),
+            # Small annotation modules still compose a complete TF source tree,
+            # so a cold exact combination can require a parent-scale compile.
+            "cost_expectation": "parent-scale-possible",
+            "parent_historical_load_cost": (
+                copy.deepcopy(resource.load_cost) if resource.load_cost else None
+            ),
+        }
 
     def _resolve_collection_revision(
         self,
@@ -212,12 +263,16 @@ class ContextFabricService(_BaseContextFabricService):
                 source_revision=effective_revision,
                 modules=modules,
             )
-            return self._annotate_source_provenance(
+            annotated = self._annotate_source_provenance(
                 result,
                 policy,
                 resource_id=resource_id,
                 explicit_revision=source_revision is not None,
             )
+            preflight = self._module_load_preflight(annotated, resource)
+            if preflight is not None:
+                annotated["load_preflight"] = preflight
+            return annotated
 
     def load(
         self,
