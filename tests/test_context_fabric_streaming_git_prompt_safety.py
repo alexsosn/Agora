@@ -68,6 +68,26 @@ class StreamingGitPromptSafetyTests(unittest.TestCase):
 
         self._assert_noninteractive_git_popen(popen.call_args.kwargs)
 
+    def test_tf_header_git_show_disables_prompts_and_stdin(self):
+        control = OperationControl(acquisition_timeout_seconds=1.0)
+        process = _CompletedProcess()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            store = GitStore(root / "cache", min_free_bytes=0)
+            repo = root / "repo"
+            repo.mkdir()
+            with (
+                operation_scope(control),
+                patch(
+                    "agora_context_fabric.gitstore._core.subprocess.Popen",
+                    return_value=process,
+                ) as popen,
+            ):
+                store.tf_header_metadata(repo, "fixture.tf", "deadbeef")
+
+        self._assert_noninteractive_git_popen(popen.call_args.kwargs)
+
     def test_git_archive_stream_disables_prompts_and_stdin(self):
         control = OperationControl(acquisition_timeout_seconds=1.0)
         process = _CompletedProcess(binary_stdout=True)
