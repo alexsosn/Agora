@@ -60,7 +60,9 @@ For claims based on search:
 3. inspect the relevant source/translation layer;
 4. check surrounding context when interpretation depends on it.
 
-Do not convert a search-result count directly into a philological frequency claim without understanding the search scope, versions, and indexing behavior.
+The current upstream book-search path can return separate indexed-version hits for the same textual reference while the MCP result rows omit the version identity. Duplicate references are therefore ambiguous version-level search hits, not independent textual occurrences. Deduplicate references for passage selection and retrieve the passage/version before interpreting a hit.
+
+Do not convert a search-result row count directly into a philological frequency claim. The count can reflect search scope, versions, duplicate references, translation wording, and indexing behavior rather than unique textual occurrences.
 
 ### 5. Follow textual relationships explicitly
 
