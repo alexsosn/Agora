@@ -188,12 +188,17 @@ class ContextFabricService(_BaseContextFabricService):
         if operation is None:
             return load_id, cancel_event
 
-        # Base service owns active-load bookkeeping. Swap only the event before
-        # the compiler receives it so protocol cancellation and cancel_load use
-        # the same cooperative token rather than two unrelated cancellation paths.
+        # Base service publishes the active record before returning. A concurrent
+        # cancel_corpus_load can therefore set its original event in the narrow
+        # gap before this compatibility layer reacquires the same lock. Transfer
+        # that state before replacing the record so the cancellation cannot be
+        # lost during handoff to the request-owned operation token.
         with self._active_loads_lock:
             record = self._active_loads.get(load_id)
             if record is not None:
+                previous_event = record.get("cancel_event")
+                if previous_event is not None and previous_event.is_set():
+                    operation.cancel()
                 record["cancel_event"] = operation.cancel_event
         operation.stage("loading/compiling")
         return load_id, operation.cancel_event
