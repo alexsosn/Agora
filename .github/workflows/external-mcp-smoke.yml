@@ -7,6 +7,8 @@ on:
   push:
     paths:
       - ".gitattributes"
+      - "README.md"
+      - "wiki/guides/installation.md"
       - "registry/plugins.yaml"
       - "registry/providers.yaml"
       - "registry/verification-checks.yaml"

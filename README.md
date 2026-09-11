@@ -7,7 +7,7 @@ It lets Claude Code and ChatGPT/Codex use research tools for Biblical Studies, C
 Agora currently includes four plugin families:
 
 - **Context-Fabric** — structured local querying of registered Text-Fabric corpora, including BHSA, Ugaritic and Hittite corpora, and large Greek collections.
-- **Perseus** — live access to Perseus/Scaife for text discovery, CTS navigation, passage retrieval, and search.
+- **Perseus** — live Perseus/Scaife text discovery, passage retrieval, and full-text search.
 - **Sefaria** — Jewish texts, translations, links and commentaries, dictionaries, topics, and manuscript resources through the official Sefaria MCP.
 - **SEDRA** — Syriac word-form and lexeme lookup against SEDRA IV.
 
@@ -15,7 +15,7 @@ Agora plugins can also include **scholarly skills**: source-specific guidance th
 
 ## What you can do
 
-With the current v0.1 plugins you can, for example:
+With the current plugins you can, for example:
 
 - query morphology and syntax in the **BHSA Hebrew Bible**;
 - work with **Ugaritic** and **Hittite** Text-Fabric corpora through the same provider interface;
@@ -57,6 +57,8 @@ If your workspace supports GitHub marketplace import:
 4. Leave the path empty; Agora's marketplace file is at the repository root.
 5. Import the marketplace and enable the plugins you need.
 
+Agora plugins declare MCP servers. Current GitHub-imported MCP plugins can therefore be labeled **Desktop only**; a Desktop-only plugin cannot run in ChatGPT web. Availability also depends on the current workspace, role, plan, and product surface.
+
 For local Codex development/testing:
 
 ```bash
@@ -70,7 +72,7 @@ Replace `context-fabric` with `perseus`, `sefaria`, or `sedra` as needed.
 
 Most local launch paths use [`uv`](https://docs.astral.sh/uv/). Context-Fabric currently requires Python 3.13; the SEDRA adapter requires Python 3.11 or later.
 
-See the [full installation guide](wiki/guides/installation.md) for platform-specific details, updating, prerequisites, and validation. See the [compatibility and verification guide](wiki/guides/compatibility.md) for the exact Claude Code, Codex, transport, and platform evidence Agora currently claims.
+See the [full installation guide](wiki/guides/installation.md) for prerequisites, updating/removal, Context-Fabric cache management, troubleshooting, and platform details. See the [compatibility and verification guide](wiki/guides/compatibility.md) for the exact Claude Code, Codex, transport, and platform evidence Agora currently claims.
 
 ## Example prompts
 
@@ -101,7 +103,7 @@ For corpus research, Agora's bundled skills encourage the agent to inspect the s
 | Hebrew Bible morphology and syntax | **Context-Fabric** |
 | Ugaritic or Hittite corpus analysis | **Context-Fabric** |
 | Structured Greek Text-Fabric corpora | **Context-Fabric** |
-| Perseus/Scaife texts and CTS navigation | **Perseus** |
+| Perseus/Scaife discovery, passages, and search | **Perseus** |
 | Jewish texts, translations, commentaries, dictionaries | **Sefaria** |
 | Syriac word and lexeme lookup | **SEDRA** |
 
@@ -109,20 +111,15 @@ Agora is designed to add more providers without forcing them into Text-Fabric or
 
 ## Verification scope
 
-Agora verification covers installation, launch, transport, resource resolution, and representative integration operations. It does not assess whether an upstream corpus is suitable for a particular research use or maintain a parallel account of upstream data quality.
+Agora runs deterministic validation plus live representative-operation checks for the generated Claude and Codex transport paths it claims to support. Separate startup-only checks cover Agora-owned Context-Fabric and SEDRA runtimes on Linux x86_64, Intel macOS x86_64, and Windows x86_64; those checks do not imply other architectures or platforms.
 
-Agora keeps **provider/service health**, **plugin/client integration evidence**, and **resource/data status** independent. Provider health records that a provider or runtime path was observed operational through traceable live evidence; it does not establish scholarly suitability, prove every client path, or promote the resources behind that provider. Plugin/client evidence describes the tested client and transport path, while resource/data status remains resource-specific.
-
-Use the resolved source revision to consult the original repository or corpus publisher's current documentation for semantics, limitations, and suitability. Client verification is scoped to the exact generated transport and executable evidence recorded in `registry/verification-checks.yaml`; platform startup evidence is separately bounded and does not imply exhaustive client/platform compatibility.
-
-Plugin/client verification claims are bound to stable executable check IDs in `registry/verification-checks.yaml`. Live smoke artifacts record the check ID, exact Agora revision, timestamp, GitHub Actions run, runtime/platform, generated launch command, and configured dependency inputs, so a `verified` client claim can be traced to an actual executable check and run rather than a prose test name. Provider health may reference those live checks only as operational observations; it does not inherit the client evidence level. See [`registry/README.md`](registry/README.md) for the evidence model.
-
-For the exact client/transport/platform evidence boundary, see the [compatibility and verification guide](wiki/guides/compatibility.md). For the broader implementation model and current status, see [implementation details](wiki/architecture/ref-implementation-details.md).
+A successful integration check does not certify the scholarly quality or suitability of an upstream corpus or service. For the exact client/transport/platform evidence, current provider limitations, and what `verified` means, see the [compatibility and verification guide](wiki/guides/compatibility.md). The underlying evidence model is documented in [`registry/README.md`](registry/README.md).
 
 ## Documentation
 
 - [Installation guide](wiki/guides/installation.md)
 - [Compatibility and verification](wiki/guides/compatibility.md)
+- [Context-Fabric cache and cold-load safety](wiki/guides/context-fabric-cache.md)
 - [Wiki index](wiki/README.md)
 - [Agora 1.0 release plan](wiki/releases/v1.0-plan.md)
 - [v0.1 scope](wiki/releases/v0.1-scope-frozen.md)
