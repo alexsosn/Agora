@@ -48,7 +48,7 @@ Choose the passage tool according to the task:
 - use the richer passage helper when contextual metadata matters;
 - use raw CTS XML only when XML structure itself is relevant.
 
-For navigation, use valid-reference and neighboring-reference tools instead of generating citation suffixes arithmetically.
+Legacy CTS metadata and valid-reference endpoints are not reliable for every otherwise valid discovered edition. Only use valid-reference or neighboring-reference helpers after the upstream CTS response is valid XML for that edition. If the provider returns malformed HTML/template content, treat navigation as unavailable for that operation: do not generate citation suffixes or infer neighbors. Continue with passage retrieval or Scaife-backed discovery/search where those operations are independently available.
 
 Always retain the exact CTS URN used in notes or reported results.
 
@@ -90,7 +90,7 @@ Do not interpret raw hit counts before checking what the search endpoint counts 
 
 Perseus-MCP uses both the legacy Perseus CTS services and Scaife APIs.
 
-Use CTS-oriented tools for passage addressing and citation navigation when the discovered edition is available there.
+Use CTS-oriented passage tools when the discovered edition is available there. Treat metadata/navigation helpers separately because the legacy CTS `GetLabel` and `GetValidReff` paths can fail even for an edition whose passage retrieval works.
 
 Use Scaife-oriented tools for search and Scaife library/passages when the requested operation is backed by Scaife.
 
@@ -118,7 +118,7 @@ These are not equivalent datasets for frequency interpretation.
 
 The live Perseus services can rate-limit repeated CTS requests. If a workflow receives HTTP 429 responses, reduce request rate/concurrency rather than treating the missing response as textual evidence.
 
-Some Perseus navigation endpoints have historically returned malformed HTML. Upstream Perseus-MCP includes fallbacks for navigation, but a robust workflow should still prefer advertised valid references and inspect failures rather than inventing neighbors.
+Perseus-mcp 1.0.2, and the current upstream implementation audited for Agora 1.0, do not validate malformed legacy CTS `GetLabel`/`GetValidReff` HTML/template responses at the provider boundary. Derived metadata, reference-list, count, and neighboring-reference helpers can therefore fail for affected editions. Agora does not advertise `cts-navigation` as a reliable provider-wide capability while this remains unresolved.
 
 ## Reproducible reporting
 

@@ -94,6 +94,8 @@ Do not transfer BHSA conventions automatically to DSS, Syriac, Ugaritic, Greek, 
 
 Confirm transliteration, tokenization, node types, and feature meanings from the CUC schema before doing linguistic counts. Orthographic segmentation and morphological representation can change what a naive "word count" or form search means.
 
+In cfabric-mcp 0.1.7, generic text-format discovery only recognizes paired `fmt:*` metadata following the expected original/translation naming pattern. CUC instead exposes its Latin and Ugaritic representations through the `sign` and `usign` features, so `get_text_formats` can report no usable pair even though both representations are present. Inspect the CUC schema/features directly; a negative `get_text_formats` result is not evidence that CUC lacks a text representation.
+
 ### Greek collections
 
 A Greek collection is not one giant homogeneous corpus. Discover the work, load that member, then inspect that work's schema.
@@ -129,6 +131,8 @@ For counts and comparisons:
 3. inspect missing annotation;
 4. distinguish zero from unavailable annotation;
 5. spot-check returned passages/nodes before interpreting aggregate numbers.
+
+With cfabric-mcp 0.1.7, `return_type="count"` is derived after the search cache has been capped at 10,000 results. A returned count of 10,000 can therefore mean 10,000 or more; do not report it as an exact corpus-wide frequency. Narrow the query or validate the aggregate with a corpus-native method when an exact count above that boundary is required.
 
 For cross-corpus comparisons, first establish that the compared annotations are genuinely comparable. Identical labels do not guarantee identical annotation guidelines.
 

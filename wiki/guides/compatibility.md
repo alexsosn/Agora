@@ -38,6 +38,19 @@ Each platform check carries canonical `platform.os` and `platform.arch` metadata
 
 These platform checks use generated Codex stdio launch metadata only as the packaging/startup vehicle. They are not additional claims that the Codex application itself was executed on those operating systems.
 
+## Current upstream limitations
+
+The registry uses structured `verification.known_issues` entries when a supported provider has a known upstream limitation that changes how a capability should be interpreted. Agora documents and routes around these cases at the integration boundary; it does not reimplement third-party scholarly semantics locally.
+
+| Registry issue | Affected upstream | Current limitation | Safe interpretation |
+|---|---|---|---|
+| `sefaria/search-version-duplicates` | `Sefaria/sefaria-mcp` hosted service | Book search can return more than one indexed-version hit for the same textual reference while MCP result rows omit version identity. | Treat duplicate references as ambiguous search hits, deduplicate references for passage selection, retrieve the text/version, and do not use raw row count as an exact occurrence frequency. |
+| `context-fabric/search-count-cache-cap` | `Context-Fabric/context-fabric`, Agora pins `cfabric-mcp==0.1.7` | Count-only search is derived after cached results are capped at 10,000. | A returned count of 10,000 can mean 10,000 or more. Narrow the query or validate an exact aggregate with a corpus-native method. |
+| `context-fabric/cuc-text-format-discovery` | `Context-Fabric/context-fabric`, Agora pins `cfabric-mcp==0.1.7` | Generic text-format discovery recognizes paired `fmt:*` metadata and can omit CUC's feature-based Latin/Ugaritic representation. | Inspect the CUC `sign` and `usign` features directly; a negative generic-format result does not mean the representations are absent. |
+| `perseus/legacy-cts-malformed-navigation` | `tonyjurg/Perseus-mcp`, Agora pins `perseus-mcp==1.0.2` | Legacy CTS `GetLabel`/`GetValidReff` calls can return malformed HTML/template content for otherwise valid discovered editions, breaking derived metadata/navigation helpers. | Passage retrieval and Scaife-backed discovery/search remain separate operations. Do not infer or manufacture neighboring references after a malformed CTS navigation response. Agora does not advertise `cts-navigation` as a provider-wide capability while this is unresolved. |
+
+These entries describe the upstream behavior audited for the Agora 1.0 release path. Re-check the registered version, hosted service, and current upstream release before removing an advisory or restoring a downgraded capability claim.
+
 ## Reading the matrix safely
 
 A green historical workflow run is evidence about that exact Agora revision and dependency snapshot, not a permanent uptime or compatibility guarantee. A provider may later be unavailable, an upstream service may change, or a platform dependency may stop resolving. Consult the current check definition and the latest relevant workflow artifact when current state matters.
