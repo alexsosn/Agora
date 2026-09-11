@@ -30,7 +30,13 @@ class MCPSmokeHarnessTests(unittest.TestCase):
         )
         self.assertEqual(
             SMOKE_CASES["perseus"].expected_tools,
-            {"get_passage", "search_perseus", "find_author_names"},
+            {
+                "get_passage",
+                "search_perseus",
+                "find_author_names",
+                "get_work_resources",
+                "get_scaife_library_metadata",
+            },
         )
         self.assertEqual(
             SMOKE_CASES["sefaria"].expected_tools,
