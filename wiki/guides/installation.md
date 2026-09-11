@@ -69,7 +69,7 @@ Where GitHub marketplace import is available to your workspace, an administrator
 
 GitHub marketplace sync imports plugin content; it does not grant access to unrelated external accounts or bypass workspace policy.
 
-Agora plugins declare MCP servers. Current ChatGPT marketplace imports can therefore be labeled **Desktop only**, even when part of the underlying service is remote. This is a product/runtime distinction, not an Agora verification failure.
+Agora plugins declare MCP servers. Current GitHub-imported MCP plugins can therefore be labeled **Desktop only**, even when part of the underlying service is remote. A Desktop-only plugin cannot run in ChatGPT web. This is a product/runtime distinction, not an Agora verification failure.
 
 Availability of marketplace import, plugin installation, and particular surfaces depends on the current ChatGPT/Codex plan, workspace, role, and rollout.
 
@@ -132,11 +132,21 @@ Context-Fabric corpus data remains external to Agora and is acquired lazily only
 You do not need all four plugins for every project.
 
 - Install **Context-Fabric** for local structured querying of registered Text-Fabric corpora and collection members.
-- Install **Perseus** for live Classics discovery, CTS navigation, passage retrieval, and Scaife search.
+- Install **Perseus** for live Classics discovery, passage retrieval, and Scaife-backed search.
 - Install **Sefaria** for Jewish texts, translations, links/commentaries, dictionaries, topics, and manuscript resources exposed by the official Sefaria MCP.
 - Install **SEDRA** for Syriac word-form and lexeme lookup against SEDRA IV.
 
 Installing Context-Fabric does not download all 37 registered resources. Corpus acquisition is lazy.
+
+## Context-Fabric first load and cache
+
+For an unfamiliar or potentially large corpus, use `describe_available_corpus` → `prepare_corpus` → `load_corpus` instead of jumping directly to a cold load. `prepare_corpus` exposes acquisition/materialization work and, where relevant, load preflight information before compilation.
+
+Agora's Context-Fabric cache defaults to `~/.cache/agora/context-fabric`. Set `AGORA_CORPUS_CACHE` in the server environment to choose another cache root.
+
+Use `corpus_cache_status` to inspect managed cache usage, active loads, leases, and limits. Do not blindly retry a slow cold load when the same load is already active. After a corpus is no longer loaded, `prune_corpus_cache` can reclaim unused cache objects, while `remove_cached_corpus` targets unused objects for a selected resource.
+
+See [Context-Fabric cache and cold-load safety](context-fabric-cache.md) for progress stages, acquisition/compile limits, cancellation, module-overlay costs, and detailed cleanup behavior.
 
 ## Verification after installation
 
@@ -144,7 +154,7 @@ Agora records verification per **client and transport**, rather than treating on
 
 The platform startup cells are not end-to-end Claude Code or Codex executable tests and do not make claims about ARM, Apple Silicon, or other operating systems. Deterministic checks separately validate generated configuration structure and registry bindings.
 
-See [compatibility and verification](compatibility.md) for the exact check IDs, transport differences such as Sefaria's Claude direct SSE versus Codex `stdio-via-sse-proxy`, and the evidence boundaries behind each status.
+See [compatibility and verification](compatibility.md) for the exact check IDs, transport differences such as Sefaria's Claude direct SSE versus Codex `stdio-via-sse-proxy`, current provider limitations, and the evidence boundaries behind each status.
 
 These integration checks do **not** mean that every underlying scholarly resource has Verified data quality. Consult resource status and the plugin's scholarly skills before using a corpus for research conclusions.
 
@@ -161,3 +171,35 @@ and reload plugins after updates when prompted.
 For a managed ChatGPT/Codex GitHub marketplace, workspace administrators can use **Sync now** in the marketplace settings; automatic daily sync is also available for imported marketplaces.
 
 For a local Codex checkout, pull the repository and reinstall/refresh the plugin using the local marketplace flow supported by your current Codex build.
+
+## Removing
+
+Remove one plugin through the host rather than deleting Agora files or caches manually.
+
+For Claude Code, for example:
+
+```bash
+claude plugin uninstall context-fabric@agora
+```
+
+Inside Claude Code, the corresponding `/plugin uninstall ...` flow can be used as well. Replace `context-fabric` with the plugin you installed.
+
+For local Codex:
+
+```bash
+codex plugin remove context-fabric@agora
+```
+
+Removing an entire marketplace is broader than removing one plugin and should be used only when you intend to remove all Agora plugins installed from that marketplace.
+
+In a managed ChatGPT/Codex workspace, **Disable plugin is not the same as uninstall**. Use the workspace's plugin installation/removal controls when they are available. Removing the imported marketplace is a workspace-level action affecting all plugins sourced from it, not the normal way to remove one Agora plugin.
+
+Removing a plugin does not imply deleting Context-Fabric corpus cache data. Use the Context-Fabric cache tools described above when you actually want to reclaim corpus data.
+
+## Troubleshooting
+
+- **`uv` or `uvx` is missing:** install `uv` with Astral's supported installer and confirm it is on `PATH`, then retry the plugin launch.
+- **Python cannot be resolved:** Context-Fabric requires **Python 3.13** and SEDRA requires Python 3.11 or later. Make sure `uv` can obtain a compatible interpreter rather than editing generated launch commands.
+- **A remote lookup fails:** Perseus/Scaife, Sefaria, and SEDRA depend on network/provider availability. Preserve the provider error and check network/service status; reinstalling the plugin does not repair an unavailable upstream service.
+- **A Context-Fabric corpus is slow to acquire or compile:** use `describe_available_corpus` → `prepare_corpus` → `load_corpus`, inspect `corpus_cache_status`, and do not start duplicate blind retries. See the [cache guide](context-fabric-cache.md) for bounded acquisition/compile behavior and cancellation.
+- **The plugin is unavailable in the current ChatGPT surface:** imported MCP plugins may be **Desktop only** and therefore unavailable in ChatGPT web. Client/platform evidence is intentionally limited; in particular, current local-runtime platform checks cover Linux x86_64, Intel macOS x86_64, and Windows x86_64, not Apple Silicon. Check [compatibility and verification](compatibility.md) before treating an unlisted platform as supported.
