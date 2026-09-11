@@ -3,7 +3,9 @@ from __future__ import annotations
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_SRC = ROOT / "plugins" / "context-fabric" / "src"
@@ -11,13 +13,28 @@ if str(PLUGIN_SRC) not in sys.path:
     sys.path.insert(0, str(PLUGIN_SRC))
 
 from agora_context_fabric.catalog import Catalog, ResourceSpec
-from agora_context_fabric.load_safety import compile_budget_bytes, compile_timeout_seconds
+from agora_context_fabric.load_safety import (
+    compile_budget_bytes,
+    compile_timeout_seconds,
+    source_tf_bytes,
+)
 from agora_context_fabric.resolver import PreparedCorpus, PreparedFeatureModule
 from agora_context_fabric.service import ContextFabricService
 
 
 class _Store:
     min_free_bytes = 6 * 1024**3
+
+    def __init__(self):
+        self.transition_depth = 0
+
+    @contextmanager
+    def cache_transition(self):
+        self.transition_depth += 1
+        try:
+            yield
+        finally:
+            self.transition_depth -= 1
 
 
 class _Resolver:
@@ -132,6 +149,26 @@ class FeatureModuleLoadPreflightTests(unittest.TestCase):
             )["load_preflight"]
             self.assertTrue(preflight["exact_combination_warm"])
             self.assertFalse(preflight["full_compile_required"])
+
+    def test_preflight_is_measured_before_prepare_releases_cache_transition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            service, _overlay = self._service(Path(tmp))
+            store = service.store
+            assert store is not None
+
+            def guarded_source_bytes(path: Path) -> int:
+                self.assertGreater(
+                    store.transition_depth,
+                    0,
+                    "preflight accounting must remain inside the prepare/cache transition",
+                )
+                return source_tf_bytes(path)
+
+            with patch(
+                "agora_context_fabric.service_source_modes.source_tf_bytes",
+                side_effect=guarded_source_bytes,
+            ):
+                service.prepare("bhsa", version="c", modules=["bhsa-actor"])
 
     def test_user_workflow_requires_preflight_for_new_module_combinations(self):
         skill = (
