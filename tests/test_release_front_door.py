@@ -23,11 +23,13 @@ class ReleaseFrontDoorTests(unittest.TestCase):
         self.assertIn("Desktop only", self.readme)
         self.assertIn("ChatGPT", self.readme)
 
-    def test_installation_documents_host_owned_single_plugin_removal(self):
+    def test_installation_documents_host_owned_removal_without_marketplace_deletion(self):
         self.assertIn("claude plugin uninstall", self.install)
         self.assertIn("codex plugin remove", self.install)
-        self.assertIn("Disable plugin", self.install)
-        self.assertIn("not the same as uninstall", self.install)
+        self.assertIn("installation policy", self.install)
+        self.assertIn("deleting the imported marketplace", self.install)
+        self.assertIn("every plugin imported from that marketplace", self.install)
+        self.assertNotIn("Disable plugin is not the same as uninstall", self.install)
 
     def test_installation_exposes_context_fabric_first_load_and_cache_recovery(self):
         for token in (
