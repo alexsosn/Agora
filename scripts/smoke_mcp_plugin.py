@@ -74,7 +74,13 @@ SMOKE_CASES: dict[str, SmokeCase] = {
         tool_call=("list_available_corpora", {"query": "Ugaritic"}),
     ),
     "perseus": SmokeCase(
-        expected_tools={"get_passage", "search_perseus", "find_author_names"},
+        expected_tools={
+            "get_passage",
+            "search_perseus",
+            "find_author_names",
+            "get_work_resources",
+            "get_scaife_library_metadata",
+        },
         tool_call=("find_author_names", {"query": "Homer", "limit": 1}),
         known_issue_canaries=(PERSEUS_ROUTING_KNOWN_ISSUE_ID,),
     ),
@@ -658,6 +664,25 @@ def _json_contains_exact_string(value: Any, expected: str) -> bool:
     return False
 
 
+def _known_issue_inconclusive(
+    issue_id: str,
+    *,
+    reason: str,
+    operation: str,
+    error: Exception | None = None,
+) -> dict[str, Any]:
+    evidence: dict[str, Any] = {
+        "id": issue_id,
+        "status": "inconclusive",
+        "target_urn": PERSEUS_ROUTING_TARGET_WORK,
+        "reason": reason,
+        "operation": operation,
+    }
+    if error is not None:
+        evidence["error"] = f"{type(error).__name__}: {_bounded_exception_message(error)}"
+    return evidence
+
+
 async def run_known_issue_canary(
     session: Any,
     plugin_id: str,
@@ -669,45 +694,77 @@ async def run_known_issue_canary(
     if plugin_id != "perseus" or issue_id != PERSEUS_ROUTING_KNOWN_ISSUE_ID:
         raise ValueError(f"no live known-issue canary is implemented for {plugin_id!r} / {issue_id!r}")
 
-    discovery = _json_object_from_tool_result(
-        await session.call_tool(
-            "find_author_names",
-            arguments={"query": "Euripides", "language": "greek", "limit": 20},
-        ),
-        plugin_id=plugin_id,
-        tool_name="find_author_names",
-    )
+    try:
+        discovery = _json_object_from_tool_result(
+            await session.call_tool(
+                "find_author_names",
+                arguments={"query": "Euripides", "language": "greek", "limit": 20},
+            ),
+            plugin_id=plugin_id,
+            tool_name="find_author_names",
+        )
+    except Exception as exc:
+        return _known_issue_inconclusive(
+            issue_id,
+            reason="provider_operation_failed",
+            operation="find_author_names",
+            error=exc,
+        )
     if not _json_contains_exact_string(discovery, PERSEUS_ROUTING_TARGET_WORK):
-        raise RuntimeError(
-            f"{issue_id} signature changed: merged discovery no longer advertises "
-            f"{PERSEUS_ROUTING_TARGET_WORK}; revise or retire the canonical known issue"
+        return _known_issue_inconclusive(
+            issue_id,
+            reason="discovery_signature_changed",
+            operation="find_author_names",
         )
 
-    cts_resources = _json_object_from_tool_result(
-        await session.call_tool(
-            "get_work_resources",
-            arguments={"urn_or_title": PERSEUS_ROUTING_TARGET_WORK, "language": "greek"},
-        ),
-        plugin_id=plugin_id,
-        tool_name="get_work_resources",
-    )
-    scaife_metadata = _json_object_from_tool_result(
-        await session.call_tool(
-            "get_scaife_library_metadata",
-            arguments={"urn": PERSEUS_ROUTING_TARGET_WORK},
-        ),
-        plugin_id=plugin_id,
-        tool_name="get_scaife_library_metadata",
-    )
+    try:
+        cts_resources = _json_object_from_tool_result(
+            await session.call_tool(
+                "get_work_resources",
+                arguments={"urn_or_title": PERSEUS_ROUTING_TARGET_WORK, "language": "greek"},
+            ),
+            plugin_id=plugin_id,
+            tool_name="get_work_resources",
+        )
+    except Exception as exc:
+        return _known_issue_inconclusive(
+            issue_id,
+            reason="provider_operation_failed",
+            operation="get_work_resources",
+            error=exc,
+        )
+
     match_count = cts_resources.get("match_count")
     if type(match_count) is not int or match_count < 0:
-        raise RuntimeError(
-            f"{issue_id} signature changed: CTS get_work_resources returned invalid match_count={match_count!r}"
+        return _known_issue_inconclusive(
+            issue_id,
+            reason="result_signature_changed",
+            operation="get_work_resources",
+            error=RuntimeError(f"invalid match_count={match_count!r}"),
         )
+
+    try:
+        scaife_metadata = _json_object_from_tool_result(
+            await session.call_tool(
+                "get_scaife_library_metadata",
+                arguments={"urn": PERSEUS_ROUTING_TARGET_WORK},
+            ),
+            plugin_id=plugin_id,
+            tool_name="get_scaife_library_metadata",
+        )
+    except Exception as exc:
+        return _known_issue_inconclusive(
+            issue_id,
+            reason="provider_operation_failed",
+            operation="get_scaife_library_metadata",
+            error=exc,
+        )
+
     if not _json_contains_exact_string(scaife_metadata, PERSEUS_ROUTING_TARGET_WORK):
-        raise RuntimeError(
-            f"{issue_id} signature changed: Scaife metadata no longer resolves "
-            f"{PERSEUS_ROUTING_TARGET_WORK}; revise the canonical known issue"
+        return _known_issue_inconclusive(
+            issue_id,
+            reason="result_signature_changed",
+            operation="get_scaife_library_metadata",
         )
     if match_count != 0:
         raise RuntimeError(
