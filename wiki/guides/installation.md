@@ -5,7 +5,7 @@ Agora currently targets **Claude Code** and **ChatGPT/Codex**. The repository co
 - `.claude-plugin/marketplace.json`
 - `.agents/plugins/marketplace.json`
 
-The marketplace ID is `agora`. The four v0.1 plugins are `context-fabric`, `perseus`, `sefaria`, and `sedra`.
+The marketplace ID is `agora`. The four current plugins are `context-fabric`, `perseus`, `sefaria`, and `sedra`.
 
 Client behavior changes quickly, so this document records the currently supported flows rather than inventing a common installer that neither platform provides.
 
@@ -192,7 +192,7 @@ codex plugin remove context-fabric@agora
 
 Removing an entire marketplace is broader than removing one plugin and should be used only when you intend to remove all Agora plugins installed from that marketplace.
 
-In a managed ChatGPT/Codex workspace, plugin availability and installation policy are controlled by the workspace and the controls exposed on that surface. Those per-plugin settings are distinct from deleting the imported marketplace. Deleting the imported marketplace removes every plugin imported from that marketplace, so do not use marketplace deletion as a one-plugin removal shortcut.
+In a managed ChatGPT/Codex workspace, use the workspace's plugin availability and installation policy controls for an individual plugin. That is distinct from deleting the imported marketplace: deleting the marketplace is a workspace-level action that removes every plugin imported from that marketplace.
 
 Removing a plugin does not imply deleting Context-Fabric corpus cache data. Use the Context-Fabric cache tools described above when you actually want to reclaim corpus data.
 
