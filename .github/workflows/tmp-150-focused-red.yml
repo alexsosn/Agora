@@ -1,0 +1,22 @@
+name: Temporary #150 focused RED
+
+on:
+  push:
+    branches:
+      - verify/150-front-door-red
+
+permissions:
+  contents: read
+
+jobs:
+  focused-red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 7c4f43ae458520f20be2a9efa36c5a8cb51cdade
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Run first-user release RED contract
+        run: python -m unittest tests.test_release_front_door -v
