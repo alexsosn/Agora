@@ -19,6 +19,10 @@ class ReleaseFrontDoorTests(unittest.TestCase):
         self.assertNotIn("CTS navigation", self.readme)
         self.assertNotIn("CTS navigation", self.install)
 
+    def test_first_user_docs_do_not_present_1_0_front_door_as_v0_1_plugins(self):
+        self.assertNotIn("v0.1 plugins", self.readme)
+        self.assertNotIn("v0.1 plugins", self.install)
+
     def test_readme_surfaces_chatgpt_desktop_only_import_limit(self):
         self.assertIn("Desktop only", self.readme)
         self.assertIn("ChatGPT", self.readme)
