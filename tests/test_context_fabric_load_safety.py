@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import sys
 import tempfile
@@ -132,6 +133,10 @@ class McpColdLoadSafetyContractTests(unittest.TestCase):
                 return func
             return decorator
 
+    class FakeContext:
+        async def report_progress(self, progress, total=None, message=None):
+            return None
+
     class FakeService:
         def __init__(self):
             self.calls = []
@@ -139,13 +144,13 @@ class McpColdLoadSafetyContractTests(unittest.TestCase):
         def list_resources(self, *args, **kwargs): return []
         def describe_resource(self, *args, **kwargs): return {}
         def list_members(self, *args, **kwargs): return {"members": []}
-        def prepare(self, *args, **kwargs): return {}
+        def prepare(self, *args, operation=None, **kwargs): return {}
         def unload(self, *args, **kwargs): return {}
         def cache_status(self, *args, **kwargs): return {}
         def prune_cache(self, *args, **kwargs): return {}
         def remove_cached(self, *args, **kwargs): return {}
 
-        def load(self, resource_id, **kwargs):
+        def load(self, resource_id, *, operation=None, **kwargs):
             self.calls.append(("load", resource_id, kwargs))
             return {"logical_name": resource_id}
 
@@ -156,16 +161,20 @@ class McpColdLoadSafetyContractTests(unittest.TestCase):
     def setUp(self):
         self.mcp = self.FakeMCP()
         self.service = self.FakeService()
+        self.ctx = self.FakeContext()
         register_tools(self.mcp, self.service)
 
     def test_cancel_tool_is_registered(self):
         self.assertIn("cancel_corpus_load", self.mcp.tools)
 
     def test_load_tool_forwards_compile_limits(self):
-        self.mcp.tools["load_corpus"](
-            "fixture",
-            max_compile_gb=2.0,
-            max_compile_minutes=5.0,
+        asyncio.run(
+            self.mcp.tools["load_corpus"](
+                "fixture",
+                ctx=self.ctx,
+                max_compile_gb=2.0,
+                max_compile_minutes=5.0,
+            )
         )
         self.assertEqual(
             self.service.calls[-1],
