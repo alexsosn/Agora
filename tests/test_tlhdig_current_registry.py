@@ -29,6 +29,16 @@ class TLHdigCurrentRegistryTests(unittest.TestCase):
         runtime = _resource(ROOT / "plugins" / "context-fabric" / "resources" / "catalog.yaml")
         self.assertEqual(runtime["upstream"]["tf_path"], "tf/0.4.0")
 
+    def test_legacy_load_cost_is_not_presented_as_current_040_measurement(self):
+        source = _resource(ROOT / "registry" / "resources.yaml")
+        load_cost = source.get("load_cost")
+        if load_cost is None:
+            return
+        notes = load_cost.get("notes", "")
+        self.assertIn("tf/0.1.0", notes)
+        self.assertIn("tf/0.4.0", notes)
+        self.assertIn("does not describe", notes.lower())
+
 
 if __name__ == "__main__":
     unittest.main()
