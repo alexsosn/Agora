@@ -727,11 +727,11 @@ resources:
   disciplines: [hittitology, digital-philology]
   period: 2nd millennium BCE
   description: Text-Fabric conversion of the Thesaurus Linguarum Hethaeorum digitalis Hittite corpus.
-  upstream: {repository: alexsosn/TLHdig-TF, tf_path: tf/0.1.0}
+  upstream: {repository: alexsosn/TLHdig-TF, tf_path: tf/0.4.0}
   acquisition:
     strategy: repository
     lazy: true
-    notes: Follow the upstream default branch so rebuilt tf/0.1.0 datasets are picked up without changing the version label.
+    notes: Follow the upstream default branch so rebuilt tf/0.4.0 datasets are picked up without introducing a revision pin.
   licenses:
     data: CC-BY-4.0
     redistribution: permitted
@@ -750,5 +750,5 @@ resources:
       agora_revision: bf5fb918d513fcf859bc925a10922e841b777b98
       environment: "macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7"
       evidence: "https://github.com/alexsosn/Agora/issues/38#issuecomment-5536924435"
-    notes: "Historical machine-specific observation; current-machine cost may differ. Peak RSS came from the related earlier run rather than the final converged compile measurement."
+    notes: "Historical machine-specific observation measured for tf/0.1.0; it does not describe the current tf/0.4.0 artifact. Current-machine cost may differ. Peak RSS came from the related earlier run rather than the final converged compile measurement."
   source_snapshot: {source: alexsosn/TLHdig-TF, checked_at: '2026-09-01'}

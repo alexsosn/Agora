@@ -42,7 +42,7 @@ class ResourceIntegrationMetadataTests(unittest.TestCase):
         self.assertEqual(resource.integration_issues, ())
         self.assertEqual(resource.source_snapshot["source"], "alexsosn/TLHdig-TF")
         self.assertIsNone(resource.ref)
-        self.assertEqual(resource.tf_path, "tf/0.1.0")
+        self.assertEqual(resource.tf_path, "tf/0.4.0")
 
     def test_service_exposes_integration_and_source_configuration(self):
         service = ContextFabricService(Catalog.from_registry(ROOT), _NoopResolver(), _NoopLoader())
@@ -56,7 +56,7 @@ class ResourceIntegrationMetadataTests(unittest.TestCase):
         self.assertEqual(item["integration_issues"], [])
         self.assertEqual(item["source_snapshot"]["source"], "alexsosn/TLHdig-TF")
         self.assertIsNone(item["source"]["configured_ref"])
-        self.assertEqual(item["source"]["tf_path"], "tf/0.1.0")
+        self.assertEqual(item["source"]["tf_path"], "tf/0.4.0")
 
 
 class GitRefreshAndProvenanceTests(unittest.TestCase):
