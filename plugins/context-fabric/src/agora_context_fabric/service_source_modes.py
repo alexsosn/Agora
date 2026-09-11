@@ -52,6 +52,14 @@ class ContextFabricService(_BaseContextFabricService):
             return nullcontext(None)
         return source_policy(mode)
 
+    def _cache_transition_context(self):
+        if self.store is None:
+            return nullcontext()
+        cache_transition = getattr(self.store, "cache_transition", None)
+        if not callable(cache_transition):
+            return nullcontext()
+        return cache_transition()
+
     def _managed_collection_resolution(self, resource) -> bool:
         return (
             resource.kind == "collection"
@@ -255,24 +263,30 @@ class ContextFabricService(_BaseContextFabricService):
                     resource,
                     source_revision,
                 )
-            result = _BaseContextFabricService.prepare(
-                self,
-                resource_id,
-                member_id=member_id,
-                version=version,
-                source_revision=effective_revision,
-                modules=modules,
-            )
-            annotated = self._annotate_source_provenance(
-                result,
-                policy,
-                resource_id=resource_id,
-                explicit_revision=source_revision is not None,
-            )
-            preflight = self._module_load_preflight(annotated, resource)
-            if preflight is not None:
-                annotated["load_preflight"] = preflight
-            return annotated
+            # Resolver preparation already uses a shared transition while it
+            # creates/touches snapshots and overlays. Keep one outer shared
+            # transition through the user-visible preflight projection as well,
+            # so an exclusive prune cannot detach the returned overlay between
+            # preparation and source/warm-state measurement.
+            with self._cache_transition_context():
+                result = _BaseContextFabricService.prepare(
+                    self,
+                    resource_id,
+                    member_id=member_id,
+                    version=version,
+                    source_revision=effective_revision,
+                    modules=modules,
+                )
+                annotated = self._annotate_source_provenance(
+                    result,
+                    policy,
+                    resource_id=resource_id,
+                    explicit_revision=source_revision is not None,
+                )
+                preflight = self._module_load_preflight(annotated, resource)
+                if preflight is not None:
+                    annotated["load_preflight"] = preflight
+                return annotated
 
     def load(
         self,
