@@ -13,6 +13,15 @@ from .gitstore import _core as _core_module
 from .operation import current_operation, watch_subprocess
 
 
+def _noninteractive_git_env() -> dict[str, str]:
+    """Return stable Git diagnostics without allowing terminal credential prompts."""
+
+    env = os.environ.copy()
+    env["LC_ALL"] = "C"
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    return env
+
+
 class GitStore(_BaseGitStore):
     """GitStore layer that bounds Git work owned by prepare/load operations.
 
@@ -30,15 +39,13 @@ class GitStore(_BaseGitStore):
         if cwd is not None:
             command += ["-C", str(cwd)]
         command += list(args)
-        env = os.environ.copy()
-        env["LC_ALL"] = "C"
-        env["GIT_TERMINAL_PROMPT"] = "0"
         process = _gitstore_module.subprocess.Popen(
             command,
             text=True,
+            stdin=_gitstore_module.subprocess.DEVNULL,
             stdout=_gitstore_module.subprocess.PIPE,
             stderr=_gitstore_module.subprocess.PIPE,
-            env=env,
+            env=_noninteractive_git_env(),
         )
         try:
             while True:
@@ -90,8 +97,10 @@ class GitStore(_BaseGitStore):
             process = _core_module.subprocess.Popen(
                 ["git", "-C", str(repo), "show", spec],
                 text=True,
+                stdin=_core_module.subprocess.DEVNULL,
                 stdout=_core_module.subprocess.PIPE,
                 stderr=_core_module.subprocess.PIPE,
+                env=_noninteractive_git_env(),
             )
             assert process.stdout is not None
             with watch_subprocess(process):
@@ -125,8 +134,10 @@ class GitStore(_BaseGitStore):
             process = _core_module.subprocess.Popen(
                 command,
                 text=True,
+                stdin=_core_module.subprocess.DEVNULL,
                 stdout=_core_module.subprocess.PIPE,
                 stderr=_core_module.subprocess.PIPE,
+                env=_noninteractive_git_env(),
             )
             assert process.stdout is not None
             metadata: dict[str, Any] = {}
@@ -197,8 +208,10 @@ class GitStore(_BaseGitStore):
             with stderr_path.open("wb") as stderr_file:
                 process = _core_module.subprocess.Popen(
                     command,
+                    stdin=_core_module.subprocess.DEVNULL,
                     stdout=_core_module.subprocess.PIPE,
                     stderr=stderr_file,
+                    env=_noninteractive_git_env(),
                 )
                 assert process.stdout is not None
                 with watch_subprocess(process):
