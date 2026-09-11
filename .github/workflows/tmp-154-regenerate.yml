@@ -1,0 +1,52 @@
+name: Temporary TLHdig catalog regeneration
+
+on:
+  push:
+    branches:
+      - fix/154-tlhdig-current-tf-path
+    paths:
+      - .github/workflows/tmp-154-regenerate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    if: github.ref == 'refs/heads/fix/154-tlhdig-current-tf-path'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/154-tlhdig-current-tf-path
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Update canonical TLHdig path and regenerate projection
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('registry/resources.yaml')
+          text = path.read_text(encoding='utf-8')
+          old_path = 'upstream: {repository: alexsosn/TLHdig-TF, tf_path: tf/0.1.0}'
+          new_path = 'upstream: {repository: alexsosn/TLHdig-TF, tf_path: tf/0.4.0}'
+          old_note = 'notes: Follow the upstream default branch so rebuilt tf/0.1.0 datasets are picked up without changing the version label.'
+          new_note = 'notes: Follow the upstream default branch and current supported tf/0.4.0 artifact; historical pre-alpha TF snapshots are not retained by Agora.'
+          if text.count(old_path) != 1:
+              raise SystemExit(f'expected exactly one TLHdig tf_path occurrence, found {text.count(old_path)}')
+          if text.count(old_note) != 1:
+              raise SystemExit(f'expected exactly one TLHdig acquisition note, found {text.count(old_note)}')
+          text = text.replace(old_path, new_path).replace(old_note, new_note)
+          path.write_text(text, encoding='utf-8')
+          PY
+          python scripts/generate_context_fabric_catalog.py
+          python scripts/generate_context_fabric_catalog.py --check
+      - name: Commit generated result and remove temporary workflow
+        run: |
+          git config user.name 'agora-dev-loop'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/tmp-154-regenerate.yml
+          git add registry/resources.yaml plugins/context-fabric/resources/catalog.yaml
+          git diff --cached --check
+          git commit -m 'fix: track current TLHdig TF path'
+          git push origin HEAD:fix/154-tlhdig-current-tf-path
