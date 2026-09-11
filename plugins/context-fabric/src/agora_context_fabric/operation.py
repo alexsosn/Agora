@@ -92,6 +92,8 @@ class OperationControl:
         if not stage:
             raise ValueError("operation stage must be non-empty")
         with self._stage_lock:
+            if self.current_stage == stage:
+                return
             self.current_stage = stage
         if self.on_stage is not None:
             self.on_stage(stage)
