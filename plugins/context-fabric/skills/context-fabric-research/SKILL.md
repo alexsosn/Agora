@@ -58,7 +58,16 @@ This is useful when:
 - you want to separate network/acquisition problems from load problems;
 - a corpus may be relatively large;
 - you are debugging source/version selection;
-- you want to confirm the exact selected resource/member before loading.
+- you want to confirm the exact selected resource/member before loading;
+- you are selecting one or more optional feature modules and want to inspect the exact combination before paying cold-compile cost.
+
+When modules are selected, inspect the returned `load_preflight` before calling `load_corpus`. It reports whether that exact derived overlay is currently warm, whether a full compile is currently required, direct source bytes, default compile byte/time guardrails, the host free-space reserve, and the parent's historical load-cost record when available. `cost_expectation="parent-scale-possible"` means a small module does not imply a small compile: the overlay is a complete TF source tree and a cold combination may compile at roughly parent scale. The historical parent record is context, not a machine-independent prediction.
+
+Module precedence is `ordered-last-wins`. Agora overlays module feature files in the order requested; if two modules expose the same feature filename, the later module replaces the earlier one. Do not reorder a user's module list for cache deduplication. Reversing the same module set can intentionally produce a different overlay and result.
+
+For release-scale context, the BHSA investigation behind Agora issue #46 observed that two small feature modules (about 6 MB each) could add roughly **1.14 GB** of cache and about **7.5 minutes** of extra cold compilation on the measured machine. Treat those values as historical evidence of parent-scale amplification, not as guaranteed current cost.
+
+A practical expensive-module sequence is: `prepare_corpus(..., modules=[...])` → inspect `load_preflight` and `corpus_cache_status` → call `load_corpus` only if the disclosed state is acceptable. You may pass stricter `max_compile_gb` or `max_compile_minutes` values to `load_corpus`; those overrides do not reduce Agora's configured minimum-free-space reserve. Warmth in `load_preflight` is a point-in-time observation; `load_corpus` rechecks the exact combination under its compile lock before deciding whether to compile.
 
 Agora's collection model is intentionally lazy. Do not acquire an entire large collection merely because one work is needed.
 
@@ -67,6 +76,8 @@ Agora's collection model is intentionally lazy. Do not acquire an entire large c
 Use `load_corpus` with the exact `resource_id` and, for collections, the exact `member_id` returned by discovery.
 
 If you request extra features, request only features you have evidence exist in that corpus.
+
+For module overlays, preserve the module order used during prepare. While a cold load runs, `corpus_cache_status` exposes its progress and limits; `cancel_corpus_load` can cancel a load owned by the current server process. After unload, unused overlays remain independently visible as `kind="overlay"` cache entries and can be reclaimed through prune/remove operations.
 
 ### 6. Inspect before querying
 
