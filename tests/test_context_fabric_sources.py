@@ -68,6 +68,14 @@ class PinnedCatalogTests(unittest.TestCase):
         self.assertIsNone(tlhdig.ref)
         self.assertEqual(tlhdig.tf_path, "tf/0.4.0")
 
+    def test_tlhdig_bundled_catalog_matches_registry_path(self):
+        canonical = Catalog.from_registry(ROOT).get("TLHdig-TF")
+        bundled = Catalog.from_plugin_root(ROOT / "plugins" / "context-fabric").get(
+            "TLHdig-TF"
+        )
+        self.assertEqual(bundled.tf_path, canonical.tf_path)
+        self.assertIsNone(bundled.ref)
+
     def test_translatin_is_a_collection(self):
         translatin = Catalog.from_registry(ROOT).get("translatin-manif")
         self.assertEqual(translatin.kind, "collection")
