@@ -113,6 +113,8 @@ Agora is designed to add more providers without forcing them into Text-Fabric or
 
 Agora runs deterministic validation plus live representative-operation checks for the generated Claude and Codex transport paths it claims to support. Separate startup-only checks cover Agora-owned Context-Fabric and SEDRA runtimes on Linux x86_64, Intel macOS x86_64, and Windows x86_64; those checks do not imply other architectures or platforms.
 
+Agora keeps **provider/service health**, **plugin/client integration evidence**, and **resource/data status** separate; an operational or verified integration does not establish scholarly suitability.
+
 A successful integration check does not certify the scholarly quality or suitability of an upstream corpus or service. For the exact client/transport/platform evidence, current provider limitations, and what `verified` means, see the [compatibility and verification guide](wiki/guides/compatibility.md). The underlying evidence model is documented in [`registry/README.md`](registry/README.md).
 
 ## Documentation
