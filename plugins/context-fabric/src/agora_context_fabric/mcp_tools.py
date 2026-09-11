@@ -1,9 +1,104 @@
 from __future__ import annotations
 
-from typing import Any
+import asyncio
+import queue
+import threading
+from typing import Any, Callable
 
 from .gitstore import GIB
+from .operation import OperationControl
 from .service import ContextFabricService
+
+try:  # Foundation unit tests intentionally do not install the MCP runtime.
+    from mcp.server.fastmcp import Context as MCPContext
+except ImportError:  # pragma: no cover - exercised by the lightweight unit environment
+    MCPContext = Any  # type: ignore[misc,assignment]
+
+
+_STAGE_PROGRESS = {
+    "resolving": 1.0,
+    "acquiring/materializing": 2.0,
+    "loading/compiling": 3.0,
+    "ready": 4.0,
+}
+
+
+async def _drain_operation_stages(ctx: Any, stages: queue.SimpleQueue[str]) -> None:
+    while True:
+        try:
+            stage = stages.get_nowait()
+        except queue.Empty:
+            return
+        if ctx is not None:
+            await ctx.report_progress(
+                progress=_STAGE_PROGRESS.get(stage, 0.0),
+                total=4.0,
+                message=stage,
+            )
+
+
+async def _join_cancelled_worker(done: threading.Event) -> None:
+    """Wait through repeated task cancellation until owned worker mutation stops."""
+
+    while not done.is_set():
+        try:
+            await asyncio.shield(asyncio.sleep(0.02))
+        except asyncio.CancelledError:
+            # MCP/client cancellation can be delivered more than once. The
+            # handler still owns the worker and must not abandon it mid-mutation.
+            continue
+
+
+async def _run_long_operation(
+    call: Callable[[OperationControl], dict[str, Any]],
+    ctx: Any,
+) -> dict[str, Any]:
+    """Run blocking Context-Fabric orchestration without blocking the MCP loop.
+
+    A dedicated short-lived thread keeps the implementation transport-neutral.
+    On handler cancellation the same operation token is signalled, and the async
+    handler waits for that worker to stop before allowing cancellation to unwind.
+    """
+
+    stages: queue.SimpleQueue[str] = queue.SimpleQueue()
+    operation = OperationControl(on_stage=stages.put)
+    done = threading.Event()
+    outcome: dict[str, Any] = {}
+
+    def worker() -> None:
+        try:
+            outcome["result"] = call(operation)
+        except BaseException as exc:
+            outcome["error"] = exc
+        finally:
+            done.set()
+
+    thread = threading.Thread(
+        target=worker,
+        name="agora-cfabric-long-operation",
+        daemon=True,
+    )
+    thread.start()
+
+    try:
+        while not done.is_set():
+            await _drain_operation_stages(ctx, stages)
+            await asyncio.sleep(0.02)
+        await _drain_operation_stages(ctx, stages)
+    except BaseException:
+        operation.cancel()
+        await _join_cancelled_worker(done)
+        thread.join()
+        raise
+
+    thread.join()
+    error = outcome.get("error")
+    if error is not None:
+        raise error
+    result = outcome.get("result")
+    if not isinstance(result, dict):
+        raise RuntimeError("Context-Fabric long operation returned no result")
+    return result
 
 
 def register_tools(mcp: Any, service: ContextFabricService) -> None:
@@ -68,8 +163,9 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         return service.list_members(resource_id, **kwargs)
 
     @mcp.tool()
-    def prepare_corpus(
+    async def prepare_corpus(
         resource_id: str,
+        ctx: MCPContext,
         member_id: str | None = None,
         version: str | None = None,
         source_revision: str | None = None,
@@ -77,6 +173,12 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         modules: list[str] | None = None,
     ) -> dict[str, Any]:
         """Acquire/cache a corpus version and optional registered feature modules.
+
+        Long preparation yields the MCP event loop and reports coarse stages when
+        the client requests progress: `resolving`, `acquiring/materializing`, and
+        `ready`. Acquisition/materialization has an independent bounded wall-clock
+        deadline; cancellation waits for Agora-owned Git/materialization work to
+        stop rather than abandoning a mutating worker thread.
 
         For collection members, pass the `source_revision` returned by
         list_collection_members to resolve the member at exactly that upstream
@@ -107,11 +209,19 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
             kwargs["source_revision"] = source_revision
         if source_mode is not None:
             kwargs["source_mode"] = source_mode
-        return service.prepare(resource_id, **kwargs)
+        return await _run_long_operation(
+            lambda operation: service.prepare(
+                resource_id,
+                **kwargs,
+                operation=operation,
+            ),
+            ctx,
+        )
 
     @mcp.tool()
-    def load_corpus(
+    async def load_corpus(
         resource_id: str,
+        ctx: MCPContext,
         member_id: str | None = None,
         version: str | None = None,
         source_revision: str | None = None,
@@ -122,6 +232,13 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         max_compile_minutes: float | None = None,
     ) -> dict[str, Any]:
         """Acquire and load a corpus; its final cache path is leased until unload.
+
+        Long loads report coarse MCP progress when supported by the client:
+        `resolving`, `acquiring/materializing`, `loading/compiling`, then `ready`.
+        Acquisition and cold compilation have separate wall-clock budgets. Client
+        cancellation is bridged to the same cooperative token used by the cold
+        compiler, and the MCP handler does not unwind while owned worker mutation
+        is still active.
 
         For a collection member, reuse the discovery `source_revision` to load
         exactly that collection snapshot. `source_mode='offline'` guarantees no
@@ -157,7 +274,14 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
             kwargs["max_compile_gb"] = max_compile_gb
         if max_compile_minutes is not None:
             kwargs["max_compile_minutes"] = max_compile_minutes
-        return service.load(resource_id, **kwargs)
+        return await _run_long_operation(
+            lambda operation: service.load(
+                resource_id,
+                **kwargs,
+                operation=operation,
+            ),
+            ctx,
+        )
 
     @mcp.tool()
     def cancel_corpus_load(load_id: str) -> dict[str, Any]:
