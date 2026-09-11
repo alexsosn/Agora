@@ -1215,11 +1215,11 @@ resources:
   description: Text-Fabric conversion of the Thesaurus Linguarum Hethaeorum digitalis Hittite corpus.
   upstream:
     repository: alexsosn/TLHdig-TF
-    tf_path: tf/0.1.0
+    tf_path: tf/0.4.0
   acquisition:
     strategy: repository
     lazy: true
-    notes: Follow the upstream default branch so rebuilt tf/0.1.0 datasets are picked up without changing the version label.
+    notes: Follow the upstream default branch so rebuilt tf/0.4.0 datasets are picked up without introducing a revision pin.
   licenses:
     data: CC-BY-4.0
     redistribution: permitted
