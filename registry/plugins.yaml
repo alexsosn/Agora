@@ -56,6 +56,19 @@ plugins:
           inputs: *context_live_inputs
         - check_id: platform-startup/context-fabric-windows-x86-64
           inputs: *context_live_inputs
+    known_issues:
+    - id: context-fabric/search-count-cache-cap
+      severity: advisory
+      signature: count-only search can report the 10000-result cache ceiling as an exact total
+      summary: cfabric-mcp 0.1.7 truncates cached search results at 10,000 before deriving return_type=count, so a reported count of 10,000 is only a lower bound for larger result sets.
+      upstream:
+      - repository: Context-Fabric/context-fabric
+    - id: context-fabric/cuc-text-format-discovery
+      severity: advisory
+      signature: generic text-format discovery omits CUC sign and usign feature representations
+      summary: cfabric-mcp 0.1.7 discovers text representations from paired fmt metadata and can report none for CUC even though its sign and usign features expose Latin and Ugaritic forms.
+      upstream:
+      - repository: Context-Fabric/context-fabric
     notes:
     - Deterministic checks cover the Agora runtime, resolver, collection discovery, MCP tool registration, and generated client launch metadata.
     - The scheduled Context-Fabric source audit resolves all 37 v0.1 upstream resources from Git metadata without materializing corpus blobs.
@@ -81,7 +94,7 @@ plugins:
         command: uvx
         args: [--constraint, runtime-constraints.txt, --from, perseus-mcp==1.0.2, --with, 'cryptography<43; platform_system == "Darwin" and platform_machine == "x86_64"', perseus-mcp]
   data_mode: remote
-  capabilities: [corpus-discovery, passage-retrieval, full-text-search, cts-navigation]
+  capabilities: [corpus-discovery, passage-retrieval, full-text-search]
   licenses: {software: MIT, data: upstream-dependent}
   verification:
     status: verified
@@ -116,6 +129,13 @@ plugins:
       summary: Merged CTS/Scaife author discovery may return Scaife-only works; CTS get_author_resources/get_work_resources can report no match even when Scaife-native tools can retrieve the work.
       upstream:
       - repository: tonyjurg/Perseus-mcp
+    - id: perseus/legacy-cts-malformed-navigation
+      severity: advisory
+      signature: legacy CTS metadata and valid-reference endpoints can return malformed non-XML responses for valid discovered editions
+      summary: perseus-mcp 1.0.2 does not validate malformed legacy CTS GetLabel/GetValidReff responses at the provider boundary, so metadata and derived navigation helpers can fail for otherwise valid discovered editions.
+      upstream:
+      - repository: tonyjurg/Perseus-mcp
+        url: https://github.com/tonyjurg/Perseus-mcp/releases/tag/v1.0.2
     notes:
     - Both clients use the pinned upstream perseus-mcp 1.0.2 package.
     - Generated client paths use the same bounded representative Homer discovery contract through the generic MCP harness.
@@ -173,6 +193,13 @@ plugins:
             resolution: [mcp-proxy==0.12.0, 'mcp>=1.17,<2', 'https://mcp.sefaria.org/sse', 'mcp>=2,<3 (smoke harness)', 'PyYAML>=6,<7 (smoke harness)']
             environment: {kind: uv-constraints, path: plugins/sefaria/runtime-constraints.txt, sha256: 04e7e558dda68be2f81d6ee78bc5fc9175e32d7f603136fac3357e96edf96708}
             harness_environment: {kind: uv-lock, path: verification/mcp-smoke/uv.lock, sha256: 02ee919d9bd8ff909f090463c563a425ab614ea77dc410eeddbd23bb7a330838}
+    known_issues:
+    - id: sefaria/search-version-duplicates
+      severity: advisory
+      signature: book search can return duplicate references while omitting version identity from result rows
+      summary: Sefaria book search can surface separate indexed-version hits for the same reference while current MCP result rows omit version identity, so row counts must not be interpreted as exact textual occurrence counts.
+      upstream:
+      - repository: Sefaria/sefaria-mcp
     notes:
     - Claude targets Sefaria's official hosted Texts MCP directly over generated SSE while Codex uses the generated stdio proxy bridge.
     - Both generated paths use the same bounded Genesis 1:1 representative-operation contract; the transports are never substituted for one another.
