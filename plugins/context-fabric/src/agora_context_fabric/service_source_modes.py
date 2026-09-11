@@ -8,6 +8,7 @@ from typing import Any
 from . import service as _service_module
 from .gitstore import GitStore, SourcePolicyState
 from .load_safety import compile_budget_bytes, compile_timeout_seconds, source_tf_bytes
+from .operation import OperationControl, current_operation, operation_scope
 
 
 _BaseContextFabricService = _service_module.ContextFabricService
@@ -18,9 +19,9 @@ class ContextFabricService(_BaseContextFabricService):
 
     The mature load/cache lifecycle remains in ``service.py``. This subclass
     scopes acquisition policy around those operations, pins collection work to
-    the revision selected at the start of the operation, and adds provenance and
-    pre-execution disclosure to the existing response shape without
-    reimplementing load/compile semantics.
+    the revision selected at the start of the operation, and adds provenance,
+    long-operation staging, and pre-execution disclosure without reimplementing
+    load/compile semantics.
     """
 
     @staticmethod
@@ -181,6 +182,33 @@ class ContextFabricService(_BaseContextFabricService):
         _repo, revision = self.resolver._collection_repo(resource, source_revision)
         return revision
 
+    def _reserve_active_load(self, prepared, **kwargs):
+        load_id, cancel_event = super()._reserve_active_load(prepared, **kwargs)
+        operation = current_operation()
+        if operation is None:
+            return load_id, cancel_event
+
+        # Base service owns active-load bookkeeping. Swap only the event before
+        # the compiler receives it so protocol cancellation and cancel_load use
+        # the same cooperative token rather than two unrelated cancellation paths.
+        with self._active_loads_lock:
+            record = self._active_loads.get(load_id)
+            if record is not None:
+                record["cancel_event"] = operation.cancel_event
+        operation.stage("loading/compiling")
+        return load_id, operation.cancel_event
+
+    def _parent_warm_load(self, prepared, new_lease, *, features):
+        operation = current_operation()
+        if operation is not None:
+            operation.raise_if_cancelled()
+            operation.stage("loading/compiling")
+        return super()._parent_warm_load(
+            prepared,
+            new_lease,
+            features=features,
+        )
+
     def list_members(
         self,
         resource_id: str,
@@ -253,40 +281,51 @@ class ContextFabricService(_BaseContextFabricService):
         source_revision: str | None = None,
         source_mode: str | None = None,
         modules: list[str] | None = None,
+        operation: OperationControl | None = None,
     ) -> dict[str, Any]:
-        mode = self._validate_source_request(source_mode, source_revision)
-        resource = self.catalog.get(resource_id)
-        with self._source_context(mode) as policy:
-            effective_revision = source_revision
-            if self._managed_collection_resolution(resource):
-                effective_revision = self._resolve_collection_revision(
-                    resource,
-                    source_revision,
-                )
-            # Resolver preparation already uses a shared transition while it
-            # creates/touches snapshots and overlays. Keep one outer shared
-            # transition through the user-visible preflight projection as well,
-            # so an exclusive prune cannot detach the returned overlay between
-            # preparation and source/warm-state measurement.
-            with self._cache_transition_context():
-                result = _BaseContextFabricService.prepare(
-                    self,
-                    resource_id,
-                    member_id=member_id,
-                    version=version,
-                    source_revision=effective_revision,
-                    modules=modules,
-                )
-                annotated = self._annotate_source_provenance(
-                    result,
-                    policy,
-                    resource_id=resource_id,
-                    explicit_revision=source_revision is not None,
-                )
-                preflight = self._module_load_preflight(annotated, resource)
-                if preflight is not None:
-                    annotated["load_preflight"] = preflight
-                return annotated
+        if operation is not None:
+            operation.stage("resolving")
+        with operation_scope(operation):
+            mode = self._validate_source_request(source_mode, source_revision)
+            resource = self.catalog.get(resource_id)
+            if operation is not None:
+                operation.raise_if_cancelled()
+                operation.stage("acquiring/materializing")
+            with self._source_context(mode) as policy:
+                effective_revision = source_revision
+                if self._managed_collection_resolution(resource):
+                    effective_revision = self._resolve_collection_revision(
+                        resource,
+                        source_revision,
+                    )
+                # Resolver preparation already uses a shared transition while it
+                # creates/touches snapshots and overlays. Keep one outer shared
+                # transition through the user-visible preflight projection as well,
+                # so an exclusive prune cannot detach the returned overlay between
+                # preparation and source/warm-state measurement.
+                with self._cache_transition_context():
+                    result = _BaseContextFabricService.prepare(
+                        self,
+                        resource_id,
+                        member_id=member_id,
+                        version=version,
+                        source_revision=effective_revision,
+                        modules=modules,
+                    )
+                    if operation is not None:
+                        operation.raise_if_cancelled()
+                    annotated = self._annotate_source_provenance(
+                        result,
+                        policy,
+                        resource_id=resource_id,
+                        explicit_revision=source_revision is not None,
+                    )
+                    preflight = self._module_load_preflight(annotated, resource)
+                    if preflight is not None:
+                        annotated["load_preflight"] = preflight
+                    if operation is not None:
+                        operation.stage("ready")
+                    return annotated
 
     def load(
         self,
@@ -300,33 +339,45 @@ class ContextFabricService(_BaseContextFabricService):
         modules: list[str] | None = None,
         max_compile_gb: float | None = None,
         max_compile_minutes: float | None = None,
+        operation: OperationControl | None = None,
     ) -> dict[str, Any]:
-        mode = self._validate_source_request(source_mode, source_revision)
-        resource = self.catalog.get(resource_id)
-        with self._source_context(mode) as policy:
-            effective_revision = source_revision
-            if self._managed_collection_resolution(resource):
-                effective_revision = self._resolve_collection_revision(
-                    resource,
-                    source_revision,
+        if operation is not None:
+            operation.stage("resolving")
+        with operation_scope(operation):
+            mode = self._validate_source_request(source_mode, source_revision)
+            resource = self.catalog.get(resource_id)
+            if operation is not None:
+                operation.raise_if_cancelled()
+                operation.stage("acquiring/materializing")
+            with self._source_context(mode) as policy:
+                effective_revision = source_revision
+                if self._managed_collection_resolution(resource):
+                    effective_revision = self._resolve_collection_revision(
+                        resource,
+                        source_revision,
+                    )
+                result = _BaseContextFabricService.load(
+                    self,
+                    resource_id,
+                    member_id=member_id,
+                    version=version,
+                    source_revision=effective_revision,
+                    features=features,
+                    modules=modules,
+                    max_compile_gb=max_compile_gb,
+                    max_compile_minutes=max_compile_minutes,
                 )
-            result = _BaseContextFabricService.load(
-                self,
-                resource_id,
-                member_id=member_id,
-                version=version,
-                source_revision=effective_revision,
-                features=features,
-                modules=modules,
-                max_compile_gb=max_compile_gb,
-                max_compile_minutes=max_compile_minutes,
-            )
-            return self._annotate_source_provenance(
-                result,
-                policy,
-                resource_id=resource_id,
-                explicit_revision=source_revision is not None,
-            )
+                annotated = self._annotate_source_provenance(
+                    result,
+                    policy,
+                    resource_id=resource_id,
+                    explicit_revision=source_revision is not None,
+                )
+                if operation is not None:
+                    # Final upstream warm load is not forcibly interruptible, but
+                    # no request reports ready until that synchronous call returns.
+                    operation.stage("ready")
+                return annotated
 
     def load_resource(
         self,
@@ -340,6 +391,7 @@ class ContextFabricService(_BaseContextFabricService):
         modules: list[str] | None = None,
         max_compile_gb: float | None = None,
         max_compile_minutes: float | None = None,
+        operation: OperationControl | None = None,
     ) -> dict[str, Any]:
         result = self.load(
             resource_id,
@@ -351,6 +403,7 @@ class ContextFabricService(_BaseContextFabricService):
             modules=modules,
             max_compile_gb=max_compile_gb,
             max_compile_minutes=max_compile_minutes,
+            operation=operation,
         )
         compatible = dict(result)
         compatible["features"] = features
