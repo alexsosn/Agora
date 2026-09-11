@@ -35,7 +35,9 @@ Do not guess repository-relative paths from memory when the catalog can resolve 
 
 ### 2. Inspect the catalog record
 
-Use `describe_available_corpus` before acquisition when provenance, resource kind, language, or collection status matters.
+Use `describe_available_corpus` before acquisition when provenance, resource kind, language, collection status, or historical load cost matters.
+
+For an unfamiliar or potentially large corpus, the default first-load sequence is `describe_available_corpus` → `prepare_corpus` → `load_corpus`. Historical `load_cost` values are evidence from a recorded environment, not an ETA for the current machine.
 
 Keep the returned `resource_id`. Use it in later calls rather than inventing a path or local directory name.
 
@@ -61,6 +63,10 @@ This is useful when:
 - you want to confirm the exact selected resource/member before loading;
 - you are selecting one or more optional feature modules and want to inspect the exact combination before paying cold-compile cost.
 
+Long operations report coarse MCP stages when the client supports progress notifications. `resolving` means Agora is choosing/validating the resource and source revision. `acquiring/materializing` covers Git/source acquisition and immutable snapshot or overlay creation. `loading/compiling` is the Text-Fabric load boundary, including a contained cold compile when one is required. `ready` means the operation actually completed. Do not infer percentages or an ETA from those stage names.
+
+Acquisition/materialization has its own default wall-clock safety limit of **15 minutes**, configured by `AGORA_CORPUS_ACQUISITION_MAX_MINUTES`. Cold compilation has a separate default **60 minute** limit. These are guardrails, not expected durations.
+
 When modules are selected, inspect the returned `load_preflight` before calling `load_corpus`. It reports whether that exact derived overlay is currently warm, whether a full compile is currently required, direct source bytes, default compile byte/time guardrails, the host free-space reserve, and the parent's historical load-cost record when available. `cost_expectation="parent-scale-possible"` means a small module does not imply a small compile: the overlay is a complete TF source tree and a cold combination may compile at roughly parent scale. The historical parent record is context, not a machine-independent prediction.
 
 Module precedence is `ordered-last-wins`. Agora overlays module feature files in the order requested; if two modules expose the same feature filename, the later module replaces the earlier one. Do not reorder a user's module list for cache deduplication. Reversing the same module set can intentionally produce a different overlay and result.
@@ -77,7 +83,11 @@ Use `load_corpus` with the exact `resource_id` and, for collections, the exact `
 
 If you request extra features, request only features you have evidence exist in that corpus.
 
-For module overlays, preserve the module order used during prepare. While a cold load runs, `corpus_cache_status` exposes its progress and limits; `cancel_corpus_load` can cancel a load owned by the current server process. After unload, unused overlays remain independently visible as `kind="overlay"` cache entries and can be reclaimed through prune/remove operations.
+For module overlays, preserve the module order used during prepare. While a cold load runs, `corpus_cache_status` exposes `active_loads`, including the load ID, phase, limits, elapsed time and cancellation state. If the same exact cold load is already active, **do not retry** `load_corpus` blindly: inspect the existing record, wait for it, or use `cancel_corpus_load` with its `load_id` when cancellation is appropriate. Agora deliberately rejects duplicate local cold compilers.
+
+Protocol cancellation is bridged to request-owned acquisition/materialization and the contained cold compiler, and Agora waits for owned work to stop before unwinding the MCP call. The final in-process upstream warm-loader call is not forcibly preempted because killing arbitrary upstream Python state would be unsafe. If a request is interrupted near that boundary, inspect `corpus_cache_status` (`loaded_corpora` and `active_loads`) before retrying.
+
+After unload, unused overlays remain independently visible as `kind="overlay"` cache entries and can be reclaimed through prune/remove operations.
 
 ### 6. Inspect before querying
 
@@ -151,7 +161,9 @@ For cross-corpus comparisons, first establish that the compared annotations are 
 
 If discovery fails, check the resource ID and catalog before changing paths manually.
 
-If acquisition fails, distinguish upstream availability from local cache/filesystem problems.
+If acquisition fails or times out, distinguish upstream availability from local cache/filesystem problems. Acquisition timeout is not classified as ordinary connectivity fallback: inspect the reported stage and cache/network state before retrying.
+
+If `corpus_cache_status.active_loads` already contains the target cold load, do not retry it. Inspect the existing load or cancel it deliberately.
 
 If loading fails, report the selected resource/member and dataset root rather than masking the failure by trying unrelated versions.
 

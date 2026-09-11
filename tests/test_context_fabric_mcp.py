@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 import unittest
 from pathlib import Path
@@ -25,6 +26,11 @@ class FakeMCP:
             return func
 
         return decorator
+
+
+class FakeContext:
+    async def report_progress(self, progress, total=None, message=None):
+        return None
 
 
 class FakeService:
@@ -55,14 +61,23 @@ class FakeService:
         )
         return {"members": [{"id": "member"}]}
 
-    def prepare(self, resource_id, *, member_id=None, version=None, modules=None):
+    def prepare(self, resource_id, *, member_id=None, version=None, modules=None, operation=None):
         kwargs = {"member_id": member_id, "modules": modules}
         if version is not None:
             kwargs["version"] = version
         self.calls.append(("prepare", (resource_id,), kwargs))
         return {"logical_name": resource_id}
 
-    def load(self, resource_id, *, member_id=None, version=None, features=None, modules=None):
+    def load(
+        self,
+        resource_id,
+        *,
+        member_id=None,
+        version=None,
+        features=None,
+        modules=None,
+        operation=None,
+    ):
         kwargs = {"member_id": member_id, "features": features, "modules": modules}
         if version is not None:
             kwargs["version"] = version
@@ -156,7 +171,13 @@ class ToolRegistrationTests(unittest.TestCase):
         )
 
     def test_prepare_tool_delegates_selected_modules(self):
-        self.mcp.tools["prepare_corpus"]("bhsa", modules=["bhsa-trees"])
+        asyncio.run(
+            self.mcp.tools["prepare_corpus"](
+                "bhsa",
+                ctx=FakeContext(),
+                modules=["bhsa-trees"],
+            )
+        )
         self.assertEqual(
             self.service.calls[-1],
             (
@@ -167,11 +188,14 @@ class ToolRegistrationTests(unittest.TestCase):
         )
 
     def test_load_tool_delegates_member_features_and_modules(self):
-        result = self.mcp.tools["load_corpus"](
-            "greek_literature",
-            member_id="homer-iliad-a1b2c3d4",
-            features=["otype", "word"],
-            modules=["example-module"],
+        result = asyncio.run(
+            self.mcp.tools["load_corpus"](
+                "greek_literature",
+                ctx=FakeContext(),
+                member_id="homer-iliad-a1b2c3d4",
+                features=["otype", "word"],
+                modules=["example-module"],
+            )
         )
         self.assertEqual(result, {"logical_name": "greek_literature"})
         self.assertEqual(

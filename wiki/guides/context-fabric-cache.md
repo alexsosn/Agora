@@ -2,6 +2,25 @@
 
 Agora acquires registered Text-Fabric corpora lazily into its managed Context-Fabric cache. A first load can require Context-Fabric to compile `.tf` source files into its current `.cfm` format; later loads of a valid current-format cache use the normal warm upstream loader path.
 
+## Recommended first-load workflow
+
+For an unfamiliar or potentially large resource, use `describe_available_corpus` → `prepare_corpus` → `load_corpus` rather than jumping directly to load. `describe_available_corpus` exposes the registered resource and historical `load_cost` evidence when one exists. `prepare_corpus` separates source resolution/acquisition from the Text-Fabric load and, for module combinations, exposes `load_preflight` before a cold compile is attempted.
+
+Long `prepare_corpus` and `load_corpus` calls yield the MCP event loop. When the client requested MCP progress, Agora reports coarse stage names rather than invented ETAs:
+
+- `resolving` — validate the request and choose the registered source/member/revision;
+- `acquiring/materializing` — refresh/read Git metadata and create or reuse immutable source snapshots/overlays;
+- `loading/compiling` — enter the Text-Fabric load boundary, including a contained cold compile when needed;
+- `ready` — the operation completed and the result can be used.
+
+Acquisition/materialization and cold compilation have separate limits. The default acquisition/materialization wall-clock budget is **15 minutes**, controlled by `AGORA_CORPUS_ACQUISITION_MAX_MINUTES`. The default contained cold-compile wall-clock limit is **60 minutes**, controlled by `AGORA_CORPUS_COMPILE_MAX_MINUTES`. Both are safety limits, not expected durations or ETAs.
+
+If a cold load already appears in `corpus_cache_status.active_loads`, **do not retry** the same load blindly. Inspect that record instead. It exposes the exact active object, phase and limits; use `cancel_corpus_load` with its `load_id` if cancellation is appropriate. A duplicate local cold load is deliberately rejected rather than spawning a second compiler.
+
+Protocol cancellation of a long MCP request is bridged to Agora-owned acquisition/materialization work and to the contained cold compiler. The handler waits until its owned worker has stopped before unwinding, so cancellation does not intentionally leave a mutating background thread behind. The final in-process upstream warm-loader call is a non-preemptible boundary: if cancellation arrives while that call is already running, Agora waits for it to return rather than killing arbitrary upstream Python state. After an interrupted request, inspect `corpus_cache_status` (including `loaded_corpora` and `active_loads`) before deciding whether to retry.
+
+Historical `load_cost` observations are environment-specific evidence, not predictions. For example, the recorded BHSA release measurement reports roughly 165 MB of source, 866 MB compiled, about 1.1 GB total cache and about 630 seconds for the measured first load. Different corpus revisions, Context-Fabric versions, machines, filesystems and module combinations can differ materially.
+
 ## Source resolution and offline use
 
 Acquisition-bearing tools (`list_collection_members`, `prepare_corpus`, and `load_corpus`) accept an optional `source_mode`:
@@ -64,6 +83,7 @@ Derived overlays are indexed as independent `kind="overlay"` cache objects. Thei
 The server-side defaults are:
 
 - `AGORA_CORPUS_MIN_FREE_GB=6` — minimum host free-space reserve. Per-load options cannot disable it.
+- `AGORA_CORPUS_ACQUISITION_MAX_MINUTES=15` — wall-clock budget for request-owned Git/source acquisition and materialization before cold compilation.
 - `AGORA_CORPUS_COMPILE_MAX_MULTIPLIER=16` — default compiled-output budget multiplier applied to direct prepared `.tf` bytes.
 - `AGORA_CORPUS_COMPILE_MIN_GB=0.25` — minimum default compiled-output budget.
 - `AGORA_CORPUS_COMPILE_MAX_MINUTES=60` — default cold-worker wall-time limit.
@@ -77,7 +97,7 @@ The default compiled-output budget is `max(0.25 GiB, source_tf_bytes × 16)`. Al
 - `max_compile_gb` — override the observed compiled-output budget for this load.
 - `max_compile_minutes` — override the cold-worker wall-time limit for this load.
 
-Omitting these fields keeps the server defaults. Warm current-format loads do not pay the cold-worker/preflight path.
+Omitting these fields keeps the server defaults. Warm current-format loads do not pay the cold-worker/preflight path. The acquisition/materialization budget is server-side in v1 and is intentionally separate from these per-load compile controls.
 
 ## Status and cancellation
 
@@ -85,13 +105,15 @@ Omitting these fields keeps the server defaults. Warm current-format loads do no
 
 Call `cancel_corpus_load(load_id)` with a reported ID to request cancellation. Cancellation is process-local and idempotent while the load is cancellable. A separate Agora process cannot cancel another process's worker, but an OS-backed compile lock prevents it from starting a second cold compiler for the same exact managed cache object.
 
-If a client disconnects or times out, the worker does not become unbounded background work: server-side disk and time monitoring continues until the worker exits or is stopped.
+Acquisition/materialization happens before a cold `active_loads` record exists, so its live visibility is the MCP progress stage rather than a durable job record. Agora deliberately does not introduce a background task queue for v1. If the MCP client does not request progress notifications, the same acquisition and compile guardrails still apply even though the progress UI is absent.
 
 ## Failure cleanup
 
 After a failed, cancelled, or limited cold worker has died, Agora removes only incomplete `.cfm/<current-format-version>` derived output for that exact prepared cache object. It does not remove direct `.tf` source files or other `.cfm` format versions. A successful worker must leave the current-format `meta.json` completion marker before Agora invokes the normal in-process loader.
 
 If the completion marker exists but the compiled cache is corrupt, the pinned Context-Fabric warm loader raises its own load error; Agora does not silently fall back to a main-process cold compile.
+
+Acquisition timeout/cancellation stops the request-owned Git subprocess before the operation returns. Temporary snapshot-export trees are cleaned by the existing materialization `finally` path; published immutable snapshots are replaced atomically only after validation. A retry therefore reuses complete published state or starts materialization again rather than treating a partial temporary tree as a valid corpus.
 
 ## Persistent Git metadata repositories
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 import unittest
 from pathlib import Path
@@ -27,6 +28,11 @@ class FakeMCP:
         return decorator
 
 
+class FakeContext:
+    async def report_progress(self, progress, total=None, message=None):
+        return None
+
+
 class CapturingService:
     def __init__(self) -> None:
         self.calls: list[tuple[str, tuple, dict]] = []
@@ -43,11 +49,11 @@ class CapturingService:
         self.calls.append(("list_members", (resource_id,), kwargs))
         return {"items": []}
 
-    def prepare(self, resource_id, **kwargs):
+    def prepare(self, resource_id, *, operation=None, **kwargs):
         self.calls.append(("prepare", (resource_id,), kwargs))
         return {"logical_name": resource_id}
 
-    def load(self, resource_id, **kwargs):
+    def load(self, resource_id, *, operation=None, **kwargs):
         self.calls.append(("load", (resource_id,), kwargs))
         return {"logical_name": resource_id}
 
@@ -77,6 +83,7 @@ class OfflineSourceModeMCPTests(unittest.TestCase):
         self.mcp = FakeMCP()
         self.service = CapturingService()
         register_tools(self.mcp, self.service)
+        self.ctx = FakeContext()
 
     def test_collection_members_forwards_explicit_offline_mode(self):
         self.mcp.tools["list_collection_members"](
@@ -87,20 +94,32 @@ class OfflineSourceModeMCPTests(unittest.TestCase):
         self.assertEqual(self.service.calls[-1][2]["source_mode"], "offline")
 
     def test_prepare_forwards_explicit_offline_mode(self):
-        self.mcp.tools["prepare_corpus"]("bhsa", source_mode="offline")
+        asyncio.run(
+            self.mcp.tools["prepare_corpus"](
+                "bhsa",
+                ctx=self.ctx,
+                source_mode="offline",
+            )
+        )
         self.assertEqual(self.service.calls[-1][0], "prepare")
         self.assertEqual(self.service.calls[-1][2]["source_mode"], "offline")
 
     def test_load_forwards_explicit_require_fresh_mode(self):
-        self.mcp.tools["load_corpus"]("bhsa", source_mode="require-fresh")
+        asyncio.run(
+            self.mcp.tools["load_corpus"](
+                "bhsa",
+                ctx=self.ctx,
+                source_mode="require-fresh",
+            )
+        )
         self.assertEqual(self.service.calls[-1][0], "load")
         self.assertEqual(self.service.calls[-1][2]["source_mode"], "require-fresh")
 
     def test_omitted_source_mode_preserves_historical_delegation_shape(self):
-        self.mcp.tools["prepare_corpus"]("bhsa")
+        asyncio.run(self.mcp.tools["prepare_corpus"]("bhsa", ctx=self.ctx))
         self.assertNotIn("source_mode", self.service.calls[-1][2])
 
-        self.mcp.tools["load_corpus"]("bhsa")
+        asyncio.run(self.mcp.tools["load_corpus"]("bhsa", ctx=self.ctx))
         self.assertNotIn("source_mode", self.service.calls[-1][2])
 
         self.mcp.tools["list_collection_members"]("greek_literature")

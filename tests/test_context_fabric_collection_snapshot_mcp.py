@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 import unittest
 from pathlib import Path
@@ -24,6 +25,11 @@ class FakeMCP:
         return decorator
 
 
+class FakeContext:
+    async def report_progress(self, progress, total=None, message=None):
+        return None
+
+
 class SnapshotService:
     def __init__(self):
         self.calls: list[tuple[str, dict]] = []
@@ -32,11 +38,11 @@ class SnapshotService:
         self.calls.append(("list", {"resource_id": resource_id, **kwargs}))
         return {"resource_id": resource_id, "source_revision": kwargs.get("source_revision")}
 
-    def prepare(self, resource_id, **kwargs):
+    def prepare(self, resource_id, *, operation=None, **kwargs):
         self.calls.append(("prepare", {"resource_id": resource_id, **kwargs}))
         return {"resource_id": resource_id, "source_revision": kwargs.get("source_revision")}
 
-    def load(self, resource_id, **kwargs):
+    def load(self, resource_id, *, operation=None, **kwargs):
         self.calls.append(("load", {"resource_id": resource_id, **kwargs}))
         return {"resource_id": resource_id, "source_revision": kwargs.get("source_revision")}
 
@@ -65,6 +71,7 @@ class CollectionSnapshotMcpTests(unittest.TestCase):
         service = SnapshotService()
         register_tools(mcp, service)
         revision = "a" * 40
+        ctx = FakeContext()
 
         mcp.tools["list_collection_members"](
             "greek_literature",
@@ -73,16 +80,22 @@ class CollectionSnapshotMcpTests(unittest.TestCase):
             offset=5,
             limit=10,
         )
-        mcp.tools["prepare_corpus"](
-            "greek_literature",
-            member_id="iliad-member",
-            source_revision=revision,
+        asyncio.run(
+            mcp.tools["prepare_corpus"](
+                "greek_literature",
+                ctx=ctx,
+                member_id="iliad-member",
+                source_revision=revision,
+            )
         )
-        mcp.tools["load_corpus"](
-            "greek_literature",
-            member_id="iliad-member",
-            source_revision=revision,
-            features=["word"],
+        asyncio.run(
+            mcp.tools["load_corpus"](
+                "greek_literature",
+                ctx=ctx,
+                member_id="iliad-member",
+                source_revision=revision,
+                features=["word"],
+            )
         )
 
         self.assertEqual(

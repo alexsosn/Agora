@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import subprocess
 import sys
@@ -38,6 +39,11 @@ class _MCP:
             return func
 
         return decorator
+
+
+class _Context:
+    async def report_progress(self, progress, total=None, message=None):
+        return None
 
 
 class FeatureModuleReviewRegressionTests(unittest.TestCase):
@@ -300,11 +306,11 @@ class FeatureModuleReviewRegressionTests(unittest.TestCase):
             def __init__(self):
                 self.kwargs = None
 
-            def load(self, resource_id, **kwargs):
+            def load(self, resource_id, *, operation=None, **kwargs):
                 self.kwargs = (resource_id, kwargs)
                 return {"resource_id": resource_id}
 
-            def prepare(self, resource_id, **kwargs):
+            def prepare(self, resource_id, *, operation=None, **kwargs):
                 return {"resource_id": resource_id, **kwargs}
 
             def list_resources(self, *args, **kwargs):
@@ -319,10 +325,13 @@ class FeatureModuleReviewRegressionTests(unittest.TestCase):
         mcp = _MCP()
         service = Service()
         register_tools(mcp, service)
-        mcp.tools["load_corpus"](
-            "bhsa",
-            version="c",
-            modules=["bhsa-participants-actor"],
+        asyncio.run(
+            mcp.tools["load_corpus"](
+                "bhsa",
+                ctx=_Context(),
+                version="c",
+                modules=["bhsa-participants-actor"],
+            )
         )
         self.assertEqual(
             service.kwargs,
