@@ -66,7 +66,7 @@ class PinnedCatalogTests(unittest.TestCase):
         catalog = Catalog.from_registry(ROOT)
         tlhdig = catalog.get("TLHdig-TF")
         self.assertIsNone(tlhdig.ref)
-        self.assertEqual(tlhdig.tf_path, "tf/0.1.0")
+        self.assertEqual(tlhdig.tf_path, "tf/0.4.0")
 
     def test_translatin_is_a_collection(self):
         translatin = Catalog.from_registry(ROOT).get("translatin-manif")
