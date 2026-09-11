@@ -1,4 +1,5 @@
 name: Context-Fabric source audit
+# Temporary verification trigger for #154; reverted in the next commit.
 
 on:
   workflow_dispatch:
