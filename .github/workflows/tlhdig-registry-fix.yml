@@ -1,0 +1,67 @@
+name: TLHdig registry fix
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.head_ref == 'fix/tlhdig-current-path-154'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r requirements-dev.txt
+      - name: Apply narrow stale-contract fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('tests/test_architecture_review_contracts.py')
+          text = p.read_text(encoding='utf-8')
+          old = 'self.assertEqual(resource.tf_path, "tf/0.1.0")'
+          new = 'self.assertEqual(resource.tf_path, "tf/0.4.0")'
+          text = text.replace(old, new, 1)
+          old = 'self.assertEqual(item["source"]["tf_path"], "tf/0.1.0")'
+          new = 'self.assertEqual(item["source"]["tf_path"], "tf/0.4.0")'
+          text = text.replace(old, new, 1)
+          p.write_text(text, encoding='utf-8')
+
+          p = Path('tests/test_context_fabric_sources.py')
+          text = p.read_text(encoding='utf-8')
+          old = 'self.assertEqual(tlhdig.tf_path, "tf/0.1.0")'
+          new = 'self.assertEqual(tlhdig.tf_path, "tf/0.4.0")'
+          if old not in text:
+              raise SystemExit('expected TLHdig catalog assertion not found')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          old_note = 'Historical machine-specific observation measured for tf/0.1.0; it does not describe the current tf/0.4.0 artifact. Peak RSS came from the related earlier run rather than the final converged compile measurement.'
+          new_note = 'Historical machine-specific observation measured for tf/0.1.0; it does not describe the current tf/0.4.0 artifact. Current-machine cost may differ. Peak RSS came from the related earlier run rather than the final converged compile measurement.'
+          for name in ('registry/resources.yaml', 'plugins/context-fabric/resources/catalog.yaml'):
+              p = Path(name)
+              text = p.read_text(encoding='utf-8')
+              if old_note not in text:
+                  raise SystemExit(f'expected TLHdig load-cost note not found in {name}')
+              p.write_text(text.replace(old_note, new_note, 1), encoding='utf-8')
+          PY
+          python scripts/generate_context_fabric_catalog.py --check
+          python -m unittest discover -s tests -p 'test_architecture_review_contracts.py' -v
+          python -m unittest discover -s tests -p 'test_context_fabric_sources.py' -v
+          python -m unittest discover -s tests -p 'test_resource_load_cost_review_regressions.py' -v
+          python -m unittest discover -s tests -p 'test_tlhdig_current_registry.py' -v
+      - name: Commit fixes
+        run: |
+          if git diff --quiet -- registry/resources.yaml plugins/context-fabric/resources/catalog.yaml tests/test_architecture_review_contracts.py tests/test_context_fabric_sources.py; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add registry/resources.yaml plugins/context-fabric/resources/catalog.yaml tests/test_architecture_review_contracts.py tests/test_context_fabric_sources.py
+          git commit -m 'test: align TLHdig integration contracts with 0.4.0'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
