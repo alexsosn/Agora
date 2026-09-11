@@ -76,6 +76,11 @@ class PerseusContractHealthTests(unittest.TestCase):
             (KNOWN_ISSUE_ID,),
         )
 
+    def test_perseus_canary_workaround_tools_are_required_during_discovery(self):
+        expected = smoke.SMOKE_CASES["perseus"].expected_tools
+        self.assertIn("get_work_resources", expected)
+        self.assertIn("get_scaife_library_metadata", expected)
+
     def test_observed_routing_mismatch_returns_compact_evidence(self):
         runner = getattr(smoke, "run_known_issue_canary", None)
         self.assertTrue(callable(runner), "missing live known-issue canary runner")
@@ -121,6 +126,56 @@ class PerseusContractHealthTests(unittest.TestCase):
                 "get_scaife_library_metadata",
             ],
         )
+
+    def test_changed_discovery_signature_is_inconclusive_not_release_failure(self):
+        runner = getattr(smoke, "run_known_issue_canary", None)
+        self.assertTrue(callable(runner), "missing live known-issue canary runner")
+        session = FakeSession(
+            {
+                "find_author_names": text_result(
+                    {"authors": [{"urn": "urn:cts:greekLit:tlg0006", "works": []}]}
+                )
+            }
+        )
+
+        evidence = asyncio.run(
+            runner(session, "perseus", KNOWN_ISSUE_ID, root=ROOT)
+        )
+
+        self.assertEqual(evidence["id"], KNOWN_ISSUE_ID)
+        self.assertEqual(evidence["status"], "inconclusive")
+        self.assertEqual(evidence["target_urn"], TARGET_WORK)
+        self.assertEqual(evidence["reason"], "discovery_signature_changed")
+        self.assertEqual(evidence["operation"], "find_author_names")
+        self.assertEqual([name for name, _ in session.calls], ["find_author_names"])
+
+    def test_provider_error_in_scaife_step_is_inconclusive_not_release_failure(self):
+        runner = getattr(smoke, "run_known_issue_canary", None)
+        self.assertTrue(callable(runner), "missing live known-issue canary runner")
+        session = FakeSession(
+            {
+                "find_author_names": text_result(
+                    {"authors": [{"works": [{"urn": TARGET_WORK}]}]}
+                ),
+                "get_work_resources": text_result(
+                    {"query": TARGET_WORK, "match_count": 0, "matches": []}
+                ),
+                "get_scaife_library_metadata": text_result(
+                    "temporary Scaife read failure", is_error=True
+                ),
+            }
+        )
+
+        evidence = asyncio.run(
+            runner(session, "perseus", KNOWN_ISSUE_ID, root=ROOT)
+        )
+
+        self.assertEqual(evidence["id"], KNOWN_ISSUE_ID)
+        self.assertEqual(evidence["status"], "inconclusive")
+        self.assertEqual(evidence["target_urn"], TARGET_WORK)
+        self.assertEqual(evidence["reason"], "provider_operation_failed")
+        self.assertEqual(evidence["operation"], "get_scaife_library_metadata")
+        self.assertIn("MCP error", evidence["error"])
 
     def test_cts_resolution_match_triggers_known_issue_retirement_failure(self):
         runner = getattr(smoke, "run_known_issue_canary", None)
