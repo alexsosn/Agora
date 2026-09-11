@@ -192,7 +192,7 @@ codex plugin remove context-fabric@agora
 
 Removing an entire marketplace is broader than removing one plugin and should be used only when you intend to remove all Agora plugins installed from that marketplace.
 
-In a managed ChatGPT/Codex workspace, **Disable plugin is not the same as uninstall**. Use the workspace's plugin installation/removal controls when they are available. Removing the imported marketplace is a workspace-level action affecting all plugins sourced from it, not the normal way to remove one Agora plugin.
+In a managed ChatGPT/Codex workspace, plugin availability and installation policy are controlled by the workspace and the controls exposed on that surface. Those per-plugin settings are distinct from deleting the imported marketplace. Deleting the imported marketplace removes every plugin imported from that marketplace, so do not use marketplace deletion as a one-plugin removal shortcut.
 
 Removing a plugin does not imply deleting Context-Fabric corpus cache data. Use the Context-Fabric cache tools described above when you actually want to reclaim corpus data.
 
