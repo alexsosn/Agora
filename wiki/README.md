@@ -47,6 +47,7 @@ Release documents encode lifecycle instead of P-level priority:
 - [`architecture/ref-context-fabric-cache-lifecycle.md`](architecture/ref-context-fabric-cache-lifecycle.md) — cross-process repository locking, cache-object leases, overlay-aware eviction, LRU/status/remove UX, and load/reload lifecycle.
 - [`architecture/ref-local-materialization.md`](architecture/ref-local-materialization.md) — experimental source → trusted materializer → transactional local artifact boundary, sandbox model, and reproducibility provenance.
 - [`architecture/ref-implementation-details.md`](architecture/ref-implementation-details.md) — marketplace generation, integration plumbing, verification details, scholarly skills, repository layout, and phase status moved out of the user-facing README.
+- [`architecture/ref-user-documentation-information-architecture.md`](architecture/ref-user-documentation-information-architecture.md) — researcher journeys, documentation page roles, canonical fact ownership, and the design contract for #165–#173.
 
 When older planning/research language is broader than the plugin boundary, `ref-plugin-boundary.md` controls. In particular, a backlog item or review finding about a third-party plugin does not authorize Agora to fix the plugin's own semantics.
 
