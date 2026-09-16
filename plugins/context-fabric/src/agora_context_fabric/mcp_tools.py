@@ -204,7 +204,10 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
 
         For collection members, pass the `source_revision` returned by
         list_collection_members to resolve the member at exactly that upstream
-        commit. `source_mode='offline'` guarantees no acquisition network path
+        commit. For a corpus, an immutable `source_revision` selects that exact
+        cached commit instead of current upstream HEAD, e.g. the parent commit a
+        feature module declares as its `parent-base` after the corpus moved on.
+        `source_mode='offline'` guarantees no acquisition network path
         and succeeds only when the exact source snapshots/index are resident.
         `source_mode='require-fresh'` requires a successful remote refresh and is
         incompatible with an explicit immutable `source_revision`.
@@ -263,7 +266,9 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
         is still active.
 
         For a collection member, reuse the discovery `source_revision` to load
-        exactly that collection snapshot. `source_mode='offline'` guarantees no
+        exactly that collection snapshot; for a corpus, an immutable
+        `source_revision` loads that exact cached commit rather than upstream
+        HEAD. `source_mode='offline'` guarantees no
         acquisition network path; `source_mode='require-fresh'` refuses cached
         fallback. Responses report the immutable revision plus source-resolution
         freshness provenance. The response also includes `logical_name`; pass

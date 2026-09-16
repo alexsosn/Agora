@@ -321,16 +321,33 @@ class ResolverTests(unittest.TestCase):
             self.assertEqual(prepared.logical_name, "fixture+fixture-local")
             self.assertTrue((prepared.path / "otype.tf").is_file())
             self.assertEqual((prepared.path / "addon.tf").read_text(encoding="utf-8"), "local\n")
-            self.assertTrue(prepared.modules[0].source_revision.startswith("local:"))
+            self.assertTrue(prepared.modules[0].source_revision.startswith("local-"))
 
-            # Re-materializing the module must not reuse the stale composed overlay.
-            (local / "addon.tf").write_text("re-materialized\n", encoding="utf-8")
-            os.utime(local / "addon.tf", ns=(1, 1))
+            # The overlay links an immutable content snapshot, never the mutable
+            # local-modules directory.
+            self.assertTrue(prepared.modules[0].path.is_relative_to(store.snapshots_dir))
+            self.assertEqual(
+                prepared.modules[0].path.parts[-3:],
+                ("feature-modules", "tf", "2.0"),
+            )
+
+            # Rewriting the module in place (same size, timestamp preserved) must
+            # neither change the already composed overlay nor reuse it.
+            stat = (local / "addon.tf").stat()
+            (local / "addon.tf").write_text("bravo\n", encoding="utf-8")
+            os.utime(local / "addon.tf", ns=(stat.st_atime_ns, stat.st_mtime_ns))
+            self.assertEqual((prepared.path / "addon.tf").read_text(encoding="utf-8"), "local\n")
             refreshed = resolver.prepare_with_modules("fixture", modules=["fixture-local"])
             self.assertNotEqual(refreshed.path, prepared.path)
-            self.assertEqual(
-                (refreshed.path / "addon.tf").read_text(encoding="utf-8"), "re-materialized\n"
+            self.assertNotEqual(
+                refreshed.modules[0].source_revision, prepared.modules[0].source_revision
             )
+            self.assertEqual((refreshed.path / "addon.tf").read_text(encoding="utf-8"), "bravo\n")
+            self.assertEqual((prepared.path / "addon.tf").read_text(encoding="utf-8"), "local\n")
+
+            # Identical content resolves to the same snapshot and overlay again.
+            again = resolver.prepare_with_modules("fixture", modules=["fixture-local"])
+            self.assertEqual(again.path, refreshed.path)
 
     def test_local_feature_module_rejects_parent_warp_files(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -369,6 +386,44 @@ class ResolverTests(unittest.TestCase):
                 self._local_module_catalog(parent_source, dependencies=dependencies), store
             )
             prepared = resolver.prepare_with_modules("fixture", modules=["fixture-local"])
+            self.assertTrue((prepared.path / "addon.tf").is_file())
+
+    def test_corpus_source_revision_selects_cached_parent_after_head_moves(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            parent_source = GitStoreTests()._make_repository(tmp_path)
+            store = GitStore(tmp_path / "cache")
+            local = store.local_feature_module_path("fixture-local", "tf/2.0")
+            local.mkdir(parents=True)
+            (local / "addon.tf").write_text("local\n", encoding="utf-8")
+
+            resolver = ContextFabricResolver(self._local_module_catalog(parent_source), store)
+            reviewed = resolver.prepare("fixture").source_revision
+            dependencies = (
+                {"repository": "example/fixture", "ref": reviewed, "role": "parent-base"},
+            )
+            resolver = ContextFabricResolver(
+                self._local_module_catalog(parent_source, dependencies=dependencies), store
+            )
+
+            # Upstream moves on; HEAD no longer matches the module's parent-base.
+            (parent_source / "tf" / "2.0" / "word.tf").write_text("moved\n", encoding="utf-8")
+            GitStoreTests._commit(parent_source, "move on")
+            with self.assertRaisesRegex(ValueError, "requires parent 'fixture' at revision"):
+                resolver.prepare_with_modules("fixture", modules=["fixture-local"])
+
+            with self.assertRaisesRegex(ValueError, "immutable commit id"):
+                resolver.prepare_with_modules(
+                    "fixture", source_revision="HEAD~1", modules=["fixture-local"]
+                )
+
+            prepared = resolver.prepare_with_modules(
+                "fixture", source_revision=reviewed, modules=["fixture-local"]
+            )
+            self.assertEqual(prepared.source_revision, reviewed)
+            self.assertEqual(
+                (prepared.path / "word.tf").read_text(encoding="utf-8"), "version-2.0\n"
+            )
             self.assertTrue((prepared.path / "addon.tf").is_file())
 
     def test_collection_members_are_discovered_and_loaded_individually(self):

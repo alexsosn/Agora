@@ -167,7 +167,7 @@ class ContextFabricResolver:
         repo = self.store.ensure_metadata(resource.repository, **kwargs)
         return repo, self.store.selected_revision(repo)
 
-    def _collection_repo(
+    def _resource_repo(
         self,
         resource: ResourceSpec,
         source_revision: str | None,
@@ -183,14 +183,14 @@ class ContextFabricResolver:
         if not (repo / ".git").is_dir():
             raise ValueError(
                 f"source revision {source_revision!r} is not available in the cached repository "
-                f"for collection {resource.id!r}; omit source_revision to resolve current upstream state"
+                f"for resource {resource.id!r}; omit source_revision to resolve current upstream state"
             )
         try:
             resolved = self.store._resolved_revision(repo, source_revision)
         except subprocess.CalledProcessError as exc:
             raise ValueError(
                 f"source revision {source_revision!r} is not available in the cached repository "
-                f"for collection {resource.id!r}; no fallback to current upstream state was attempted"
+                f"for resource {resource.id!r}; no fallback to current upstream state was attempted"
             ) from exc
         return repo, resolved
 
@@ -308,7 +308,7 @@ class ContextFabricResolver:
         resource = self.catalog.get(resource_id)
         if resource.kind != "collection":
             raise ValueError(f"resource {resource_id!r} is not a collection")
-        repo, revision = self._collection_repo(resource, source_revision)
+        repo, revision = self._resource_repo(resource, source_revision)
         index = self._collection_index(
             resource,
             repo,
@@ -384,7 +384,7 @@ class ContextFabricResolver:
                 raise ValueError("version selection is supported only for corpus resources")
             if not member_id:
                 raise ValueError(f"member_id is required for collection resource {resource_id!r}")
-            repo, revision = self._collection_repo(resource, source_revision)
+            repo, revision = self._resource_repo(resource, source_revision)
             index = self._collection_index(
                 resource,
                 repo,
@@ -415,11 +415,12 @@ class ContextFabricResolver:
                 version=resolved_version,
                 source_revision=revision,
             )
-        if source_revision is not None:
-            raise ValueError("source_revision selection is supported only for collection resources")
         if member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
-        repo, revision = self._repo(resource)
+        # An explicit immutable source_revision selects a cached parent commit
+        # without consulting upstream HEAD, e.g. the exact commit a feature
+        # module declares as its parent-base after the corpus has moved on.
+        repo, revision = self._resource_repo(resource, source_revision)
         relative = self._select_resource_root(
             resource,
             self.store.dataset_roots(repo, revision),
