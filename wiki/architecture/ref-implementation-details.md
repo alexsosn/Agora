@@ -84,6 +84,8 @@ The Agora runtime exposes resource discovery, collection-member discovery, prepa
 
 The fixed source catalog is generated from canonical registry data and audited against actual upstream Git trees. No machine-specific absolute paths are stored in the registry.
 
+Feature modules are composed onto a prepared parent corpus as a hard-linked overlay. Repository-backed modules (`acquisition.strategy: repository`) are materialized from their registered Git source. Modules whose data Agora may not redistribute or fetch (`acquisition.strategy: local-module`, for example `cuc-burns`) are read from `<cache>/local-modules/<resource id>/<tf_path>` after the user materializes them with the upstream tooling; because that directory is mutable, its feature bytes are copied into an immutable content-addressed snapshot (`snapshots/<id>/local-<sha256 prefix>/feature-modules/...`) before any overlay links them, so in-place regeneration never alters an already composed overlay. The resolver reports an actionable error when a local module is absent and the source audit records it as `skipped` rather than cloning its upstream. A module may declare a `parent-base` dependency with a `ref`; the resolver then refuses to compose it onto any other parent revision, and an immutable `source_revision` on a corpus prepare/load selects that exact cached commit once upstream HEAD has moved on.
+
 ### Perseus
 
 Agora launches the published upstream `perseus-mcp==1.0.2` package directly through `uvx`; it does not vendor or fork Perseus-MCP. The current live Codex-path verification performs a real Homer author-discovery query.
