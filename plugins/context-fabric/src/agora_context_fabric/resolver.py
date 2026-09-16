@@ -468,8 +468,18 @@ class ContextFabricResolver:
                 )
             if not module.tf_path or not module.module_path:
                 raise ValueError(f"feature module {module_id!r} has incomplete upstream path metadata")
-            repo, revision = self._repo(module)
-            local = self.store.materialize_feature_module(repo, module.tf_path, revision)
+            self._check_parent_base(module, prepared)
+            if module.acquisition_strategy == "local-module":
+                try:
+                    local, revision = self.store.local_feature_module(module.id, module.tf_path)
+                except FileNotFoundError as exc:
+                    raise FileNotFoundError(
+                        f"{exc}. Agora does not fetch this module; materialize it with the "
+                        f"upstream tooling from {module.repository} and place the output there."
+                    ) from exc
+            else:
+                repo, revision = self._repo(module)
+                local = self.store.materialize_feature_module(repo, module.tf_path, revision)
             selected.append(
                 PreparedFeatureModule(
                     resource_id=module.id,
@@ -483,8 +493,30 @@ class ContextFabricResolver:
         return tuple(selected)
 
     @staticmethod
+    def _check_parent_base(module: ResourceSpec, prepared: PreparedCorpus) -> None:
+        """Enforce a module's exact parent commit when it declares one.
+
+        A ``parent-base`` dependency with a ``ref`` means the module's node
+        identities are only valid against that parent revision, not merely the
+        parent version label.
+        """
+        for dependency in module.dependencies:
+            if dependency.get("role") != "parent-base":
+                continue
+            required = dependency.get("ref")
+            if not required:
+                continue
+            actual = prepared.source_revision
+            if actual is None or not (actual.startswith(required) or required.startswith(actual)):
+                raise ValueError(
+                    f"feature module {module.id!r} requires parent {prepared.resource_id!r} at "
+                    f"revision {required!r}, but the prepared parent is at {actual!r}"
+                )
+
+    @staticmethod
     def _link_features(source: Path, target: Path, *, allow_warp: bool) -> None:
-        for source_file in sorted(source.glob("*.tf")):
+        # `*.tf` also matches Text-Fabric's compiled-cache directory `.tf`.
+        for source_file in sorted(path for path in source.glob("*.tf") if path.is_file()):
             if not allow_warp and source_file.name in GitStore.FORBIDDEN_FEATURE_MODULE_FILES:
                 raise ValueError(
                     f"feature module cannot replace parent warp file {source_file.name!r}"

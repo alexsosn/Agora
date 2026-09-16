@@ -66,6 +66,19 @@ Do not normalize Ugaritic transliteration ad hoc inside a query without recordin
 
 If comparing CUC with another Ugaritic database, establish a mapping between their transliteration/tokenization conventions first. Identical-looking strings do not guarantee identical segmentation or editorial policy.
 
+## Optional Burns cultic-vocabulary module (`cuc-burns`)
+
+Agora registers `cuc-burns`, a feature-only module that attaches Duncan Burns's *Contents, Texts and Contexts* (2003) Workbook annotations to existing CUC nodes: `burns_headwords`, `burns_sections`, `burns_semantic_statuses`, `burns_worksheet_roles`, `burns_annotation_ids`, and the lossless `burns_annotations` payload. The [upstream CTC-TF repository](https://github.com/alexsosn/CTC-TF) owns the alignment method, the label semantics, and the module report.
+
+Agora does not fetch this module. Its source is CC BY-NC-ND, so the user materializes it locally with the upstream `ugarit-context-parsing module` CLI against CUC `tf/0.2.8` and places the output under `<AGORA_CORPUS_CACHE>/local-modules/cuc-burns/tf/0.2.8`; `describe_available_corpus("cuc-burns")` shows the acquisition strategy and the required parent commit. Select it with `load_corpus("cuc", modules=["cuc-burns"])`. Agora refuses to compose it onto any other CUC revision than the one the module declares as its `parent-base`.
+
+When using it:
+
+- treat the module's status labels (for example `homograph_excluded`, `probable_cultic`) and archive roles (`prime_gp`, `prime_ph`, `derived_*`) as Burns's classifications as documented upstream, not as CUC editorial features;
+- an annotation on a `line` rather than a `word` means the upstream aligner anchored it structurally, not lexically; read `burns_annotations` before counting it as a word attestation;
+- occurrences in tablets absent from CUC stay in the upstream module report and never appear in the corpus, so Burns totals are not recoverable from CUC queries alone;
+- record the module's `source_revision` fingerprint from the load result together with the CUC revision.
+
 ## Reproducibility
 
 For a substantive result, record:
@@ -73,6 +86,7 @@ For a substantive result, record:
 - Agora resource ID `cuc`;
 - selected TF version;
 - resolved source revision and matching upstream documentation;
+- selected feature modules (for example `cuc-burns`) and their fingerprints;
 - node type(s) counted;
 - whether `g_cons`, `sign`, or another representation supplied the match;
 - treatment of `emen`, `cert`, `alt`, and damaged/uncertain material;

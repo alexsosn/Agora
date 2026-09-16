@@ -370,3 +370,33 @@ resources:
     licenses: {data: unknown, redistribution: unknown}
     verification: {status: experimental}
     source_snapshot: {source: wiki/backlog/P1-research-text-fabric-feature-modules.md, checked_at: "2026-08-31"}
+
+  - id: cuc-burns
+    name: CUC Burns cultic-vocabulary contexts (CTC)
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: cuc
+    compatibility: {parent_versions: ["0.2.8"]}
+    module:
+      status: community
+      coverage: Burns Workbook occurrences whose KTU tablet exists in CUC 0.2.8 (KTU 1-3 series); administrative KTU 4+ occurrences stay unanchored in the upstream module report.
+    languages: [ugaritic]
+    disciplines: [semitic-linguistics]
+    description: Duncan Burns (2003) Contents, Texts and Contexts cultic-vocabulary annotations (headword, interpretation status, GP/PH archive role, findspot) aligned to existing CUC nodes.
+    upstream:
+      repository: alexsosn/CTC-TF
+      module: alexsosn/CTC-TF/tf
+      tf_path: tf/0.2.8
+      dependencies:
+        - repository: DT-UCPH/cuc
+          ref: ad69400f5446e1c8217af01659c7c10ab00c015b
+          role: parent-base
+          notes: The module fingerprints this exact CUC commit and tf/0.2.8; Agora refuses to compose it onto any other parent revision.
+    acquisition:
+      strategy: local-module
+      lazy: true
+      notes: Not fetched by Agora. Materialize with the upstream `ugarit-context-parsing module --cuc <cuc>/tf/0.2.8` CLI and place the output under `<AGORA_CORPUS_CACHE>/local-modules/cuc-burns/tf/0.2.8`.
+    licenses: {data: CC-BY-NC-ND-2.5, redistribution: restricted, notes: Burns source material is NoDerivatives; generated Text-Fabric artifacts are for local use only.}
+    verification: {status: community}
+    source_snapshot: {source: alexsosn/CTC-TF:README.md, checked_at: "2026-09-16"}

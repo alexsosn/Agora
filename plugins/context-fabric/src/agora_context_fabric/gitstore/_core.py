@@ -71,6 +71,7 @@ class GitStore:
     ) -> None:
         self.cache_dir = Path(cache_dir).expanduser().resolve()
         self.repositories_dir = self.cache_dir / "repositories"
+        self.local_modules_dir = self.cache_dir / "local-modules"
         self.snapshots_dir = self.cache_dir / "snapshots"
         self.overlays_dir = self.cache_dir / "overlays"
         self.tmp_dir = self.cache_dir / "tmp"
@@ -388,6 +389,35 @@ class GitStore:
         result = sorted(result)
         self._validate_feature_module_files(result, relative_path)
         return result
+
+    def local_feature_module_path(self, resource_id: str, relative_path: str) -> Path:
+        """Return where a user-materialized feature module is expected to live."""
+        relative = self._safe_relative_path(relative_path)
+        local = self.local_modules_dir / self.safe_cache_key(resource_id)
+        return local if relative == "." else local / relative
+
+    def local_feature_module(self, resource_id: str, relative_path: str) -> tuple[Path, str]:
+        """Locate a user-materialized feature module in the local-modules store.
+
+        Local modules are never fetched by Agora: the user materializes them with
+        the upstream tooling and places the result under
+        ``<cache>/local-modules/<resource id>/<tf_path>``. Returns the module
+        directory and a fingerprint of its feature files that changes whenever
+        they are re-materialized, so composed overlays are not reused stale.
+        """
+        local = self.local_feature_module_path(resource_id, relative_path)
+        files = sorted(path for path in local.glob("*.tf") if path.is_file()) if local.is_dir() else []
+        self._validate_feature_module_files([path.name for path in files], relative_path)
+        if not files:
+            raise FileNotFoundError(
+                f"local feature module {resource_id!r} is not materialized: expected non-warp "
+                f"`.tf` files under {local}"
+            )
+        digest = hashlib.sha256()
+        for path in files:
+            stat = path.stat()
+            digest.update(f"{path.name}\0{stat.st_size}\0{stat.st_mtime_ns}\n".encode("utf-8"))
+        return local, f"local:{digest.hexdigest()[:16]}"
 
     @staticmethod
     def _safe_relative_path(relative_path: str) -> str:

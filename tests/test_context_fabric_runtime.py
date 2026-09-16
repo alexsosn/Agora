@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -33,7 +34,7 @@ class CatalogTests(unittest.TestCase):
             scope = yaml.safe_load(fh)
         self.assertTrue(set(scope["required_resources"]).issubset(catalog.ids()))
         modules = catalog.search(kind="feature-module")
-        self.assertEqual(len(modules), 21)
+        self.assertEqual(len(modules), 22)
         self.assertEqual(catalog.get("bhsa-cantillation-trees").parent, "bhsa")
         self.assertEqual(catalog.get("bhsa-cantillation-trees").parent_versions, ("2021",))
 
@@ -269,6 +270,107 @@ class ResolverTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "not compatible"):
                 resolver.prepare_with_modules("fixture", modules=["legacy-addon"])
 
+    def _local_module_catalog(self, parent_source: Path, **overrides) -> Catalog:
+        spec = dict(
+            id="fixture-local",
+            name="Fixture local module",
+            plugin="context-fabric",
+            provider="context-fabric",
+            kind="feature-module",
+            repository="example/fixture-local",
+            languages=("test",),
+            disciplines=("testing",),
+            tf_path="tf/2.0",
+            acquisition_strategy="local-module",
+            parent="fixture",
+            parent_versions=("2.0",),
+            module_path="example/fixture-local/tf",
+            module_status="community",
+        )
+        spec.update(overrides)
+        return Catalog(
+            [
+                ResourceSpec(
+                    id="fixture",
+                    name="Fixture corpus",
+                    plugin="context-fabric",
+                    provider="context-fabric",
+                    kind="corpus",
+                    repository=str(parent_source),
+                    languages=("test",),
+                    disciplines=("testing",),
+                ),
+                ResourceSpec(**spec),
+            ]
+        )
+
+    def test_local_feature_module_is_composed_from_the_local_modules_store(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            parent_source = GitStoreTests()._make_repository(tmp_path)
+            store = GitStore(tmp_path / "cache")
+            resolver = ContextFabricResolver(self._local_module_catalog(parent_source), store)
+
+            with self.assertRaisesRegex(FileNotFoundError, "not materialized.*example/fixture-local"):
+                resolver.prepare_with_modules("fixture", modules=["fixture-local"])
+
+            local = store.local_feature_module_path("fixture-local", "tf/2.0")
+            local.mkdir(parents=True)
+            (local / "addon.tf").write_text("local\n", encoding="utf-8")
+            prepared = resolver.prepare_with_modules("fixture", modules=["fixture-local"])
+            self.assertEqual(prepared.logical_name, "fixture+fixture-local")
+            self.assertTrue((prepared.path / "otype.tf").is_file())
+            self.assertEqual((prepared.path / "addon.tf").read_text(encoding="utf-8"), "local\n")
+            self.assertTrue(prepared.modules[0].source_revision.startswith("local:"))
+
+            # Re-materializing the module must not reuse the stale composed overlay.
+            (local / "addon.tf").write_text("re-materialized\n", encoding="utf-8")
+            os.utime(local / "addon.tf", ns=(1, 1))
+            refreshed = resolver.prepare_with_modules("fixture", modules=["fixture-local"])
+            self.assertNotEqual(refreshed.path, prepared.path)
+            self.assertEqual(
+                (refreshed.path / "addon.tf").read_text(encoding="utf-8"), "re-materialized\n"
+            )
+
+    def test_local_feature_module_rejects_parent_warp_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            parent_source = GitStoreTests()._make_repository(tmp_path)
+            store = GitStore(tmp_path / "cache")
+            local = store.local_feature_module_path("fixture-local", "tf/2.0")
+            local.mkdir(parents=True)
+            (local / "otype.tf").write_text("@node\n", encoding="utf-8")
+            resolver = ContextFabricResolver(self._local_module_catalog(parent_source), store)
+            with self.assertRaisesRegex(ValueError, "parent warp file"):
+                resolver.prepare_with_modules("fixture", modules=["fixture-local"])
+
+    def test_feature_module_parent_base_revision_is_enforced(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            parent_source = GitStoreTests()._make_repository(tmp_path)
+            store = GitStore(tmp_path / "cache")
+            local = store.local_feature_module_path("fixture-local", "tf/2.0")
+            local.mkdir(parents=True)
+            (local / "addon.tf").write_text("local\n", encoding="utf-8")
+            dependencies = (
+                {"repository": "example/fixture", "ref": "0" * 40, "role": "parent-base"},
+            )
+            resolver = ContextFabricResolver(
+                self._local_module_catalog(parent_source, dependencies=dependencies), store
+            )
+            with self.assertRaisesRegex(ValueError, "requires parent 'fixture' at revision"):
+                resolver.prepare_with_modules("fixture", modules=["fixture-local"])
+
+            actual = resolver.prepare("fixture").source_revision
+            dependencies = (
+                {"repository": "example/fixture", "ref": actual[:12], "role": "parent-base"},
+            )
+            resolver = ContextFabricResolver(
+                self._local_module_catalog(parent_source, dependencies=dependencies), store
+            )
+            prepared = resolver.prepare_with_modules("fixture", modules=["fixture-local"])
+            self.assertTrue((prepared.path / "addon.tf").is_file())
+
     def test_collection_members_are_discovered_and_loaded_individually(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -407,7 +509,7 @@ class ServiceTests(unittest.TestCase):
         )
 
         modules = service.list_resources(kind="feature-module")
-        self.assertEqual(len(modules), 21)
+        self.assertEqual(len(modules), 22)
 
         dead = service.list_resources(query="dead sea", kind="corpus")
         self.assertEqual([item["id"] for item in dead], ["dss"])
