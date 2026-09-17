@@ -11,6 +11,23 @@ Use this page to choose the shortest path for a research task. You can start her
 | **Compatibility** | [Check client, platform, and known limitations](compatibility.md) |
 | **Troubleshooting** | [Start from the symptom you see](#troubleshooting) |
 
+## How Agora fits together
+
+```text
+Agora marketplace
+├─ Context-Fabric plugin → scholarly resources/corpora (for example BHSA)
+├─ Perseus plugin → Perseus/Scaife service
+├─ Sefaria plugin → Sefaria service
+└─ SEDRA plugin → SEDRA IV service
+```
+
+- **Marketplace** — the place from which you discover and install Agora plugins.
+- **Plugin** — an installable integration that gives the agent access to a scholarly tool or service.
+- **Resource/corpus** — a scholarly dataset selected through a plugin when that plugin offers multiple datasets.
+- **Skill** — research guidance used by the agent to apply existing plugin/resource capabilities and conventions correctly.
+
+For BHSA, **install Context-Fabric**. BHSA is a corpus/resource, **not a plugin**. Perseus, Sefaria, and SEDRA usually work by installing their plugin and using the corresponding remote service directly.
+
 ## Get started
 
 If you already know which plugin you need, follow the [installation guide](installation.md). It covers Claude Code, managed ChatGPT/Codex workspace import, local Codex testing, prerequisites, updates, and removal.
