@@ -73,6 +73,13 @@ class UserDocumentationMentalModelTests(unittest.TestCase):
         self.assertIn("scholarly skills", readme)
         self.assertNotRegex(readme, r"BHSA\s+plugin", "BHSA must not be described as a plugin.")
 
+        first_contact = readme.split("## Verification scope", 1)[0].lower()
+        self.assertNotIn(
+            "provider",
+            first_contact,
+            "Provider is implementation vocabulary; defer it until verification/reference material.",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
