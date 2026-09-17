@@ -66,7 +66,7 @@ Start with the observable symptom rather than the internal component name:
 
 - plugin is missing, will not launch, `uv`/Python cannot be resolved, a remote lookup fails, or a ChatGPT surface does not expose the plugin → [installation troubleshooting](installation.md#troubleshooting);
 - Context-Fabric acquisition or compilation is slow, disk use is high, a load is already active, or you need to cancel/clean cache objects → [Context-Fabric cache and cold-load safety](context-fabric-cache.md);
-- a remote service returns an unexpected but known limitation, or you need the exact tested client/platform boundary → [compatibility and known limitations](compatibility.md#current-upstream-limitations).
+- a plugin or remote service has a known limitation, or you need the exact tested client/platform boundary → [compatibility and known limitations](compatibility.md#current-upstream-limitations).
 
 A remote-service outage or upstream defect is not repaired by reinstalling Agora. Preserve the original error and follow the upstream/service guidance linked from the relevant page.
 
