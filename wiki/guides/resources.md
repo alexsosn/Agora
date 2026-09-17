@@ -1,0 +1,91 @@
+# Scholarly resource catalog
+
+This page is generated from Agora's canonical registry. It describes the resources currently selectable through the **Context-Fabric plugin**; installing the plugin does not download every resource.
+
+**Integration evidence** (`Experimental`, `Community`, `Verified`) describes Agora's integration/load evidence. It **does not certify scholarly quality** or suitability of an edition, annotation layer, or dataset.
+
+Rights are reported from the canonical data-licensing evidence. `component-specific`, `member-specific`, and `unresolved` are intentionally visible states; `unknown` is not silently treated as open data.
+
+Load-cost values below are **historical measurements** tied to the recorded machine, revision, and date. They are **not requirements or predictions** for another environment.
+
+## Resources
+
+| Resource | Languages | Disciplines | Period | Kind / access | Rights | Integration evidence | Upstream |
+|---|---|---|---|---|---|---|---|
+| <!-- resource:bhsa --> **Biblia Hebraica Stuttgartensia Amstelodamensis** (`bhsa`)<br>Biblia Hebraica Stuttgartensia Amstelodamensis. | Hebrew | Biblical studies, Semitic linguistics | 1000-200 BCE | Corpus · lazy acquisition | `CC-BY-NC-4.0` · restricted · resolved | Verified | [ETCBC/bhsa](https://github.com/ETCBC/bhsa) |
+| <!-- resource:dss --> **Dead Sea Scrolls** (`dss`)<br>Dead Sea Scrolls corpus. | Hebrew | Biblical studies, Judaica | 300 BCE-100 CE | Corpus · lazy acquisition | `CC-BY-NC-4.0` · restricted · resolved | Community | [ETCBC/dss](https://github.com/ETCBC/dss) |
+| <!-- resource:sp --> **Samaritan Pentateuch** (`sp`)<br>Samaritan Pentateuch. | Hebrew | Biblical studies, Semitic linguistics | 516 BCE-70 CE | Corpus · lazy acquisition | `CC-BY-NC-4.0` · restricted · resolved | Community | [DT-UCPH/sp](https://github.com/DT-UCPH/sp) |
+| <!-- resource:extrabiblical --> **Extra-biblical Hebrew texts** (`extrabiblical`)<br>Extra-biblical Hebrew texts. | Hebrew | Judaica, History | 200 BCE-200 CE | Corpus · lazy acquisition | `CC-BY-NC-4.0` · restricted · resolved | Community | [ETCBC/extrabiblical](https://github.com/ETCBC/extrabiblical) |
+| <!-- resource:targum --> **ETCBC Targum Corpus** (`targum`)<br>Text-Fabric representations of Jewish Aramaic translations of the Hebrew Bible. | Aramaic | Biblical studies, Judaica, Semitic linguistics | — | Corpus · lazy acquisition | `CC-BY-NC-4.0` · restricted · resolved | Community | [ETCBC/targum](https://github.com/ETCBC/targum) |
+| <!-- resource:lxx --> **Septuagint** (`lxx`)<br>Septuagint, Rahlfs edition. | Greek | Biblical studies, Classics | 300-100 BCE | Corpus · lazy acquisition | `component-specific` · unknown · component-specific | Community | [CenterBLC/LXX](https://github.com/CenterBLC/LXX) |
+| <!-- resource:n1904 --> **Nestle 1904 Greek New Testament** (`n1904`)<br>Nestle 1904 Greek New Testament. | Greek | Biblical studies, Classics | 100-400 CE | Corpus · lazy acquisition | `component-specific` · unknown · component-specific | Community | [CenterBLC/N1904](https://github.com/CenterBLC/N1904) |
+| <!-- resource:SBLGNT --> **SBL Greek New Testament** (`SBLGNT`)<br>SBL Greek New Testament. | Greek | Biblical studies, Classics | 100-400 CE | Corpus · lazy acquisition | `component-specific` · unknown · component-specific | Community | [CenterBLC/SBLGNT](https://github.com/CenterBLC/SBLGNT) |
+| <!-- resource:nestle1904 --> **Nestle 1904 LOWFAT-XML** (`nestle1904`)<br>New Testament from LOWFAT-XML syntax trees. | Greek | Biblical studies, Classics | 100-400 CE | Corpus · lazy acquisition | `component-specific` · unknown · component-specific | Community | [ETCBC/nestle1904](https://github.com/ETCBC/nestle1904) |
+| <!-- resource:Nestle1904GBI --> **Nestle 1904 GBI** (`Nestle1904GBI`)<br>Nestle 1904 Greek New Testament corpus maintained by tonyjurg. | Greek | Biblical studies, Classics | 100-400 CE | Corpus · lazy acquisition | `CC-BY-4.0` · permitted · resolved | Community | [tonyjurg/Nestle1904GBI](https://github.com/tonyjurg/Nestle1904GBI) |
+| <!-- resource:tischendorf_tf --> **Tischendorf 8th Edition Greek New Testament** (`tischendorf_tf`)<br>Tischendorf 8th Edition Greek New Testament. | Greek | Biblical studies, Classics | 100-400 CE | Corpus · lazy acquisition | `public-domain` · permitted · resolved | Community | [codykingham/tischendorf_tf](https://github.com/codykingham/tischendorf_tf) |
+| <!-- resource:bible --> **PTHU Greek Bible collection** (`bible`)<br>Greek Old Testament, New Testament, and extra-biblical texts organized as multiple independently loadable TF corpora. | Greek | Biblical studies, Classics | 300 BCE-400 CE | Collection · lazy members | `unknown` · unknown · unresolved | Community | [pthu/bible](https://github.com/pthu/bible) |
+| <!-- resource:patristics --> **PTHU Patristics collection** (`patristics`)<br>Greek Church Fathers organized across many author/work TF corpora. | Greek | Classics, Biblical studies | 100-500 CE | Collection · lazy members | `unknown` · unknown · unresolved | Community | [pthu/patristics](https://github.com/pthu/patristics) |
+| <!-- resource:greek_literature --> **PTHU Greek Literature collection** (`greek_literature`)<br>Perseus and Open Greek texts organized as many independently loadable TF corpora. | Greek | Classics, Literary studies | 400 BCE-400 CE | Collection · lazy members | `member-specific` · unknown · member-specific | Community | [pthu/greek_literature](https://github.com/pthu/greek_literature) |
+| <!-- resource:athenaeus --> **Athenaeus Deipnosophistae** (`athenaeus`)<br>Athenaeus' Deipnosophistae. | Greek | Classics, Literary studies | 80-170 CE | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [pthu/athenaeus](https://github.com/pthu/athenaeus) |
+| <!-- resource:peshitta --> **Syriac Old Testament** (`peshitta`)<br>Syriac Old Testament. | Syriac | Syriac studies, Biblical studies | 1000 BCE-900 CE | Corpus · lazy acquisition | `CC-BY-NC-4.0` · restricted · resolved | Community | [ETCBC/peshitta](https://github.com/ETCBC/peshitta) |
+| <!-- resource:syrnt --> **Syriac New Testament** (`syrnt`)<br>Syriac New Testament. | Syriac | Syriac studies, Biblical studies | 0-1000 CE | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [ETCBC/syrnt](https://github.com/ETCBC/syrnt) |
+| <!-- resource:syriac --> **Syriac texts collection** (`syriac`)<br>Syriac texts collection as cataloged by Context-Fabric. | Syriac | Syriac studies, Semitic linguistics | Various | Corpus · lazy acquisition | `CC-BY-NC-4.0` · restricted · resolved | Community | [ETCBC/syriac](https://github.com/ETCBC/syriac) |
+| <!-- resource:quran --> **Quranic Arabic Corpus** (`quran`)<br>Quranic Arabic Corpus. | Arabic | Islamic studies, Semitic linguistics | 600-900 CE | Corpus · lazy acquisition | `CC-BY-4.0` · restricted · component-specific | Community | [q-ran/quran](https://github.com/q-ran/quran) |
+| <!-- resource:fusus --> **Fusus al-Hikam** (`fusus`)<br>Ibn Arabi's Fusus al-Hikam. | Arabic | Islamic studies | Medieval | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [among/fusus](https://github.com/among/fusus) |
+| <!-- resource:nena_tf --> **North Eastern Neo-Aramaic** (`nena_tf`)<br>North Eastern Neo-Aramaic corpus. | Aramaic | Semitic linguistics, Historical linguistics | Modern | Corpus · lazy acquisition | `CC-BY-4.0` · permitted · resolved | Community | [CambridgeSemiticsLab/nena_tf](https://github.com/CambridgeSemiticsLab/nena_tf) |
+| <!-- resource:uruk --> **Archaic tablets from Uruk** (`uruk`)<br>Archaic proto-cuneiform tablets from Uruk. | Proto cuneiform | Assyriology | 4000-3100 BCE | Corpus · lazy acquisition | `CDLI-terms-of-use` · permitted · resolved | Community | [Nino-cunei/uruk](https://github.com/Nino-cunei/uruk) |
+| <!-- resource:oldassyrian --> **Old Assyrian documents** (`oldassyrian`)<br>Old Assyrian documents. | Akkadian | Assyriology, Semitic linguistics | 2000-1600 BCE | Corpus · lazy acquisition | `CDLI-terms-of-use` · permitted · resolved | Community | [Nino-cunei/oldassyrian](https://github.com/Nino-cunei/oldassyrian) |
+| <!-- resource:oldbabylonian --> **Old Babylonian letters** (`oldbabylonian`)<br>Old Babylonian letters. | Akkadian | Assyriology, Semitic linguistics | 1900-1600 BCE | Corpus · lazy acquisition | `CDLI-terms-of-use` · permitted · resolved | Community | [Nino-cunei/oldbabylonian](https://github.com/Nino-cunei/oldbabylonian) |
+| <!-- resource:ninmed --> **Medical Encyclopedia from Nineveh** (`ninmed`)<br>Medical Encyclopedia from Nineveh. | Akkadian | Assyriology | ca. 800 BCE | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [Nino-cunei/ninmed](https://github.com/Nino-cunei/ninmed) |
+| <!-- resource:cuc --> **Copenhagen Ugaritic Corpus** (`cuc`)<br>Copenhagen Ugaritic Corpus. | Ugaritic | Semitic linguistics | 1223-1172 BCE | Corpus · lazy acquisition | `CC-BY-NC-4.0` · restricted · resolved | Verified | [DT-UCPH/cuc](https://github.com/DT-UCPH/cuc) |
+| <!-- resource:dhammapada --> **Dhammapada** (`dhammapada`)<br>Ancient Buddhist verses. | Pali | Buddhist studies | 300 BCE | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [ETCBC/dhammapada](https://github.com/ETCBC/dhammapada) |
+| <!-- resource:translatin-manif --> **TransLatin manifestations** (`translatin-manif`)<br>Collection of separately loadable Text-Fabric manifestations from the TransLatin early modern Latin drama project. | Latin | Literary studies, History | Early Modern | Collection · lazy members | `unknown` · unknown · unresolved | Community | [HuygensING/translatin-manif](https://github.com/HuygensING/translatin-manif) |
+| <!-- resource:wp6-missieven --> **VOC General Missives** (`wp6-missieven`)<br>VOC General Missives. | Dutch | History | 1600-1800 CE | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [CLARIAH/wp6-missieven](https://github.com/CLARIAH/wp6-missieven) |
+| <!-- resource:wp6-daghregisters --> **Batavia daily records** (`wp6-daghregisters`)<br>Batavia daily records. | Dutch | History | 1640-1641 | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [CLARIAH/wp6-daghregisters](https://github.com/CLARIAH/wp6-daghregisters) |
+| <!-- resource:wp6-ferdinandhuyck --> **Ferdinand Huyck** (`wp6-ferdinandhuyck`)<br>Dutch novel by Jacob van Lennep. | Dutch | Literary studies | 1884 | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [CLARIAH/wp6-ferdinandhuyck](https://github.com/CLARIAH/wp6-ferdinandhuyck) |
+| <!-- resource:mondriaan --> **Piet Mondriaan letters** (`mondriaan`)<br>Piet Mondriaan letters. | Dutch | History | 1892-1923 | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [annotation/mondriaan](https://github.com/annotation/mondriaan) |
+| <!-- resource:descartes-tf --> **Descartes correspondence** (`descartes-tf`)<br>Descartes correspondence. | French, Latin, Dutch | History | 1619-1650 | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [CLARIAH/descartes-tf](https://github.com/CLARIAH/descartes-tf) |
+| <!-- resource:suriano --> **Suriano diplomatic correspondence** (`suriano`)<br>Diplomatic correspondence. | Italian | History | 1616-1623 | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [HuygensING/suriano](https://github.com/HuygensING/suriano) |
+| <!-- resource:mobydick --> **Moby-Dick** (`mobydick`)<br>Herman Melville's Moby-Dick with NLP annotations. | English | Literary studies | 1851 | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [annotation/mobydick](https://github.com/annotation/mobydick) |
+| <!-- resource:banks --> **Consider Phlebas** (`banks`)<br>Iain M. Banks' Consider Phlebas. | English | Literary studies | 1987 | Corpus · lazy acquisition | `unknown` · unknown · unresolved | Community | [annotation/banks](https://github.com/annotation/banks) |
+| <!-- resource:TLHdig-TF --> **TLHdig-TF** (`TLHdig-TF`)<br>Text-Fabric conversion of the Thesaurus Linguarum Hethaeorum digitalis Hittite corpus. | Hittite | Hittitology, Digital philology | 2nd millennium BCE | Corpus · lazy acquisition | `CC-BY-4.0` · permitted · resolved | Community | [alexsosn/TLHdig-TF](https://github.com/alexsosn/TLHdig-TF) |
+
+## Collections
+
+Collection members are not enumerated on this page. Collection indexes are snapshot-specific and can contain many independently selectable corpora; after installing Context-Fabric, discover the selected collection's members and preserve the returned member ID and source revision in reproducible work.
+
+- **PTHU Greek Bible collection** (`bible`) — members are acquired lazily.
+- **PTHU Patristics collection** (`patristics`) — members are acquired lazily.
+- **PTHU Greek Literature collection** (`greek_literature`) — members are acquired lazily.
+- **TransLatin manifestations** (`translatin-manif`) — members are acquired lazily.
+
+## Historical load observations
+
+- **Biblia Hebraica Stuttgartensia Amstelodamensis** (`bhsa`) — measured 2026-09-04: source 165 MB; compiled 866 MB; total cache 1100 MB; peak RSS 2580 MB; first load 630 s; warm load 7.7 s. Environment: macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7. Notes: Historical machine-specific observation; current-machine cost may differ. Parent-only measurement excludes module combinations and may trigger separate overlay compilation tracked in #46.
+- **PTHU Greek Literature collection** (`greek_literature`) — measured 2026-09-04: typical member cache 10 MB; discovery cache 1.7 MB; typical member first load 20–33 s; discovery 5.2 s. Environment: macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7. Notes: Historical machine-specific observation; current-machine cost may differ.
+- **Copenhagen Ugaritic Corpus** (`cuc`) — measured 2026-09-04: source 3.1 MB; compiled 20 MB; total cache 24 MB; peak RSS 288 MB; first load 30 s; warm load 1.5 s. Environment: macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7. Notes: Historical machine-specific observation; current-machine cost may differ.
+- **TLHdig-TF** (`TLHdig-TF`) — measured 2026-09-04: source 388 MB; compiled 4600 MB; total cache 5100 MB; peak RSS 2100 MB; first load 1740 s. Environment: macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7. Notes: Historical machine-specific observation measured for tf/0.1.0; it does not describe the current tf/0.4.0 artifact. Current-machine cost may differ. Peak RSS came from the related earlier run rather than the final converged compile measurement.
+
+## Known integration limitations
+
+- **PTHU Greek Literature collection** (`greek_literature`), `context-fabric/duplicate-structure-levels` — Some collection members declare duplicate structure levels and cannot be loaded by the supported Context-Fabric release.
+
+## Annotation modules
+
+These are selectable feature modules attached to a parent corpus. They are not standalone plugins or corpora. A previously unseen module combination can require parent-scale compilation/cache work; inspect the Context-Fabric preflight before an expensive load.
+
+| Module | Parent | Status | Compatible parent versions | Languages | Rights | Integration evidence | Upstream |
+|---|---|---|---|---|---|---|---|
+| <!-- feature-module:bhsa-phono --> **BHSA phonetic features** (`bhsa-phono`)<br>ETCBC phonetic features for BHSA. | `bhsa` | Standard | `2021` | Hebrew | `unknown` · unknown | Community | [ETCBC/phono](https://github.com/ETCBC/phono) |
+| <!-- feature-module:bhsa-parallels --> **BHSA similar passages** (`bhsa-parallels`)<br>ETCBC similar-passage features for BHSA. | `bhsa` | Standard | `2021` | Hebrew | `unknown` · unknown | Community | [ETCBC/parallels](https://github.com/ETCBC/parallels) |
+| <!-- feature-module:bhsa-trees --> **BHSA sentence trees** (`bhsa-trees`)<br>ETCBC tree-structure features for BHSA. | `bhsa` | Optional | `2021` | Hebrew | `unknown` · unknown | Community | [ETCBC/trees](https://github.com/ETCBC/trees) |
+| <!-- feature-module:bhsa-valence --> **BHSA valence features** (`bhsa-valence`)<br>ETCBC valence annotations for BHSA. | `bhsa` | Optional | `2021` | Hebrew | `unknown` · unknown | Community | [ETCBC/valence](https://github.com/ETCBC/valence) |
+| <!-- feature-module:bhsa-bridging --> **BHSA bridging morphology** (`bhsa-bridging`)<br>ETCBC module aligning additional Open Scriptures morphology with BHSA. | `bhsa` | Optional | `2021` | Hebrew | `upstream-dependent` · unknown | Community | [ETCBC/bridging](https://github.com/ETCBC/bridging) |
+| <!-- feature-module:bhsa-heads --> **BHSA head features** (`bhsa-heads`)<br>ETCBC head annotations from the canonical standalone heads repository. | `bhsa` | Optional | `2021` | Hebrew | `unknown` · unknown | Community | [ETCBC/heads](https://github.com/ETCBC/heads) |
+| <!-- feature-module:bhsa-genre-synvar --> **BHSA genre and syntactic-variation features** (`bhsa-genre-synvar`)<br>ETCBC genre and syntactic-variation annotations for BHSA. | `bhsa` | Optional | `2021` | Hebrew | `unknown` · unknown | Experimental | [ETCBC/genre_synvar](https://github.com/ETCBC/genre_synvar) |
+| <!-- feature-module:bhsa-bhsaddons --> **BHS add-on features** (`bhsa-bhsaddons`)<br>CenterBLC add-on feature bundle for BHSA/BHS. | `bhsa` | Community | `2021` | Hebrew | `unknown` · unknown | Community | [CenterBLC/BHSaddons](https://github.com/CenterBLC/BHSaddons) |
+| <!-- feature-module:bhsa-ud-tf --> **BHSA Universal Dependencies features** (`bhsa-ud-tf`)<br>Community Universal Dependencies-derived features aligned to BHSA. | `bhsa` | Community | `2021` | Hebrew | `upstream-dependent` · unknown | Community | [mr-martian/bhsa-ud-tf](https://github.com/mr-martian/bhsa-ud-tf) |
+
+For acquisition/compile limits and module-overlay cost behavior, see [Context-Fabric cache and cold-load safety](context-fabric-cache.md).
+
+For client/platform support and the meaning of integration evidence, see [Compatibility and verification](compatibility.md).

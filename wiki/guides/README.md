@@ -6,7 +6,7 @@ Use this page to choose the shortest path for a research task. You can start her
 |---|---|
 | **Get started** | [Install the plugin you need](installation.md) |
 | **Browse plugins** | [Choose a plugin by research task](../../README.md#choosing-a-plugin) |
-| **Browse resources** | [See the current resource-discovery path](#browse-resources) |
+| **Browse resources** | [Browse the resource catalog](resources.md) |
 | **Research tutorials / recipes** | [Start from the current example prompts](../../README.md#example-prompts) |
 | **Compatibility** | [Check client, platform, and known limitations](compatibility.md) |
 | **Troubleshooting** | [Start from the symptom you see](#troubleshooting) |
@@ -42,9 +42,9 @@ Detailed per-plugin decision pages are not yet part of the published documentati
 
 ## Browse resources
 
-Context-Fabric exposes registered corpora and collections lazily; installing the plugin does not download every corpus. After installation, ask the Context-Fabric plugin to list or describe the available registered resources before loading one.
+Use the [generated scholarly resource catalog](resources.md) to browse the current Context-Fabric corpora and collections by recognizable name, language, discipline, period, rights, integration status, and recorded load cost where available.
 
-There is not yet a complete human-facing pre-install resource catalog in the documentation. The root README names representative areas such as BHSA, Ugaritic, Hittite, and Greek collections, but it is not a complete catalog. For an unfamiliar or potentially large corpus, use the [safe first-load workflow](context-fabric-cache.md#recommended-first-load-workflow) before loading it.
+Installing Context-Fabric does not download every corpus. Collection members are discovered after installation rather than copied wholesale into the static catalog. For an unfamiliar or potentially large corpus, use the [safe first-load workflow](context-fabric-cache.md#recommended-first-load-workflow) before loading it.
 
 Perseus, Sefaria, and SEDRA primarily expose remote scholarly services rather than the same local corpus-selection model, so resource selection differs by plugin.
 
