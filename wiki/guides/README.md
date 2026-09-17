@@ -1,6 +1,6 @@
 # Agora researcher user guide
 
-Use this page to choose the shortest path for a research task. You do not need to understand Agora's registry, transport, verification-check IDs, or implementation architecture to get started.
+Use this page to choose the shortest path for a research task. You can start here without learning Agora's internal implementation vocabulary.
 
 | I want to… | Start here |
 |---|---|
