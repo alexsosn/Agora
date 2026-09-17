@@ -11,6 +11,23 @@ Use this page to choose the shortest path for a research task. You can start her
 | **Compatibility** | [Check client, platform, and known limitations](compatibility.md) |
 | **Troubleshooting** | [Start from the symptom you see](#troubleshooting) |
 
+## How Agora fits together
+
+```text
+Agora marketplace
+├─ Context-Fabric plugin → scholarly resources/corpora (for example BHSA)
+├─ Perseus plugin → Perseus/Scaife service
+├─ Sefaria plugin → Sefaria service
+└─ SEDRA plugin → SEDRA IV service
+```
+
+- **Marketplace** — the place from which you discover and install Agora plugins.
+- **Plugin** — an installable integration that gives the agent access to a scholarly tool or service.
+- **Resource/corpus** — a scholarly dataset selected through a plugin when that plugin offers multiple datasets.
+- **Skill** — research guidance used by the agent to apply existing plugin/resource capabilities and conventions correctly.
+
+For BHSA, **install Context-Fabric**. BHSA is a corpus/resource, **not a plugin**. Perseus, Sefaria, and SEDRA usually work by installing their plugin and using the corresponding remote service directly.
+
 ## Get started
 
 If you already know which plugin you need, follow the [installation guide](installation.md). It covers Claude Code, managed ChatGPT/Codex workspace import, local Codex testing, prerequisites, updates, and removal.
@@ -21,7 +38,7 @@ If you are not sure which plugin fits the question, use [Choose a plugin](../../
 
 The current [plugin chooser](../../README.md#choosing-a-plugin) maps common research tasks to the four plugin families without requiring internal marketplace terminology.
 
-Detailed per-plugin decision pages are not yet part of the published documentation. Until they are, use the chooser together with the [installation guide](installation.md) and [compatibility guide](compatibility.md) rather than inferring behavior from generated plugin manifests.
+Detailed per-plugin decision pages are not yet part of the published documentation. Until they are, use the chooser together with the [installation guide](installation.md) and [compatibility guide](compatibility.md).
 
 ## Browse resources
 
@@ -49,9 +66,9 @@ Start with the observable symptom rather than the internal component name:
 
 - plugin is missing, will not launch, `uv`/Python cannot be resolved, a remote lookup fails, or a ChatGPT surface does not expose the plugin → [installation troubleshooting](installation.md#troubleshooting);
 - Context-Fabric acquisition or compilation is slow, disk use is high, a load is already active, or you need to cancel/clean cache objects → [Context-Fabric cache and cold-load safety](context-fabric-cache.md);
-- a provider returns an unexpected but known limitation, or you need the exact tested client/platform boundary → [compatibility and known limitations](compatibility.md#current-upstream-limitations).
+- a plugin or remote service has a known limitation, or you need the exact tested client/platform boundary → [compatibility and known limitations](compatibility.md#current-upstream-limitations).
 
-A provider outage or upstream defect is not repaired by reinstalling Agora. Preserve the original error and follow the upstream/service guidance linked from the relevant page.
+A remote-service outage or upstream defect is not repaired by reinstalling Agora. Preserve the original error and follow the upstream/service guidance linked from the relevant page.
 
 ## Returning users
 

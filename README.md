@@ -20,7 +20,7 @@ New to Agora? Start with the [Researcher user guide](wiki/guides/README.md) to c
 With the current plugins you can, for example:
 
 - query morphology and syntax in the **BHSA Hebrew Bible**;
-- work with **Ugaritic** and **Hittite** Text-Fabric corpora through the same provider interface;
+- work with **Ugaritic** and **Hittite** Text-Fabric corpora through the same Context-Fabric plugin;
 - discover and load individual works from large **Greek Text-Fabric collections** without installing one plugin per text;
 - retrieve passages and search Classical texts through **Perseus/Scaife**;
 - fetch source texts, translations, linked commentaries, and other resources from **Sefaria**;
@@ -109,7 +109,7 @@ For corpus research, Agora's bundled skills encourage the agent to inspect the s
 | Jewish texts, translations, commentaries, dictionaries | **Sefaria** |
 | Syriac word and lexeme lookup | **SEDRA** |
 
-Agora is designed to add more providers without forcing them into Text-Fabric or any other single data model.
+Agora is designed to add more scholarly tools and services without forcing them into Text-Fabric or any other single data model.
 
 ## Verification scope
 
