@@ -21,7 +21,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .logo-transfer/chunk-*.b64 | tr -d '\\n\\r ' | base64 -d > assets/agora-logo.png
+          cat .logo-transfer/chunk-*.b64 | tr -d '\n\r ' | base64 -d > assets/agora-logo.png
           echo "f70d820f882761724f6b11284a87e658780c3e611246158bd4ce7ee9c3d24593  assets/agora-logo.png" | sha256sum -c -
           test "$(stat -c %s assets/agora-logo.png)" = "728776"
 
