@@ -1,0 +1,38 @@
+name: One-time logo restore
+
+on:
+  push:
+    branches:
+      - fix/logo-original-staging-20260924
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/logo-original-staging-20260924
+          fetch-depth: 0
+
+      - name: Reconstruct exact original PNG
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .logo-transfer/chunk-*.b64 | tr -d '\\n\\r ' | base64 -d > assets/agora-logo.png
+          echo "f70d820f882761724f6b11284a87e658780c3e611246158bd4ce7ee9c3d24593  assets/agora-logo.png" | sha256sum -c -
+          test "$(stat -c %s assets/agora-logo.png)" = "728776"
+
+      - name: Commit restored logo and clean staging files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .logo-transfer
+          rm -f .github/workflows/one-time-logo-restore.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "docs: restore original full-resolution Agora logo"
+          git push origin HEAD:fix/logo-original-staging-20260924
