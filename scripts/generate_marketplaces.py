@@ -139,15 +139,21 @@ def codex_marketplace(
 
 
 def claude_mcp(plugin: dict[str, Any]) -> dict[str, Any]:
-    return {plugin["id"]: copy.deepcopy(plugin["runtime"]["launch"]["claude"])}
+    server = copy.deepcopy(plugin["runtime"]["launch"]["claude"])
+    tool_timeout = plugin["runtime"].get("tool_timeout_seconds")
+    if tool_timeout is not None:
+        # Claude Code's per-server tool-call timeout is in milliseconds and
+        # overrides MCP_TOOL_TIMEOUT for this server.
+        server["timeout"] = int(tool_timeout) * 1000
+    return {plugin["id"]: server}
 
 
 def codex_mcp(plugin: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "mcpServers": {
-            plugin["id"]: copy.deepcopy(plugin["runtime"]["launch"]["codex"])
-        }
-    }
+    server = copy.deepcopy(plugin["runtime"]["launch"]["codex"])
+    tool_timeout = plugin["runtime"].get("tool_timeout_seconds")
+    if tool_timeout is not None:
+        server["tool_timeout_sec"] = int(tool_timeout)
+    return {"mcpServers": {plugin["id"]: server}}
 
 
 def render_outputs(root: Path = ROOT) -> dict[Path, str]:

@@ -17,6 +17,8 @@ Acquisition/materialization and cold compilation have separate limits. The defau
 
 If a cold load already appears in `corpus_cache_status.active_loads`, **do not retry** the same load blindly. Inspect that record instead. It exposes the exact active object, phase and limits; use `cancel_corpus_load` with its `load_id` if cancellation is appropriate. A duplicate local cold load is deliberately rejected rather than spawning a second compiler.
 
+A cold `prepare_corpus` or `load_corpus` must finish inside **one** tool call. Cancellation stops the work and discards its partial output, so a retry starts again from the beginning. Agora's generated client configurations therefore give the Context-Fabric server a 90-minute tool-call timeout, longer than the default acquisition and compile limits combined: Claude Code receives a per-server `timeout` (which takes precedence over `MCP_TOOL_TIMEOUT`), and Codex receives `tool_timeout_sec`. If you configure a shorter timeout for this server yourself, a cold load of a large corpus such as BHSA may be cancelled every time and never finish.
+
 Protocol cancellation of a long MCP request is bridged to Agora-owned acquisition/materialization work and to the contained cold compiler. The handler waits until its owned worker has stopped before unwinding, so cancellation does not intentionally leave a mutating background thread behind. The final in-process upstream warm-loader call is a non-preemptible boundary: if cancellation arrives while that call is already running, Agora waits for it to return rather than killing arbitrary upstream Python state. After an interrupted request, inspect `corpus_cache_status` (including `loaded_corpora` and `active_loads`) before deciding whether to retry.
 
 Historical `load_cost` observations are environment-specific evidence, not predictions. For example, the recorded BHSA release measurement reports roughly 165 MB of source, 866 MB compiled, about 1.1 GB total cache and about 630 seconds for the measured first load. Different corpus revisions, Context-Fabric versions, machines, filesystems and module combinations can differ materially.
@@ -113,7 +115,7 @@ After a failed, cancelled, or limited cold worker has died, Agora removes only i
 
 If the completion marker exists but the compiled cache is corrupt, the pinned Context-Fabric warm loader raises its own load error; Agora does not silently fall back to a main-process cold compile.
 
-Acquisition timeout/cancellation stops the request-owned Git subprocess before the operation returns. Temporary snapshot-export trees are cleaned by the existing materialization `finally` path; published immutable snapshots are replaced atomically only after validation. A retry therefore reuses complete published state or starts materialization again rather than treating a partial temporary tree as a valid corpus.
+Acquisition timeout/cancellation stops the request-owned Git subprocess, including helper processes it started such as the lazy blob fetch of a partial clone, before the operation returns and releases the repository lock. Temporary snapshot-export trees are cleaned by the existing materialization `finally` path; published immutable snapshots are replaced atomically only after validation. A retry therefore reuses complete published state or starts materialization again rather than treating a partial temporary tree as a valid corpus.
 
 ## Persistent Git metadata repositories
 

@@ -35,6 +35,7 @@
               "mode": {"type": "string"},
               "type": {"type": "string"},
               "notes": {"type": "string"},
+              "tool_timeout_seconds": {"type": "integer", "minimum": 1},
               "launch": {
                 "type": "object",
                 "additionalProperties": false,

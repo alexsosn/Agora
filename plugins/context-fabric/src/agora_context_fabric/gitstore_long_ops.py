@@ -10,7 +10,12 @@ from typing import Any, Iterator
 from . import gitstore as _gitstore_module
 from .gitstore import GitStore as _BaseGitStore
 from .gitstore import _core as _core_module
-from .operation import current_operation, watch_subprocess
+from .operation import (
+    current_operation,
+    isolated_process_group_kwargs,
+    kill_process_tree,
+    watch_subprocess,
+)
 
 
 def _noninteractive_git_env() -> dict[str, str]:
@@ -46,6 +51,7 @@ class GitStore(_BaseGitStore):
             stdout=_gitstore_module.subprocess.PIPE,
             stderr=_gitstore_module.subprocess.PIPE,
             env=_noninteractive_git_env(),
+            **isolated_process_group_kwargs(),
         )
         try:
             while True:
@@ -56,11 +62,9 @@ class GitStore(_BaseGitStore):
                 except _gitstore_module.subprocess.TimeoutExpired:
                     continue
         except BaseException:
-            if process.poll() is None:
-                try:
-                    process.kill()
-                except (OSError, ProcessLookupError):
-                    pass
+            # Stop fetch transport helpers too; they otherwise keep downloading
+            # into a tree that is about to be discarded (#181).
+            kill_process_tree(process)
             try:
                 process.communicate(timeout=1.0)
             except BaseException:
@@ -101,6 +105,7 @@ class GitStore(_BaseGitStore):
                 stdout=_core_module.subprocess.PIPE,
                 stderr=_core_module.subprocess.PIPE,
                 env=_noninteractive_git_env(),
+                **isolated_process_group_kwargs(),
             )
             assert process.stdout is not None
             with watch_subprocess(process):
@@ -138,6 +143,7 @@ class GitStore(_BaseGitStore):
                 stdout=_core_module.subprocess.PIPE,
                 stderr=_core_module.subprocess.PIPE,
                 env=_noninteractive_git_env(),
+                **isolated_process_group_kwargs(),
             )
             assert process.stdout is not None
             metadata: dict[str, Any] = {}
@@ -212,6 +218,7 @@ class GitStore(_BaseGitStore):
                     stdout=_core_module.subprocess.PIPE,
                     stderr=stderr_file,
                     env=_noninteractive_git_env(),
+                    **isolated_process_group_kwargs(),
                 )
                 assert process.stdout is not None
                 with watch_subprocess(process):
@@ -238,6 +245,6 @@ class GitStore(_BaseGitStore):
                 if process.stdout is not None and not process.stdout.closed:
                     process.stdout.close()
                 if process.poll() is None:
-                    process.kill()
+                    kill_process_tree(process)
                     process.wait()
             shutil.rmtree(temp_root, ignore_errors=True)

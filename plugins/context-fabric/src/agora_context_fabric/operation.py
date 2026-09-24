@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import math
 import os
+import signal
+import subprocess
 import threading
 import time
 from contextlib import contextmanager
@@ -141,6 +143,50 @@ def operation_scope(operation: OperationControl | None) -> Iterator[OperationCon
         _CURRENT_OPERATION.reset(token)
 
 
+def isolated_process_group_kwargs() -> dict[str, Any]:
+    """Return ``Popen`` options that let Agora stop a Git command as a tree.
+
+    In a partial clone, ``git archive``/``show``/``fetch`` spawn helpers (the
+    lazy promisor ``git fetch``, ``git-remote-https``, ``index-pack``) that
+    inherit the parent's pipes. Killing only the direct child leaves them
+    downloading and holding those pipes open (#181), so operation-owned Git
+    commands run in their own POSIX process group. On Windows the tree is
+    found through its parent/child links instead (see ``kill_process_tree``).
+    """
+
+    if os.name == "posix":
+        return {"start_new_session": True}
+    return {}
+
+
+def kill_process_tree(process: Any) -> None:
+    """Forcefully stop an operation-owned Git process and its helpers."""
+
+    pid = getattr(process, "pid", None)
+    if isinstance(pid, int) and pid > 0:
+        if os.name == "posix":
+            try:
+                os.killpg(pid, signal.SIGKILL)
+            except (OSError, ProcessLookupError):
+                pass
+        elif os.name == "nt":
+            try:
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=10,
+                    check=False,
+                )
+            except (OSError, subprocess.SubprocessError):
+                pass
+    try:
+        process.kill()
+    except (OSError, ProcessLookupError):
+        pass
+
+
 @contextmanager
 def watch_subprocess(process: Any) -> Iterator[None]:
     """Kill a streaming Git subprocess if the current operation expires/cancels.
@@ -164,10 +210,7 @@ def watch_subprocess(process: Any) -> Iterator[None]:
                 operation.remaining_acquisition_seconds()
             except BaseException as exc:
                 failures.append(exc)
-                try:
-                    process.kill()
-                except (OSError, ProcessLookupError):
-                    pass
+                kill_process_tree(process)
                 return
 
     watcher = threading.Thread(

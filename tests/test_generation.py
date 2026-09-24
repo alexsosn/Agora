@@ -168,7 +168,8 @@ class MarketplaceGenerationTests(unittest.TestCase):
         )
 
     def test_codex_mcp_files_use_strict_stdio_shape(self):
-        allowed = {"type", "command", "args", "env", "cwd"}
+        # tool_timeout_sec is Codex's per-server tool-call timeout (#182).
+        allowed = {"type", "command", "args", "env", "cwd", "tool_timeout_sec"}
         for plugin_id in PLUGIN_IDS:
             with (ROOT / f"plugins/{plugin_id}/.codex-plugin/mcp.json").open(
                 "r", encoding="utf-8"
