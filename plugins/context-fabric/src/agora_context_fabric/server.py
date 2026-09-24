@@ -11,6 +11,7 @@ from .cold_compile import ColdCompileSupervisor
 from .gitstore import GitStore
 from .load_safety import current_cfm_version
 from .mcp_tools import register_tools
+from .operation import install_shutdown_cleanup
 from .resolver import ContextFabricResolver
 from .service import ContextFabricService
 
@@ -118,6 +119,7 @@ def main() -> None:
         raise RuntimeError("cfabric-mcp is required to run this plugin") from exc
     upstream_tools.set_transport(transport)
 
+    install_shutdown_cleanup()
     LOGGER.info(
         "Starting Agora Context-Fabric MCP with zero preloaded corpora (transport=%s)",
         transport,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import atexit
 import math
 import os
 import signal
@@ -196,6 +197,80 @@ def kill_process_tree(process: Any) -> None:
         process.kill()
     except (OSError, ProcessLookupError):
         pass
+
+
+_ACTIVE_PROCESS_TREES: set[Any] = set()
+_ACTIVE_PROCESS_TREES_LOCK = threading.Lock()
+_SHUTDOWN_CLEANUP_INSTALLED = False
+
+
+@contextmanager
+def tracked_process_tree(process: Any) -> Iterator[None]:
+    """Register a running Git process so server shutdown can stop its tree."""
+
+    with _ACTIVE_PROCESS_TREES_LOCK:
+        _ACTIVE_PROCESS_TREES.add(process)
+    try:
+        yield
+    finally:
+        with _ACTIVE_PROCESS_TREES_LOCK:
+            _ACTIVE_PROCESS_TREES.discard(process)
+
+
+def kill_active_process_trees() -> None:
+    """Stop every registered Git process tree (used on server shutdown)."""
+
+    # Called from signal handlers too: never block indefinitely on the lock.
+    if not _ACTIVE_PROCESS_TREES_LOCK.acquire(timeout=1.0):
+        return
+    try:
+        processes = list(_ACTIVE_PROCESS_TREES)
+    finally:
+        _ACTIVE_PROCESS_TREES_LOCK.release()
+    for process in processes:
+        kill_process_tree(process)
+
+
+def _forwarding_signal_handler(signum: int, previous: Any) -> Callable[[int, Any], None]:
+    def handler(received: int, frame: Any) -> None:
+        kill_active_process_trees()
+        if callable(previous):
+            previous(received, frame)
+            return
+        if previous == signal.SIG_IGN:
+            return
+        # Default disposition: restore it and re-deliver, so the server still
+        # terminates exactly as it would have without this hook.
+        signal.signal(signum, signal.SIG_DFL)
+        os.kill(os.getpid(), signum)
+
+    return handler
+
+
+def install_shutdown_cleanup() -> None:
+    """Stop isolated operation Git trees when the MCP server exits or is signalled.
+
+    Operation-owned Git runs in its own process group (see
+    ``isolated_process_group_kwargs``), so a signal sent to the server's group,
+    such as Ctrl-C or a client shutting the server down, no longer reaches it.
+    The server therefore stops those trees itself on exit and on SIGTERM/SIGHUP,
+    then lets the signal take its previous effect.
+    """
+
+    global _SHUTDOWN_CLEANUP_INSTALLED
+    if _SHUTDOWN_CLEANUP_INSTALLED:
+        return
+    _SHUTDOWN_CLEANUP_INSTALLED = True
+    atexit.register(kill_active_process_trees)
+    if os.name != "posix" or threading.current_thread() is not threading.main_thread():
+        return
+    # SIGINT is left to the event loop: asyncio turns it into cancellation of
+    # in-flight requests, which the long-operation bridge already propagates
+    # to the Git tree, and a normal exit then runs the atexit hook. Replacing
+    # it would stop asyncio from installing its own handler.
+    for signum in (signal.SIGTERM, signal.SIGHUP):
+        previous = signal.getsignal(signum)
+        signal.signal(signum, _forwarding_signal_handler(signum, previous))
 
 
 @contextmanager

@@ -14,6 +14,7 @@ from .operation import (
     current_operation,
     isolated_process_group_kwargs,
     kill_process_tree,
+    tracked_process_tree,
     watch_subprocess,
 )
 
@@ -53,23 +54,24 @@ class GitStore(_BaseGitStore):
             env=_noninteractive_git_env(),
             **isolated_process_group_kwargs(),
         )
-        try:
-            while True:
-                remaining = operation.remaining_acquisition_seconds()
-                try:
-                    stdout, stderr = process.communicate(timeout=min(0.1, remaining))
-                    break
-                except _gitstore_module.subprocess.TimeoutExpired:
-                    continue
-        except BaseException:
-            # Stop fetch transport helpers too; they otherwise keep downloading
-            # into a tree that is about to be discarded (#181).
-            kill_process_tree(process)
+        with tracked_process_tree(process):
             try:
-                process.communicate(timeout=1.0)
+                while True:
+                    remaining = operation.remaining_acquisition_seconds()
+                    try:
+                        stdout, stderr = process.communicate(timeout=min(0.1, remaining))
+                        break
+                    except _gitstore_module.subprocess.TimeoutExpired:
+                        continue
             except BaseException:
-                pass
-            raise
+                # Stop fetch transport helpers too; they otherwise keep
+                # downloading into a tree that is about to be discarded (#181).
+                kill_process_tree(process)
+                try:
+                    process.communicate(timeout=1.0)
+                except BaseException:
+                    pass
+                raise
 
         if process.returncode:
             raise _gitstore_module.subprocess.CalledProcessError(
@@ -108,7 +110,7 @@ class GitStore(_BaseGitStore):
                 **isolated_process_group_kwargs(),
             )
             assert process.stdout is not None
-            with watch_subprocess(process):
+            with tracked_process_tree(process), watch_subprocess(process):
                 try:
                     for line in process.stdout:
                         yield line.rstrip("\r\n")
@@ -148,7 +150,7 @@ class GitStore(_BaseGitStore):
             assert process.stdout is not None
             metadata: dict[str, Any] = {}
             header_complete = False
-            with watch_subprocess(process):
+            with tracked_process_tree(process), watch_subprocess(process):
                 try:
                     for raw_line in process.stdout:
                         line = raw_line.rstrip("\r\n")
@@ -221,7 +223,7 @@ class GitStore(_BaseGitStore):
                     **isolated_process_group_kwargs(),
                 )
                 assert process.stdout is not None
-                with watch_subprocess(process):
+                with tracked_process_tree(process), watch_subprocess(process):
                     try:
                         with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
                             for member in archive:
