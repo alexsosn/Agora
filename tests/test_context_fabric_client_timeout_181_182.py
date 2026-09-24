@@ -97,6 +97,7 @@ def _wait_until_dead(pid: int, timeout: float = 5.0) -> bool:
     return not _process_alive(pid)
 
 
+@unittest.skipUnless(os.name == "posix", "helper-tree liveness probing is POSIX-only")
 class _HelperTreeCase(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()

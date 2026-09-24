@@ -115,7 +115,7 @@ After a failed, cancelled, or limited cold worker has died, Agora removes only i
 
 If the completion marker exists but the compiled cache is corrupt, the pinned Context-Fabric warm loader raises its own load error; Agora does not silently fall back to a main-process cold compile.
 
-Acquisition timeout/cancellation stops the request-owned Git subprocess, including helper processes it started such as the lazy blob fetch of a partial clone, before the operation returns and releases the repository lock. Temporary snapshot-export trees are cleaned by the existing materialization `finally` path; published immutable snapshots are replaced atomically only after validation. A retry therefore reuses complete published state or starts materialization again rather than treating a partial temporary tree as a valid corpus.
+Acquisition timeout/cancellation stops the request-owned Git subprocess, including helper processes it started such as the lazy blob fetch of a partial clone, before the operation returns and releases the repository lock. Helper cleanup is regression-tested on POSIX (Linux/macOS); on Windows Agora asks `taskkill /T` to stop the process tree, which is best-effort and not covered by automated tests. Temporary snapshot-export trees are cleaned by the existing materialization `finally` path; published immutable snapshots are replaced atomically only after validation. A retry therefore reuses complete published state or starts materialization again rather than treating a partial temporary tree as a valid corpus.
 
 ## Persistent Git metadata repositories
 

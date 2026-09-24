@@ -154,17 +154,28 @@ def isolated_process_group_kwargs() -> dict[str, Any]:
     found through its parent/child links instead (see ``kill_process_tree``).
     """
 
-    if os.name == "posix":
+    # Outside a prepare/load operation there is no watchdog to stop the tree,
+    # so keep ordinary terminal/supervisor signal propagation instead.
+    if os.name == "posix" and current_operation() is not None:
         return {"start_new_session": True}
     return {}
+
+
+def _is_own_group_leader(pid: int) -> bool:
+    try:
+        return os.getpgid(pid) == pid
+    except (OSError, ProcessLookupError):
+        return False
 
 
 def kill_process_tree(process: Any) -> None:
     """Forcefully stop an operation-owned Git process and its helpers."""
 
     pid = getattr(process, "pid", None)
-    if isinstance(pid, int) and pid > 0:
-        if os.name == "posix":
+    # Only signal a group Agora created, and never after the leader was
+    # reaped (its PID could then belong to an unrelated new session).
+    if isinstance(pid, int) and pid > 0 and getattr(process, "returncode", None) is None:
+        if os.name == "posix" and _is_own_group_leader(pid):
             try:
                 os.killpg(pid, signal.SIGKILL)
             except (OSError, ProcessLookupError):
