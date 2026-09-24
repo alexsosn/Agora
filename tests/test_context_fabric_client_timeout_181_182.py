@@ -236,6 +236,101 @@ class CancelledAcquisitionStopsGitProcessTreeTests(_HelperTreeCase):
         self._assert_prompt_cancellation(outcome)
 
 
+# A stand-in MCP server: runs a cancellable snapshot export whose "git archive"
+# has a helper that inherits stdout, then idles until it is signalled.
+_SERVER_WITH_ACTIVE_EXPORT = r"""
+import signal, sys, threading, time
+from pathlib import Path
+from unittest.mock import patch
+sys.path.insert(0, sys.argv[1])
+from agora_context_fabric import operation
+from agora_context_fabric.gitstore import GitStore
+from agora_context_fabric.gitstore import _core as core_module
+
+install = getattr(operation, "install_shutdown_cleanup", None)
+if install is not None:
+    install()
+root = Path(sys.argv[2]); pid_file = sys.argv[3]; helper_script = sys.argv[4]
+store = GitStore(root / "cache", min_free_bytes=0)
+(root / "repo").mkdir(exist_ok=True)
+real_popen = core_module.subprocess.Popen
+def fake_popen(command, *args, **kwargs):
+    if "archive" in command:
+        command = [sys.executable, "-c", helper_script, pid_file]
+    return real_popen(command, *args, **kwargs)
+responses = iter(["https://example.invalid/repo.git", "", "", "", "deadbeef"])
+control = operation.OperationControl(acquisition_timeout_seconds=600.0)
+def export():
+    with operation.operation_scope(control):
+        store._export_snapshot(root / "repo", "deadbeef", "tf", root / "dest", lambda _p: None)
+patches = [
+    patch.object(store, "_run", side_effect=lambda *_a, **_k: next(responses)),
+    patch.object(store, "_ensure_free_reserve"),
+    patch("agora_context_fabric.gitstore._core.subprocess.Popen", side_effect=fake_popen),
+]
+for p in patches:
+    p.start()
+threading.Thread(target=export, daemon=True).start()
+while True:
+    time.sleep(0.1)
+"""
+
+
+@unittest.skipUnless(os.name == "posix", "process-group signal semantics are POSIX-only")
+class ServerShutdownStopsOperationGitTreesTests(unittest.TestCase):
+    """Isolating operation Git in its own process group must not let it outlive
+    the MCP server when the server is signalled or exits (#181 follow-up)."""
+
+    def _run_server_and_signal(self, signum: int) -> None:
+        import signal as signal_module
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pid_file = root / "helper.pid"
+            server = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-c",
+                    _SERVER_WITH_ACTIVE_EXPORT,
+                    str(PLUGIN_SRC),
+                    str(root),
+                    str(pid_file),
+                    _PARENT_WITH_INHERITING_HELPER,
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+            helper_pid = None
+            try:
+                helper_pid = _wait_for_pid(pid_file)
+                os.kill(server.pid, signum)
+                server.wait(timeout=15)
+                self.assertTrue(
+                    _wait_until_dead(helper_pid),
+                    f"Git helper kept running after the server received "
+                    f"{signal_module.Signals(signum).name}",
+                )
+            finally:
+                if server.poll() is None:
+                    server.kill()
+                    server.wait()
+                if helper_pid is not None and _process_alive(helper_pid):
+                    os.kill(helper_pid, 9)
+                if server.stderr is not None:
+                    server.stderr.close()
+
+    def test_sigterm_to_server_stops_active_operation_git_tree(self):
+        import signal as signal_module
+
+        self._run_server_and_signal(signal_module.SIGTERM)
+
+    def test_sigint_to_server_stops_active_operation_git_tree(self):
+        import signal as signal_module
+
+        self._run_server_and_signal(signal_module.SIGINT)
+
+
 class RepositoryLockWaitMessageTests(unittest.TestCase):
     def test_lock_wait_timeout_explains_busy_repository(self):
         with tempfile.TemporaryDirectory() as tmp:
