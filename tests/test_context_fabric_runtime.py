@@ -380,7 +380,7 @@ class ResolverTests(unittest.TestCase):
 
             actual = resolver.prepare("fixture").source_revision
             dependencies = (
-                {"repository": "example/fixture", "ref": actual[:12], "role": "parent-base"},
+                {"repository": "example/fixture", "ref": actual, "role": "parent-base"},
             )
             resolver = ContextFabricResolver(
                 self._local_module_catalog(parent_source, dependencies=dependencies), store
