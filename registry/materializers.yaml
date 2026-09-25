@@ -4,8 +4,8 @@ plugins:
     name: Pseudepigrapha-TF
     description: Convert Online Critical Pseudepigrapha XML editions into local Text-Fabric artifacts.
     repository: alexsosn/Pseudepigrapha-TF
-    ref: 317e960e05ca7f36f35a11fcf567285312951095
-    version: 0.2.0
+    ref: 7c4b757bb543a110ae9a252d1281835859136852
+    version: 1.0.0
     release_tracking:
       mode: github-releases
       channel: stable
