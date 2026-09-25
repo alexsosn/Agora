@@ -26,6 +26,7 @@ class ResourceSpec:
     lazy_members: bool = False
     ref: str | None = None
     tf_path: str | None = None
+    acquisition_strategy: str = "repository"
     parent: str | None = None
     parent_versions: tuple[str, ...] = ()
     module_path: str | None = None
@@ -90,6 +91,7 @@ class Catalog:
                     member_index_path = bundled_collection_index_dir / Path(member_index_reference).name
                 else:
                     member_index_path = base_dir / member_index_reference
+            acquisition = item.get("acquisition") or {}
             compatibility = item.get("compatibility") or {}
             module = item.get("module") or {}
             verification = item.get("verification") or {}
@@ -114,6 +116,7 @@ class Catalog:
                     lazy_members=bool(collection.get("lazy_members", False)),
                     ref=upstream.get("ref"),
                     tf_path=upstream.get("tf_path"),
+                    acquisition_strategy=acquisition.get("strategy", "repository"),
                     parent=item.get("parent"),
                     parent_versions=tuple(str(value) for value in compatibility.get("parent_versions", [])),
                     module_path=upstream.get("module"),

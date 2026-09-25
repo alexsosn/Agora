@@ -72,7 +72,7 @@ class StaticIndexResolver(ContextFabricResolver):
         super().__init__(catalog, store)  # type: ignore[arg-type]
         self.static_index = index()
 
-    def _collection_repo(self, resource, source_revision):
+    def _resource_repo(self, resource, source_revision):
         return Path("/unused/repository"), REVISION
 
     def _collection_index(self, resource, repo, revision, *, requested_revision):

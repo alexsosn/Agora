@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import sys
 from pathlib import Path
 from typing import Any, Iterable
@@ -386,6 +387,26 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                 f"{prefix}.module.status",
                 errors,
             )
+
+            for dependency in (resource.get("upstream") or {}).get("dependencies", []):
+                if dependency.get("role") != "parent-base":
+                    continue
+                dependency_ref = dependency.get("ref")
+                if not isinstance(dependency_ref, str) or re.fullmatch(
+                    r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})", dependency_ref
+                ) is None:
+                    errors.append(
+                        f"{prefix}.upstream.dependencies: parent-base ref must be an immutable "
+                        "40- or 64-hex commit id"
+                    )
+                if parent is not None:
+                    parent_repository = (parent.get("upstream") or {}).get("repository")
+                    if dependency.get("repository") != parent_repository:
+                        errors.append(
+                            f"{prefix}.upstream.dependencies: parent-base repository "
+                            f"{dependency.get('repository')!r} must match parent repository "
+                            f"{parent_repository!r}"
+                        )
 
         if resource["kind"] == "collection":
             if resource["acquisition"]["strategy"] != "collection":

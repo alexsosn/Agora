@@ -260,6 +260,38 @@ class SourceAuditTests(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertIn("beyond parent", report["resources"][1]["error"])
 
+    def test_local_feature_module_is_skipped_without_fetching_upstream(self):
+        module = ResourceSpec(
+            id="parent-local",
+            name="parent-local",
+            plugin="context-fabric",
+            provider="context-fabric",
+            kind="feature-module",
+            repository="example/parent-local",
+            languages=("greek",),
+            disciplines=("classics",),
+            tf_path="tf/1.0",
+            acquisition_strategy="local-module",
+            parent="parent",
+            parent_versions=("1.0",),
+            module_path="example/parent-local/tf",
+            module_status="community",
+            dependencies=({"repository": "example/parent", "ref": "a" * 40, "role": "parent-base"},),
+        )
+        catalog = Catalog([resource("parent"), module])
+        store = FakeStore({"parent": ["tf/1.0"]}, failures={"parent-local"})
+
+        report = audit_catalog(catalog, store)
+
+        self.assertTrue(report["ok"])
+        self.assertEqual((report["checked"], report["passed"], report["skipped"]), (2, 1, 1))
+        item = next(value for value in report["resources"] if value["id"] == "parent-local")
+        self.assertEqual(item["status"], "skipped")
+        self.assertEqual(item["compatibility_evidence"], "local-module-not-audited")
+        self.assertEqual(item["parent_base_ref"], "a" * 40)
+        self.assertNotIn("parent-local", store.repositories)
+        self.assertEqual(report["load_smoke_required"], [])
+
     def test_empty_dataset_root_set_is_a_failure(self):
         catalog = Catalog([resource("empty")])
         report = audit_catalog(catalog, FakeStore({"empty": []}))

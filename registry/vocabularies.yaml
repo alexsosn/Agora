@@ -36,6 +36,7 @@ acquisition_strategies:
   - repository
   - tf-app
   - collection
+  - local-module
 
 collection_discovery_modes:
   - indexed

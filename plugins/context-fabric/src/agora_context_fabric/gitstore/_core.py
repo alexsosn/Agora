@@ -71,6 +71,7 @@ class GitStore:
     ) -> None:
         self.cache_dir = Path(cache_dir).expanduser().resolve()
         self.repositories_dir = self.cache_dir / "repositories"
+        self.local_modules_dir = self.cache_dir / "local-modules"
         self.snapshots_dir = self.cache_dir / "snapshots"
         self.overlays_dir = self.cache_dir / "overlays"
         self.tmp_dir = self.cache_dir / "tmp"
@@ -396,6 +397,76 @@ class GitStore:
         result = sorted(result)
         self._validate_feature_module_files(result, relative_path)
         return result
+
+    def local_feature_module_path(self, resource_id: str, relative_path: str) -> Path:
+        """Return where a user-materialized feature module is expected to live."""
+        relative = self._safe_relative_path(relative_path)
+        local = self.local_modules_dir / self.safe_cache_key(resource_id)
+        return local if relative == "." else local / relative
+
+    def local_feature_module(self, resource_id: str, relative_path: str) -> tuple[Path, str]:
+        """Snapshot a user-materialized feature module from the local-modules store.
+
+        Local modules are never fetched by Agora: the user materializes them with
+        the upstream tooling and places the result under
+        ``<cache>/local-modules/<resource id>/<tf_path>``. That directory is
+        mutable, so its feature files are copied into an immutable snapshot keyed
+        by the SHA-256 of their names and bytes, exactly like Git-backed
+        snapshots. Overlays link only the snapshot, so regenerating the module in
+        place can neither change an already composed overlay nor be mistaken for
+        the previous content. Returns the snapshot directory and the content
+        revision ``local-<digest>``.
+        """
+        relative = self._safe_relative_path(relative_path)
+        local = self.local_feature_module_path(resource_id, relative_path)
+        files = sorted(path for path in local.glob("*.tf") if path.is_file()) if local.is_dir() else []
+        names = tuple(path.name for path in files)
+        self._validate_feature_module_files(list(names), relative_path)
+        if not files:
+            raise FileNotFoundError(
+                f"local feature module {resource_id!r} is not materialized: expected non-warp "
+                f"`.tf` files under {local}"
+            )
+
+        with self.cache_transition():
+            # Copy and hash in one pass so the digest describes the snapshot's
+            # bytes even if the source is rewritten concurrently.
+            self._ensure_free_reserve(sum(path.stat().st_size for path in files))
+            temp_root = Path(tempfile.mkdtemp(prefix="local-module-", dir=self.tmp_dir))
+            staged = temp_root / "data"
+            staged.mkdir()
+            digest = hashlib.sha256()
+            try:
+                for path in files:
+                    digest.update(path.name.encode("utf-8") + b"\0")
+                    with path.open("rb") as source, (staged / path.name).open("wb") as target:
+                        for chunk in iter(lambda: source.read(1 << 20), b""):
+                            digest.update(chunk)
+                            target.write(chunk)
+                    digest.update(b"\n")
+                revision = f"local-{digest.hexdigest()[:16]}"
+                destination = (
+                    self.snapshots_dir
+                    / self.safe_cache_key(resource_id)
+                    / revision
+                    / "feature-modules"
+                    / ("__root__" if relative == "." else Path(relative))
+                )
+                validate = lambda path: self._validate_module_snapshot(path, names)  # noqa: E731
+                try:
+                    validate(destination)
+                except FileNotFoundError:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    try:
+                        os.replace(staged, destination)
+                    except OSError:
+                        # Another process snapshotted identical content first.
+                        validate(destination)
+            finally:
+                shutil.rmtree(temp_root, ignore_errors=True)
+            validate(destination)
+            self.touch_cache_object(destination)
+            return destination, revision
 
     @staticmethod
     def _safe_relative_path(relative_path: str) -> str:
