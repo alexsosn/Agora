@@ -36,9 +36,14 @@ If you are not sure which plugin fits the question, use [Choose a plugin](../../
 
 ## Browse plugins
 
-The current [plugin chooser](../../README.md#choosing-a-plugin) maps common research tasks to the four plugin families without requiring internal marketplace terminology.
+The current [plugin chooser](../../README.md#choosing-a-plugin) maps common research tasks to the four plugin families without requiring internal marketplace terminology. For a pre-install decision, open the matching detail page:
 
-Detailed per-plugin decision pages are not yet part of the published documentation. Until they are, use the chooser together with the [installation guide](installation.md) and [compatibility guide](compatibility.md).
+- [Context-Fabric](plugins/context-fabric.md)
+- [Perseus](plugins/perseus.md)
+- [Sefaria](plugins/sefaria.md)
+- [SEDRA](plugins/sedra.md)
+
+Each page uses the same structure for capabilities, local/remote behavior, installation, first success, limitations, costs, licensing, troubleshooting, and upstream links.
 
 ## Browse resources
 
