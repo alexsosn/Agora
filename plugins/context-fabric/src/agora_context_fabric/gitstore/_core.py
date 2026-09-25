@@ -245,12 +245,20 @@ class GitStore:
     ) -> Iterator[None]:
         """Coordinate persistent repository use with a crash-safe lock."""
         lock_path = self.locks_dir / f"repository-{self.safe_cache_key(key)}.lock"
-        lock = self._acquire_file_lock(
-            lock_path,
-            shared=shared,
-            timeout=timeout,
-            description="Git cache lock",
-        )
+        try:
+            lock = self._acquire_file_lock(
+                lock_path,
+                shared=shared,
+                timeout=timeout,
+                description="Git cache lock",
+            )
+        except TimeoutError as exc:
+            raise TimeoutError(
+                f"{exc}. Another Context-Fabric request or process is still using "
+                f"the {key!r} Git repository (for example an acquisition that is "
+                "still running or stopping). Inspect corpus_cache_status and retry "
+                "after that work finishes instead of starting duplicate loads."
+            ) from exc
         try:
             yield
         finally:

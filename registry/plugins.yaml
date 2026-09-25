@@ -12,6 +12,12 @@ plugins:
     mode: local
     type: python
     notes: Agora bundles resource discovery and lazy acquisition around cfabric-mcp 0.1.7; corpora remain external and are materialized only when selected.
+    # One cold prepare/load call must be allowed to outlive the default
+    # server-side guardrails (15 min acquisition + 60 min compile); a shorter
+    # client tool-call timeout cancels the work and no retry can finish (#182).
+    # Raising AGORA_CORPUS_*_MAX_MINUTES or max_compile_minutes beyond this
+    # budget also needs a longer client timeout.
+    tool_timeout_seconds: 5400
     launch:
       claude:
         command: uv
