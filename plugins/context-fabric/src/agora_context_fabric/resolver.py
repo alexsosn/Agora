@@ -508,7 +508,7 @@ class ContextFabricResolver:
             if not required:
                 continue
             actual = prepared.source_revision
-            if actual is None or not (actual.startswith(required) or required.startswith(actual)):
+            if actual is None or actual.casefold() != str(required).casefold():
                 raise ValueError(
                     f"feature module {module.id!r} requires parent {prepared.resource_id!r} at "
                     f"revision {required!r}, but the prepared parent is at {actual!r}"
