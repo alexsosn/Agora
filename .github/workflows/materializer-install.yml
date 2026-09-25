@@ -15,6 +15,7 @@ on:
       - 'scripts/validate_registry.py'
       - 'tests/test_materializer_installation.py'
       - 'tests/test_materializer_run_by_id.py'
+      - 'tests/test_materializer_workflow.py'
       - 'tests/test_registry.py'
   pull_request:
     paths:
@@ -29,6 +30,7 @@ on:
       - 'scripts/validate_registry.py'
       - 'tests/test_materializer_installation.py'
       - 'tests/test_materializer_run_by_id.py'
+      - 'tests/test_materializer_workflow.py'
       - 'tests/test_registry.py'
 
 permissions:
