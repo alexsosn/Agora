@@ -17,7 +17,7 @@ Agora owns discovery, acquisition, and loading for this registered resource. The
 
 ## Load the registered resource
 
-Use `load_corpus` with the registered `TLHdig-TF` resource.
+Use the registered `TLHdig-TF` resource. For a first load, run `prepare_corpus` and then `load_corpus`, as described in the `context-fabric-research` skill; a cold load can take minutes. If a call is interrupted, inspect `corpus_cache_status` before retrying.
 
 Agora tracks the upstream default branch and selects `tf/0.1.0` explicitly. The returned `source_revision` identifies the exact upstream commit that was loaded and can change when upstream republishes.
 

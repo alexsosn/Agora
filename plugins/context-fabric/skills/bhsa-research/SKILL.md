@@ -15,7 +15,7 @@ BHSA is the Text-Fabric representation of the Hebrew Bible Database with linguis
 
 ## Start with the registered resource
 
-Load BHSA with `load_corpus` using Agora's registered `bhsa` resource rather than a manually guessed local path.
+Use Agora's registered `bhsa` resource rather than a manually guessed local path. A first BHSA load is large (it can take many minutes to acquire and compile), so run `prepare_corpus` for `bhsa` first and then `load_corpus`, as described in the `context-fabric-research` skill. If a call is interrupted, inspect `corpus_cache_status` before retrying.
 
 Before a substantive query, inspect the loaded corpus and confirm the feature names and node types present in the selected BHSA version.
 

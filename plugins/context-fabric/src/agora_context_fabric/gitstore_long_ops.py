@@ -10,7 +10,13 @@ from typing import Any, Iterator
 from . import gitstore as _gitstore_module
 from .gitstore import GitStore as _BaseGitStore
 from .gitstore import _core as _core_module
-from .operation import current_operation, watch_subprocess
+from .operation import (
+    current_operation,
+    isolated_process_group_kwargs,
+    kill_process_tree,
+    tracked_process_tree,
+    watch_subprocess,
+)
 
 
 def _noninteractive_git_env() -> dict[str, str]:
@@ -46,26 +52,26 @@ class GitStore(_BaseGitStore):
             stdout=_gitstore_module.subprocess.PIPE,
             stderr=_gitstore_module.subprocess.PIPE,
             env=_noninteractive_git_env(),
+            **isolated_process_group_kwargs(),
         )
-        try:
-            while True:
-                remaining = operation.remaining_acquisition_seconds()
-                try:
-                    stdout, stderr = process.communicate(timeout=min(0.1, remaining))
-                    break
-                except _gitstore_module.subprocess.TimeoutExpired:
-                    continue
-        except BaseException:
-            if process.poll() is None:
-                try:
-                    process.kill()
-                except (OSError, ProcessLookupError):
-                    pass
+        with tracked_process_tree(process):
             try:
-                process.communicate(timeout=1.0)
+                while True:
+                    remaining = operation.remaining_acquisition_seconds()
+                    try:
+                        stdout, stderr = process.communicate(timeout=min(0.1, remaining))
+                        break
+                    except _gitstore_module.subprocess.TimeoutExpired:
+                        continue
             except BaseException:
-                pass
-            raise
+                # Stop fetch transport helpers too; they otherwise keep
+                # downloading into a tree that is about to be discarded (#181).
+                kill_process_tree(process)
+                try:
+                    process.communicate(timeout=1.0)
+                except BaseException:
+                    pass
+                raise
 
         if process.returncode:
             raise _gitstore_module.subprocess.CalledProcessError(
@@ -101,9 +107,10 @@ class GitStore(_BaseGitStore):
                 stdout=_core_module.subprocess.PIPE,
                 stderr=_core_module.subprocess.PIPE,
                 env=_noninteractive_git_env(),
+                **isolated_process_group_kwargs(),
             )
             assert process.stdout is not None
-            with watch_subprocess(process):
+            with tracked_process_tree(process), watch_subprocess(process):
                 try:
                     for line in process.stdout:
                         yield line.rstrip("\r\n")
@@ -138,11 +145,12 @@ class GitStore(_BaseGitStore):
                 stdout=_core_module.subprocess.PIPE,
                 stderr=_core_module.subprocess.PIPE,
                 env=_noninteractive_git_env(),
+                **isolated_process_group_kwargs(),
             )
             assert process.stdout is not None
             metadata: dict[str, Any] = {}
             header_complete = False
-            with watch_subprocess(process):
+            with tracked_process_tree(process), watch_subprocess(process):
                 try:
                     for raw_line in process.stdout:
                         line = raw_line.rstrip("\r\n")
@@ -212,9 +220,10 @@ class GitStore(_BaseGitStore):
                     stdout=_core_module.subprocess.PIPE,
                     stderr=stderr_file,
                     env=_noninteractive_git_env(),
+                    **isolated_process_group_kwargs(),
                 )
                 assert process.stdout is not None
-                with watch_subprocess(process):
+                with tracked_process_tree(process), watch_subprocess(process):
                     try:
                         with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
                             for member in archive:
@@ -238,6 +247,6 @@ class GitStore(_BaseGitStore):
                 if process.stdout is not None and not process.stdout.closed:
                     process.stdout.close()
                 if process.poll() is None:
-                    process.kill()
+                    kill_process_tree(process)
                     process.wait()
             shutil.rmtree(temp_root, ignore_errors=True)

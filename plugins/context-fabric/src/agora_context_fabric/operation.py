@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import atexit
 import math
 import os
+import signal
+import subprocess
 import threading
 import time
 from contextlib import contextmanager
@@ -141,6 +144,139 @@ def operation_scope(operation: OperationControl | None) -> Iterator[OperationCon
         _CURRENT_OPERATION.reset(token)
 
 
+def isolated_process_group_kwargs() -> dict[str, Any]:
+    """Return ``Popen`` options that let Agora stop a Git command as a tree.
+
+    In a partial clone, ``git archive``/``show``/``fetch`` spawn helpers (the
+    lazy promisor ``git fetch``, ``git-remote-https``, ``index-pack``) that
+    inherit the parent's pipes. Killing only the direct child leaves them
+    downloading and holding those pipes open (#181), so operation-owned Git
+    commands run in their own POSIX process group. On Windows the tree is
+    found through its parent/child links instead (see ``kill_process_tree``).
+    """
+
+    # Outside a prepare/load operation there is no watchdog to stop the tree,
+    # so keep ordinary terminal/supervisor signal propagation instead.
+    if os.name == "posix" and current_operation() is not None:
+        return {"start_new_session": True}
+    return {}
+
+
+def _is_own_group_leader(pid: int) -> bool:
+    try:
+        return os.getpgid(pid) == pid
+    except (OSError, ProcessLookupError):
+        return False
+
+
+def kill_process_tree(process: Any) -> None:
+    """Forcefully stop an operation-owned Git process and its helpers."""
+
+    pid = getattr(process, "pid", None)
+    # Only signal a group Agora created, and never after the leader was
+    # reaped (its PID could then belong to an unrelated new session).
+    if isinstance(pid, int) and pid > 0 and getattr(process, "returncode", None) is None:
+        if os.name == "posix" and _is_own_group_leader(pid):
+            try:
+                os.killpg(pid, signal.SIGKILL)
+            except (OSError, ProcessLookupError):
+                pass
+        elif os.name == "nt":
+            try:
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=10,
+                    check=False,
+                )
+            except (OSError, subprocess.SubprocessError):
+                pass
+    try:
+        process.kill()
+    except (OSError, ProcessLookupError):
+        pass
+
+
+_ACTIVE_PROCESS_TREES: set[Any] = set()
+_ACTIVE_PROCESS_TREES_LOCK = threading.Lock()
+_SHUTDOWN_CLEANUP_INSTALLED = False
+
+
+@contextmanager
+def tracked_process_tree(process: Any) -> Iterator[None]:
+    """Register a running Git process so server shutdown can stop its tree."""
+
+    with _ACTIVE_PROCESS_TREES_LOCK:
+        _ACTIVE_PROCESS_TREES.add(process)
+    try:
+        yield
+    finally:
+        with _ACTIVE_PROCESS_TREES_LOCK:
+            _ACTIVE_PROCESS_TREES.discard(process)
+
+
+def kill_active_process_trees() -> None:
+    """Stop every registered Git process tree (used on server shutdown)."""
+
+    # Called from signal handlers too: never block indefinitely on the lock.
+    if not _ACTIVE_PROCESS_TREES_LOCK.acquire(timeout=1.0):
+        return
+    try:
+        processes = list(_ACTIVE_PROCESS_TREES)
+    finally:
+        _ACTIVE_PROCESS_TREES_LOCK.release()
+    for process in processes:
+        kill_process_tree(process)
+
+
+def _forwarding_signal_handler(signum: int, previous: Any) -> Callable[[int, Any], None]:
+    def handler(received: int, frame: Any) -> None:
+        kill_active_process_trees()
+        if callable(previous):
+            previous(received, frame)
+            return
+        if previous == signal.SIG_IGN:
+            return
+        # Default disposition: restore it and re-deliver, so the server still
+        # terminates exactly as it would have without this hook.
+        signal.signal(signum, signal.SIG_DFL)
+        os.kill(os.getpid(), signum)
+
+    return handler
+
+
+def install_shutdown_cleanup() -> None:
+    """Stop isolated operation Git trees when the MCP server exits or is signalled.
+
+    Operation-owned Git runs in its own process group (see
+    ``isolated_process_group_kwargs``), so a signal sent to the server's group,
+    such as Ctrl-C or a client shutting the server down, no longer reaches it.
+    The server therefore stops those trees itself on exit and on SIGTERM/SIGHUP,
+    then lets the signal take its previous effect.
+    """
+
+    global _SHUTDOWN_CLEANUP_INSTALLED
+    if _SHUTDOWN_CLEANUP_INSTALLED:
+        return
+    _SHUTDOWN_CLEANUP_INSTALLED = True
+    atexit.register(kill_active_process_trees)
+    if os.name != "posix" or threading.current_thread() is not threading.main_thread():
+        return
+    # SIGINT is left to the event loop: asyncio turns it into cancellation of
+    # in-flight requests, which the long-operation bridge already propagates
+    # to the Git tree, and a normal exit then runs the atexit hook. Replacing
+    # it would stop asyncio from installing its own handler.
+    for signum in (signal.SIGTERM, signal.SIGHUP):
+        previous = signal.getsignal(signum)
+        if previous == signal.SIG_IGN:
+            # e.g. SIGHUP under nohup: keep ignoring it rather than turning it
+            # into a reason to stop in-flight acquisitions.
+            continue
+        signal.signal(signum, _forwarding_signal_handler(signum, previous))
+
+
 @contextmanager
 def watch_subprocess(process: Any) -> Iterator[None]:
     """Kill a streaming Git subprocess if the current operation expires/cancels.
@@ -164,10 +300,7 @@ def watch_subprocess(process: Any) -> Iterator[None]:
                 operation.remaining_acquisition_seconds()
             except BaseException as exc:
                 failures.append(exc)
-                try:
-                    process.kill()
-                except (OSError, ProcessLookupError):
-                    pass
+                kill_process_tree(process)
                 return
 
     watcher = threading.Thread(

@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
 import tempfile
+import time
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +29,7 @@ class LoadCase:
     expected_known_issue: str | None = None
     expected_upstream_error_type: str | None = None
     expected_upstream_error_text: str | None = None
+    modules: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,10 @@ LOAD_CASES = {
         "ValueError",
         "not enough values to unpack",
     ),
+    # Regression smoke for the feature-module overlay path. It is not bound to
+    # a registry verification check (checks describe resources and collection
+    # members only), so it never promotes module evidence.
+    "bhsa-phono": LoadCase("bhsa", ("g_cons", "phono"), modules=("bhsa-phono",)),
 }
 
 POSITIVE_CLAIMS = frozenset({"materialization", "load", "representative-content"})
@@ -82,6 +89,13 @@ SEMANTIC_EXPECTATIONS = {
     "greek-iliad": (
         SemanticExpectation("orig", 1, "μῆνιν"),
         SemanticExpectation("main", 1, "μῆνιν"),
+    ),
+    # BHSA 2021 + ETCBC/phono: the module's phonetic transcription must align
+    # with the parent's first two slots (B / R>CJT of Genesis 1:1).
+    "bhsa-phono": (
+        SemanticExpectation("g_cons", 1, "B"),
+        SemanticExpectation("phono", 1, "bᵊ"),
+        SemanticExpectation("phono", 2, "rēšˌîṯ"),
     ),
 }
 
@@ -163,6 +177,8 @@ def validate_case_check_binding(
         )
 
     case = LOAD_CASES[case_name]
+    if case_name not in CASE_CLAIMS:
+        raise RuntimeError(f"{case_name}: case has no registry verification check contract")
     if case.member_path_contains is None:
         expected_subject = {"type": "resource", "resource_id": case.resource_id}
         if member_id is not None:
@@ -261,10 +277,170 @@ def summarize_loaded_corpus(
     }
 
 
+def _tree_bytes(root: Path) -> int:
+    """Apparent bytes under ``root``, counted like the store's own accounting.
+
+    Symlinks are skipped and every path is counted, so files hard-linked
+    between a snapshot and its overlay count once per path, exactly as
+    ``cache_status``/``remove_cached`` count them.
+    """
+
+    total = 0
+    for dirpath, _dirnames, filenames in os.walk(root):
+        for name in filenames:
+            candidate = Path(dirpath) / name
+            try:
+                if not candidate.is_symlink():
+                    total += candidate.stat().st_size
+            except OSError:
+                continue
+    return total
+
+
+def _subject_cache_paths(
+    store: Any,
+    resource_id: str,
+    member_id: str | None,
+) -> list[str]:
+    from agora_context_fabric.resolver import member_id_from_path
+
+    paths: list[str] = []
+    for entry in store.cache_entries(resource_id):
+        if member_id is not None:
+            relative_path = entry.get("relative_path")
+            if entry.get("kind") != "corpus-snapshot" or not isinstance(relative_path, str):
+                continue
+            if member_id_from_path(relative_path) != member_id:
+                continue
+        paths.append(str(entry["path"]))
+    return paths
+
+
+# Removed bytes must show up as an on-disk reduction; allow a little slack for
+# access stamps and metadata files that are rewritten while removing.
+ON_DISK_RECLAIM_FRACTION = 0.9
+
+
+def exercise_cache_lifecycle(
+    case_name: str,
+    case: LoadCase,
+    service: Any,
+    store: Any,
+    *,
+    member_id: str | None,
+    first_result: dict[str, Any],
+    reload_and_check: Callable[[], tuple[dict[str, Any], list[dict[str, Any]]]],
+) -> dict[str, Any]:
+    """Check unload, then remove, confirm the space is reclaimed, prune, reload.
+
+    This exercises the user-facing cleanup path (unload_corpus,
+    remove_cached_corpus, prune_corpus_cache) on a real corpus and proves a
+    removed corpus can be exported, compiled and loaded again with the same
+    content. The persistent Git metadata repository and its selected revision
+    are deliberately kept by removal, so the reload is cold for snapshot
+    export and compilation, not for Git metadata or revision selection.
+    """
+
+    status = service.cache_status()
+    if status.get("loaded_corpora"):
+        raise RuntimeError(
+            f"{case_name}: corpora still loaded after unload: {status['loaded_corpora']!r}"
+        )
+
+    subjects = [(case.resource_id, member_id)] + [(module, None) for module in case.modules]
+    cache_root = Path(store.cache_dir)
+    bytes_on_disk_before = _tree_bytes(cache_root)
+    cache_bytes_before = int(status["cache_bytes"])
+    removals: list[dict[str, Any]] = []
+    removed_paths: list[str] = []
+    for resource_id, subject_member in subjects:
+        paths = _subject_cache_paths(store, resource_id, subject_member)
+        if not paths:
+            raise RuntimeError(f"{case_name}: no cache objects found for {resource_id!r}")
+        removal = service.remove_cached(resource_id, member_id=subject_member)
+        if not removal.get("complete"):
+            raise RuntimeError(f"{case_name}: removing {resource_id!r} was incomplete: {removal!r}")
+        if removal.get("removed_entries") != removal.get("matched_entries"):
+            raise RuntimeError(f"{case_name}: not every matched {resource_id!r} object was removed")
+        if int(removal.get("removed_bytes", 0)) <= 0:
+            raise RuntimeError(f"{case_name}: removing {resource_id!r} reclaimed no bytes")
+        removals.append(
+            {
+                "resource_id": resource_id,
+                "member_id": subject_member,
+                "removed_entries": removal["removed_entries"],
+                "removed_bytes": int(removal["removed_bytes"]),
+            }
+        )
+        removed_paths.extend(paths)
+
+    survivors = [path for path in removed_paths if Path(path).exists()]
+    if survivors:
+        raise RuntimeError(f"{case_name}: removed cache objects still exist: {survivors!r}")
+    for resource_id, subject_member in subjects:
+        if _subject_cache_paths(store, resource_id, subject_member):
+            raise RuntimeError(f"{case_name}: cache still indexes removed {resource_id!r} objects")
+
+    removed_bytes = sum(item["removed_bytes"] for item in removals)
+    after_remove = service.cache_status()
+    if int(after_remove["cache_bytes"]) > cache_bytes_before - removed_bytes:
+        raise RuntimeError(
+            f"{case_name}: cache_status still counts removed bytes "
+            f"({cache_bytes_before} -> {after_remove['cache_bytes']}, removed {removed_bytes})"
+        )
+    bytes_on_disk_after = _tree_bytes(cache_root)
+    reclaimed_apparent = bytes_on_disk_before - bytes_on_disk_after
+    if reclaimed_apparent < removed_bytes * ON_DISK_RECLAIM_FRACTION:
+        raise RuntimeError(
+            f"{case_name}: only {reclaimed_apparent} bytes left the cache directory after "
+            f"removing {removed_bytes} bytes"
+        )
+
+    # Nothing removable is left, so prune must neither be blocked nor grow the
+    # cache; it also runs the bounded Git metadata maintenance.
+    prune = service.prune_cache()
+    if int(prune.get("skipped_in_use", 0)) or int(prune.get("blocked_by_transition", 0)):
+        raise RuntimeError(f"{case_name}: prune was blocked: {prune!r}")
+    if int(prune.get("after_bytes", 0)) > int(after_remove["cache_bytes"]):
+        raise RuntimeError(
+            f"{case_name}: cache grew during prune ({after_remove['cache_bytes']} -> "
+            f"{prune.get('after_bytes')})"
+        )
+    for resource_id, subject_member in subjects:
+        if _subject_cache_paths(store, resource_id, subject_member):
+            raise RuntimeError(f"{case_name}: prune resurrected removed {resource_id!r} objects")
+
+    started = time.monotonic()
+    reloaded, semantic_checks = reload_and_check()
+    reload_seconds = round(time.monotonic() - started, 1)
+    if reloaded.get("source_revision") != first_result.get("source_revision"):
+        raise RuntimeError(
+            f"{case_name}: reload resolved {reloaded.get('source_revision')!r}, first load "
+            f"resolved {first_result.get('source_revision')!r}"
+        )
+    return {
+        "status": "ok",
+        "removals": removals,
+        "removed_bytes": removed_bytes,
+        # Apparent bytes: files hard-linked between an overlay and its parent
+        # snapshot are counted per path, like cache_status counts them.
+        "reclaimed_apparent_bytes": reclaimed_apparent,
+        "cache_bytes_before": cache_bytes_before,
+        "cache_bytes_after_remove": int(after_remove["cache_bytes"]),
+        "prune_removed_entries": prune.get("removed_entries"),
+        "prune_removed_bytes": prune.get("removed_bytes"),
+        "cache_bytes_after_prune": prune.get("after_bytes"),
+        "reload_seconds": reload_seconds,
+        "reload_semantic_checks": semantic_checks,
+    }
+
+
 def run_case(
     case_name: str,
     cache_dir: Path,
     check_id: str | None = None,
+    *,
+    lifecycle: bool = False,
 ) -> dict[str, Any]:
     from agora_context_fabric.catalog import Catalog
     from agora_context_fabric.gitstore import GitStore
@@ -371,28 +547,51 @@ def run_case(
         }
         if check_id is not None:
             report["check_id"] = check_id
+        if lifecycle:
+            report["lifecycle"] = {
+                "status": "not-applicable",
+                "reason": "the known-issue canary never loads through Agora",
+            }
         return report
 
-    result = service.load(
-        case.resource_id,
-        member_id=member_id,
-        source_revision=source_revision,
-        features=list(case.features),
-    )
-    logical_name = result["logical_name"]
-    try:
-        api = corpus_manager.get_api(logical_name)
-        semantic_checks = check_semantic_expectations(
+    def load_and_check() -> tuple[dict[str, Any], list[dict[str, Any]]]:
+        load_kwargs: dict[str, Any] = {
+            "member_id": member_id,
+            "source_revision": source_revision,
+            "features": list(case.features),
+        }
+        if case.modules:
+            load_kwargs["modules"] = list(case.modules)
+        loaded = service.load(case.resource_id, **load_kwargs)
+        logical_name = loaded["logical_name"]
+        try:
+            api = corpus_manager.get_api(logical_name)
+            checks = check_semantic_expectations(
+                case_name,
+                api,
+                SEMANTIC_EXPECTATIONS[case_name],
+            )
+        finally:
+            service.unload(logical_name)
+        return loaded, checks
+
+    result, semantic_checks = load_and_check()
+    report = summarize_loaded_corpus(case_name, result, semantic_checks)
+    if case.modules:
+        report["modules"] = list(case.modules)
+    if check_id is not None:
+        report["check_id"] = check_id
+    if lifecycle:
+        report["lifecycle"] = exercise_cache_lifecycle(
             case_name,
-            api,
-            SEMANTIC_EXPECTATIONS[case_name],
+            case,
+            service,
+            store,
+            member_id=member_id,
+            first_result=result,
+            reload_and_check=load_and_check,
         )
-        report = summarize_loaded_corpus(case_name, result, semantic_checks)
-        if check_id is not None:
-            report["check_id"] = check_id
-        return report
-    finally:
-        service.unload(logical_name)
+    return report
 
 
 def main() -> int:
@@ -401,6 +600,14 @@ def main() -> int:
     parser.add_argument(
         "--check-id",
         help="Bind one explicit smoke case to one canonical verification check ID.",
+    )
+    parser.add_argument(
+        "--lifecycle",
+        action="store_true",
+        help=(
+            "After a successful load, unload, remove and prune the cached corpus, "
+            "check the space was reclaimed, then reload it and re-check content."
+        ),
     )
     parser.add_argument(
         "--cache-dir",
@@ -412,10 +619,11 @@ def main() -> int:
         parser.error("--check-id requires exactly one explicit smoke case")
     case_names = args.cases or list(LOAD_CASES)
     for case_name in case_names:
+        options: dict[str, Any] = {"lifecycle": True} if args.lifecycle else {}
         if args.check_id is None:
-            report = run_case(case_name, args.cache_dir)
+            report = run_case(case_name, args.cache_dir, **options)
         else:
-            report = run_case(case_name, args.cache_dir, check_id=args.check_id)
+            report = run_case(case_name, args.cache_dir, check_id=args.check_id, **options)
         print(json.dumps(report, sort_keys=True, ensure_ascii=False))
     return 0
 

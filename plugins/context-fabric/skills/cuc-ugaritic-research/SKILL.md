@@ -15,7 +15,7 @@ The Copenhagen Ugaritic Corpus (CUC) is a Text-Fabric corpus developed by the CA
 
 ## Load the registered corpus
 
-Use `load_corpus` with Agora's `cuc` resource.
+Use Agora's `cuc` resource. For a first load, run `prepare_corpus` and then `load_corpus`, as described in the `context-fabric-research` skill. If a call is interrupted, inspect `corpus_cache_status` before retrying.
 
 Record the returned `source_revision`, then consult the upstream documentation at that revision. After loading, inspect node types and feature metadata before building linguistic queries. Do not import BHSA feature expectations merely because both corpora are Text-Fabric datasets developed in an ancient-Semitic research context.
 

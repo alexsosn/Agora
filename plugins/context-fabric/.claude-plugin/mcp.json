@@ -9,6 +9,7 @@
       "agora-context-fabric-mcp",
       "--plugin-root",
       "${CLAUDE_PLUGIN_ROOT}"
-    ]
+    ],
+    "timeout": 5400000
   }
 }

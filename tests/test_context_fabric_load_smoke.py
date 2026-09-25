@@ -31,7 +31,7 @@ class ContextFabricLoadSmokeTests(unittest.TestCase):
     def test_cases_cover_core_good_greek_and_expected_known_failure(self):
         self.assertEqual(
             set(LOAD_CASES),
-            {"bhsa", "cuc", "greek-iliad", "greek-known-bad"},
+            {"bhsa", "cuc", "greek-iliad", "greek-known-bad", "bhsa-phono"},
         )
 
         self.assertEqual(LOAD_CASES["bhsa"].resource_id, "bhsa")

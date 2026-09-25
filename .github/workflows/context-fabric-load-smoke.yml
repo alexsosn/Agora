@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/context-fabric-load-smoke.yml'
       - 'registry/resources.yaml'
+      - 'registry/feature-modules.yaml'
       - 'registry/collections/**'
       - 'registry/verification-checks.yaml'
       - 'registry/schema/verification-checks.schema.json'
@@ -18,12 +19,14 @@ on:
       - 'scripts/smoke_context_fabric_resources.py'
       - 'tests/test_context_fabric_load_smoke.py'
       - 'tests/test_context_fabric_load_smoke_workflow.py'
+      - 'tests/test_context_fabric_cache_lifecycle_smoke.py'
       - 'tests/test_resource_member_verification_live_workflow.py'
   push:
     branches: [main]
     paths:
       - '.github/workflows/context-fabric-load-smoke.yml'
       - 'registry/resources.yaml'
+      - 'registry/feature-modules.yaml'
       - 'registry/collections/**'
       - 'registry/verification-checks.yaml'
       - 'registry/schema/verification-checks.schema.json'
@@ -34,6 +37,7 @@ on:
       - 'scripts/smoke_context_fabric_resources.py'
       - 'tests/test_context_fabric_load_smoke.py'
       - 'tests/test_context_fabric_load_smoke_workflow.py'
+      - 'tests/test_context_fabric_cache_lifecycle_smoke.py'
       - 'tests/test_resource_member_verification_live_workflow.py'
 
 permissions:
@@ -66,7 +70,8 @@ jobs:
   representative-loads:
     name: Load ${{ matrix.case }} and bind ${{ matrix.check_id }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Includes the cache lifecycle: unload/remove/prune and a cold reload.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -99,13 +104,14 @@ jobs:
       - name: Install Context-Fabric runtime
         run: python -m pip install -e plugins/context-fabric
 
-      - name: Load exact representative subject and assert semantics
+      - name: Load exact representative subject, assert semantics, and exercise cache cleanup
         shell: bash
         run: |
           set -o pipefail
           python scripts/smoke_context_fabric_resources.py \
             "${{ matrix.case }}" \
             --check-id "${{ matrix.check_id }}" \
+            --lifecycle \
             --cache-dir "$HOME/.cache/agora/context-fabric-smoke/${{ matrix.case }}" \
             | tee "context-fabric-load-${{ matrix.case }}.jsonl"
 
@@ -115,4 +121,52 @@ jobs:
         with:
           name: context-fabric-load-${{ matrix.case }}
           path: context-fabric-load-${{ matrix.case }}.jsonl
+          if-no-files-found: warn
+
+  feature-module-load:
+    # Regression smoke for a parent corpus + feature-module overlay. It is not
+    # bound to a registry verification check and promotes no module evidence.
+    name: Load BHSA with the bhsa-phono feature module and exercise cache cleanup
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      AGORA_CORPUS_CACHE_MAX_GB: '5'
+      AGORA_CORPUS_MIN_FREE_GB: '2'
+
+    steps:
+      - name: Check out Agora
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Restore feature-module Context-Fabric corpus cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/agora/context-fabric-smoke/bhsa-phono
+          key: ${{ runner.os }}-context-fabric-load-bhsa-phono-${{ hashFiles('registry/resources.yaml', 'registry/feature-modules.yaml', 'plugins/context-fabric/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-context-fabric-load-bhsa-phono-
+
+      - name: Install Context-Fabric runtime
+        run: python -m pip install -e plugins/context-fabric
+
+      - name: Load BHSA + bhsa-phono, assert module semantics, and exercise cache cleanup
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/smoke_context_fabric_resources.py \
+            bhsa-phono \
+            --lifecycle \
+            --cache-dir "$HOME/.cache/agora/context-fabric-smoke/bhsa-phono" \
+            | tee context-fabric-load-bhsa-phono.jsonl
+
+      - name: Upload feature-module smoke output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: context-fabric-load-bhsa-phono
+          path: context-fabric-load-bhsa-phono.jsonl
           if-no-files-found: warn
