@@ -10,19 +10,21 @@ It lets Claude Code and ChatGPT/Codex use research tools for Biblical Studies, C
 
 Agora currently includes four plugin families:
 
-- **Context-Fabric** — structured local querying of registered Text-Fabric corpora, including BHSA, Ugaritic and Hittite corpora, and large Greek collections.
-- **Perseus** — live Perseus/Scaife text discovery, passage retrieval, and full-text search.
-- **Sefaria** — Jewish texts, translations, links and commentaries, dictionaries, topics, and manuscript resources through the official Sefaria MCP.
-- **SEDRA** — Syriac word-form and lexeme lookup against SEDRA IV.
+- **[Context-Fabric](wiki/guides/plugins/context-fabric.md)** — structured local querying of registered Text-Fabric corpora, including BHSA, Ugaritic and Hittite corpora, and large Greek collections.
+- **[Perseus](wiki/guides/plugins/perseus.md)** — live Perseus/Scaife text discovery, passage retrieval, and full-text search.
+- **[Sefaria](wiki/guides/plugins/sefaria.md)** — Jewish texts, translations, links and commentaries, dictionaries, topics, and manuscript resources through the official Sefaria MCP.
+- **[SEDRA](wiki/guides/plugins/sedra.md)** — Syriac word-form and lexeme lookup against SEDRA IV.
 
 Agora plugins can also include **scholarly skills**: source-specific guidance that tells the agent how to interpret corpus features, avoid common mistakes, and produce more reproducible research queries.
+
+New to Agora? Start with the [Researcher user guide](wiki/guides/README.md) to choose a plugin, install it, check compatibility, find current research examples, or troubleshoot a problem.
 
 ## What you can do
 
 With the current plugins you can, for example:
 
 - query morphology and syntax in the **BHSA Hebrew Bible**;
-- work with **Ugaritic** and **Hittite** Text-Fabric corpora through the same provider interface;
+- work with **Ugaritic** and **Hittite** Text-Fabric corpora through the same Context-Fabric plugin;
 - discover and load individual works from large **Greek Text-Fabric collections** without installing one plugin per text;
 - retrieve passages and search Classical texts through **Perseus/Scaife**;
 - fetch source texts, translations, linked commentaries, and other resources from **Sefaria**;
@@ -104,14 +106,14 @@ For corpus research, Agora's bundled skills encourage the agent to inspect the s
 
 | Research task | Plugin |
 |---|---|
-| Hebrew Bible morphology and syntax | **Context-Fabric** |
-| Ugaritic or Hittite corpus analysis | **Context-Fabric** |
-| Structured Greek Text-Fabric corpora | **Context-Fabric** |
-| Perseus/Scaife discovery, passages, and search | **Perseus** |
-| Jewish texts, translations, commentaries, dictionaries | **Sefaria** |
-| Syriac word and lexeme lookup | **SEDRA** |
+| Hebrew Bible morphology and syntax | **[Context-Fabric](wiki/guides/plugins/context-fabric.md)** |
+| Ugaritic or Hittite corpus analysis | **[Context-Fabric](wiki/guides/plugins/context-fabric.md)** |
+| Structured Greek Text-Fabric corpora | **[Context-Fabric](wiki/guides/plugins/context-fabric.md)** |
+| Perseus/Scaife discovery, passages, and search | **[Perseus](wiki/guides/plugins/perseus.md)** |
+| Jewish texts, translations, commentaries, dictionaries | **[Sefaria](wiki/guides/plugins/sefaria.md)** |
+| Syriac word and lexeme lookup | **[SEDRA](wiki/guides/plugins/sedra.md)** |
 
-Agora is designed to add more providers without forcing them into Text-Fabric or any other single data model.
+Agora is designed to add more scholarly tools and services without forcing them into Text-Fabric or any other single data model.
 
 ## Verification scope
 
@@ -123,16 +125,13 @@ A successful integration check does not certify the scholarly quality or suitabi
 
 ## Documentation
 
+For research use, start with the [Researcher user guide](wiki/guides/README.md).
+
 - [Installation guide](wiki/guides/installation.md)
 - [Compatibility and verification](wiki/guides/compatibility.md)
 - [Context-Fabric cache and cold-load safety](wiki/guides/context-fabric-cache.md)
-- [Wiki index](wiki/README.md)
-- [Agora 1.0 release plan](wiki/releases/v1.0-plan.md)
-- [v0.1 scope](wiki/releases/v0.1-scope-frozen.md)
-- [Implementation details](wiki/architecture/ref-implementation-details.md)
-- [Marketplace architecture](wiki/architecture/ref-marketplace-architecture.md)
-- [Greek/Context-Fabric collection handling](wiki/architecture/ref-context-fabric-collections.md)
-- [Contributing](CONTRIBUTING.md)
+
+Project architecture, release history, backlog, and review records remain available through the [project wiki index](wiki/README.md). Contributors should use [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing
 
