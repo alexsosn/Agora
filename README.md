@@ -10,10 +10,10 @@ It lets Claude Code and ChatGPT/Codex use research tools for Biblical Studies, C
 
 Agora currently includes four plugin families:
 
-- **Context-Fabric** — structured local querying of registered Text-Fabric corpora, including BHSA, Ugaritic and Hittite corpora, and large Greek collections.
-- **Perseus** — live Perseus/Scaife text discovery, passage retrieval, and full-text search.
-- **Sefaria** — Jewish texts, translations, links and commentaries, dictionaries, topics, and manuscript resources through the official Sefaria MCP.
-- **SEDRA** — Syriac word-form and lexeme lookup against SEDRA IV.
+- **[Context-Fabric](wiki/guides/plugins/context-fabric.md)** — structured local querying of registered Text-Fabric corpora, including BHSA, Ugaritic and Hittite corpora, and large Greek collections.
+- **[Perseus](wiki/guides/plugins/perseus.md)** — live Perseus/Scaife text discovery, passage retrieval, and full-text search.
+- **[Sefaria](wiki/guides/plugins/sefaria.md)** — Jewish texts, translations, links and commentaries, dictionaries, topics, and manuscript resources through the official Sefaria MCP.
+- **[SEDRA](wiki/guides/plugins/sedra.md)** — Syriac word-form and lexeme lookup against SEDRA IV.
 
 Agora plugins can also include **scholarly skills**: source-specific guidance that tells the agent how to interpret corpus features, avoid common mistakes, and produce more reproducible research queries.
 
@@ -106,12 +106,12 @@ For corpus research, Agora's bundled skills encourage the agent to inspect the s
 
 | Research task | Plugin |
 |---|---|
-| Hebrew Bible morphology and syntax | **Context-Fabric** |
-| Ugaritic or Hittite corpus analysis | **Context-Fabric** |
-| Structured Greek Text-Fabric corpora | **Context-Fabric** |
-| Perseus/Scaife discovery, passages, and search | **Perseus** |
-| Jewish texts, translations, commentaries, dictionaries | **Sefaria** |
-| Syriac word and lexeme lookup | **SEDRA** |
+| Hebrew Bible morphology and syntax | **[Context-Fabric](wiki/guides/plugins/context-fabric.md)** |
+| Ugaritic or Hittite corpus analysis | **[Context-Fabric](wiki/guides/plugins/context-fabric.md)** |
+| Structured Greek Text-Fabric corpora | **[Context-Fabric](wiki/guides/plugins/context-fabric.md)** |
+| Perseus/Scaife discovery, passages, and search | **[Perseus](wiki/guides/plugins/perseus.md)** |
+| Jewish texts, translations, commentaries, dictionaries | **[Sefaria](wiki/guides/plugins/sefaria.md)** |
+| Syriac word and lexeme lookup | **[SEDRA](wiki/guides/plugins/sedra.md)** |
 
 Agora is designed to add more scholarly tools and services without forcing them into Text-Fabric or any other single data model.
 
