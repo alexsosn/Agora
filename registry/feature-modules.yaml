@@ -396,7 +396,7 @@ resources:
     acquisition:
       strategy: local-module
       lazy: true
-      notes: Not fetched by Agora. Materialize with the upstream `ugarit-context-parsing module --cuc <cuc>/tf/0.2.8` CLI and place the output under `<AGORA_CORPUS_CACHE>/local-modules/cuc-burns/tf/0.2.8`. The `ugarit-context-parsing` materializers registered in registry/materializers.yaml run the upstream's deprecated `convert` command and produce the standalone row-slot corpus, not this module.
+      notes: Not fetched by Agora. Materialize with the upstream `ugarit-context-parsing module --cuc <cuc>/tf/0.2.8` CLI and place the output under `<AGORA_CORPUS_CACHE>/local-modules/cuc-burns/tf/0.2.8`.
     licenses: {data: CC-BY-NC-ND-2.5, redistribution: restricted, notes: Burns source material is NoDerivatives; generated Text-Fabric artifacts are for local use only.}
     verification: {status: community}
     source_snapshot: {source: alexsosn/CTC-TF:README.md, checked_at: "2026-09-16"}
