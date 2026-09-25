@@ -270,6 +270,10 @@ def install_shutdown_cleanup() -> None:
     # it would stop asyncio from installing its own handler.
     for signum in (signal.SIGTERM, signal.SIGHUP):
         previous = signal.getsignal(signum)
+        if previous == signal.SIG_IGN:
+            # e.g. SIGHUP under nohup: keep ignoring it rather than turning it
+            # into a reason to stop in-flight acquisitions.
+            continue
         signal.signal(signum, _forwarding_signal_handler(signum, previous))
 
 

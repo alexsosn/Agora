@@ -331,6 +331,24 @@ class ServerShutdownStopsOperationGitTreesTests(unittest.TestCase):
         self._run_server_and_signal(signal_module.SIGINT)
 
 
+@unittest.skipUnless(os.name == "posix", "SIGHUP is POSIX-only")
+class ShutdownCleanupRespectsIgnoredSignalsTests(unittest.TestCase):
+    def test_ignored_sighup_stays_ignored(self):
+        script = (
+            "import signal, sys\n"
+            f"sys.path.insert(0, {str(PLUGIN_SRC)!r})\n"
+            "signal.signal(signal.SIGHUP, signal.SIG_IGN)\n"
+            "from agora_context_fabric.operation import install_shutdown_cleanup\n"
+            "install_shutdown_cleanup()\n"
+            "assert signal.getsignal(signal.SIGHUP) == signal.SIG_IGN, 'SIGHUP no longer ignored'\n"
+            "assert signal.getsignal(signal.SIGTERM) not in (signal.SIG_DFL, signal.SIG_IGN)\n"
+        )
+        completed = subprocess.run(
+            [sys.executable, "-c", script], capture_output=True, text=True, timeout=30
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+
 class RepositoryLockWaitMessageTests(unittest.TestCase):
     def test_lock_wait_timeout_explains_busy_repository(self):
         with tempfile.TemporaryDirectory() as tmp:
