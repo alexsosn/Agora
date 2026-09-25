@@ -17,6 +17,8 @@ Agora currently includes four plugin families:
 
 Agora plugins can also include **scholarly skills**: source-specific guidance that tells the agent how to interpret corpus features, avoid common mistakes, and produce more reproducible research queries.
 
+New to Agora? Start with the [Researcher user guide](wiki/guides/README.md) to choose a plugin, install it, check compatibility, find current research examples, or troubleshoot a problem.
+
 ## What you can do
 
 With the current plugins you can, for example:
@@ -123,16 +125,13 @@ A successful integration check does not certify the scholarly quality or suitabi
 
 ## Documentation
 
+For research use, start with the [Researcher user guide](wiki/guides/README.md).
+
 - [Installation guide](wiki/guides/installation.md)
 - [Compatibility and verification](wiki/guides/compatibility.md)
 - [Context-Fabric cache and cold-load safety](wiki/guides/context-fabric-cache.md)
-- [Wiki index](wiki/README.md)
-- [Agora 1.0 release plan](wiki/releases/v1.0-plan.md)
-- [v0.1 scope](wiki/releases/v0.1-scope-frozen.md)
-- [Implementation details](wiki/architecture/ref-implementation-details.md)
-- [Marketplace architecture](wiki/architecture/ref-marketplace-architecture.md)
-- [Greek/Context-Fabric collection handling](wiki/architecture/ref-context-fabric-collections.md)
-- [Contributing](CONTRIBUTING.md)
+
+Project architecture, release history, backlog, and review records remain available through the [project wiki index](wiki/README.md). Contributors should use [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Contributing
 

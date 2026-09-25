@@ -58,7 +58,9 @@ When older planning/research language is broader than the plugin boundary, `ref-
 
 ### Guides
 
+- [`guides/README.md`](guides/README.md) — researcher landing page for getting started, plugin/resource discovery, examples, compatibility, and troubleshooting.
 - [`guides/installation.md`](guides/installation.md) — Claude Code and ChatGPT/Codex installation flows.
+- [`guides/compatibility.md`](guides/compatibility.md) — client/platform evidence, support boundaries, and current upstream limitations.
 - [`guides/context-fabric-cache.md`](guides/context-fabric-cache.md) — Context-Fabric managed cache, cold-compilation guardrails, status, cancellation, and cleanup behavior.
 
 ### Backlog
