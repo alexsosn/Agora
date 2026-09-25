@@ -278,11 +278,20 @@ def summarize_loaded_corpus(
 
 
 def _tree_bytes(root: Path) -> int:
+    """Apparent bytes under ``root``, counted like the store's own accounting.
+
+    Symlinks are skipped and every path is counted, so files hard-linked
+    between a snapshot and its overlay count once per path, exactly as
+    ``cache_status``/``remove_cached`` count them.
+    """
+
     total = 0
     for dirpath, _dirnames, filenames in os.walk(root):
         for name in filenames:
+            candidate = Path(dirpath) / name
             try:
-                total += (Path(dirpath) / name).lstat().st_size
+                if not candidate.is_symlink():
+                    total += candidate.stat().st_size
             except OSError:
                 continue
     return total
@@ -322,11 +331,14 @@ def exercise_cache_lifecycle(
     first_result: dict[str, Any],
     reload_and_check: Callable[[], tuple[dict[str, Any], list[dict[str, Any]]]],
 ) -> dict[str, Any]:
-    """Unload, remove, prune, confirm the space is reclaimed, then reload.
+    """Check unload, then remove, confirm the space is reclaimed, prune, reload.
 
     This exercises the user-facing cleanup path (unload_corpus,
     remove_cached_corpus, prune_corpus_cache) on a real corpus and proves a
-    removed corpus can be acquired and loaded again with the same content.
+    removed corpus can be exported, compiled and loaded again with the same
+    content. The persistent Git metadata repository and its selected revision
+    are deliberately kept by removal, so the reload is cold for snapshot
+    export and compilation, not for Git metadata or revision selection.
     """
 
     status = service.cache_status()
@@ -377,14 +389,23 @@ def exercise_cache_lifecycle(
             f"({cache_bytes_before} -> {after_remove['cache_bytes']}, removed {removed_bytes})"
         )
     bytes_on_disk_after = _tree_bytes(cache_root)
-    reclaimed_on_disk = bytes_on_disk_before - bytes_on_disk_after
-    if reclaimed_on_disk < removed_bytes * ON_DISK_RECLAIM_FRACTION:
+    reclaimed_apparent = bytes_on_disk_before - bytes_on_disk_after
+    if reclaimed_apparent < removed_bytes * ON_DISK_RECLAIM_FRACTION:
         raise RuntimeError(
-            f"{case_name}: only {reclaimed_on_disk} bytes left the cache directory after "
+            f"{case_name}: only {reclaimed_apparent} bytes left the cache directory after "
             f"removing {removed_bytes} bytes"
         )
 
+    # Nothing removable is left, so prune must neither be blocked nor grow the
+    # cache; it also runs the bounded Git metadata maintenance.
     prune = service.prune_cache()
+    if int(prune.get("skipped_in_use", 0)) or int(prune.get("blocked_by_transition", 0)):
+        raise RuntimeError(f"{case_name}: prune was blocked: {prune!r}")
+    if int(prune.get("after_bytes", 0)) > int(after_remove["cache_bytes"]):
+        raise RuntimeError(
+            f"{case_name}: cache grew during prune ({after_remove['cache_bytes']} -> "
+            f"{prune.get('after_bytes')})"
+        )
     for resource_id, subject_member in subjects:
         if _subject_cache_paths(store, resource_id, subject_member):
             raise RuntimeError(f"{case_name}: prune resurrected removed {resource_id!r} objects")
@@ -401,7 +422,9 @@ def exercise_cache_lifecycle(
         "status": "ok",
         "removals": removals,
         "removed_bytes": removed_bytes,
-        "reclaimed_on_disk_bytes": reclaimed_on_disk,
+        # Apparent bytes: files hard-linked between an overlay and its parent
+        # snapshot are counted per path, like cache_status counts them.
+        "reclaimed_apparent_bytes": reclaimed_apparent,
         "cache_bytes_before": cache_bytes_before,
         "cache_bytes_after_remove": int(after_remove["cache_bytes"]),
         "prune_removed_entries": prune.get("removed_entries"),

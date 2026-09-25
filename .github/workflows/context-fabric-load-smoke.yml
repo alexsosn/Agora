@@ -19,6 +19,7 @@ on:
       - 'scripts/smoke_context_fabric_resources.py'
       - 'tests/test_context_fabric_load_smoke.py'
       - 'tests/test_context_fabric_load_smoke_workflow.py'
+      - 'tests/test_context_fabric_cache_lifecycle_smoke.py'
       - 'tests/test_resource_member_verification_live_workflow.py'
   push:
     branches: [main]
@@ -36,6 +37,7 @@ on:
       - 'scripts/smoke_context_fabric_resources.py'
       - 'tests/test_context_fabric_load_smoke.py'
       - 'tests/test_context_fabric_load_smoke_workflow.py'
+      - 'tests/test_context_fabric_cache_lifecycle_smoke.py'
       - 'tests/test_resource_member_verification_live_workflow.py'
 
 permissions:
