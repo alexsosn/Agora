@@ -1,5 +1,9 @@
 # Agora
 
+<p align="center">
+  <img src="assets/agora-logo.png" alt="Agora logo" width="360">
+</p>
+
 **Agora is a plugin marketplace that brings scholarly corpora, lexica, textual databases, and research services into AI-assisted philological workflows.**
 
 It lets Claude Code and ChatGPT/Codex use research tools for Biblical Studies, Classics, Syriac, Ugaritic, Hittite, and related fields without requiring every resource to use the same backend or corpus format.
