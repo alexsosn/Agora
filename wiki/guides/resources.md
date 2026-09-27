@@ -97,6 +97,7 @@ These are selectable feature modules attached to a parent corpus. They are not s
 | <!-- feature-module:ninmed-parallels --> **Nineveh medical parallels** (`ninmed-parallels`)<br>Archived similar-passage features for the Nineveh medical corpus. | `ninmed` | Legacy | `0.3` | Akkadian | `unknown` · unknown | Experimental | [Nino-cunei/ninmed](https://github.com/Nino-cunei/ninmed) |
 | <!-- feature-module:quran-parallels --> **Quran parallels** (`quran-parallels`)<br>Archived similar-passage features for the Quranic Arabic Corpus. | `quran` | Legacy | `0.4` | Arabic | `unknown` · unknown | Experimental | [q-ran/quran](https://github.com/q-ran/quran) |
 | <!-- feature-module:banks-sim --> **Consider Phlebas similarity features** (`banks-sim`)<br>Text-Fabric documentation/demo similarity module for the Consider Phlebas corpus. | `banks` | Demo | `0.2` | English | `unknown` · unknown | Experimental | [annotation/banks](https://github.com/annotation/banks) |
+| <!-- feature-module:cuc-burns --> **CUC Burns cultic-vocabulary contexts (CTC)** (`cuc-burns`)<br>Duncan Burns (2003) Contents, Texts and Contexts cultic-vocabulary annotations (headword, interpretation status, GP/PH archive role, findspot) aligned to existing CUC nodes. | `cuc` | Community | `0.2.8` | Ugaritic | `CC-BY-NC-ND-2.5` · restricted | Community | [alexsosn/CTC-TF](https://github.com/alexsosn/CTC-TF) |
 
 For acquisition/compile limits and module-overlay cost behavior, see [Context-Fabric cache and cold-load safety](context-fabric-cache.md).
 
