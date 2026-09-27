@@ -506,8 +506,11 @@ resources:
   disciplines: [semitic-linguistics]
   period: 1223-1172 BCE
   description: Copenhagen Ugaritic Corpus.
-  upstream: {repository: DT-UCPH/cuc}
-  acquisition: {strategy: repository, lazy: true}
+  upstream: {repository: DT-UCPH/cuc, ref: 0408967b1808c1f22c69e299d302b1e7b5e26354, tf_path: tf/0.2.8}
+  acquisition:
+    strategy: repository
+    lazy: true
+    notes: Pinned to the immutable commit of upstream release v0.2.8 rather than the default branch, so the dataset a user loads is a published CUC version and dependent feature modules keep a stable parent identity. Promote deliberately when a newer CUC release is reviewed.
   licenses:
     data: CC-BY-NC-4.0
     redistribution: restricted
