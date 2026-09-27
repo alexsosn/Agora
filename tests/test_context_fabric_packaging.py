@@ -30,7 +30,7 @@ class ContextFabricPackagingTests(unittest.TestCase):
         ]
         self.assertEqual(core_ids, scope["required_resources"])
         self.assertEqual(len(core_ids), 37)
-        self.assertEqual(len(catalog.search(kind="feature-module")), 21)
+        self.assertEqual(len(catalog.search(kind="feature-module")), 22)
 
     def test_bundled_catalog_is_a_lossless_projection_of_registry(self):
         expected = build_catalog_document(ROOT)

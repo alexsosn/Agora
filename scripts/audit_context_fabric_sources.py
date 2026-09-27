@@ -119,6 +119,26 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
         if resource.parent is not None:
             item["parent"] = resource.parent
             item["compatible_parent_versions"] = list(resource.parent_versions)
+        if resource.kind == "feature-module" and resource.acquisition_strategy == "local-module":
+            # Agora never fetches user-materialized modules, so there is no
+            # upstream artifact to audit; the upstream tooling verifies the
+            # parent fingerprint at materialization time and the resolver
+            # enforces the declared parent-base revision at composition time.
+            item["status"] = "skipped"
+            item["module"] = resource.module_path
+            item["acquisition_strategy"] = resource.acquisition_strategy
+            item["compatibility_evidence"] = "local-module-not-audited"
+            item["verified_parent_versions"] = []
+            item["parent_base_ref"] = next(
+                (
+                    dependency.get("ref")
+                    for dependency in resource.dependencies
+                    if dependency.get("role") == "parent-base"
+                ),
+                None,
+            )
+            resources.append(item)
+            continue
         try:
             kwargs = {"cache_key": resource.id}
             if resource.ref is not None:
@@ -271,11 +291,13 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
         resources.append(item)
 
     checked = len(resources)
+    skipped = sum(1 for item in resources if item["status"] == "skipped")
     return {
         "ok": failed == 0,
         "checked": checked,
-        "passed": checked - failed,
+        "passed": checked - failed - skipped,
         "failed": failed,
+        "skipped": skipped,
         "load_smoke_required": sorted(load_smoke_required),
         "resources": resources,
     }

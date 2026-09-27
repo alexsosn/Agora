@@ -69,6 +69,7 @@ class ContextFabricService:
             "name": module.name,
             "status": module.module_status,
             "coverage": module.module_coverage,
+            "acquisition_strategy": module.acquisition_strategy,
             "compatible_parent_versions": list(module.parent_versions),
             "compatible_with_default": (
                 default_version in module.parent_versions if default_version is not None else None
@@ -133,6 +134,7 @@ class ContextFabricService:
                 if resource.kind == "feature-module"
                 else None
             ),
+            "acquisition": {"strategy": resource.acquisition_strategy},
             "default_version": default_version,
             "available_modules": available_modules,
             "registered_modules": registered_modules,

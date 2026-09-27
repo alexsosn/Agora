@@ -55,6 +55,38 @@ class RegistryValidationTests(unittest.TestCase):
             errors,
         )
 
+    def test_parent_base_dependency_requires_exact_parent_commit(self):
+        def mutate(doc):
+            module = next(item for item in doc["resources"] if item["id"] == "cuc-burns")
+            dependency = next(
+                item
+                for item in module["upstream"]["dependencies"]
+                if item["role"] == "parent-base"
+            )
+            dependency["ref"] = "ad69400"
+
+        errors = self.validate_mutation("registry/feature-modules.yaml", mutate)
+        self.assertTrue(
+            any("parent-base ref must be an immutable 40- or 64-hex commit id" in error for error in errors),
+            errors,
+        )
+
+    def test_parent_base_dependency_must_name_parent_repository(self):
+        def mutate(doc):
+            module = next(item for item in doc["resources"] if item["id"] == "cuc-burns")
+            dependency = next(
+                item
+                for item in module["upstream"]["dependencies"]
+                if item["role"] == "parent-base"
+            )
+            dependency["repository"] = "example/wrong-parent"
+
+        errors = self.validate_mutation("registry/feature-modules.yaml", mutate)
+        self.assertTrue(
+            any("parent-base repository 'example/wrong-parent' must match parent repository" in error for error in errors),
+            errors,
+        )
+
     def test_duplicate_resource_id_is_rejected(self):
         def mutate(doc):
             doc["resources"].append(copy.deepcopy(doc["resources"][0]))
