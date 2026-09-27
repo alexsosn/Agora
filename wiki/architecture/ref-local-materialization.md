@@ -120,6 +120,16 @@ Agora creates a temporary repository, fetches the declared ref with a bounded Gi
 
 The resolved commit is available to the upstream CLI as `{source_revision}`. This lets a converter preserve its native provenance semantics without exposing `.git` inside the sandbox.
 
+### Pinned HTTPS archive
+
+Some licensed corpus sources are published as a single archive in an institutional repository rather than as a Git repository. For these, a materializer may declare an `http-archive` acquisition with an absolute credential-free HTTPS `url`, the expected `sha256`, an archive `format` (`zip` or `tar`), and the `subpath` inside the archive that holds the source tree.
+
+Agora streams the archive to a temporary file under a download size cap, verifies the declared digest, and only then extracts. Nothing is extracted from an archive whose digest does not match. Extraction rejects members that escape the extraction root, symlink/hard-link and other non-regular members, drive-qualified names, an excessive member count, and an expanded size beyond the extraction cap. The declared subpath is then resolved inside the extraction root and validated against the materializer's input contract like any other source.
+
+The download happens during acquisition, before the materializer starts, exactly as Git acquisition does; materializer execution itself stays `network: deny`. Only unauthenticated public URLs are supported — authenticated/click-through acquisition remains a non-goal.
+
+Provenance records the URL, digest, format, and subpath, so a produced artifact names the exact bytes it came from.
+
 ### User-local
 
 For a local source directory Agora:
