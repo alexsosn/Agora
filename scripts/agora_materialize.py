@@ -86,6 +86,64 @@ def _format_schema_error(error: Any) -> str:
     return f"{location}: {error.message}"
 
 
+PARENT_PLACEHOLDERS = ("{parent}", "{parent_revision}", "{parent_version}")
+
+
+def _validate_parent_input(materializer: dict[str, Any], index: int) -> None:
+    """Cross-check a declared parent input against execution and output metadata.
+
+    Execution dependencies come only from ``parent_input``; ``output.composition``
+    stays descriptive. When both are present they must agree, so a produced
+    module can never advertise a parent that the run did not actually consume.
+    """
+    args = materializer["execution"]["args"]
+    used = sorted(
+        placeholder
+        for placeholder in PARENT_PLACEHOLDERS
+        if any(placeholder in arg for arg in args)
+    )
+    parent_input = materializer.get("parent_input")
+
+    if parent_input is None:
+        if used:
+            raise ManifestError(
+                f"materializers[{index}].execution.args uses {', '.join(used)} without "
+                f"declaring materializers[{index}].parent_input"
+            )
+        return
+
+    for relative in parent_input["required_paths"]:
+        _safe_relative(
+            relative,
+            where=f"materializers[{index}].parent_input.required_paths",
+        )
+
+    # Agora must not mount a parent the materializer cannot see.
+    if "{parent}" not in used:
+        raise ManifestError(
+            f"materializers[{index}] declares parent_input but never passes {{parent}} "
+            "to the materializer"
+        )
+
+    composition = materializer["output"].get("composition")
+    if composition is None:
+        return
+
+    if composition["parent"] != parent_input["resource"]:
+        raise ManifestError(
+            f"materializers[{index}].output.composition.parent {composition['parent']!r} "
+            f"must equal parent_input.resource {parent_input['resource']!r}"
+        )
+
+    declared = set(composition["compatibility"]["parent_versions"])
+    uncovered = sorted(set(parent_input["parent_versions"]) - declared)
+    if uncovered:
+        raise ManifestError(
+            f"materializers[{index}].parent_input.parent_versions {uncovered} are not "
+            "covered by output.composition.compatibility.parent_versions"
+        )
+
+
 def _validate_manifest_semantics(doc: dict[str, Any]) -> None:
     ids: set[str] = set()
     for index, materializer in enumerate(doc["materializers"]):
@@ -151,6 +209,8 @@ def _validate_manifest_semantics(doc: dict[str, Any]) -> None:
             _safe_relative(pattern, where=f"materializers[{index}].input.required_globs")
         for relative in materializer["output"]["required_paths"]:
             _safe_relative(relative, where=f"materializers[{index}].output.required_paths")
+
+        _validate_parent_input(materializer, index)
 
 
 def load_manifest(path: Path) -> dict[str, Any]:
