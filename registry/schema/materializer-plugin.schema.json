@@ -68,6 +68,7 @@
           "items": {
             "oneOf": [
               {"$ref": "#/$defs/gitAcquisition"},
+              {"$ref": "#/$defs/httpArchiveAcquisition"},
               {"$ref": "#/$defs/userLocalAcquisition"}
             ]
           }
@@ -137,6 +138,22 @@
           "pattern": "^https://[^@]+$"
         },
         "ref": {"type": "string", "minLength": 1, "pattern": "^[^-].*$"},
+        "subpath": {"$ref": "#/$defs/safeRelativePath"}
+      }
+    },
+    "httpArchiveAcquisition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "url", "sha256", "format", "subpath"],
+      "properties": {
+        "type": {"const": "http-archive"},
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://[^@]+$"
+        },
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "format": {"enum": ["zip", "tar"]},
         "subpath": {"$ref": "#/$defs/safeRelativePath"}
       }
     },

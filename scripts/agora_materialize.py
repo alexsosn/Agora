@@ -6,20 +6,28 @@ import json
 import os
 import platform
 import shutil
+import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlparse
+from urllib.request import urlopen
 
 from jsonschema import Draft202012Validator, FormatChecker
 
 
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "registry/schema/materializer-plugin.schema.json"
 GIT_TIMEOUT_SECONDS = 120
+HTTP_TIMEOUT_SECONDS = 120
+MAX_ARCHIVE_DOWNLOAD_BYTES = 512 * 1024 * 1024
+MAX_ARCHIVE_EXTRACTED_BYTES = 2 * 1024 * 1024 * 1024
+MAX_ARCHIVE_MEMBERS = 50_000
 SANDBOX_OUTPUT_ROOT = "/agora-output"
 _TREE_EXCLUDES = {
     ".git",
@@ -110,6 +118,29 @@ def _validate_manifest_semantics(doc: dict[str, Any]) -> None:
                 if strategy["ref"].startswith("-"):
                     raise ManifestError(
                         f"materializers[{index}].acquisition[{ai}].ref must be a non-option Git ref"
+                    )
+                _safe_relative(
+                    strategy["subpath"],
+                    where=f"materializers[{index}].acquisition[{ai}].subpath",
+                )
+
+            if strategy_type == "http-archive":
+                parsed = urlparse(strategy["url"])
+                if (
+                    parsed.scheme != "https"
+                    or not parsed.netloc
+                    or parsed.username is not None
+                    or parsed.password is not None
+                ):
+                    raise ManifestError(
+                        f"materializers[{index}].acquisition[{ai}].url must be an absolute "
+                        "credential-free HTTPS URL"
+                    )
+                digest = strategy["sha256"]
+                if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                    raise ManifestError(
+                        f"materializers[{index}].acquisition[{ai}].sha256 must be a lowercase "
+                        "hex SHA-256 digest"
                     )
                 _safe_relative(
                     strategy["subpath"],
@@ -294,6 +325,163 @@ def acquire_git_source(strategy: dict[str, Any], materializer: dict[str, Any]) -
         raise
 
 
+def _require_https_url(url: str, *, where: str) -> None:
+    parsed = urlparse(url)
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise AcquisitionError(f"{where} must be an absolute credential-free https URL: {url!r}")
+
+
+def _check_archive_member_name(name: str) -> None:
+    normalized = name.replace("\\", "/")
+    candidate = PurePosixPath(normalized)
+    if normalized.startswith("/") or candidate.is_absolute() or ".." in candidate.parts:
+        raise AcquisitionError(f"archive member escapes the extraction root: {name!r}")
+    if candidate.parts and ":" in candidate.parts[0]:
+        raise AcquisitionError(f"archive member has a drive-qualified name: {name!r}")
+
+
+def _download_pinned_archive(strategy: dict[str, Any], destination: Path) -> None:
+    """Fetch a pinned archive and verify its digest before anything is extracted."""
+    url = strategy["url"]
+    _require_https_url(url, where="http-archive acquisition url")
+    expected = strategy["sha256"]
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with urlopen(url, timeout=HTTP_TIMEOUT_SECONDS) as response:  # noqa: S310 - https enforced
+            final_url = getattr(response, "url", None) or url
+            _require_https_url(final_url, where="http-archive acquisition redirect target")
+            with destination.open("wb") as handle:
+                while True:
+                    chunk = response.read(1 << 20)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > MAX_ARCHIVE_DOWNLOAD_BYTES:
+                        raise AcquisitionError(
+                            f"archive download exceeds the {MAX_ARCHIVE_DOWNLOAD_BYTES} byte limit: {url}"
+                        )
+                    digest.update(chunk)
+                    handle.write(chunk)
+    except AcquisitionError:
+        raise
+    except Exception as exc:  # network/IO failures are environmental
+        raise AcquisitionError(f"archive download failed: {exc}") from exc
+
+    actual = digest.hexdigest()
+    if actual != expected:
+        raise AcquisitionError(
+            f"archive sha256 mismatch for {url}: expected {expected}, got {actual}"
+        )
+
+
+def _extract_zip_archive(archive_path: Path, destination: Path) -> None:
+    with zipfile.ZipFile(archive_path) as archive:
+        members = archive.infolist()
+        if len(members) > MAX_ARCHIVE_MEMBERS:
+            raise AcquisitionError("archive declares too many members")
+        total = 0
+        for info in members:
+            _check_archive_member_name(info.filename)
+            # Zip entries often carry permission bits with no file-type bits at
+            # all; only an explicitly declared non-regular type is a problem.
+            file_type = stat.S_IFMT(info.external_attr >> 16)
+            if file_type == stat.S_IFLNK:
+                raise AcquisitionError(
+                    f"archive contains a symlink member: {info.filename!r}"
+                )
+            if info.is_dir():
+                continue
+            if file_type not in (0, stat.S_IFREG):
+                raise AcquisitionError(
+                    f"archive contains a non-regular member: {info.filename!r}"
+                )
+            total += info.file_size
+            if total > MAX_ARCHIVE_EXTRACTED_BYTES:
+                raise AcquisitionError(
+                    f"archive extraction exceeds the {MAX_ARCHIVE_EXTRACTED_BYTES} byte limit"
+                )
+        archive.extractall(destination)
+
+
+def _extract_tar_archive(archive_path: Path, destination: Path) -> None:
+    with tarfile.open(archive_path, mode="r:*") as archive:
+        members = archive.getmembers()
+        if len(members) > MAX_ARCHIVE_MEMBERS:
+            raise AcquisitionError("archive declares too many members")
+        total = 0
+        for member in members:
+            _check_archive_member_name(member.name)
+            if member.issym() or member.islnk():
+                raise AcquisitionError(f"archive contains a link member: {member.name!r}")
+            if member.isdir():
+                continue
+            if not member.isfile():
+                raise AcquisitionError(
+                    f"archive contains a non-regular member: {member.name!r}"
+                )
+            total += member.size
+            if total > MAX_ARCHIVE_EXTRACTED_BYTES:
+                raise AcquisitionError(
+                    f"archive extraction exceeds the {MAX_ARCHIVE_EXTRACTED_BYTES} byte limit"
+                )
+        archive.extractall(destination, filter="data")
+
+
+def acquire_http_archive_source(
+    strategy: dict[str, Any],
+    materializer: dict[str, Any],
+) -> PreparedSource:
+    """Acquire a source tree from a pinned, digest-verified HTTPS archive.
+
+    The download happens before execution and outside the materializer sandbox,
+    exactly like Git acquisition; the materializer itself still runs with
+    ``network: deny``. Nothing is extracted until the declared sha256 matches.
+    """
+    root = Path(tempfile.mkdtemp(prefix="agora-source-"))
+    try:
+        archive_path = root / "archive"
+        _download_pinned_archive(strategy, archive_path)
+
+        extracted = root / "extracted"
+        extracted.mkdir()
+        if strategy["format"] == "zip":
+            _extract_zip_archive(archive_path, extracted)
+        else:
+            _extract_tar_archive(archive_path, extracted)
+        archive_path.unlink(missing_ok=True)
+
+        subpath = strategy["subpath"]
+        extracted_root = extracted.resolve()
+        source = (extracted / subpath).resolve()
+        if extracted_root not in source.parents and source != extracted_root:
+            raise AcquisitionError("archive subpath escaped the extracted archive")
+        if not source.is_dir():
+            raise AcquisitionError(
+                f"archive {strategy['url']} does not contain the declared subpath {subpath!r}"
+            )
+        _validate_source(source, materializer)
+        return PreparedSource(
+            path=source,
+            provenance={
+                "type": "http-archive",
+                "url": strategy["url"],
+                "sha256": strategy["sha256"],
+                "format": strategy["format"],
+                "subpath": subpath,
+            },
+            cleanup_root=root,
+        )
+    except Exception:
+        shutil.rmtree(root, ignore_errors=True)
+        raise
+
+
 def acquire_source(
     materializer: dict[str, Any],
     *,
@@ -304,26 +492,33 @@ def acquire_source(
             raise ValueError("this materializer does not accept user-provided local source files")
         return prepare_user_source(source_override, materializer)
 
-    git_errors: list[str] = []
+    automatic_errors: list[str] = []
     user_local: dict[str, Any] | None = None
     for strategy in materializer["acquisition"]:
         if strategy["type"] == "git":
             try:
                 return acquire_git_source(strategy, materializer)
             except AcquisitionError as exc:
-                git_errors.append(str(exc))
+                automatic_errors.append(str(exc))
+        elif strategy["type"] == "http-archive":
+            try:
+                return acquire_http_archive_source(strategy, materializer)
+            except AcquisitionError as exc:
+                automatic_errors.append(str(exc))
         elif strategy["type"] == "user-local":
             user_local = strategy
 
     if user_local is not None and sys.stdin.isatty():
-        if git_errors:
-            print(f"automatic acquisition failed: {'; '.join(git_errors)}", file=sys.stderr)
+        if automatic_errors:
+            print(f"automatic acquisition failed: {'; '.join(automatic_errors)}", file=sys.stderr)
         entered = input(f"{user_local['prompt']}: ").strip()
         if not entered:
             raise RuntimeError("no local source directory was provided")
         return prepare_user_source(Path(entered), materializer)
 
-    detail = f" Automatic acquisition errors: {'; '.join(git_errors)}" if git_errors else ""
+    detail = (
+        f" Automatic acquisition errors: {'; '.join(automatic_errors)}" if automatic_errors else ""
+    )
     raise RuntimeError(
         "no source could be acquired non-interactively; pass --source with a user-provided directory."
         + detail
