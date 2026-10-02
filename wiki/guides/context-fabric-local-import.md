@@ -1,6 +1,6 @@
 # User-supplied TF corpora and modules
 
-Use `install_local_corpus` to import an already-generated native Text-Fabric directory on the **MCP server host**. This works without adding the corpus to Agora's canonical registry. For example:
+Use `install_local_corpus` to import an already-generated native Text-Fabric directory on the **MCP server host**. This works without adding the corpus to Agora's canonical registry. The tool reads paths available to the server account; an HTTP/SSE deployment that exposes this tool to untrusted clients therefore also exposes that local-file capability, so keep such transports access-controlled. For example:
 
 ```text
 install_local_corpus(source="/absolute/path/to/coptic-tf", name="My Coptic corpus")
