@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'plugins/context-fabric/src'))
 from agora_context_fabric.catalog import Catalog, ResourceSpec
 from agora_context_fabric.gitstore import GitStore
-from agora_context_fabric.local_import import LocalImports, LocalCatalog
+from agora_context_fabric.local_import import LocalImports, LocalCatalog, _digest
 from agora_context_fabric.resolver import ContextFabricResolver
 from agora_context_fabric.service import ContextFabricService
 
@@ -152,6 +152,34 @@ class LocalImportRecoveryTests(LocalImportFixture, unittest.TestCase):
         self.assertTrue(result['complete'])
         self.assertEqual(result['removed_entries'], 1)
 
+
+    def test_hash_consistent_malformed_descriptor_is_quarantined_from_catalog(self):
+        canonical = ResourceSpec(
+            id='canonical-fixture',
+            name='Canonical fixture',
+            plugin='context-fabric',
+            provider='fixture',
+            kind='corpus',
+            repository='example/canonical',
+            languages=(),
+            disciplines=(),
+            tf_path='tf/1',
+        )
+        catalog = LocalCatalog(Catalog([canonical]), self.local)
+        record = self.install()
+        receipt = (
+            self.local._path(record['id'], record['source_revision'], 'corpus')
+            / '.agora-local.json'
+        )
+        document = json.loads(receipt.read_text(encoding='utf-8'))
+        document['descriptor']['name'] = 42
+        document['receipt_sha256'] = _digest(
+            {key: value for key, value in document.items() if key != 'receipt_sha256'}
+        )
+        receipt.write_text(json.dumps(document, sort_keys=True), encoding='utf-8')
+
+        with self.assertWarnsRegex(RuntimeWarning, 'invalid local import receipt'):
+            self.assertEqual([item.id for item in catalog.search()], ['canonical-fixture'])
 
     def test_receipt_metadata_corruption_is_detected_separately_from_payload_identity(self):
         record = self.install()
