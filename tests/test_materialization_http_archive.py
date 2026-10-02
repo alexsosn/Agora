@@ -536,5 +536,83 @@ class HttpArchiveExtractionHardeningTests(unittest.TestCase):
         self.assertEqual(calls[0]["kwargs"].get("timeout"), HTTP_TIMEOUT_SECONDS)
 
 
+class HttpArchiveFailureReportingTests(unittest.TestCase):
+    """A corrupt or mis-declared deposit must fail as an acquisition failure.
+
+    `zipfile.BadZipFile` and `tarfile.ReadError` are not `AcquisitionError`, so
+    they escape `acquire_source`'s `except AcquisitionError` handler: the user
+    gets a bare stdlib traceback with no mention of the materializer, the URL or
+    acquisition, and the declared `user-local` fallback is never offered.
+    """
+
+    def _mismatched(self) -> tuple[bytes, dict]:
+        """Real tar bytes whose digest matches, declared as a zip."""
+        payload = _tar_bytes({"Workbooks/01 Workbook I/sheet 1.pdf": b"%PDF-1.4\n"})
+        return payload, _strategy(payload, format="zip")
+
+    def test_a_mis_declared_zip_is_reported_as_an_acquisition_error(self):
+        payload, strategy = self._mismatched()
+        with mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)):
+            with self.assertRaises(AcquisitionError) as caught:
+                acquire_http_archive_source(strategy, _materializer())
+        message = str(caught.exception)
+        self.assertIn(strategy["url"], message)
+        self.assertIn("could not be read as a zip archive", message)
+
+    def test_a_mis_declared_tar_is_reported_as_an_acquisition_error(self):
+        payload = _valid_payload()
+        strategy = _strategy(payload, format="tar")
+        with mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)):
+            with self.assertRaises(AcquisitionError) as caught:
+                acquire_http_archive_source(strategy, _materializer())
+        self.assertIn("could not be read as a tar archive", str(caught.exception))
+
+    def test_a_corrupt_archive_does_not_defeat_the_declared_fallback(self):
+        """The whole point of wrapping: `acquire_source` must stay in control."""
+        payload, strategy = self._mismatched()
+        materializer = _materializer()
+        materializer["acquisition"] = [
+            strategy,
+            {
+                "type": "user-local",
+                "path_type": "directory",
+                "prompt": "Select the source directory",
+            },
+        ]
+        with mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)):
+            with mock.patch("sys.stdin.isatty", return_value=False):
+                with self.assertRaises(RuntimeError) as caught:
+                    acquire_source(materializer)
+        message = str(caught.exception)
+        self.assertNotIsInstance(caught.exception, zipfile.BadZipFile)
+        self.assertIn("could not be read as a zip archive", message)
+
+    def test_a_corrupt_archive_offers_the_interactive_fallback(self):
+        payload, strategy = self._mismatched()
+        materializer = _materializer()
+        materializer["acquisition"] = [
+            strategy,
+            {
+                "type": "user-local",
+                "path_type": "directory",
+                "prompt": "Select the source directory",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp) / "Workbooks" / "01 Workbook I"
+            local.mkdir(parents=True)
+            (local / "sheet 1.pdf").write_bytes(b"%PDF-1.4\n")
+            with (
+                mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)),
+                mock.patch("sys.stdin.isatty", return_value=True),
+                mock.patch("builtins.input", return_value=str(local.parent)),
+            ):
+                prepared = acquire_source(materializer)
+            try:
+                self.assertEqual(prepared.provenance["type"], "user-local")
+            finally:
+                prepared.cleanup()
+
+
 if __name__ == "__main__":
     unittest.main()
