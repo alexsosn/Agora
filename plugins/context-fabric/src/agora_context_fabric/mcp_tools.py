@@ -139,8 +139,10 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
     ) -> dict[str, Any]:
         """Import a user-supplied native TF directory on the server host.
 
-        Copies regular UTF-8 .tf files into an evictable Agora snapshot; does
-        not execute converters or copy compiled caches. Returns a resource ID
+        Copies regular UTF-8 .tf files with portable feature names into an
+        evictable Agora snapshot; does not execute converters or copy compiled
+        caches. The source is a path readable by the MCP server account, so do
+        not expose this tool to untrusted remote clients. Returns a resource ID
         for discovery/prepare/load. For a feature module, supply its parent
         corpus ID, version, and exact revision from prepare_corpus. Modules
         cannot replace otype/oslots/otext. Compatibility is user-declared.
