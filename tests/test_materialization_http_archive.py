@@ -3,15 +3,19 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import stat
 import tarfile
 import tempfile
+import types
 import unittest
 import zipfile
 from pathlib import Path
 from unittest import mock
 
 from jsonschema import Draft202012Validator
+
+from scripts import agora_materialize
 
 from scripts.agora_materialize import (
     HTTP_TIMEOUT_SECONDS,
@@ -612,6 +616,138 @@ class HttpArchiveFailureReportingTests(unittest.TestCase):
                 self.assertEqual(prepared.provenance["type"], "user-local")
             finally:
                 prepared.cleanup()
+
+
+def _tar_sized(name: str, payload: bytes) -> tuple[tarfile.TarInfo, bytes]:
+    info = tarfile.TarInfo(name)
+    info.mode = 0o644
+    return info, payload
+
+
+class _CountingFile:
+    """A read-through file wrapper that records how much was pulled."""
+
+    def __init__(self, handle, counter: dict):
+        self._handle = handle
+        self._counter = counter
+
+    def read(self, size=-1):
+        data = self._handle.read(size)
+        self._counter["bytes"] += len(data)
+        return data
+
+    def seek(self, *args):
+        return self._handle.seek(*args)
+
+    def tell(self):
+        return self._handle.tell()
+
+    def close(self):
+        return self._handle.close()
+
+    def readable(self):
+        return True
+
+    def seekable(self):
+        return True
+
+
+class _TricklingResponse:
+    """A server that trickles: slow enough that only a deadline stops it early.
+
+    Finite on purpose. Without a deadline the transfer runs to completion and
+    fails on the digest instead, so the RED failure names the missing deadline
+    rather than hanging or tripping the download size cap.
+    """
+
+    def __init__(self, url: str, chunks: int = 5000):
+        self.url = url
+        self.reads = 0
+        self._chunks = chunks
+
+    def read(self, size=-1):
+        if self.reads >= self._chunks:
+            return b""
+        self.reads += 1
+        return b"x" * 16
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+
+class HttpArchiveTransferBoundsTests(unittest.TestCase):
+    """Bounds that must hold against a server or deposit that misbehaves slowly.
+
+    `urlopen(timeout=...)` bounds each socket operation and resets on every
+    read, so it does not bound a transfer at all; and walking a compressed tar
+    index forces the whole payload through the decompressor before any size cap
+    is consulted. Both were measured against the merged implementation.
+    """
+
+    TAR_URL = "https://example.invalid/deposit/Workbooks.tar.gz"
+
+    def test_download_is_bounded_by_a_wall_clock_deadline(self):
+        """A server trickling bytes forever must not hang acquisition forever."""
+        response = _TricklingResponse("https://example.invalid/deposit/Workbooks.zip")
+        clock = {"now": 0.0}
+
+        def monotonic() -> float:
+            clock["now"] += 10.0
+            return clock["now"]
+
+        strategy = _strategy(b"", sha256="0" * 64)
+        with (
+            mock.patch.object(
+                agora_materialize, "time", types.SimpleNamespace(monotonic=monotonic), create=True
+            ),
+            mock.patch("scripts.agora_materialize.urlopen", lambda *a, **k: response),
+        ):
+            with self.assertRaises(AcquisitionError) as caught:
+                acquire_http_archive_source(strategy, _materializer())
+        self.assertIn("deadline", str(caught.exception))
+        self.assertLess(response.reads, 5000, "the read loop ran to completion anyway")
+
+    def test_tar_index_walk_stops_before_inflating_the_whole_stream(self):
+        """The cap must bound decompression work, not only bytes written.
+
+        The filler member is incompressible, so walking the full index pulls
+        essentially the whole archive through the decompressor. Enforcing the
+        cap while walking stops at the first offending member instead.
+        """
+        payload = _tar_bytes_from_members(
+            [
+                _tar_sized("Workbooks/01 Workbook I/sheet 1.pdf", b"%PDF-1.4" + b"0" * 64),
+                _tar_sized("Workbooks/01 Workbook I/filler.pdf", os.urandom(1 << 20)),
+            ]
+        )
+        counter = {"bytes": 0}
+        real_open = tarfile.open
+        # tarfile never closes an externally supplied fileobj, so close it here.
+        handles: list = []
+
+        def counting_open(name=None, *args, **kwargs):
+            handle = open(name, "rb")
+            handles.append(handle)
+            self.addCleanup(handle.close)
+            return real_open(fileobj=_CountingFile(handle, counter), *args, **kwargs)
+
+        strategy = _strategy(payload, format="tar", url=self.TAR_URL)
+        with (
+            mock.patch("scripts.agora_materialize.MAX_ARCHIVE_EXTRACTED_BYTES", 16),
+            mock.patch.object(agora_materialize.tarfile, "open", counting_open),
+            mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)),
+        ):
+            with self.assertRaises(AcquisitionError) as caught:
+                acquire_http_archive_source(strategy, _materializer())
+        self.assertIn("exceeds", str(caught.exception))
+        self.assertLess(
+            counter["bytes"],
+            len(payload) // 4,
+            f"pulled {counter['bytes']} of {len(payload)} compressed bytes before refusing",
+        )
 
 
 if __name__ == "__main__":
