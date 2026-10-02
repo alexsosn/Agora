@@ -19,7 +19,7 @@ from .resolver import PreparedCorpus, PreparedFeatureModule
 
 _ID = re.compile(r'local-[0-9a-f]{32}\Z')
 _REVISION = re.compile(r'[0-9a-f]{40}|[0-9a-f]{64}')
-_FEATURE = re.compile(r'[A-Za-z0-9_][A-Za-z0-9_.-]*\.tf\Z')
+_FEATURE = re.compile(r'[A-Za-z0-9_][A-Za-z0-9_.@-]*\.tf\Z')
 _RECEIPT = '.agora-local.json'
 _REQUIRED = {'otype.tf', 'oslots.tf', 'otext.tf'}
 _MAX_FILES = 2048
