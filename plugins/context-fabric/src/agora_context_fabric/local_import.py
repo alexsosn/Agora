@@ -164,7 +164,23 @@ class LocalImports:
                 operation.remaining_acquisition_seconds()
                 temporary.rename(destination)
                 temporary = None
-                self.store.touch_cache_object(destination)
+                try:
+                    self.store.touch_cache_object(destination)
+                except Exception:
+                    # Publication is only complete once the store has indexed
+                    # the managed object. A failure after rename must not leave
+                    # a receipt-discoverable but unevictable local resource.
+                    for sidecar in (
+                        self.store._access_path(destination),
+                        self.store._meta_path(destination),
+                    ):
+                        try:
+                            sidecar.unlink()
+                        except FileNotFoundError:
+                            pass
+                    shutil.rmtree(destination, ignore_errors=True)
+                    self.store._cleanup_empty_parents(destination)
+                    raise
                 operation.stage('ready')
                 return {**descriptor, 'source_revision': revision, 'source_bytes': total,
                         'cache_residency': 'evictable'}
