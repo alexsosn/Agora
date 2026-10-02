@@ -392,7 +392,7 @@ resources:
         - repository: DT-UCPH/cuc
           ref: 0408967b1808c1f22c69e299d302b1e7b5e26354
           role: parent-base
-          notes: Immutable commit of CUC release v0.2.8, which the `cuc` resource is pinned to. Agora refuses to compose the module onto any other parent revision. The upstream compatibility contract still names the later `ad69400f5446e1c8217af01659c7c10ab00c015b`; both commits carry a byte-identical `tf/0.2.8` tree (`4c2224154b1eac02b0eddabd7bdbbc8692a23451`) and differ only by a README update, so a module materialized against either is valid against this pin. Upstream should move its declared contract to the release commit.
+          notes: Immutable commit of CUC release v0.2.8, which the `cuc` resource is pinned to. Agora refuses to compose the module onto any other parent revision. The upstream compatibility contract still names the later `ad69400f5446e1c8217af01659c7c10ab00c015b`; both commits carry a byte-identical `tf/0.2.8` tree (`4c2224154b1eac02b0eddabd7bdbbc8692a23451`), and the four commits between them touch only `README.md` and `images/caccht-logo.png`, so a module materialized against either is valid against this pin. Upstream should move its declared contract to the release commit.
     acquisition:
       strategy: local-module
       lazy: true
