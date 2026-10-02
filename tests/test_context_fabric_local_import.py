@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -151,6 +152,18 @@ class LocalImportRecoveryTests(LocalImportFixture, unittest.TestCase):
         self.assertTrue(result['complete'])
         self.assertEqual(result['removed_entries'], 1)
 
+
+    def test_receipt_metadata_corruption_is_detected_separately_from_payload_identity(self):
+        record = self.install()
+        receipt = (
+            self.local._path(record['id'], record['source_revision'], 'corpus')
+            / '.agora-local.json'
+        )
+        document = json.loads(receipt.read_text(encoding='utf-8'))
+        document['descriptor']['name'] = 'tampered label'
+        receipt.write_text(json.dumps(document, sort_keys=True), encoding='utf-8')
+        with self.assertRaisesRegex(ValueError, 'receipt integrity'):
+            self.local._read(receipt)
 
 class LocalImportLifecycleTests(LocalImportFixture, unittest.TestCase):
     def test_mid_copy_cancellation_and_changed_source_clean_staging(self):
