@@ -751,17 +751,33 @@ class ContextFabricService:
         elif resource.kind != "collection" and member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
 
+        dependent_resource_ids: list[str] = []
+        if (
+            resource is not None
+            and resource.kind == "corpus"
+            and resource.acquisition_strategy == "user-local"
+            and member_id is None
+            and (source_revision is None or source_revision == resource.ref)
+        ):
+            dependent_resource_ids = sorted(
+                module.id
+                for module in self.catalog.modules_for(resource_id)
+                if module.acquisition_strategy == "user-local"
+            )
+
         matched: list[dict[str, Any]] = []
-        for entry in store.cache_entries(resource_id):
-            if source_revision is not None and entry["revision"] != source_revision:
-                continue
-            if member_id is not None:
-                if entry["kind"] != "corpus-snapshot":
-                    continue
-                relative_path = entry.get("relative_path")
-                if not isinstance(relative_path, str) or member_id_from_path(relative_path) != member_id:
-                    continue
-            matched.append(entry)
+        for candidate_id in [resource_id, *dependent_resource_ids]:
+            for entry in store.cache_entries(candidate_id):
+                if candidate_id == resource_id and source_revision is not None:
+                    if entry["revision"] != source_revision:
+                        continue
+                if candidate_id == resource_id and member_id is not None:
+                    if entry["kind"] != "corpus-snapshot":
+                        continue
+                    relative_path = entry.get("relative_path")
+                    if not isinstance(relative_path, str) or member_id_from_path(relative_path) != member_id:
+                        continue
+                matched.append(entry)
 
         result = store.remove_cache_objects(
             [Path(str(entry["path"])) for entry in matched]
@@ -771,6 +787,7 @@ class ContextFabricService:
             "resource_id": resource_id,
             "member_id": member_id,
             "source_revision": source_revision,
+            "dependent_resource_ids": dependent_resource_ids,
             "matched_entries": len(matched),
             "matched_bytes": sum(int(entry["size_bytes"]) for entry in matched),
             **result,
