@@ -127,6 +127,42 @@ def register_tools(mcp: Any, service: ContextFabricService) -> None:
     """Register Agora resource-management tools on a FastMCP-compatible server."""
 
     @mcp.tool()
+    async def install_local_corpus(
+        source: str,
+        name: str,
+        ctx: MCPContext,
+        version: str = "local",
+        parent: str | None = None,
+        parent_version: str | None = None,
+        parent_revision: str | None = None,
+        max_bytes: int = 2147483648,
+    ) -> dict[str, Any]:
+        """Import a user-supplied native TF directory on the server host.
+
+        Copies regular UTF-8 .tf files into an evictable Agora snapshot; does
+        not execute converters or copy compiled caches. Returns a resource ID
+        for discovery/prepare/load. For a feature module, supply its parent
+        corpus ID, version, and exact revision from prepare_corpus. Modules
+        cannot replace otype/oslots/otext. Compatibility is user-declared.
+        Copying is byte/time/free-space bounded and cancellable. Pruned or
+        removed imports must be imported again. No remote upload is performed.
+        """
+        local = getattr(service.resolver, "local_imports", None)
+        if local is None:
+            raise RuntimeError("local TF imports are not configured")
+        if parent is not None:
+            resource = service.catalog.get(parent)
+            if resource.kind != "corpus":
+                raise ValueError("a local module requires a corpus parent")
+        return await _run_long_operation(
+            lambda operation: local.install(
+                source, name=name, version=version, parent=parent,
+                parent_version=parent_version, parent_revision=parent_revision,
+                max_bytes=max_bytes, operation=operation,
+            ), ctx,
+        )
+
+    @mcp.tool()
     def list_available_corpora(
         query: str = "",
         language: str | None = None,

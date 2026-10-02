@@ -150,7 +150,8 @@ def select_dataset_version(roots: Iterable[str], version: str) -> str:
 
 
 class ContextFabricResolver:
-    def __init__(self, catalog: Catalog, store: GitStore):
+    def __init__(self, catalog: Catalog, store: GitStore, *, local_imports=None):
+        self.local_imports = local_imports
         self.catalog = catalog
         self.store = store
         self._collection_indexes: CollectionIndexManager | None = None
@@ -379,6 +380,17 @@ class ContextFabricResolver:
             raise ValueError(
                 f"feature module {resource_id!r} must be selected while preparing its parent corpus {resource.parent!r}"
             )
+        if resource.acquisition_strategy == "user-local":
+            if member_id is not None:
+                raise ValueError("local corpora do not have collection members")
+            if version is not None and version != dataset_version(resource.tf_path):
+                raise ValueError("local corpus version does not match installed version")
+            if source_revision is not None and source_revision != resource.ref:
+                raise ValueError("local corpus revision does not match installed revision")
+            policy = self.store.current_source_policy()
+            if policy is not None and policy.mode == "require-fresh":
+                raise ValueError("local corpora have no remote source to refresh")
+            return self.local_imports.prepared(resource)
         if resource.kind == "collection":
             if version is not None:
                 raise ValueError("version selection is supported only for corpus resources")
@@ -470,6 +482,9 @@ class ContextFabricResolver:
             if not module.tf_path or not module.module_path:
                 raise ValueError(f"feature module {module_id!r} has incomplete upstream path metadata")
             self._check_parent_base(module, prepared)
+            if module.acquisition_strategy == "user-local":
+                selected.append(self.local_imports.module(module))
+                continue
             if module.acquisition_strategy == "local-module":
                 try:
                     local, revision = self.store.local_feature_module(module.id, module.tf_path)

@@ -12,7 +12,7 @@ Load, inspect, and query Text-Fabric-format corpora through Context-Fabric MCP.
 
 ## Access and resources
 
-Browse the [generated scholarly resource catalog](../resources.md) for registered corpora and collections. Resources are selected lazily; installing the plugin does not download the full catalog.
+Browse the [generated scholarly resource catalog](../resources.md) for registered corpora and collections. Resources are selected lazily; installing the plugin does not download the full catalog. Use `install_local_corpus` for [user-supplied native TF corpora and feature modules](../context-fabric-local-import.md).
 
 ## What connects or runs
 

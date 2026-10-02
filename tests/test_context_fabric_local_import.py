@@ -1,0 +1,187 @@
+from __future__ import annotations
+
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'plugins/context-fabric/src'))
+from agora_context_fabric.catalog import Catalog
+from agora_context_fabric.gitstore import GitStore
+from agora_context_fabric.local_import import LocalImports, LocalCatalog
+from agora_context_fabric.resolver import ContextFabricResolver
+from agora_context_fabric.service import ContextFabricService
+
+
+def corpus(path):
+    path.mkdir()
+    (path / 'otype.tf').write_text('@node\n@valueType=str\n\n1-2\tword\n3\tdocument\n', encoding='utf-8')
+    (path / 'oslots.tf').write_text('@edge\n\n3\t1-2\n', encoding='utf-8')
+    (path / 'otext.tf').write_text('@config\n@sectionTypes=document\n@sectionFeatures=title\n@fmt:text-orig-full={norm} \n\n', encoding='utf-8')
+    (path / 'norm.tf').write_text('@node\n@valueType=str\n\n1\tⲡⲉ\n2\tⲣⲱⲙⲉ\n', encoding='utf-8')
+    (path / 'title.tf').write_text('@node\n@valueType=str\n\n3\tsample\n', encoding='utf-8')
+
+
+class LocalImportFixture:
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.store = GitStore(self.root / 'cache', min_free_bytes=0)
+        self.local = LocalImports(self.store)
+        self.catalog = LocalCatalog(Catalog([]), self.local)
+        self.resolver = ContextFabricResolver(self.catalog, self.store, local_imports=self.local)
+        self.source = self.root / 'source'
+        corpus(self.source)
+
+    def install(self, **kwargs):
+        return self.local.install(self.source, name='Coptic sample', **kwargs)
+
+
+class LocalImportTests(LocalImportFixture, unittest.TestCase):
+    def test_import_discover_prepare_restart_and_source_independence(self):
+        record = self.install()
+        rid = record['id']
+        self.assertEqual(self.catalog.search('Coptic')[0].id, rid)
+        prepared = self.resolver.prepare_with_modules(rid)
+        self.assertEqual(prepared.source_revision, record['source_revision'])
+        self.assertNotEqual(prepared.path, self.source)
+        (self.source / 'norm.tf').write_text('changed')
+        self.assertIn('ⲣⲱⲙⲉ', (prepared.path / 'norm.tf').read_text())
+        restarted = LocalCatalog(Catalog([]), LocalImports(self.store))
+        self.assertEqual(restarted.get(rid).acquisition_strategy, 'user-local')
+        result = ContextFabricService(self.catalog, self.resolver, object()).remove_cached(rid)
+        self.assertEqual(result['removed_entries'], 1)
+        self.assertEqual(restarted.search(), [])
+
+    def test_module_exact_parent_and_overlay(self):
+        parent = self.install()
+        module = self.root / 'module'
+        module.mkdir()
+        (module / 'lemma.tf').write_text('@node\n@valueType=str\n\n1\tⲡⲉ\n', encoding='utf-8')
+        item = self.local.install(module, name='Local lemma', parent=parent['id'],
+                                  parent_version='local', parent_revision=parent['source_revision'])
+        prepared = self.resolver.prepare_with_modules(parent['id'], modules=[item['id']])
+        self.assertTrue((prepared.path / 'lemma.tf').is_file())
+        bad = self.local.install(module, name='Wrong base', parent=parent['id'],
+                                 parent_version='local', parent_revision='a' * 64)
+        with self.assertRaisesRegex(ValueError, 'requires parent'):
+            self.resolver.prepare_with_modules(parent['id'], modules=[bad['id']])
+
+    def test_reject_symlink_missing_warp_module_warp_and_byte_limit(self):
+        (self.source / 'norm.tf').unlink()
+        (self.source / 'norm.tf').symlink_to(self.source / 'otype.tf')
+        with self.assertRaisesRegex(ValueError, 'regular|symlink'):
+            self.install()
+        (self.source / 'norm.tf').unlink()
+        (self.source / 'oslots.tf').unlink()
+        with self.assertRaisesRegex(ValueError, 'oslots'):
+            self.install()
+        with self.assertRaisesRegex(ValueError, 'replace|warp'):
+            self.install(parent='bhsa', parent_version='2021', parent_revision='a' * 40)
+        (self.source / 'oslots.tf').write_text('@edge\n\n3\t1-2\n')
+        with self.assertRaisesRegex(ValueError, 'byte|size'):
+            self.install(max_bytes=1)
+        self.assertEqual(self.catalog.search(), [])
+
+    def test_ignore_compiled_and_code_and_detect_mutation(self):
+        (self.source / '.tf').mkdir()
+        (self.source / '.tf/unsafe.pickle').write_bytes(b'not data')
+        (self.source / 'app.py').write_text('raise Exception()')
+        record = self.install()
+        prepared = self.resolver.prepare_with_modules(record['id'])
+        self.assertFalse((prepared.path / '.tf').exists())
+        self.assertFalse((prepared.path / 'app.py').exists())
+        (prepared.path / 'norm.tf').write_text('@node\n\n1\tbad\n')
+        with self.assertRaisesRegex(ValueError, 'integrity'):
+            self.resolver.prepare_with_modules(record['id'])
+
+
+class LocalImportLifecycleTests(LocalImportFixture, unittest.TestCase):
+    def test_mid_copy_cancellation_and_changed_source_clean_staging(self):
+        from agora_context_fabric.operation import OperationControl, OperationCancelled
+        from unittest.mock import patch
+
+        class CancelDuringCopy(OperationControl):
+            calls = 0
+            def remaining_acquisition_seconds(self):
+                self.calls += 1
+                if self.calls == 4:
+                    self.cancel()
+                return super().remaining_acquisition_seconds()
+
+        with self.assertRaises(OperationCancelled):
+            self.install(operation=CancelDuringCopy())
+        original = self.local._files
+        calls = 0
+        def changed_files(source, kind):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                (source / 'norm.tf').write_text('@node\n\n1\tchanged\n')
+            return original(source, kind)
+        with patch.object(self.local, '_files', side_effect=changed_files):
+            with self.assertRaisesRegex(ValueError, 'changed during import'):
+                self.install()
+        self.assertEqual(self.local.records(), [])
+        self.assertEqual(list(self.store.tmp_dir.glob('local-import-*')), [])
+
+    def test_cancellation_timeout_free_space_and_invalid_utf8_leave_no_import(self):
+        from agora_context_fabric.operation import OperationControl, OperationCancelled, AcquisitionTimeout
+        from unittest.mock import patch
+        control = OperationControl()
+        control.cancel()
+        with self.assertRaises(OperationCancelled):
+            self.install(operation=control)
+        with patch('agora_context_fabric.operation.time.monotonic', return_value=1000):
+            control = OperationControl(started_monotonic=0, acquisition_timeout_seconds=1)
+            with self.assertRaises(AcquisitionTimeout):
+                self.install(operation=control)
+        self.store.min_free_bytes = 2**63
+        with self.assertRaisesRegex(ValueError, 'free-space'):
+            self.install()
+        self.store.min_free_bytes = 0
+        (self.source / 'norm.tf').write_bytes(b'@node\n\n1\t\xff')
+        with self.assertRaises(UnicodeDecodeError):
+            self.install()
+        self.assertEqual(self.local.records(), [])
+        self.assertEqual(list(self.store.tmp_dir.glob('local-import-*')), [])
+
+    def test_loaded_import_is_protected_from_removal(self):
+        class Loader:
+            def load(self, path, **kwargs):
+                return {'name': kwargs['name']}
+            def unload(self, name):
+                pass
+        record = self.install()
+        service = ContextFabricService(self.catalog, self.resolver, Loader())
+        loaded = service.load(record['id'], source_mode='offline')
+        self.assertEqual(loaded['source_resolution'], 'user-local')
+        self.assertFalse(service.remove_cached(record['id'])['complete'])
+        service.unload(loaded['logical_name'])
+        self.assertTrue(service.remove_cached(record['id'])['complete'])
+
+    def test_explicit_selection_and_require_fresh_fail(self):
+        record = self.install()
+        service = ContextFabricService(self.catalog, self.resolver, object())
+        for kwargs in ({'version': 'wrong'}, {'source_revision': 'a' * 64},
+                       {'member_id': 'wrong'}, {'source_mode': 'require-fresh'}):
+            with self.assertRaises(ValueError):
+                service.prepare(record['id'], **kwargs)
+        selected = service.prepare(record['id'], source_revision=record['source_revision'])
+        self.assertEqual(selected['source_resolution'], 'user-local')
+        self.assertTrue(selected['source_revision_verified'])
+
+    def test_concurrent_imports_publish_complete_independent_snapshots(self):
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            items = list(pool.map(lambda _: self.install(), range(2)))
+        self.assertNotEqual(items[0]['id'], items[1]['id'])
+        self.assertEqual(len(self.local.records()), 2)
+        for item in items:
+            self.resolver.prepare_with_modules(item['id'])
+
+
+if __name__ == '__main__':
+    unittest.main()

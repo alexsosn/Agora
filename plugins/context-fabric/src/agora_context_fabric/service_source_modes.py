@@ -106,6 +106,9 @@ class ContextFabricService(_BaseContextFabricService):
                 explicit_revision=explicit_revision,
             )
         )
+        resource = self.catalog.get(resource_id)
+        if resource.acquisition_strategy == "user-local":
+            annotated.update(source_resolution="user-local", source_revision_verified=True)
         modules = annotated.get("modules")
         if isinstance(modules, list) and policy is not None:
             annotated_modules: list[Any] = []
@@ -116,6 +119,8 @@ class ContextFabricService(_BaseContextFabricService):
                 item = dict(module)
                 module_id = item.get("id")
                 if isinstance(module_id, str):
+                    if module_id.startswith("local-") and self.catalog.get(module_id).acquisition_strategy == "user-local":
+                        item.update(source_resolution="user-local", source_revision_verified=True)
                     item.update(
                         self._provenance(
                             policy,
