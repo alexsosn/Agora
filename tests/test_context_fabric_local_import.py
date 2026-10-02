@@ -252,6 +252,31 @@ class LocalImportLifecycleTests(LocalImportFixture, unittest.TestCase):
         self.assertEqual(self.local.records(), [])
         self.assertEqual(list(self.store.snapshots_dir.glob('local-*')), [])
 
+    def test_removing_local_parent_cascades_bound_local_modules(self):
+        parent = self.install()
+        module = self.root / 'module'
+        module.mkdir()
+        (module / 'lemma.tf').write_text(
+            '@node\n@valueType=str\n\n1\tⲡⲉ\n', encoding='utf-8'
+        )
+        annotation = self.local.install(
+            module,
+            name='Local lemma',
+            parent=parent['id'],
+            parent_version='local',
+            parent_revision=parent['source_revision'],
+        )
+        service = ContextFabricService(self.catalog, self.resolver, object())
+
+        result = service.remove_cached(parent['id'])
+
+        self.assertTrue(result['complete'])
+        self.assertEqual(result['removed_entries'], 2)
+        self.assertEqual(result['dependent_resource_ids'], [annotation['id']])
+        self.assertEqual(self.catalog.search(), [])
+        self.assertEqual(self.store.cache_entries(parent['id']), [])
+        self.assertEqual(self.store.cache_entries(annotation['id']), [])
+
     def test_loaded_import_is_protected_from_removal(self):
         class Loader:
             def load(self, path, **kwargs):
