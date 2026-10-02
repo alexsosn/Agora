@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import stat
 import tarfile
 import tempfile
 import unittest
@@ -13,6 +14,7 @@ from unittest import mock
 from jsonschema import Draft202012Validator
 
 from scripts.agora_materialize import (
+    HTTP_TIMEOUT_SECONDS,
     AcquisitionError,
     acquire_source,
     ManifestError,
@@ -52,6 +54,45 @@ def _tar_bytes(entries: dict[str, bytes]) -> bytes:
             info.size = len(payload)
             archive.addfile(info, io.BytesIO(payload))
     return buffer.getvalue()
+
+
+def _tar_bytes_from_members(members: list[tuple[tarfile.TarInfo, bytes | None]]) -> bytes:
+    """Build a tar whose members may be any type, not only plain regular files."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        for info, payload in members:
+            if payload is None:
+                archive.addfile(info)
+            else:
+                info.size = len(payload)
+                archive.addfile(info, io.BytesIO(payload))
+    return buffer.getvalue()
+
+
+def _tar_regular(name: str, *, mode: int = 0o644) -> tuple[tarfile.TarInfo, bytes]:
+    info = tarfile.TarInfo(name)
+    info.mode = mode
+    return info, b"%PDF-1.4\n"
+
+
+def _tar_member(name: str, member_type: bytes, *, linkname: str = "") -> tuple[tarfile.TarInfo, None]:
+    info = tarfile.TarInfo(name)
+    info.type = member_type
+    info.linkname = linkname
+    info.size = 0
+    return info, None
+
+
+def _recording_urlopen(payload: bytes):
+    """Like `_urlopen`, but records how the production code called it."""
+    calls: list[dict] = []
+
+    def opener(request, *args, **kwargs):
+        calls.append({"args": args, "kwargs": kwargs})
+        target = request if isinstance(request, str) else request.full_url
+        return _FakeResponse(payload, target)
+
+    return opener, calls
 
 
 def _digest(payload: bytes) -> str:
@@ -184,11 +225,24 @@ class HttpArchiveAcquisitionTests(unittest.TestCase):
             prepared.cleanup()
 
     def test_digest_mismatch_fails_without_extracting(self):
+        """The name of this contract is the contract: nothing may be extracted.
+
+        Asserting only that an `AcquisitionError` mentioning "sha256" is raised
+        leaves the ordering free -- production could extract first and verify
+        afterwards with this test still green. Observing the extractors proves
+        the digest actually gates them.
+        """
         payload = _valid_payload()
         strategy = _strategy(payload, sha256="0" * 64)
-        with mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)):
+        with (
+            mock.patch("scripts.agora_materialize._extract_zip_archive") as extract_zip,
+            mock.patch("scripts.agora_materialize._extract_tar_archive") as extract_tar,
+            mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)),
+        ):
             with self.assertRaisesRegex(AcquisitionError, "sha256"):
                 acquire_http_archive_source(strategy, _materializer())
+        self.assertFalse(extract_zip.called, "digest mismatch still reached zip extraction")
+        self.assertFalse(extract_tar.called, "digest mismatch still reached tar extraction")
 
     def test_tar_archives_are_supported(self):
         payload = _tar_bytes(
@@ -215,11 +269,18 @@ class HttpArchiveAcquisitionTests(unittest.TestCase):
                         acquire_http_archive_source(strategy, _materializer())
 
     def test_symlink_members_are_rejected(self):
-        payload = _zip_bytes_with_symlink("Workbooks/link.pdf", "/etc/passwd")
+        """The member is named `alias.pdf` on purpose.
+
+        The previous fixture was named `link.pdf` and the assertion accepted
+        "symlink|link", so the error merely echoing the member name satisfied
+        it: deleting the symlink branch entirely left this test green.
+        """
+        payload = _zip_bytes_with_symlink("Workbooks/alias.pdf", "/etc/passwd")
         strategy = _strategy(payload)
         with mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)):
-            with self.assertRaisesRegex(AcquisitionError, "symlink|link"):
+            with self.assertRaises(AcquisitionError) as caught:
                 acquire_http_archive_source(strategy, _materializer())
+        self.assertIn("symlink member", str(caught.exception))
 
     def test_oversized_download_is_refused(self):
         payload = _valid_payload()
@@ -248,9 +309,12 @@ class HttpArchiveAcquisitionTests(unittest.TestCase):
     def test_missing_subpath_inside_the_archive_is_reported(self):
         payload = _zip_bytes({"Other/01 Workbook I/sheet 1.pdf": b"%PDF-1.4\n"})
         strategy = _strategy(payload)
+        # "Workbooks" also occurs in the strategy URL, so matching it proved
+        # nothing about the subpath check.
         with mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)):
-            with self.assertRaisesRegex(AcquisitionError, "Workbooks"):
+            with self.assertRaises(AcquisitionError) as caught:
                 acquire_http_archive_source(strategy, _materializer())
+        self.assertIn("does not contain the declared subpath", str(caught.exception))
 
     def test_extracted_source_must_satisfy_the_declared_input_contract(self):
         payload = _zip_bytes({"Workbooks/notes.txt": b"not a pdf\n"})
@@ -310,6 +374,166 @@ class HttpArchiveStrategySelectionTests(unittest.TestCase):
                 )
             opener.assert_not_called()
         self.assertEqual(prepared.provenance["type"], "user-local")
+
+
+class HttpArchiveExtractionHardeningTests(unittest.TestCase):
+    """Contracts for guards the suite previously left unconstrained.
+
+    An adversarial review of the merged change mutated each production guard in
+    turn and found that nine of ten survived the original suite, including
+    deleting both of the tar path's independent anti-traversal layers. The tests
+    below are written so that removing the guard they name makes them fail.
+
+    Two rules are followed throughout: assert the *reason* rather than a string
+    that a fixture name or a URL could also supply, and assert observable state
+    rather than only that some exception was raised.
+    """
+
+    TAR_URL = "https://example.invalid/deposit/Workbooks.tar.gz"
+
+    def _acquire_tar(self, payload: bytes):
+        strategy = _strategy(payload, format="tar", url=self.TAR_URL)
+        with mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)):
+            return acquire_http_archive_source(strategy, _materializer())
+
+    def _refuse_tar(self, payload: bytes) -> str:
+        with self.assertRaises(AcquisitionError) as caught:
+            self._acquire_tar(payload)
+        return str(caught.exception)
+
+    # --- tar member types: `_tar_bytes` only ever built regular files ---
+
+    def test_tar_symlink_members_are_rejected(self):
+        payload = _tar_bytes_from_members(
+            [_tar_member("Workbooks/alias.pdf", tarfile.SYMTYPE, linkname="/etc/passwd")]
+        )
+        self.assertIn("link member", self._refuse_tar(payload))
+
+    def test_tar_hardlink_members_are_rejected(self):
+        payload = _tar_bytes_from_members(
+            [
+                _tar_regular("Workbooks/01 Workbook I/sheet 1.pdf"),
+                _tar_member(
+                    "Workbooks/01 Workbook I/alias.pdf",
+                    tarfile.LNKTYPE,
+                    linkname="Workbooks/01 Workbook I/sheet 1.pdf",
+                ),
+            ]
+        )
+        self.assertIn("link member", self._refuse_tar(payload))
+
+    def test_tar_device_members_are_rejected(self):
+        payload = _tar_bytes_from_members(
+            [_tar_member("Workbooks/console", tarfile.CHRTYPE)]
+        )
+        self.assertIn("non-regular member", self._refuse_tar(payload))
+
+    def test_tar_members_escaping_the_extraction_root_are_rejected(self):
+        for name in (
+            "../escape/sheet 1.pdf",
+            "/absolute/sheet 1.pdf",
+            "Workbooks/../../escape/sheet 1.pdf",
+            "..\\escape\\sheet 1.pdf",
+        ):
+            with self.subTest(name=name):
+                payload = _tar_bytes_from_members([_tar_regular(name)])
+                self.assertIn("escapes the extraction root", self._refuse_tar(payload))
+
+    def test_extracted_tar_files_do_not_keep_setuid_bits(self):
+        """Pins `extractall(..., filter="data")` by its effect, not its spelling.
+
+        Our own member checks accept a regular file whose mode happens to carry
+        setuid; only the data filter clamps it. On Python 3.13 omitting the
+        filter preserves 0o4755, so deleting it fails this test.
+        """
+        payload = _tar_bytes_from_members(
+            [_tar_regular("Workbooks/01 Workbook I/privileged.pdf", mode=0o4755)]
+        )
+        prepared = self._acquire_tar(payload)
+        try:
+            extracted = prepared.path / "01 Workbook I" / "privileged.pdf"
+            mode = extracted.stat().st_mode
+            self.assertFalse(stat.S_ISUID & mode, oct(stat.S_IMODE(mode)))
+            self.assertFalse(stat.S_ISGID & mode, oct(stat.S_IMODE(mode)))
+        finally:
+            prepared.cleanup()
+
+    # --- caps that no test previously exercised ------------------------
+
+    def test_zip_member_count_cap_is_enforced(self):
+        payload = _zip_bytes(
+            {f"Workbooks/01 Workbook I/sheet {index}.pdf": b"%PDF-1.4\n" for index in range(3)}
+        )
+        strategy = _strategy(payload)
+        with (
+            mock.patch("scripts.agora_materialize.MAX_ARCHIVE_MEMBERS", 2),
+            mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)),
+        ):
+            with self.assertRaises(AcquisitionError) as caught:
+                acquire_http_archive_source(strategy, _materializer())
+        self.assertIn("too many members", str(caught.exception))
+
+    def test_tar_member_count_cap_is_enforced(self):
+        payload = _tar_bytes_from_members(
+            [_tar_regular(f"Workbooks/01 Workbook I/sheet {index}.pdf") for index in range(3)]
+        )
+        strategy = _strategy(payload, format="tar", url=self.TAR_URL)
+        with (
+            mock.patch("scripts.agora_materialize.MAX_ARCHIVE_MEMBERS", 2),
+            mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)),
+        ):
+            with self.assertRaises(AcquisitionError) as caught:
+                acquire_http_archive_source(strategy, _materializer())
+        self.assertIn("too many members", str(caught.exception))
+
+    def test_tar_extraction_size_cap_is_enforced(self):
+        """The existing cap test only ever exercised the zip path."""
+        payload = _tar_bytes_from_members(
+            [_tar_regular("Workbooks/01 Workbook I/sheet 1.pdf")]
+        )
+        strategy = _strategy(payload, format="tar", url=self.TAR_URL)
+        with (
+            mock.patch("scripts.agora_materialize.MAX_ARCHIVE_EXTRACTED_BYTES", 4),
+            mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)),
+        ):
+            with self.assertRaises(AcquisitionError) as caught:
+                acquire_http_archive_source(strategy, _materializer())
+        self.assertIn("exceeds", str(caught.exception))
+
+    # --- runtime URL checks, independent of the schema -----------------
+
+    def test_runtime_refuses_a_credentialed_or_plaintext_url(self):
+        """Defence in depth: the schema also rejects these, but the schema is
+        not what guards a strategy reaching the acquisition helper directly.
+        """
+        payload = _valid_payload()
+        for url in (
+            "https://user:pw@example.invalid/deposit/Workbooks.zip",
+            "http://example.invalid/deposit/Workbooks.zip",
+        ):
+            with self.subTest(url=url):
+                strategy = _strategy(payload, url=url)
+                with mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)):
+                    with self.assertRaises(AcquisitionError) as caught:
+                        acquire_http_archive_source(strategy, _materializer())
+                self.assertIn("credential-free https URL", str(caught.exception))
+
+    # --- the download call itself --------------------------------------
+
+    def test_download_passes_the_configured_timeout(self):
+        """Pins that a timeout is passed at all; its semantics are a separate
+        defect. `urlopen(timeout=...)` bounds each socket operation, not the
+        whole transfer, so a trickling server is still unbounded. Tightening
+        that is tracked separately; this only stops the argument vanishing.
+        """
+        payload = _valid_payload()
+        opener, calls = _recording_urlopen(payload)
+        strategy = _strategy(payload)
+        with mock.patch("scripts.agora_materialize.urlopen", opener):
+            prepared = acquire_http_archive_source(strategy, _materializer())
+        prepared.cleanup()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertEqual(calls[0]["kwargs"].get("timeout"), HTTP_TIMEOUT_SECONDS)
 
 
 if __name__ == "__main__":
