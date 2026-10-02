@@ -188,6 +188,41 @@ class LocalImports:
                 if temporary is not None:
                     shutil.rmtree(temporary)
 
+    @staticmethod
+    def _validate_descriptor(descriptor):
+        if not isinstance(descriptor, dict):
+            raise ValueError('invalid local import descriptor')
+        required = {
+            'id', 'name', 'kind', 'version', 'parent',
+            'parent_version', 'parent_revision',
+        }
+        if set(descriptor) != required:
+            raise ValueError('invalid local import descriptor fields')
+        if not _ID.fullmatch(descriptor['id']) if isinstance(descriptor['id'], str) else True:
+            raise ValueError('invalid local import descriptor id')
+        if (not isinstance(descriptor['name'], str)
+                or not descriptor['name'].strip()
+                or len(descriptor['name']) > 200):
+            raise ValueError('invalid local import descriptor name')
+        if (not isinstance(descriptor['version'], str)
+                or not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}', descriptor['version'])):
+            raise ValueError('invalid local import descriptor version')
+        kind = descriptor['kind']
+        if kind == 'corpus':
+            if any(descriptor[key] is not None
+                   for key in ('parent', 'parent_version', 'parent_revision')):
+                raise ValueError('corpus local import descriptor cannot declare a parent')
+        elif kind == 'feature-module':
+            if (not isinstance(descriptor['parent'], str)
+                    or not descriptor['parent']
+                    or not isinstance(descriptor['parent_version'], str)
+                    or not descriptor['parent_version']
+                    or not isinstance(descriptor['parent_revision'], str)
+                    or not _REVISION.fullmatch(descriptor['parent_revision'])):
+                raise ValueError('invalid feature-module parent descriptor')
+        else:
+            raise ValueError('invalid local import descriptor kind')
+
     def _read(self, path):
         if path.is_symlink() or not path.is_file() or path.stat().st_size > 1024 * 1024:
             raise ValueError('invalid local import receipt')
@@ -195,6 +230,7 @@ class LocalImports:
         if receipt.get('schema_version') != 1:
             raise ValueError('unsupported local import receipt version')
         descriptor = receipt['descriptor']
+        self._validate_descriptor(descriptor)
         revision = receipt['source_revision']
         files = receipt['files']
         if not isinstance(files, dict) or _digest(files) != revision:
