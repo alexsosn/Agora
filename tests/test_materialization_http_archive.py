@@ -618,6 +618,17 @@ class HttpArchiveFailureReportingTests(unittest.TestCase):
                 prepared.cleanup()
 
 
+def _tar_with_pax_metadata(metadata_bytes: int) -> bytes:
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz", format=tarfile.PAX_FORMAT) as archive:
+        info = tarfile.TarInfo("Workbooks/01 Workbook I/sheet 1.pdf")
+        info.pax_headers = {"comment": "x" * metadata_bytes}
+        payload = b"%PDF-1.4\n"
+        info.size = len(payload)
+        archive.addfile(info, io.BytesIO(payload))
+    return buffer.getvalue()
+
+
 def _tar_sized(name: str, payload: bytes) -> tuple[tarfile.TarInfo, bytes]:
     info = tarfile.TarInfo(name)
     info.mode = 0o644
@@ -709,6 +720,31 @@ class HttpArchiveTransferBoundsTests(unittest.TestCase):
                 acquire_http_archive_source(strategy, _materializer())
         self.assertIn("deadline", str(caught.exception))
         self.assertLess(response.reads, 5000, "the read loop ran to completion anyway")
+
+    def test_tar_extension_metadata_has_its_own_decompression_budget(self):
+        payload = _tar_with_pax_metadata(64 * 1024)
+        strategy = _strategy(payload, format="tar", url=self.TAR_URL)
+        with (
+            mock.patch(
+                "scripts.agora_materialize.MAX_ARCHIVE_TAR_METADATA_BYTES",
+                1024,
+                create=True,
+            ),
+            mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)),
+        ):
+            with self.assertRaises(AcquisitionError) as caught:
+                acquire_http_archive_source(strategy, _materializer())
+        self.assertIn("metadata", str(caught.exception))
+
+    def test_gnu_sparse_tar_members_are_refused_before_sparse_metadata_processing(self):
+        payload = _tar_bytes_from_members(
+            [_tar_member("Workbooks/01 Workbook I/sparse.pdf", tarfile.GNUTYPE_SPARSE)]
+        )
+        strategy = _strategy(payload, format="tar", url=self.TAR_URL)
+        with mock.patch("scripts.agora_materialize.urlopen", _urlopen(payload)):
+            with self.assertRaises(AcquisitionError) as caught:
+                acquire_http_archive_source(strategy, _materializer())
+        self.assertIn("sparse", str(caught.exception).casefold())
 
     def test_tar_index_walk_stops_before_inflating_the_whole_stream(self):
         """The cap must bound decompression work, not only bytes written.
