@@ -33,6 +33,9 @@ HTTP_TIMEOUT_SECONDS = 120
 MAX_ARCHIVE_DOWNLOAD_SECONDS = 1800
 MAX_ARCHIVE_DOWNLOAD_BYTES = 512 * 1024 * 1024
 MAX_ARCHIVE_EXTRACTED_BYTES = 2 * 1024 * 1024 * 1024
+# PAX/GNU extension records are consumed by tarfile before a logical member is
+# yielded, so the ordinary member/expanded-size checks cannot bound them.
+MAX_ARCHIVE_TAR_METADATA_BYTES = 128 * 1024 * 1024
 MAX_ARCHIVE_MEMBERS = 50_000
 SANDBOX_OUTPUT_ROOT = "/agora-output"
 _TREE_EXCLUDES = {
@@ -56,6 +59,42 @@ class ManifestError(ValueError):
 
 class AcquisitionError(RuntimeError):
     """Automatic acquisition failed for an environmental/network reason."""
+
+
+class _BoundedTarInfo(tarfile.TarInfo):
+    """Reject tar metadata that would bypass the logical-member caps."""
+
+    _EXTENSION_TYPES = frozenset(
+        {
+            tarfile.GNUTYPE_LONGNAME,
+            tarfile.GNUTYPE_LONGLINK,
+            tarfile.XHDTYPE,
+            tarfile.XGLTYPE,
+            tarfile.SOLARIS_XHDTYPE,
+        }
+    )
+
+    def _proc_member(self, archive):
+        # GNU sparse extension blocks are consumed before the member is yielded
+        # and can be chained without contributing to the ordinary member count.
+        # Reject this legacy representation rather than accepting unbounded
+        # pre-yield metadata. PAX sparse metadata remains covered by the budget
+        # below and the eventual logical-size check.
+        if self.type == tarfile.GNUTYPE_SPARSE:
+            raise AcquisitionError("archive contains an unsupported GNU sparse member")
+
+        if self.type in self._EXTENSION_TYPES:
+            block = tarfile.BLOCKSIZE
+            padded = ((self.size + block - 1) // block) * block
+            used = getattr(archive, "_agora_tar_metadata_bytes", 0) + block + padded
+            if used > MAX_ARCHIVE_TAR_METADATA_BYTES:
+                raise AcquisitionError(
+                    "archive tar extension metadata exceeds the "
+                    f"{MAX_ARCHIVE_TAR_METADATA_BYTES} byte limit"
+                )
+            archive._agora_tar_metadata_bytes = used
+
+        return super()._proc_member(archive)
 
 
 @dataclass(frozen=True)
@@ -430,7 +469,7 @@ def _extract_tar_archive(archive_path: Path, destination: Path) -> None:
     the decompression work. Checking while walking stops at the first offending
     member, so inflation is bounded by the cap plus one member.
     """
-    with tarfile.open(archive_path, mode="r:*") as archive:
+    with tarfile.open(archive_path, mode="r:*", tarinfo=_BoundedTarInfo) as archive:
         count = 0
         total = 0
         for member in archive:
