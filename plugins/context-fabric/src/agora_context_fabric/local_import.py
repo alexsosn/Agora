@@ -10,6 +10,7 @@ import shutil
 import stat
 import tempfile
 import uuid
+import warnings
 from pathlib import Path
 
 from .catalog import Catalog, ResourceSpec
@@ -153,9 +154,10 @@ class LocalImports:
                     metadata = path.lstat()
                     if (metadata.st_dev, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns) != observed[path.name]:
                         raise ValueError('source TF feature changed during import')
-                receipt = dict(schema_version=1, descriptor=descriptor, files=manifest)
-                revision = _digest(receipt)
-                receipt['source_revision'] = revision
+                revision = _digest(manifest)
+                receipt = dict(schema_version=1, descriptor=descriptor, files=manifest,
+                               source_revision=revision)
+                receipt['receipt_sha256'] = _digest(receipt)
                 (temporary / _RECEIPT).write_text(json.dumps(receipt, sort_keys=True), encoding='utf-8')
                 destination = self._path(descriptor['id'], revision, kind)
                 destination.parent.mkdir(parents=True, exist_ok=True)
@@ -178,18 +180,36 @@ class LocalImports:
             raise ValueError('unsupported local import receipt version')
         descriptor = receipt['descriptor']
         revision = receipt['source_revision']
-        if _digest({k: v for k, v in receipt.items() if k != 'source_revision'}) != revision:
+        files = receipt['files']
+        if not isinstance(files, dict) or _digest(files) != revision:
+            raise ValueError('local import payload identity mismatch')
+        receipt_sha256 = receipt.get('receipt_sha256')
+        if not isinstance(receipt_sha256, str) or _digest(
+                {k: v for k, v in receipt.items() if k != 'receipt_sha256'}
+        ) != receipt_sha256:
             raise ValueError('local import receipt integrity mismatch')
         expected = self._path(descriptor['id'], revision, descriptor['kind']) / _RECEIPT
         if path != expected:
             raise ValueError('local import receipt identity mismatch')
         return receipt
 
+    @staticmethod
+    def is_local_id(resource_id):
+        return isinstance(resource_id, str) and _ID.fullmatch(resource_id) is not None
+
     def records(self):
         with self.store.cache_transition():
             result = []
             for path in sorted(self.store.snapshots_dir.glob('local-*/*/*/__root__/' + _RECEIPT)):
-                result.append(self._read(path))
+                try:
+                    result.append(self._read(path))
+                except (OSError, UnicodeError, json.JSONDecodeError, KeyError,
+                        TypeError, ValueError, AttributeError) as exc:
+                    warnings.warn(
+                        f'invalid local import receipt ignored at {path}: {exc}',
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
             return result
 
     def spec(self, record):
