@@ -198,7 +198,8 @@ class LocalImports:
         }
         if set(descriptor) != required:
             raise ValueError('invalid local import descriptor fields')
-        if not _ID.fullmatch(descriptor['id']) if isinstance(descriptor['id'], str) else True:
+        resource_id = descriptor['id']
+        if not isinstance(resource_id, str) or not _ID.fullmatch(resource_id):
             raise ValueError('invalid local import descriptor id')
         if (not isinstance(descriptor['name'], str)
                 or not descriptor['name'].strip()
