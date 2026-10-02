@@ -930,7 +930,18 @@ def materialize(
     spec = select_materializer(manifest, materializer_id)
     plugin_root = manifest_path.parent
 
-    # Fail before acquisition/network side effects when the destination or sandbox is unusable.
+    # Fail before acquisition/network side effects when the destination or sandbox is
+    # unusable, or when the manifest declares an input this host cannot bind.
+    if spec.get("parent_input") is not None:
+        # The manifest is valid; this host is the limitation, so say so. Without
+        # this the run acquires its source and creates staging before
+        # `_render_args` dies on the unsubstituted `{parent}`, reporting a valid
+        # placeholder as invalid.
+        raise ManifestError(
+            f"this Agora cannot yet bind a parent input, and materializer "
+            f"{spec['id']!r} declares one: the manifest contract is validated but "
+            "parent mounting is not implemented. Nothing was acquired."
+        )
     final_output = _preflight_output(output)
     preflight_backend, _ = _sandbox_backend_preflight(sandbox)
     code_sha256 = _materializer_code_digest(plugin_root)
