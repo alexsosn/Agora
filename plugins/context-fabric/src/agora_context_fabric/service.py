@@ -736,8 +736,19 @@ class ContextFabricService:
         source_revision: str | None = None,
     ) -> dict[str, Any]:
         store = self._require_store()
-        resource = self.catalog.get(resource_id)
-        if resource.kind != "collection" and member_id is not None:
+        try:
+            resource = self.catalog.get(resource_id)
+        except KeyError:
+            local_imports = getattr(self.resolver, "local_imports", None)
+            if local_imports is None or not local_imports.is_local_id(resource_id):
+                raise
+            resource = None
+        if resource is None:
+            if member_id is not None:
+                raise ValueError(
+                    f"local resource {resource_id!r} is not a collection; member_id is invalid"
+                )
+        elif resource.kind != "collection" and member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
 
         matched: list[dict[str, Any]] = []
