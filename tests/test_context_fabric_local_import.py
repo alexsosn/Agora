@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'plugins/context-fabric/src'))
-from agora_context_fabric.catalog import Catalog
+from agora_context_fabric.catalog import Catalog, ResourceSpec
 from agora_context_fabric.gitstore import GitStore
 from agora_context_fabric.local_import import LocalImports, LocalCatalog
 from agora_context_fabric.resolver import ContextFabricResolver
@@ -85,6 +85,29 @@ class LocalImportTests(LocalImportFixture, unittest.TestCase):
             self.install(max_bytes=1)
         self.assertEqual(self.catalog.search(), [])
 
+    def test_accepts_text_fabric_at_feature_names(self):
+        (self.source / 'book@en.tf').write_text(
+            '@node\n@valueType=str\n\n3\tSample\n', encoding='utf-8'
+        )
+        (self.source / 'omap@2017-2021.tf').write_text(
+            '@edge\n\n1\t2\n', encoding='utf-8'
+        )
+        record = self.install()
+        prepared = self.resolver.prepare_with_modules(record['id'])
+        self.assertTrue((prepared.path / 'book@en.tf').is_file())
+        self.assertTrue((prepared.path / 'omap@2017-2021.tf').is_file())
+
+    def test_source_revision_is_stable_for_identical_payloads(self):
+        first = self.local.install(self.source, name='First label', version='one')
+        second = self.local.install(self.source, name='Different label', version='two')
+        self.assertNotEqual(first['id'], second['id'])
+        self.assertEqual(first['source_revision'], second['source_revision'])
+        (self.source / 'norm.tf').write_text(
+            '@node\n@valueType=str\n\n1\tchanged\n2\tⲣⲱⲙⲉ\n', encoding='utf-8'
+        )
+        changed = self.local.install(self.source, name='First label', version='one')
+        self.assertNotEqual(first['source_revision'], changed['source_revision'])
+
     def test_ignore_compiled_and_code_and_detect_mutation(self):
         (self.source / '.tf').mkdir()
         (self.source / '.tf/unsafe.pickle').write_bytes(b'not data')
@@ -96,6 +119,37 @@ class LocalImportTests(LocalImportFixture, unittest.TestCase):
         (prepared.path / 'norm.tf').write_text('@node\n\n1\tbad\n')
         with self.assertRaisesRegex(ValueError, 'integrity'):
             self.resolver.prepare_with_modules(record['id'])
+
+
+class LocalImportRecoveryTests(LocalImportFixture, unittest.TestCase):
+    def test_corrupt_receipt_does_not_poison_catalog_and_can_be_removed(self):
+        canonical = ResourceSpec(
+            id='canonical-fixture',
+            name='Canonical fixture',
+            plugin='context-fabric',
+            provider='fixture',
+            kind='corpus',
+            repository='example/canonical',
+            languages=(),
+            disciplines=(),
+            tf_path='tf/1',
+        )
+        catalog = LocalCatalog(Catalog([canonical]), self.local)
+        resolver = ContextFabricResolver(catalog, self.store, local_imports=self.local)
+        service = ContextFabricService(catalog, resolver, object())
+        record = self.install()
+        receipt = (
+            self.local._path(record['id'], record['source_revision'], 'corpus')
+            / '.agora-local.json'
+        )
+        receipt.write_text('{broken', encoding='utf-8')
+
+        with self.assertWarnsRegex(RuntimeWarning, 'invalid local import receipt'):
+            self.assertEqual(catalog.get('canonical-fixture').id, 'canonical-fixture')
+        with self.assertWarnsRegex(RuntimeWarning, 'invalid local import receipt'):
+            result = service.remove_cached(record['id'])
+        self.assertTrue(result['complete'])
+        self.assertEqual(result['removed_entries'], 1)
 
 
 class LocalImportLifecycleTests(LocalImportFixture, unittest.TestCase):
