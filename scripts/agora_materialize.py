@@ -450,10 +450,28 @@ def acquire_http_archive_source(
 
         extracted = root / "extracted"
         extracted.mkdir()
-        if strategy["format"] == "zip":
-            _extract_zip_archive(archive_path, extracted)
-        else:
-            _extract_tar_archive(archive_path, extracted)
+        try:
+            if strategy["format"] == "zip":
+                _extract_zip_archive(archive_path, extracted)
+            else:
+                _extract_tar_archive(archive_path, extracted)
+        except AcquisitionError:
+            raise
+        except tarfile.FilterError as exc:
+            # Unreachable while the member checks above hold; kept so a filter
+            # rejection is still an acquisition failure rather than a traceback.
+            raise AcquisitionError(
+                f"archive {strategy['url']} contains a member refused by the "
+                f"extraction filter: {exc}"
+            ) from exc
+        except (zipfile.BadZipFile, zipfile.LargeZipFile, tarfile.TarError, EOFError) as exc:
+            # A corrupt deposit, or a manifest whose declared format does not
+            # match the bytes. Reported as an acquisition failure so that
+            # `acquire_source` keeps control and can offer a declared fallback.
+            raise AcquisitionError(
+                f"archive {strategy['url']} could not be read as a "
+                f"{strategy['format']} archive: {exc}"
+            ) from exc
         archive_path.unlink(missing_ok=True)
 
         subpath = strategy["subpath"]
