@@ -66,6 +66,11 @@ async def smoke():
                 removed = await call('remove_cached_corpus', resource_id=rid)
                 if not removed['complete']:
                     raise RuntimeError('unloaded local import could not be removed')
+                if removed.get('dependent_resource_ids') != [annotation['id']]:
+                    raise RuntimeError('local parent removal did not cascade to its module')
+                remaining = await call('list_available_corpora', kind='feature-module')
+                if any(item.get('id') == annotation['id'] for item in remaining):
+                    raise RuntimeError('removed local module remains discoverable')
                 print(json.dumps({'loaded': True, 'overview': overview, 'search': result,
                                   'removed': removed['complete']}, ensure_ascii=False))
 
