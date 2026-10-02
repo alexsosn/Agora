@@ -215,6 +215,15 @@ class LocalImportLifecycleTests(LocalImportFixture, unittest.TestCase):
         self.assertEqual(self.local.records(), [])
         self.assertEqual(list(self.store.tmp_dir.glob('local-import-*')), [])
 
+    def test_cache_index_failure_rolls_back_published_snapshot(self):
+        from unittest.mock import patch
+
+        with patch.object(self.store, 'touch_cache_object', side_effect=OSError('index failed')):
+            with self.assertRaisesRegex(OSError, 'index failed'):
+                self.install()
+        self.assertEqual(self.local.records(), [])
+        self.assertEqual(list(self.store.snapshots_dir.glob('local-*')), [])
+
     def test_loaded_import_is_protected_from_removal(self):
         class Loader:
             def load(self, path, **kwargs):
