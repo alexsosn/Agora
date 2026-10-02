@@ -407,6 +407,23 @@ def validate_registry(root: Path = ROOT) -> list[str]:
                             f"{dependency.get('repository')!r} must match parent repository "
                             f"{parent_repository!r}"
                         )
+                    parent_ref = (parent.get("upstream") or {}).get("ref")
+                    if not isinstance(parent_ref, str) or not parent_ref:
+                        errors.append(
+                            f"{prefix}.upstream.dependencies: parent-base ref requires "
+                            f"parent {resource['parent']!r} to declare an immutable "
+                            "upstream.ref, because the resolver compares the declared "
+                            "ref against the prepared parent revision for equality"
+                        )
+                    elif isinstance(dependency_ref, str) and (
+                        dependency_ref.casefold() != parent_ref.casefold()
+                    ):
+                        errors.append(
+                            f"{prefix}.upstream.dependencies: parent-base ref "
+                            f"{dependency_ref!r} must equal parent "
+                            f"{resource['parent']!r} upstream.ref {parent_ref!r}; "
+                            "promote the parent pin and the module together"
+                        )
 
         if resource["kind"] == "collection":
             if resource["acquisition"]["strategy"] != "collection":
