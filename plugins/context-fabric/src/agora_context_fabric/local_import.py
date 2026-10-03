@@ -106,6 +106,24 @@ class LocalImports:
                           parent_revision=parent_revision)
         temporary = None
         with self.store.cache_transition():
+            if kind == 'feature-module' and self.is_local_id(parent):
+                matching_parent = [
+                    record
+                    for record in self.records(transition_held=True)
+                    if record['descriptor']['id'] == parent
+                ]
+                if len(matching_parent) != 1:
+                    raise ValueError('local parent is no longer resident; import or select it again')
+                parent_record = matching_parent[0]
+                parent_descriptor = parent_record['descriptor']
+                if (
+                    parent_descriptor['kind'] != 'corpus'
+                    or parent_descriptor['version'] != parent_version
+                    or parent_record['source_revision'].casefold() != parent_revision.casefold()
+                ):
+                    raise ValueError(
+                        'local parent version/revision no longer matches the requested module binding'
+                    )
             try:
                 temporary = Path(tempfile.mkdtemp(prefix='local-import-', dir=self.store.tmp_dir))
                 manifest = {}
@@ -250,20 +268,25 @@ class LocalImports:
     def is_local_id(resource_id):
         return isinstance(resource_id, str) and _ID.fullmatch(resource_id) is not None
 
-    def records(self):
+    def _records_locked(self):
+        result = []
+        for path in sorted(self.store.snapshots_dir.glob('local-*/*/*/__root__/' + _RECEIPT)):
+            try:
+                result.append(self._read(path))
+            except (OSError, UnicodeError, json.JSONDecodeError, KeyError,
+                    TypeError, ValueError, AttributeError) as exc:
+                warnings.warn(
+                    f'invalid local import receipt ignored at {path}: {exc}',
+                    RuntimeWarning,
+                    stacklevel=3,
+                )
+        return result
+
+    def records(self, *, transition_held=False):
+        if transition_held:
+            return self._records_locked()
         with self.store.cache_transition():
-            result = []
-            for path in sorted(self.store.snapshots_dir.glob('local-*/*/*/__root__/' + _RECEIPT)):
-                try:
-                    result.append(self._read(path))
-                except (OSError, UnicodeError, json.JSONDecodeError, KeyError,
-                        TypeError, ValueError, AttributeError) as exc:
-                    warnings.warn(
-                        f'invalid local import receipt ignored at {path}: {exc}',
-                        RuntimeWarning,
-                        stacklevel=2,
-                    )
-            return result
+            return self._records_locked()
 
     def spec(self, record):
         d = record['descriptor']
