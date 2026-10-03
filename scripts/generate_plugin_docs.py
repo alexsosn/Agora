@@ -17,7 +17,8 @@ GUIDANCE: dict[str, dict[str, Any]] = {
         "access": (
             "Browse the [generated scholarly resource catalog](../resources.md) for registered "
             "corpora and collections. Resources are selected lazily; installing the plugin does "
-            "not download the full catalog."
+            "not download the full catalog. Use `install_local_corpus` for "
+            "[user-supplied native TF corpora and feature modules](../context-fabric-local-import.md)."
         ),
         "first_success": (
             "Using BHSA, inspect the available word features, then find a small set of occurrences "

@@ -725,7 +725,59 @@ class ContextFabricService:
     def prune_cache(self, *, target_bytes: int | None = None) -> dict[str, Any]:
         store = self._require_store()
         result = dict(store.prune(target_bytes=target_bytes))
-        result["cache"] = self.cache_status()
+
+        # A generated local parent ID cannot be recreated by re-importing the
+        # same payload. If generic LRU pruning evicts that parent before one of
+        # its local modules, the module is permanently unusable. Clean such
+        # dependents immediately after the generic prune pass.
+        orphan_resource_ids: list[str] = []
+        local_imports = getattr(self.resolver, "local_imports", None)
+        if local_imports is not None:
+            records = local_imports.records()
+            resident_local_corpora = {
+                record["descriptor"]["id"]
+                for record in records
+                if record["descriptor"]["kind"] == "corpus"
+            }
+            orphan_resource_ids = sorted(
+                record["descriptor"]["id"]
+                for record in records
+                if (
+                    record["descriptor"]["kind"] == "feature-module"
+                    and local_imports.is_local_id(record["descriptor"]["parent"])
+                    and record["descriptor"]["parent"] not in resident_local_corpora
+                )
+            )
+
+        orphan_entries: list[dict[str, Any]] = []
+        for orphan_id in orphan_resource_ids:
+            orphan_entries.extend(store.cache_entries(orphan_id))
+        orphan_result = store.remove_cache_objects(
+            [Path(str(entry["path"])) for entry in orphan_entries]
+        )
+        for key in (
+            "removed_entries",
+            "removed_bytes",
+            "skipped_in_use",
+            "blocked_by_transition",
+        ):
+            result[key] = int(result.get(key, 0)) + int(orphan_result.get(key, 0))
+
+        cache = self.cache_status()
+        result["orphan_local_modules_removed"] = int(orphan_result["removed_entries"])
+        result["orphan_local_modules_skipped_in_use"] = int(orphan_result["skipped_in_use"])
+        result["after_bytes"] = int(cache["cache_bytes"])
+        result["unindexed_cache_bytes"] = int(cache["unindexed_cache_bytes"])
+        effective_target = (
+            int(store.snapshot_soft_limit_bytes)
+            if target_bytes is None
+            else int(target_bytes)
+        )
+        result["target_met"] = result["after_bytes"] <= effective_target
+        result["free_bytes"] = int(cache["free_bytes"])
+        result["min_free_bytes"] = int(cache["min_free_bytes"])
+        result["free_space_met"] = result["free_bytes"] >= result["min_free_bytes"]
+        result["cache"] = cache
         return result
 
     def remove_cached(
@@ -736,30 +788,127 @@ class ContextFabricService:
         source_revision: str | None = None,
     ) -> dict[str, Any]:
         store = self._require_store()
-        resource = self.catalog.get(resource_id)
-        if resource.kind != "collection" and member_id is not None:
+        local_imports = getattr(self.resolver, "local_imports", None)
+        try:
+            resource = self.catalog.get(resource_id)
+        except KeyError:
+            if local_imports is None or not local_imports.is_local_id(resource_id):
+                raise
+            resource = None
+        if resource is None:
+            if member_id is not None:
+                raise ValueError(
+                    f"local resource {resource_id!r} is not a collection; member_id is invalid"
+                )
+        elif resource.kind != "collection" and member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
 
-        matched: list[dict[str, Any]] = []
-        for entry in store.cache_entries(resource_id):
-            if source_revision is not None and entry["revision"] != source_revision:
-                continue
-            if member_id is not None:
-                if entry["kind"] != "corpus-snapshot":
-                    continue
-                relative_path = entry.get("relative_path")
-                if not isinstance(relative_path, str) or member_id_from_path(relative_path) != member_id:
-                    continue
-            matched.append(entry)
-
-        result = store.remove_cache_objects(
-            [Path(str(entry["path"])) for entry in matched]
+        cascade_local_parent = (
+            resource is not None
+            and resource.kind == "corpus"
+            and resource.acquisition_strategy == "user-local"
+            and member_id is None
+            and (source_revision is None or source_revision == resource.ref)
+            and local_imports is not None
         )
+
+        dependent_resource_ids: list[str] = []
+        matched: list[dict[str, Any]] = []
+        result = {
+            "removed_entries": 0,
+            "removed_bytes": 0,
+            "skipped_in_use": 0,
+            "blocked_by_transition": 0,
+        }
+
+        if cascade_local_parent:
+            quarantine_roots: list[Path] = []
+            try:
+                # Hold the exclusive transition from dependency discovery through
+                # detachment. A local-module import holds the shared form of this
+                # lock and revalidates its local parent after acquiring it, so a
+                # module cannot appear between this scan and parent removal.
+                with store.cache_transition(exclusive=True):
+                    records = local_imports.records(transition_held=True)
+                    dependent_resource_ids = sorted(
+                        record["descriptor"]["id"]
+                        for record in records
+                        if (
+                            record["descriptor"]["kind"] == "feature-module"
+                            and record["descriptor"]["parent"] == resource_id
+                        )
+                    )
+
+                    parent_entries = [
+                        entry
+                        for entry in store.cache_entries(resource_id)
+                        if source_revision is None or entry["revision"] == source_revision
+                    ]
+                    dependent_entries: list[dict[str, Any]] = []
+                    for candidate_id in dependent_resource_ids:
+                        dependent_entries.extend(store.cache_entries(candidate_id))
+                    matched = [*parent_entries, *dependent_entries]
+
+                    def detach(entries: list[dict[str, Any]]) -> dict[str, int]:
+                        subtotal = {
+                            "removed_entries": 0,
+                            "removed_bytes": 0,
+                            "skipped_in_use": 0,
+                            "blocked_by_transition": 0,
+                        }
+                        for entry in entries:
+                            detached, quarantine = store._detach_cache_object_locked(
+                                Path(str(entry["path"]))
+                            )
+                            subtotal["removed_entries"] += detached["removed_entries"]
+                            subtotal["skipped_in_use"] += detached["skipped_in_use"]
+                            if quarantine is not None:
+                                quarantine_roots.append(quarantine)
+                        return subtotal
+
+                    dependent_result = detach(dependent_entries)
+                    if dependent_result["skipped_in_use"] == 0:
+                        parent_result = detach(parent_entries)
+                    else:
+                        parent_result = {
+                            "removed_entries": 0,
+                            "removed_bytes": 0,
+                            "skipped_in_use": 0,
+                            "blocked_by_transition": 0,
+                        }
+                    for key in result:
+                        result[key] = dependent_result[key] + parent_result[key]
+            except TimeoutError:
+                result["blocked_by_transition"] = 1
+
+            # Detachment invalidates the managed paths atomically under the
+            # transition lock; potentially slow recursive deletion happens after
+            # release, matching GitStore.remove_cache_object().
+            for quarantine_root in quarantine_roots:
+                result["removed_bytes"] += store._delete_detached_cache_object(quarantine_root)
+        else:
+            parent_entries: list[dict[str, Any]] = []
+            for entry in store.cache_entries(resource_id):
+                if source_revision is not None and entry["revision"] != source_revision:
+                    continue
+                if member_id is not None:
+                    if entry["kind"] != "corpus-snapshot":
+                        continue
+                    relative_path = entry.get("relative_path")
+                    if not isinstance(relative_path, str) or member_id_from_path(relative_path) != member_id:
+                        continue
+                parent_entries.append(entry)
+            matched = parent_entries
+            result = store.remove_cache_objects(
+                [Path(str(entry["path"])) for entry in parent_entries]
+            )
+
         blocked = int(result.get("blocked_by_transition", 0))
         return {
             "resource_id": resource_id,
             "member_id": member_id,
             "source_revision": source_revision,
+            "dependent_resource_ids": dependent_resource_ids,
             "matched_entries": len(matched),
             "matched_bytes": sum(int(entry["size_bytes"]) for entry in matched),
             **result,
