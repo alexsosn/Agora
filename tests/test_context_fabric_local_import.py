@@ -181,6 +181,32 @@ class LocalImportRecoveryTests(LocalImportFixture, unittest.TestCase):
         with self.assertWarnsRegex(RuntimeWarning, 'invalid local import receipt'):
             self.assertEqual([item.id for item in catalog.search()], ['canonical-fixture'])
 
+    def test_orphaned_generated_parent_module_is_hidden_from_catalog(self):
+        parent = self.install()
+        module = self.root / 'module-orphan'
+        module.mkdir()
+        (module / 'lemma.tf').write_text(
+            '@node\n@valueType=str\n\n1\tⲡⲉ\n', encoding='utf-8'
+        )
+        annotation = self.local.install(
+            module,
+            name='Orphan candidate',
+            parent=parent['id'],
+            parent_version='local',
+            parent_revision=parent['source_revision'],
+        )
+        parent_path = self.local._path(
+            parent['id'], parent['source_revision'], 'corpus'
+        )
+
+        removed = self.store.remove_cache_object(parent_path)
+        self.assertEqual(removed['removed_entries'], 1)
+        self.assertTrue(self.store.cache_entries(annotation['id']))
+
+        visible = {item.id for item in self.catalog.search()}
+        self.assertNotIn(parent['id'], visible)
+        self.assertNotIn(annotation['id'], visible)
+
     def test_receipt_metadata_corruption_is_detected_separately_from_payload_identity(self):
         record = self.install()
         receipt = (
