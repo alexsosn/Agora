@@ -354,8 +354,12 @@ class ParentInputExecutionTests(unittest.TestCase):
             acquire_source.assert_not_called()
             self.assertFalse(output.exists())
 
-    def test_a_single_source_materializer_is_not_refused(self):
-        """The guard must not touch the manifests this host can already run."""
+    @mock.patch(
+        "scripts.agora_materialize.acquire_source",
+        side_effect=RuntimeError("single-source acquisition reached"),
+    )
+    def test_a_single_source_materializer_is_not_refused(self, acquire_source):
+        """The parent guard must leave the existing single-source path unchanged."""
         document = _manifest(_materializer())
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -363,7 +367,7 @@ class ParentInputExecutionTests(unittest.TestCase):
             source = root / "source" / "sheets"
             source.mkdir(parents=True)
             (source / "one.csv").write_text("a,b\n", encoding="utf-8")
-            try:
+            with self.assertRaisesRegex(RuntimeError, "single-source acquisition reached"):
                 materialize(
                     manifest_path=manifest_path,
                     materializer_id="example-module",
@@ -371,12 +375,7 @@ class ParentInputExecutionTests(unittest.TestCase):
                     source=root / "source",
                     sandbox="off",
                 )
-            except ManifestError as exc:
-                self.assertNotIn("cannot yet bind a parent input", str(exc))
-            except Exception:
-                # Any other failure is the fixture module not existing, which
-                # is fine: it means the guard did not fire.
-                pass
+        acquire_source.assert_called_once()
 
 
 if __name__ == "__main__":
