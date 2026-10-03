@@ -277,6 +277,26 @@ class LocalImportLifecycleTests(LocalImportFixture, unittest.TestCase):
         self.assertEqual(self.store.cache_entries(parent['id']), [])
         self.assertEqual(self.store.cache_entries(annotation['id']), [])
 
+    def test_removed_local_parent_cannot_receive_a_new_module(self):
+        parent = self.install()
+        service = ContextFabricService(self.catalog, self.resolver, object())
+        removed = service.remove_cached(parent['id'])
+        self.assertTrue(removed['complete'])
+
+        module = self.root / 'module-after-parent-removal'
+        module.mkdir()
+        (module / 'lemma.tf').write_text(
+            '@node\n@valueType=str\n\n1\tⲡⲉ\n', encoding='utf-8'
+        )
+        with self.assertRaisesRegex(ValueError, 'local parent.*resident|parent.*removed'):
+            self.local.install(
+                module,
+                name='Too late',
+                parent=parent['id'],
+                parent_version='local',
+                parent_revision=parent['source_revision'],
+            )
+
     def test_partial_parent_cascade_keeps_parent_retryable_until_modules_are_removed(self):
         parent = self.install()
         module = self.root / 'module-blocked'
