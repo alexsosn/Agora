@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -25,8 +26,16 @@ from jsonschema import Draft202012Validator, FormatChecker
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "registry/schema/materializer-plugin.schema.json"
 GIT_TIMEOUT_SECONDS = 120
 HTTP_TIMEOUT_SECONDS = 120
+# `urlopen(timeout=...)` bounds each socket operation and resets on every read,
+# so it cannot bound a transfer: a server trickling bytes stays under it
+# indefinitely. The deadline below is the wall-clock bound, chosen to leave
+# headroom for a legitimate `MAX_ARCHIVE_DOWNLOAD_BYTES` fetch on a slow link.
+MAX_ARCHIVE_DOWNLOAD_SECONDS = 1800
 MAX_ARCHIVE_DOWNLOAD_BYTES = 512 * 1024 * 1024
 MAX_ARCHIVE_EXTRACTED_BYTES = 2 * 1024 * 1024 * 1024
+# PAX/GNU extension records are consumed by tarfile before a logical member is
+# yielded, so the ordinary member/expanded-size checks cannot bound them.
+MAX_ARCHIVE_TAR_METADATA_BYTES = 128 * 1024 * 1024
 MAX_ARCHIVE_MEMBERS = 50_000
 SANDBOX_OUTPUT_ROOT = "/agora-output"
 _TREE_EXCLUDES = {
@@ -50,6 +59,42 @@ class ManifestError(ValueError):
 
 class AcquisitionError(RuntimeError):
     """Automatic acquisition failed for an environmental/network reason."""
+
+
+class _BoundedTarInfo(tarfile.TarInfo):
+    """Reject tar metadata that would bypass the logical-member caps."""
+
+    _EXTENSION_TYPES = frozenset(
+        {
+            tarfile.GNUTYPE_LONGNAME,
+            tarfile.GNUTYPE_LONGLINK,
+            tarfile.XHDTYPE,
+            tarfile.XGLTYPE,
+            tarfile.SOLARIS_XHDTYPE,
+        }
+    )
+
+    def _proc_member(self, archive):
+        # GNU sparse extension blocks are consumed before the member is yielded
+        # and can be chained without contributing to the ordinary member count.
+        # Reject this legacy representation rather than accepting unbounded
+        # pre-yield metadata. PAX sparse metadata remains covered by the budget
+        # below and the eventual logical-size check.
+        if self.type == tarfile.GNUTYPE_SPARSE:
+            raise AcquisitionError("archive contains an unsupported GNU sparse member")
+
+        if self.type in self._EXTENSION_TYPES:
+            block = tarfile.BLOCKSIZE
+            padded = ((self.size + block - 1) // block) * block
+            used = getattr(archive, "_agora_tar_metadata_bytes", 0) + block + padded
+            if used > MAX_ARCHIVE_TAR_METADATA_BYTES:
+                raise AcquisitionError(
+                    "archive tar extension metadata exceeds the "
+                    f"{MAX_ARCHIVE_TAR_METADATA_BYTES} byte limit"
+                )
+            archive._agora_tar_metadata_bytes = used
+
+        return super()._proc_member(archive)
 
 
 @dataclass(frozen=True)
@@ -352,6 +397,7 @@ def _download_pinned_archive(strategy: dict[str, Any], destination: Path) -> Non
     expected = strategy["sha256"]
     digest = hashlib.sha256()
     total = 0
+    deadline = time.monotonic() + MAX_ARCHIVE_DOWNLOAD_SECONDS
     try:
         with urlopen(url, timeout=HTTP_TIMEOUT_SECONDS) as response:  # noqa: S310 - https enforced
             final_url = getattr(response, "url", None) or url
@@ -361,6 +407,11 @@ def _download_pinned_archive(strategy: dict[str, Any], destination: Path) -> Non
                     chunk = response.read(1 << 20)
                     if not chunk:
                         break
+                    if time.monotonic() > deadline:
+                        raise AcquisitionError(
+                            f"archive download exceeded the {MAX_ARCHIVE_DOWNLOAD_SECONDS} "
+                            f"second deadline: {url}"
+                        )
                     total += len(chunk)
                     if total > MAX_ARCHIVE_DOWNLOAD_BYTES:
                         raise AcquisitionError(
@@ -410,27 +461,35 @@ def _extract_zip_archive(archive_path: Path, destination: Path) -> None:
 
 
 def _extract_tar_archive(archive_path: Path, destination: Path) -> None:
-    with tarfile.open(archive_path, mode="r:*") as archive:
-        members = archive.getmembers()
-        if len(members) > MAX_ARCHIVE_MEMBERS:
-            raise AcquisitionError("archive declares too many members")
+    """Validate and extract one member at a time.
+
+    `getmembers()` would walk the entire member index first, and a compressed
+    stream cannot be seeked, so the whole payload would be inflated before any
+    cap was consulted -- the caps would bound what is written without bounding
+    the decompression work. Checking while walking stops at the first offending
+    member, so inflation is bounded by the cap plus one member.
+    """
+    with tarfile.open(archive_path, mode="r:*", tarinfo=_BoundedTarInfo) as archive:
+        count = 0
         total = 0
-        for member in members:
+        for member in archive:
+            count += 1
+            if count > MAX_ARCHIVE_MEMBERS:
+                raise AcquisitionError("archive declares too many members")
             _check_archive_member_name(member.name)
             if member.issym() or member.islnk():
                 raise AcquisitionError(f"archive contains a link member: {member.name!r}")
-            if member.isdir():
-                continue
-            if not member.isfile():
-                raise AcquisitionError(
-                    f"archive contains a non-regular member: {member.name!r}"
-                )
-            total += member.size
-            if total > MAX_ARCHIVE_EXTRACTED_BYTES:
-                raise AcquisitionError(
-                    f"archive extraction exceeds the {MAX_ARCHIVE_EXTRACTED_BYTES} byte limit"
-                )
-        archive.extractall(destination, filter="data")
+            if not member.isdir():
+                if not member.isfile():
+                    raise AcquisitionError(
+                        f"archive contains a non-regular member: {member.name!r}"
+                    )
+                total += member.size
+                if total > MAX_ARCHIVE_EXTRACTED_BYTES:
+                    raise AcquisitionError(
+                        f"archive extraction exceeds the {MAX_ARCHIVE_EXTRACTED_BYTES} byte limit"
+                    )
+            archive.extract(member, destination, filter="data")
 
 
 def acquire_http_archive_source(
