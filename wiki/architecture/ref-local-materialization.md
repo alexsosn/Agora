@@ -52,7 +52,7 @@ Contract v1 accepts only:
 
 - `execution.type: python-module`;
 - a syntactically valid Python module name;
-- argument strings using only `{source}`, `{output}`, and `{source_revision}` placeholders;
+- argument strings using only `{source}`, `{output}`, `{source_revision}`, `{parent}`, `{parent_revision}` and `{parent_version}` placeholders. The three parent placeholders require the materializer to declare a `parent_input`, and a declared `parent_input` must be passed as `{parent}`; this Agora validates that declaration but cannot yet bind a parent, so a manifest that declares one is refused with an explicit message;
 - `execution.network: deny`;
 - directory input;
 - public credential-free HTTPS Git acquisition and/or an explicitly user-provided local directory;
