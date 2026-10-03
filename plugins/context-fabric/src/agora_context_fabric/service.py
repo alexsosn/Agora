@@ -725,7 +725,59 @@ class ContextFabricService:
     def prune_cache(self, *, target_bytes: int | None = None) -> dict[str, Any]:
         store = self._require_store()
         result = dict(store.prune(target_bytes=target_bytes))
-        result["cache"] = self.cache_status()
+
+        # A generated local parent ID cannot be recreated by re-importing the
+        # same payload. If generic LRU pruning evicts that parent before one of
+        # its local modules, the module is permanently unusable. Clean such
+        # dependents immediately after the generic prune pass.
+        orphan_resource_ids: list[str] = []
+        local_imports = getattr(self.resolver, "local_imports", None)
+        if local_imports is not None:
+            records = local_imports.records()
+            resident_local_corpora = {
+                record["descriptor"]["id"]
+                for record in records
+                if record["descriptor"]["kind"] == "corpus"
+            }
+            orphan_resource_ids = sorted(
+                record["descriptor"]["id"]
+                for record in records
+                if (
+                    record["descriptor"]["kind"] == "feature-module"
+                    and local_imports.is_local_id(record["descriptor"]["parent"])
+                    and record["descriptor"]["parent"] not in resident_local_corpora
+                )
+            )
+
+        orphan_entries: list[dict[str, Any]] = []
+        for orphan_id in orphan_resource_ids:
+            orphan_entries.extend(store.cache_entries(orphan_id))
+        orphan_result = store.remove_cache_objects(
+            [Path(str(entry["path"])) for entry in orphan_entries]
+        )
+        for key in (
+            "removed_entries",
+            "removed_bytes",
+            "skipped_in_use",
+            "blocked_by_transition",
+        ):
+            result[key] = int(result.get(key, 0)) + int(orphan_result.get(key, 0))
+
+        cache = self.cache_status()
+        result["orphan_local_modules_removed"] = int(orphan_result["removed_entries"])
+        result["orphan_local_modules_skipped_in_use"] = int(orphan_result["skipped_in_use"])
+        result["after_bytes"] = int(cache["cache_bytes"])
+        result["unindexed_cache_bytes"] = int(cache["unindexed_cache_bytes"])
+        effective_target = (
+            int(store.snapshot_soft_limit_bytes)
+            if target_bytes is None
+            else int(target_bytes)
+        )
+        result["target_met"] = result["after_bytes"] <= effective_target
+        result["free_bytes"] = int(cache["free_bytes"])
+        result["min_free_bytes"] = int(cache["min_free_bytes"])
+        result["free_space_met"] = result["free_bytes"] >= result["min_free_bytes"]
+        result["cache"] = cache
         return result
 
     def remove_cached(
