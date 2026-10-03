@@ -10,6 +10,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from jsonschema import Draft202012Validator
 
@@ -329,7 +330,8 @@ class ParentInputExecutionTests(unittest.TestCase):
         path.write_text(json.dumps(document), encoding="utf-8")
         return path
 
-    def test_a_declared_parent_input_is_refused_before_acquisition(self):
+    @mock.patch("scripts.agora_materialize.acquire_source")
+    def test_a_declared_parent_input_is_refused_before_acquisition(self, acquire_source):
         document = _manifest(_materializer(parent_input=_parent_input(), args=PARENT_ARGS))
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -337,18 +339,20 @@ class ParentInputExecutionTests(unittest.TestCase):
             source = root / "source" / "sheets"
             source.mkdir(parents=True)
             (source / "one.csv").write_text("a,b\n", encoding="utf-8")
+            output = root / "out"
             with self.assertRaises(ManifestError) as caught:
                 materialize(
                     manifest_path=manifest_path,
                     materializer_id="example-module",
-                    output=root / "out",
+                    output=output,
                     source=root / "source",
                     sandbox="off",
                 )
-        message = str(caught.exception)
-        self.assertIn("cannot yet bind a parent input", message)
-        self.assertIn("example-module", message)
-        self.assertFalse((Path(tmp) / "out").exists() if Path(tmp).exists() else False)
+            message = str(caught.exception)
+            self.assertIn("cannot yet bind a parent input", message)
+            self.assertIn("example-module", message)
+            acquire_source.assert_not_called()
+            self.assertFalse(output.exists())
 
     def test_a_single_source_materializer_is_not_refused(self):
         """The guard must not touch the manifests this host can already run."""
