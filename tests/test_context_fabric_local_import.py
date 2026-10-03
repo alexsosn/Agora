@@ -328,6 +328,46 @@ class LocalImportLifecycleTests(LocalImportFixture, unittest.TestCase):
         self.assertTrue(second['complete'])
         self.assertEqual(self.catalog.search(), [])
 
+    def test_prune_does_not_leave_module_orphaned_after_local_parent_eviction(self):
+        import os
+        import time
+
+        parent = self.install()
+        module = self.root / 'module-prune'
+        module.mkdir()
+        (module / 'lemma.tf').write_text(
+            '@node\n@valueType=str\n\n1\tⲡⲉ\n', encoding='utf-8'
+        )
+        annotation = self.local.install(
+            module,
+            name='Prunable local lemma',
+            parent=parent['id'],
+            parent_version='local',
+            parent_revision=parent['source_revision'],
+        )
+        parent_path = self.local._path(
+            parent['id'], parent['source_revision'], 'corpus'
+        )
+        module_path = self.local._path(
+            annotation['id'], annotation['source_revision'], 'feature-module'
+        )
+        now = time.time()
+        os.utime(self.store._access_path(parent_path), (now - 60, now - 60))
+        os.utime(self.store._access_path(module_path), (now, now))
+
+        entries = self.store.cache_entries()
+        parent_entry = next(item for item in entries if item['resource_id'] == parent['id'])
+        total = sum(item['size_bytes'] for item in entries)
+        target = total - parent_entry['size_bytes']
+
+        service = ContextFabricService(self.catalog, self.resolver, object())
+        result = service.prune_cache(target_bytes=target)
+
+        self.assertEqual(self.catalog.search(), [])
+        self.assertEqual(self.store.cache_entries(parent['id']), [])
+        self.assertEqual(self.store.cache_entries(annotation['id']), [])
+        self.assertGreaterEqual(result.get('orphan_local_modules_removed', 0), 1)
+
     def test_loaded_import_is_protected_from_removal(self):
         class Loader:
             def load(self, path, **kwargs):
