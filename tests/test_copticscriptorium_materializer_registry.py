@@ -46,6 +46,8 @@ class CopticScriptoriumMaterializerRegistryTests(unittest.TestCase):
         self.assertIn("--plugin copticscriptorium-tf", workflow)
         self.assertIn("--materializer copticscriptorium-text-fabric", workflow)
         self.assertIn("--sandbox required", workflow)
+        self.assertIn("github.event.pull_request.head.sha || github.sha", workflow)
+        self.assertIn('test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"', workflow)
 
 
 if __name__ == "__main__":
