@@ -27,3 +27,27 @@ plugins:
         - Passive fetch validates the immutable upstream source and materializer manifest without executing plugin Python.
         - Explicit installation executes third-party Python packaging/build code and records the resolved runtime, distribution closure, source hash, and managed environment hash.
         - The upstream materializer contract remains exercised by Agora's sandboxed Pseudepigrapha-TF reference materialization.
+
+  - id: copticscriptorium-tf
+    name: CopticScriptorium-TF
+    description: Convert Coptic Scriptorium TT source trees into local native Text-Fabric artifacts.
+    repository: alexsosn/CopticScriptorium-TF
+    ref: ce49555aaa6cb6618c5e1b97ddc8ce337e45e45f
+    version: 0.1.0
+    manifest: agora.materializer.json
+    package:
+      type: python-project
+      path: .
+      install_trust: explicit-code-execution
+    materializers:
+      - copticscriptorium-text-fabric
+    disciplines: [biblical-studies, digital-philology]
+    licenses:
+      software: MIT
+      data: upstream-dependent
+    verification:
+      status: community
+      notes:
+        - Passive fetch validates the immutable upstream source and materializer manifest without executing plugin Python.
+        - Explicit installation executes third-party Python packaging/build code and records the resolved runtime, distribution closure, source hash, and managed environment hash.
+        - Registered execution is sandboxed and network-denied; consumer discovery/load of produced local artifacts is a separate integration boundary.

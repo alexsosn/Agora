@@ -20,7 +20,7 @@ Experimental materializer plugins are registered separately from the frozen v0.1
 - `verification-checks.yaml` — stable executable check IDs and their unittest or GitHub Actions executors; checks may be client-scoped or directly bound to an exact resource/member subject.
 - `providers.yaml` — scholarly/runtime backend metadata and operational-health evidence.
 - `resources.yaml` — corpus and collection resources exposed through providers.
-- `materializers.yaml` — immutable third-party materializer-plugin source/install records; currently includes `alexsosn/Pseudepigrapha-TF`.
+- `materializers.yaml` — immutable third-party materializer-plugin source/install records; currently includes `alexsosn/Pseudepigrapha-TF` and `alexsosn/CopticScriptorium-TF`.
 - `vocabularies.yaml` — controlled vocabulary shared by the registries.
 - `v0.1.yaml` — machine-readable fixed release scope and plugin ordering.
 - `schema/` — JSON Schemas for canonical registry documents and the upstream materializer contract.
@@ -135,6 +135,6 @@ python scripts/check_runtime_environment_freshness.py
 
 Validation checks schema conformance, duplicate IDs, cross-file references, executable verification-check references, exact resource/member evidence binding and promotion gates, runtime-environment file/digest identity, exact-provider evidence for every asserted provider-health state, controlled-vocabulary values, collection/index consistency, the exact four-plugin / 37-resource v0.1 contract, materializer registry constraints, corpus licensing evidence invariants, and freshness of committed Claude/Codex marketplace artifacts. Foundation additionally verifies the semantic freshness of all committed runtime dependency snapshots.
 
-CI also performs a live Pseudepigrapha-TF integration smoke in two phases: passive immutable source fetch/manifest validation, then a separately explicit Python installation that records runtime and dependency identity. Materializer registration and verification do not assess upstream scholarly suitability or converter semantics.
+CI performs registered materializer integration smokes without weakening the trust boundary. Pseudepigrapha-TF is passively fetched/manifest-validated and then explicitly installed with recorded runtime/dependency identity. CopticScriptorium-TF follows the same passive-fetch → explicit-install path and additionally runs a synthetic user-local TT fixture by registry IDs inside the required network-denied sandbox, verifying the declared native Text-Fabric output. Materializer registration and verification do not assess upstream scholarly suitability or converter semantics, and registration alone does not claim that produced artifacts are discoverable through Context-Fabric.
 
 The human-readable release baseline is documented under [`../wiki/releases/`](../wiki/releases/).
