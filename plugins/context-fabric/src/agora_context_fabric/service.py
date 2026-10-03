@@ -765,24 +765,56 @@ class ContextFabricService:
                 if module.acquisition_strategy == "user-local"
             )
 
-        matched: list[dict[str, Any]] = []
-        for candidate_id in [resource_id, *dependent_resource_ids]:
-            for entry in store.cache_entries(candidate_id):
-                if candidate_id == resource_id and source_revision is not None:
-                    if entry["revision"] != source_revision:
-                        continue
-                if candidate_id == resource_id and member_id is not None:
-                    if entry["kind"] != "corpus-snapshot":
-                        continue
-                    relative_path = entry.get("relative_path")
-                    if not isinstance(relative_path, str) or member_id_from_path(relative_path) != member_id:
-                        continue
-                matched.append(entry)
+        parent_entries: list[dict[str, Any]] = []
+        for entry in store.cache_entries(resource_id):
+            if source_revision is not None and entry["revision"] != source_revision:
+                continue
+            if member_id is not None:
+                if entry["kind"] != "corpus-snapshot":
+                    continue
+                relative_path = entry.get("relative_path")
+                if not isinstance(relative_path, str) or member_id_from_path(relative_path) != member_id:
+                    continue
+            parent_entries.append(entry)
 
-        result = store.remove_cache_objects(
-            [Path(str(entry["path"])) for entry in matched]
+        dependent_entries: list[dict[str, Any]] = []
+        for candidate_id in dependent_resource_ids:
+            dependent_entries.extend(store.cache_entries(candidate_id))
+
+        matched = [*parent_entries, *dependent_entries]
+        dependent_result = store.remove_cache_objects(
+            [Path(str(entry["path"])) for entry in dependent_entries]
         )
-        blocked = int(result.get("blocked_by_transition", 0))
+        dependent_blocked = int(dependent_result.get("blocked_by_transition", 0))
+        dependency_removal_complete = (
+            dependent_result["skipped_in_use"] == 0 and dependent_blocked == 0
+        )
+
+        # Keep the parent receipt/catalog record intact until every dependent
+        # local module is gone. Otherwise a partial cascade loses the dependency
+        # edge and a retry by parent ID cannot find the orphaned module.
+        if dependency_removal_complete:
+            parent_result = store.remove_cache_objects(
+                [Path(str(entry["path"])) for entry in parent_entries]
+            )
+        else:
+            parent_result = {
+                "removed_entries": 0,
+                "removed_bytes": 0,
+                "skipped_in_use": 0,
+                "blocked_by_transition": 0,
+            }
+
+        result = {
+            key: int(dependent_result.get(key, 0)) + int(parent_result.get(key, 0))
+            for key in (
+                "removed_entries",
+                "removed_bytes",
+                "skipped_in_use",
+                "blocked_by_transition",
+            )
+        }
+        blocked = result["blocked_by_transition"]
         return {
             "resource_id": resource_id,
             "member_id": member_id,
