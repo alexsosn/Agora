@@ -343,7 +343,25 @@ class LocalCatalog(Catalog):
         self.local = local
 
     def _view(self):
-        return Catalog([*self.canonical.resources(), *(self.local.spec(r) for r in self.local.records())])
+        records = self.local.records()
+        resident_local_corpora = {
+            record["descriptor"]["id"]
+            for record in records
+            if record["descriptor"]["kind"] == "corpus"
+        }
+        visible_records = [
+            record
+            for record in records
+            if not (
+                record["descriptor"]["kind"] == "feature-module"
+                and self.local.is_local_id(record["descriptor"]["parent"])
+                and record["descriptor"]["parent"] not in resident_local_corpora
+            )
+        ]
+        return Catalog([
+            *self.canonical.resources(),
+            *(self.local.spec(record) for record in visible_records),
+        ])
 
     def resources(self):
         return self._view().resources()
