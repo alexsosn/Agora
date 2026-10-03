@@ -154,6 +154,9 @@ jobs:
       - name: Validate canonical registry
         run: python scripts/validate_registry.py
 
+      - name: Run exact-head Coptic registration contract
+        run: python -m unittest tests.test_copticscriptorium_materializer_registry -v
+
       - name: Resolve the registered materializer commit
         shell: bash
         run: |
