@@ -736,10 +736,10 @@ class ContextFabricService:
         source_revision: str | None = None,
     ) -> dict[str, Any]:
         store = self._require_store()
+        local_imports = getattr(self.resolver, "local_imports", None)
         try:
             resource = self.catalog.get(resource_id)
         except KeyError:
-            local_imports = getattr(self.resolver, "local_imports", None)
             if local_imports is None or not local_imports.is_local_id(resource_id):
                 raise
             resource = None
@@ -751,70 +751,107 @@ class ContextFabricService:
         elif resource.kind != "collection" and member_id is not None:
             raise ValueError(f"resource {resource_id!r} is not a collection; member_id is invalid")
 
-        dependent_resource_ids: list[str] = []
-        if (
+        cascade_local_parent = (
             resource is not None
             and resource.kind == "corpus"
             and resource.acquisition_strategy == "user-local"
             and member_id is None
             and (source_revision is None or source_revision == resource.ref)
-        ):
-            dependent_resource_ids = sorted(
-                module.id
-                for module in self.catalog.modules_for(resource_id)
-                if module.acquisition_strategy == "user-local"
-            )
-
-        parent_entries: list[dict[str, Any]] = []
-        for entry in store.cache_entries(resource_id):
-            if source_revision is not None and entry["revision"] != source_revision:
-                continue
-            if member_id is not None:
-                if entry["kind"] != "corpus-snapshot":
-                    continue
-                relative_path = entry.get("relative_path")
-                if not isinstance(relative_path, str) or member_id_from_path(relative_path) != member_id:
-                    continue
-            parent_entries.append(entry)
-
-        dependent_entries: list[dict[str, Any]] = []
-        for candidate_id in dependent_resource_ids:
-            dependent_entries.extend(store.cache_entries(candidate_id))
-
-        matched = [*parent_entries, *dependent_entries]
-        dependent_result = store.remove_cache_objects(
-            [Path(str(entry["path"])) for entry in dependent_entries]
-        )
-        dependent_blocked = int(dependent_result.get("blocked_by_transition", 0))
-        dependency_removal_complete = (
-            dependent_result["skipped_in_use"] == 0 and dependent_blocked == 0
+            and local_imports is not None
         )
 
-        # Keep the parent receipt/catalog record intact until every dependent
-        # local module is gone. Otherwise a partial cascade loses the dependency
-        # edge and a retry by parent ID cannot find the orphaned module.
-        if dependency_removal_complete:
-            parent_result = store.remove_cache_objects(
+        dependent_resource_ids: list[str] = []
+        matched: list[dict[str, Any]] = []
+        result = {
+            "removed_entries": 0,
+            "removed_bytes": 0,
+            "skipped_in_use": 0,
+            "blocked_by_transition": 0,
+        }
+
+        if cascade_local_parent:
+            quarantine_roots: list[Path] = []
+            try:
+                # Hold the exclusive transition from dependency discovery through
+                # detachment. A local-module import holds the shared form of this
+                # lock and revalidates its local parent after acquiring it, so a
+                # module cannot appear between this scan and parent removal.
+                with store.cache_transition(exclusive=True):
+                    records = local_imports.records(transition_held=True)
+                    dependent_resource_ids = sorted(
+                        record["descriptor"]["id"]
+                        for record in records
+                        if (
+                            record["descriptor"]["kind"] == "feature-module"
+                            and record["descriptor"]["parent"] == resource_id
+                        )
+                    )
+
+                    parent_entries = [
+                        entry
+                        for entry in store.cache_entries(resource_id)
+                        if source_revision is None or entry["revision"] == source_revision
+                    ]
+                    dependent_entries: list[dict[str, Any]] = []
+                    for candidate_id in dependent_resource_ids:
+                        dependent_entries.extend(store.cache_entries(candidate_id))
+                    matched = [*parent_entries, *dependent_entries]
+
+                    def detach(entries: list[dict[str, Any]]) -> dict[str, int]:
+                        subtotal = {
+                            "removed_entries": 0,
+                            "removed_bytes": 0,
+                            "skipped_in_use": 0,
+                            "blocked_by_transition": 0,
+                        }
+                        for entry in entries:
+                            detached, quarantine = store._detach_cache_object_locked(
+                                Path(str(entry["path"]))
+                            )
+                            subtotal["removed_entries"] += detached["removed_entries"]
+                            subtotal["skipped_in_use"] += detached["skipped_in_use"]
+                            if quarantine is not None:
+                                quarantine_roots.append(quarantine)
+                        return subtotal
+
+                    dependent_result = detach(dependent_entries)
+                    if dependent_result["skipped_in_use"] == 0:
+                        parent_result = detach(parent_entries)
+                    else:
+                        parent_result = {
+                            "removed_entries": 0,
+                            "removed_bytes": 0,
+                            "skipped_in_use": 0,
+                            "blocked_by_transition": 0,
+                        }
+                    for key in result:
+                        result[key] = dependent_result[key] + parent_result[key]
+            except TimeoutError:
+                result["blocked_by_transition"] = 1
+
+            # Detachment invalidates the managed paths atomically under the
+            # transition lock; potentially slow recursive deletion happens after
+            # release, matching GitStore.remove_cache_object().
+            for quarantine_root in quarantine_roots:
+                result["removed_bytes"] += store._delete_detached_cache_object(quarantine_root)
+        else:
+            parent_entries: list[dict[str, Any]] = []
+            for entry in store.cache_entries(resource_id):
+                if source_revision is not None and entry["revision"] != source_revision:
+                    continue
+                if member_id is not None:
+                    if entry["kind"] != "corpus-snapshot":
+                        continue
+                    relative_path = entry.get("relative_path")
+                    if not isinstance(relative_path, str) or member_id_from_path(relative_path) != member_id:
+                        continue
+                parent_entries.append(entry)
+            matched = parent_entries
+            result = store.remove_cache_objects(
                 [Path(str(entry["path"])) for entry in parent_entries]
             )
-        else:
-            parent_result = {
-                "removed_entries": 0,
-                "removed_bytes": 0,
-                "skipped_in_use": 0,
-                "blocked_by_transition": 0,
-            }
 
-        result = {
-            key: int(dependent_result.get(key, 0)) + int(parent_result.get(key, 0))
-            for key in (
-                "removed_entries",
-                "removed_bytes",
-                "skipped_in_use",
-                "blocked_by_transition",
-            )
-        }
-        blocked = result["blocked_by_transition"]
+        blocked = int(result.get("blocked_by_transition", 0))
         return {
             "resource_id": resource_id,
             "member_id": member_id,
