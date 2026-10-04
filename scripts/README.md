@@ -163,3 +163,13 @@ Linux requires a working bubblewrap installation with user/network namespaces en
 The dedicated sandbox workflow exercises both OS backends with generic integration fixtures and performs a pinned Pseudepigrapha-TF/OCP reference smoke. A separate install smoke exercises passive source acquisition and explicit approved environment installation from `registry/materializers.yaml`; its Burns path also executes the installed converter by registry ID under real bubblewrap isolation and reloads the resulting Text-Fabric artifact. These checks validate Agora integration; converter semantics remain tested upstream.
 
 See [`../wiki/architecture/ref-local-materialization.md`](../wiki/architecture/ref-local-materialization.md) for the ownership, sandbox, provenance, and trust boundaries.
+
+### Local Text-Fabric import smoke
+
+With the Context-Fabric runtime dependencies installed, run:
+
+```bash
+uv run --locked --project plugins/context-fabric python scripts/smoke_context_fabric_local_import.py
+```
+
+This launches the real stdio MCP server, imports a tiny native TF corpus and an exact-parent feature module, prepares and loads the overlay, calls upstream describe/search, unloads, and removes the imported parent. Its data and cache live in a temporary directory. It checks Agora's acquisition/consumer handoff rather than converter or scholarly semantics.
