@@ -10,6 +10,7 @@ from .catalog import Catalog
 from .cold_compile import ColdCompileSupervisor
 from .gitstore import GitStore
 from .load_safety import current_cfm_version
+from .local_import import LocalCatalog, LocalImports
 from .mcp_tools import register_tools
 from .operation import install_shutdown_cleanup
 from .resolver import ContextFabricResolver
@@ -87,7 +88,9 @@ def build_runtime(
 
     catalog = Catalog.from_plugin_root(Path(plugin_root))
     store = GitStore(Path(cache_dir))
-    resolver = ContextFabricResolver(catalog, store)
+    local_imports = LocalImports(store)
+    catalog = LocalCatalog(catalog, local_imports)
+    resolver = ContextFabricResolver(catalog, store, local_imports=local_imports)
     cfm_version = current_cfm_version()
     cold_compiler = ColdCompileSupervisor(cfm_version=cfm_version)
     service = ContextFabricService(
