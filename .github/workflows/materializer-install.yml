@@ -345,14 +345,14 @@ jobs:
                   async with ClientSession(reader, writer) as session:
                       await session.initialize()
 
-                      async def call(name, **arguments):
+                      async def call(tool_name, **arguments):
                           result = await session.call_tool(
-                              name,
+                              tool_name,
                               arguments,
                               read_timeout_seconds=timedelta(seconds=120),
                           )
                           if result.isError:
-                              raise RuntimeError(f"{name}: {result.content}")
+                              raise RuntimeError(f"{tool_name}: {result.content}")
                           if result.structuredContent is not None:
                               return result.structuredContent
                           return json.loads(result.content[0].text)
