@@ -294,3 +294,124 @@ jobs:
             --approve-code-execution \
             --root "$RUNNER_TEMP/materializers"
 
+      - name: Set up Python 3.13 for Context-Fabric consumer
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Context-Fabric runtime
+        run: python -m pip install -e ./plugins/context-fabric
+
+      - name: Coptic materializer → Context-Fabric handoff
+        shell: bash
+        env:
+          COPTIC_TF: ${{ runner.temp }}/coptic-output/tf
+          AGORA_CORPUS_MIN_FREE_GB: '0'
+        run: |
+          python - <<'PY'
+          import asyncio
+          import json
+          import os
+          import sys
+          from datetime import timedelta
+          from pathlib import Path
+
+          from mcp import ClientSession, StdioServerParameters
+          from mcp.client.stdio import stdio_client
+
+          ROOT = Path.cwd()
+          SOURCE = Path(os.environ["COPTIC_TF"])
+          CACHE = Path(os.environ["RUNNER_TEMP"]) / "coptic-consumer-cache"
+
+          async def main():
+              env = dict(
+                  os.environ,
+                  PYTHONPATH=str(ROOT / "plugins/context-fabric/src"),
+                  AGORA_CORPUS_MIN_FREE_GB="0",
+              )
+              params = StdioServerParameters(
+                  command=sys.executable,
+                  args=[
+                      "-m",
+                      "agora_context_fabric.server",
+                      "--plugin-root",
+                      str(ROOT / "plugins/context-fabric"),
+                      "--cache-dir",
+                      str(CACHE),
+                  ],
+                  env=env,
+              )
+              async with stdio_client(params) as (reader, writer):
+                  async with ClientSession(reader, writer) as session:
+                      await session.initialize()
+
+                      async def call(name, **arguments):
+                          result = await session.call_tool(
+                              name,
+                              arguments,
+                              read_timeout_seconds=timedelta(seconds=120),
+                          )
+                          if result.isError:
+                              raise RuntimeError(f"{name}: {result.content}")
+                          if result.structuredContent is not None:
+                              return result.structuredContent
+                          return json.loads(result.content[0].text)
+
+                      installed = await call(
+                          "install_local_corpus",
+                          source=str(SOURCE),
+                          name="Registered Coptic materializer output",
+                      )
+                      resource_id = installed["id"]
+
+                      discovered = await call(
+                          "list_available_corpora",
+                          query="Registered Coptic materializer output",
+                      )
+                      if not any(item.get("id") == resource_id for item in discovered):
+                          raise RuntimeError("materialized Coptic TF was not discoverable")
+
+                      prepared = await call(
+                          "prepare_corpus",
+                          resource_id=resource_id,
+                          source_mode="offline",
+                      )
+                      if prepared.get("source_revision") != installed.get("source_revision"):
+                          raise RuntimeError("Context-Fabric changed local payload identity")
+
+                      loaded = await call(
+                          "load_corpus",
+                          resource_id=resource_id,
+                          source_mode="offline",
+                          features=["norm", "lemma", "pos", "source_record_id"],
+                      )
+                      logical_name = loaded["logical_name"]
+                      overview = await call("describe_corpus", corpus=logical_name)
+                      search = await call(
+                          "search",
+                          corpus=logical_name,
+                          template="word",
+                          return_type="count",
+                      )
+                      if not overview or search is None:
+                          raise RuntimeError("Context-Fabric query surface returned no result")
+
+                      await call("unload_corpus", logical_name=logical_name)
+                      removed = await call(
+                          "remove_cached_corpus",
+                          resource_id=resource_id,
+                      )
+                      if not removed.get("complete"):
+                          raise RuntimeError("Context-Fabric could not remove unloaded local import")
+
+                      print(json.dumps({
+                          "resource_id": resource_id,
+                          "prepared_revision": prepared["source_revision"],
+                          "loaded": True,
+                          "queried": True,
+                          "removed": True,
+                      }, sort_keys=True))
+
+          asyncio.run(main())
+          PY
+
