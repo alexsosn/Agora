@@ -91,8 +91,13 @@ class LocalImports:
         if parent is not None:
             if not isinstance(parent, str) or not parent:
                 raise ValueError('parent resource ID is required')
-            if not parent_version or not parent_revision or not _REVISION.fullmatch(parent_revision):
-                raise ValueError('modules require parent_version and exact parent_revision')
+            if (not isinstance(parent_version, str)
+                    or not parent_version
+                    or len(parent_version) > 200):
+                raise ValueError('parent_version must be a non-empty string of at most 200 characters')
+            if (not isinstance(parent_revision, str)
+                    or not _REVISION.fullmatch(parent_revision)):
+                raise ValueError('modules require an exact parent_revision')
         elif parent_version is not None or parent_revision is not None:
             raise ValueError('parent_version/revision require a parent resource ID')
         source = Path(source).expanduser().absolute()
@@ -236,6 +241,7 @@ class LocalImports:
                     or not descriptor['parent']
                     or not isinstance(descriptor['parent_version'], str)
                     or not descriptor['parent_version']
+                    or len(descriptor['parent_version']) > 200
                     or not isinstance(descriptor['parent_revision'], str)
                     or not _REVISION.fullmatch(descriptor['parent_revision'])):
                 raise ValueError('invalid feature-module parent descriptor')
