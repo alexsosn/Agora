@@ -126,6 +126,7 @@ class ToolRegistrationTests(unittest.TestCase):
         self.assertEqual(
             set(self.mcp.tools),
             {
+                "install_local_corpus",
                 "list_available_corpora",
                 "describe_available_corpus",
                 "list_collection_members",
