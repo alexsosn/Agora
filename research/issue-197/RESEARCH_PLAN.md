@@ -46,8 +46,7 @@ exists, while this ticket adds the canonical Agora-side registered install/run s
    environment exists yet; explicitly install; verify receipt/manifest/importability;
    create a tiny physical TT user-local fixture; run by registered IDs under the
    required Linux sandbox; verify native TF required files + operational summary.
-4. Keep execution network-denied through the materializer manifest/sandbox. Do not
-   add consumer-discovery or Context-Fabric claims.
+4. Keep execution network-denied through the materializer manifest/sandbox. Registration alone must not imply consumer discovery/load; after #196, a separate explicit public-API handoff acceptance may prove that boundary without coupling the systems.
 5. Update registry documentation from the obsolete single-materializer wording.
 6. Run exact-head Foundation/unit + registered materializer live workflow.
 7. Freeze the head and perform a logically independent adversarial review grounded
@@ -56,9 +55,7 @@ exists, while this ticket adds the canonical Agora-side registered install/run s
 
 ## Non-goals
 
-No generic artifact cache, no feature-module parent binding, no Context-Fabric
-consumer discovery/load claim, no Coptic scholarly/data-quality certification, and
-no release-tracking invention before an upstream release exists.
+No generic artifact cache, no feature-module parent binding, no automatic materializer-to-Context-Fabric orchestration, no Coptic scholarly/data-quality certification, and no release-tracking invention before an upstream release exists. The explicit `install_local_corpus` acceptance added after #196 is a consumer test of two existing public boundaries, not new orchestration.
 
 
 ## Registration pin refinement
