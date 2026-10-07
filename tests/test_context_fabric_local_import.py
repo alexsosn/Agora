@@ -310,6 +310,28 @@ class LocalImportLifecycleTests(LocalImportFixture, unittest.TestCase):
         self.assertEqual(self.store.cache_entries(parent['id']), [])
         self.assertEqual(self.store.cache_entries(annotation['id']), [])
 
+    def test_parent_version_cannot_publish_an_unreadable_receipt(self):
+        parent = self.install()
+        module = self.root / 'module-huge-parent-version'
+        module.mkdir()
+        (module / 'lemma.tf').write_text(
+            '@node\n@valueType=str\n\n1\tⲡⲉ\n', encoding='utf-8'
+        )
+
+        with self.assertRaisesRegex(ValueError, 'parent_version'):
+            self.local.install(
+                module,
+                name='Huge parent version',
+                parent=parent['id'],
+                parent_version='v' * (1024 * 1024),
+                parent_revision=parent['source_revision'],
+            )
+
+        self.assertEqual(
+            [record['descriptor']['id'] for record in self.local.records()],
+            [parent['id']],
+        )
+
     def test_removed_local_parent_cannot_receive_a_new_module(self):
         parent = self.install()
         service = ContextFabricService(self.catalog, self.resolver, object())
