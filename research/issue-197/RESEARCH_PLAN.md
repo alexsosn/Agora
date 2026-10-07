@@ -79,3 +79,23 @@ packaging but not the materializer manifest or converter semantics. Because
 Agora installs the repository as a Python project, the registered live smoke is
 required to prove that the new Hatch wheel resource mapping does not disturb
 explicit installation or sandboxed materialization.
+
+
+## Materializer-to-consumer acceptance refinement
+
+After Agora #196 merged, the remaining CopticScriptorium-TF #17 boundary became
+testable end to end. Separate proofs of (a) registered materialization and
+(b) generic local-TF import were not sufficient to claim the generated Coptic
+artifact itself was discoverable/loadable through Context-Fabric.
+
+The final acceptance job therefore takes the exact registered materializer
+output at `coptic-output/tf`, switches to the Context-Fabric plugin's supported
+Python 3.13 runtime, installs the real plugin/cfabric-mcp dependency set, starts
+the stdio MCP server, and executes:
+
+`install_local_corpus -> list_available_corpora -> prepare_corpus -> load_corpus -> search -> unload_corpus -> remove_cached_corpus`.
+
+The test intentionally imports the already materialized native TF rather than
+adding converter-to-consumer orchestration to either product. This proves the
+documented handoff while preserving the ownership boundary: the materializer
+produces TF; Context-Fabric imports and queries TF.
