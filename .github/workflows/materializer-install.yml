@@ -16,6 +16,7 @@ on:
       - 'tests/test_materializer_installation.py'
       - 'tests/test_materializer_run_by_id.py'
       - 'tests/test_materializer_workflow.py'
+      - 'tests/test_copticscriptorium_materializer_registry.py'
       - 'tests/test_registry.py'
   pull_request:
     paths:
@@ -31,6 +32,7 @@ on:
       - 'tests/test_materializer_installation.py'
       - 'tests/test_materializer_run_by_id.py'
       - 'tests/test_materializer_workflow.py'
+      - 'tests/test_copticscriptorium_materializer_registry.py'
       - 'tests/test_registry.py'
 
 permissions:
@@ -123,3 +125,172 @@ jobs:
           python scripts/agora_install_materializer.py install pseudepigrapha-tf \
             --approve-code-execution \
             --root "$RUNNER_TEMP/materializers"
+
+  copticscriptorium-tf:
+    name: Fetch, install, and run CopticScriptorium-TF
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact Coptic registration head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify exact tested head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Agora registry dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Validate canonical registry
+        run: python scripts/validate_registry.py
+
+      - name: Run exact-head Coptic registration contract
+        run: python -m unittest tests.test_copticscriptorium_materializer_registry -v
+
+      - name: Resolve the registered materializer commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref=$(python -c "from scripts.agora_install_materializer import load_registry, select_plugin; print(select_plugin(load_registry(), 'copticscriptorium-tf')['ref'])")
+          echo "COPTICSCRIPTORIUM_TF_COMMIT=$ref" >> "$GITHUB_ENV"
+
+      - name: Discover registered materializer
+        run: python scripts/agora_install_materializer.py list | grep -F 'copticscriptorium-tf'
+
+      - name: Passively fetch immutable source without executing packaging code
+        run: |
+          python scripts/agora_install_materializer.py fetch copticscriptorium-tf --root "$RUNNER_TEMP/materializers"
+          source_root="$RUNNER_TEMP/materializers/copticscriptorium-tf/$COPTICSCRIPTORIUM_TF_COMMIT/source"
+          test -f "$source_root/agora.materializer.json"
+          test -f "$RUNNER_TEMP/materializers/copticscriptorium-tf/$COPTICSCRIPTORIUM_TF_COMMIT/agora-source.json"
+          test ! -d "$RUNNER_TEMP/materializers/copticscriptorium-tf/$COPTICSCRIPTORIUM_TF_COMMIT/environments"
+
+      - name: Explicitly approve and install Python environment
+        run: |
+          python scripts/agora_install_materializer.py install copticscriptorium-tf \
+            --approve-code-execution \
+            --root "$RUNNER_TEMP/materializers"
+
+      - name: Verify receipt, manifest binding, dependency closure, and importability
+        shell: bash
+        run: |
+          set -euo pipefail
+          MATERIALIZER_ROOT="$RUNNER_TEMP/materializers" python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          from scripts.agora_install_materializer import installation_path, load_registry, select_plugin
+          from scripts.agora_materialize import load_manifest
+
+          root = Path(os.environ['MATERIALIZER_ROOT'])
+          plugin = select_plugin(load_registry(), 'copticscriptorium-tf')
+          target = installation_path(plugin, root)
+          runtime = target / 'runtime'
+          receipt = json.loads((target / 'agora-installation.json').read_text(encoding='utf-8'))
+          manifest = load_manifest(runtime / 'agora.materializer.json')
+
+          assert receipt['schema_version'] == 3
+          assert receipt['plugin']['commit'] == os.environ['COPTICSCRIPTORIUM_TF_COMMIT']
+          assert receipt['environment']['install_trust'] == 'explicit-code-execution'
+          assert len(receipt['source']['tree_sha256']) == 64
+          assert len(receipt['environment']['tree_sha256']) == 64
+          assert len(receipt['environment']['execution_tree_sha256']) == 64
+          assert len(receipt['execution_identity_sha256']) == 64
+          distributions = {row['name'].lower(): row['version'] for row in receipt['environment']['distributions']}
+          assert distributions['copticscriptorium-tf'] == plugin['version']
+          assert distributions['text-fabric'] == '13.1.0'
+          assert manifest['plugin']['id'] == 'copticscriptorium-tf'
+          assert manifest['plugin']['repository'] == 'alexsosn/CopticScriptorium-TF'
+          assert [item['id'] for item in manifest['materializers']] == ['copticscriptorium-text-fabric']
+          assert manifest['materializers'][0]['execution']['network'] == 'deny'
+
+          sys.path.insert(0, str(runtime))
+          import copticscriptorium_tf.agora  # noqa: F401
+          PY
+
+      - name: Install bubblewrap and enable user namespaces
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap
+          if [[ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --unshare-all --ro-bind / / /bin/true
+
+      - name: Prepare synthetic user-local Coptic TT fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/coptic-source/alpha/alpha_TT"
+          cat > "$RUNNER_TEMP/coptic-source/alpha/alpha_TT/a.tt" <<'EOF'
+          <meta corpus="alpha" document_cts_urn="urn:cts:copticLit:fixture.a" title="Alpha"><norm_group norm_group="a"><norm xml:id="u1" new_sent="true" func="root" pos="N" lemma="a" norm="a">a</norm></norm_group>
+          EOF
+
+      - name: Run installed materializer by registry IDs in required sandbox
+        run: |
+          python scripts/agora_materialize_registered.py \
+            --plugin copticscriptorium-tf \
+            --materializer copticscriptorium-text-fabric \
+            --source "$RUNNER_TEMP/coptic-source" \
+            --output "$RUNNER_TEMP/coptic-output" \
+            --install-root "$RUNNER_TEMP/materializers" \
+            --sandbox required
+
+      - name: Verify provenance, native TF output, and clean local load
+        shell: bash
+        run: |
+          set -euo pipefail
+          MATERIALIZER_ROOT="$RUNNER_TEMP/materializers" python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          from scripts.agora_install_materializer import installation_path, load_registry, select_plugin
+
+          root = Path(os.environ['RUNNER_TEMP']) / 'coptic-output'
+          plugin = select_plugin(load_registry(), 'copticscriptorium-tf')
+          runtime = installation_path(plugin, Path(os.environ['MATERIALIZER_ROOT'])) / 'runtime'
+          sys.path.insert(0, str(runtime))
+
+          from tf.fabric import Fabric
+
+          provenance = json.loads((root / 'agora-materialization.json').read_text(encoding='utf-8'))
+          summary = json.loads((root / 'conversion-summary.json').read_text(encoding='utf-8'))
+          assert provenance['plugin']['id'] == 'copticscriptorium-tf'
+          assert provenance['materializer'] == 'copticscriptorium-text-fabric'
+          assert provenance['source']['type'] == 'user-local'
+          assert len(provenance['source']['tree_sha256']) == 64
+          assert provenance['sandbox'] == 'bubblewrap'
+          assert summary['output_path'] == 'tf'
+          assert summary['upstream_commit'] == 'unversioned-local'
+          assert summary['source_records'] == 1
+          assert all((root / 'tf' / name).is_file() for name in ('otype.tf', 'oslots.tf', 'otext.tf'))
+
+          api = Fabric(locations=[str(root / 'tf')], silent='deep').load(
+              'norm lemma pos source_record_id',
+              silent='deep',
+          )
+          assert api and api.F.otype.maxSlot == 1
+          assert api.F.norm.v(1) == 'a'
+          assert api.F.lemma.v(1) == 'a'
+          PY
+
+      - name: Verify idempotent integrity check
+        run: |
+          python scripts/agora_install_materializer.py install copticscriptorium-tf \
+            --approve-code-execution \
+            --root "$RUNNER_TEMP/materializers"
+
