@@ -49,6 +49,11 @@ class CopticScriptoriumMaterializerRegistryTests(unittest.TestCase):
         self.assertIn("github.event.pull_request.head.sha || github.sha", workflow)
         self.assertIn('test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"', workflow)
 
+        self.assertIn("Coptic materializer → Context-Fabric handoff", workflow)
+        self.assertIn("install_local_corpus", workflow)
+        self.assertIn("load_corpus", workflow)
+        self.assertIn("coptic-output/tf", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
