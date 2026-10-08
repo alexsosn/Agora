@@ -96,3 +96,22 @@ The test intentionally imports the already materialized native TF rather than
 adding converter-to-consumer orchestration to either product. This proves the
 documented handoff while preserving the ownership boundary: the materializer
 produces TF; Context-Fabric imports and queries TF.
+
+
+## Automatic Git acquisition acceptance
+
+The CopticScriptorium-TF #17 contract also requires the Agora-acquired source
+path, not only an equivalent user-local tree. The registration gate therefore
+runs the registered materializer a second time without `--source`. This forces
+Agora to select the manifest's pinned Git acquisition for
+`CopticScriptorium/corpora@3ac067f1709a0012daf39ea8da2fac79980176a5`,
+then executes the converter under the same required network-denied sandbox.
+
+Because the canonical manifest intentionally describes the complete upstream
+source tree, this is a full-corpus acceptance rather than a synthetic substitute.
+The post-run check binds source provenance to the exact upstream commit and
+rechecks stable full-corpus invariants already established by the upstream
+converter regression: 2,628 source records, 2,394,354 word slots, 130 native TF
+files, successful bare Text-Fabric reload, and section lookup for a real
+Sahidic Mark record. The job timeout is raised to 35 minutes to preserve margin
+around the previously measured roughly 8-minute full conversion.
