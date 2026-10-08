@@ -129,7 +129,7 @@ jobs:
   copticscriptorium-tf:
     name: Fetch, install, and run CopticScriptorium-TF
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - name: Check out exact Coptic registration head
         uses: actions/checkout@v4
@@ -293,6 +293,53 @@ jobs:
           python scripts/agora_install_materializer.py install copticscriptorium-tf \
             --approve-code-execution \
             --root "$RUNNER_TEMP/materializers"
+
+      - name: Coptic automatic Git acquisition
+        run: |
+          python scripts/agora_materialize_registered.py \
+            --plugin copticscriptorium-tf \
+            --materializer copticscriptorium-text-fabric \
+            --output "$RUNNER_TEMP/coptic-acquired-output" \
+            --install-root "$RUNNER_TEMP/materializers" \
+            --sandbox required
+
+      - name: Verify acquired full corpus provenance and native TF
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from tf.fabric import Fabric
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "coptic-acquired-output"
+          provenance = json.loads(
+              (root / "agora-materialization.json").read_text(encoding="utf-8")
+          )
+          summary = json.loads(
+              (root / "conversion-summary.json").read_text(encoding="utf-8")
+          )
+          expected = "3ac067f1709a0012daf39ea8da2fac79980176a5"
+
+          assert provenance["source"]["type"] == "git"
+          assert provenance["source"]["resolved_commit"] == expected
+          assert provenance["sandbox"] == "bubblewrap"
+          assert summary["upstream_commit"] == expected
+          assert summary["source_records"] == 2628
+          assert summary["slots"] == 2394354
+          assert summary["tf_files"] == 130
+          assert all(
+              (root / "tf" / name).is_file()
+              for name in ("otype.tf", "oslots.tf", "otext.tf")
+          )
+
+          api = Fabric(locations=[str(root / "tf")], silent="deep").load(
+              "source_record_id", silent="deep"
+          )
+          assert api and api.F.otype.maxSlot == 2394354
+          assert api.T.nodeFromSection(("sahidica.nt/sahidica.nt:41_Mark_01",))
+          PY
 
       - name: Set up Python 3.13 for Context-Fabric consumer
         uses: actions/setup-python@v5
