@@ -54,6 +54,14 @@ class CopticScriptoriumMaterializerRegistryTests(unittest.TestCase):
         self.assertIn("load_corpus", workflow)
         self.assertIn("coptic-output/tf", workflow)
 
+        self.assertIn("Coptic automatic Git acquisition", workflow)
+        self.assertIn("coptic-acquired-output", workflow)
+        acquired_block = workflow.split(
+            "- name: Coptic automatic Git acquisition", 1
+        )[1].split("- name:", 1)[0]
+        self.assertNotIn("--source", acquired_block)
+        self.assertIn("--sandbox required", acquired_block)
+
 
 if __name__ == "__main__":
     unittest.main()
