@@ -109,6 +109,17 @@ class PreparedSource:
 
 
 @dataclass(frozen=True)
+class ParentBinding:
+    """One prepared parent input; registry resolution/trust belong to later gates."""
+
+    path: Path
+    resource_id: str | None
+    version: str | None
+    source_revision: str | None
+    trusted: bool
+
+
+@dataclass(frozen=True)
 class StagingOutput:
     root: Path
     output: Path
@@ -668,12 +679,21 @@ def _render_args(
     source: str,
     output: str,
     source_revision: str = "",
+    parent: str | None = None,
+    parent_revision: str = "",
+    parent_version: str = "",
 ) -> list[str]:
     values = {
         "{source}": source,
         "{output}": output,
         "{source_revision}": source_revision,
     }
+    if parent is not None:
+        values.update({
+            "{parent}": parent,
+            "{parent_revision}": parent_revision,
+            "{parent_version}": parent_version,
+        })
     rendered: list[str] = []
     for arg in args:
         value = arg
@@ -683,6 +703,36 @@ def _render_args(
             raise ManifestError(f"unresolved or invalid execution placeholder in {arg!r}")
         rendered.append(value)
     return rendered
+
+
+def _validate_parent_sandbox_binding(
+    parent: ParentBinding | None, *, output: Path, work_dir: Path,
+) -> ParentBinding | None:
+    """A writable staging mount must never expose a supposedly read-only parent."""
+    if parent is None:
+        return None
+    candidate = Path(parent.path).expanduser()
+    if candidate.is_symlink() or not candidate.is_dir():
+        raise ValueError("parent sandbox input must be a real directory, not a symlink")
+    resolved = candidate.resolve(strict=True)
+    writable_roots = (output.parent.resolve(), work_dir.resolve())
+    for writable in writable_roots:
+        # Deny overlap in either direction: the parent cannot be reachable
+        # through the writable staging/work mount, or enclose such a mount.
+        if (resolved == writable or writable in resolved.parents
+                or resolved in writable.parents):
+            raise ValueError("parent sandbox input must not overlap a writable staging/work mount")
+    # The macOS profile deliberately allows writes to /dev. Do not bind a
+    # parent there, even if the chosen output and work paths are separate.
+    if resolved == Path("/dev") or Path("/dev") in resolved.parents:
+        raise ValueError("parent sandbox input must not overlap a writable device mount")
+    return ParentBinding(
+        path=resolved,
+        resource_id=parent.resource_id,
+        version=parent.version,
+        source_revision=parent.source_revision,
+        trusted=parent.trusted,
+    )
 
 
 def _sandbox_backend_preflight(sandbox: str) -> tuple[str, str | None]:
@@ -735,6 +785,7 @@ def _build_linux_sandbox(
     module: str,
     args: list[str],
     source_revision: str,
+    parent: ParentBinding | None = None,
 ) -> list[str]:
     python_inside, runtime_bind = _linux_python_path()
     sandbox_output = str(PurePosixPath(SANDBOX_OUTPUT_ROOT) / output.name)
@@ -756,6 +807,8 @@ def _build_linux_sandbox(
     command.extend(runtime_bind)
     if runtime_bind:
         command.extend(["--setenv", "LD_LIBRARY_PATH", "/runtime/lib"])
+    if parent is not None:
+        command.extend(["--ro-bind", str(parent.path), "/parent"])
     command.extend(
         [
             "--ro-bind",
@@ -792,6 +845,9 @@ def _build_linux_sandbox(
                 source="/input",
                 output=sandbox_output,
                 source_revision=source_revision,
+                parent="/parent" if parent is not None else None,
+                parent_revision=(parent.source_revision or "") if parent else "",
+                parent_version=(parent.version or "") if parent else "",
             ),
         ]
     )
@@ -812,6 +868,7 @@ def _build_macos_sandbox(
     module: str,
     args: list[str],
     source_revision: str,
+    parent: ParentBinding | None = None,
 ) -> list[str]:
     output_parent = output.parent.resolve()
     readable = {
@@ -827,6 +884,8 @@ def _build_macos_sandbox(
         output_parent,
         work_dir.resolve(),
     }
+    if parent is not None:
+        readable.add(parent.path)
     read_rules = "\n".join(
         f"(allow file-read* (subpath {_sandbox_profile_path(path)}))"
         for path in sorted(readable, key=str)
@@ -859,6 +918,9 @@ def _build_macos_sandbox(
             source=str(source),
             output=str(output),
             source_revision=source_revision,
+            parent=str(parent.path) if parent else None,
+            parent_revision=(parent.source_revision or "") if parent else "",
+            parent_version=(parent.version or "") if parent else "",
         ),
     ]
 
@@ -872,11 +934,13 @@ def build_sandbox_command(
     module: str,
     args: list[str],
     source_revision: str = "",
+    parent: ParentBinding | None = None,
 ) -> tuple[list[str], str]:
     plugin_root = Path(plugin_root).resolve()
     source = Path(source).resolve()
     output = Path(output).resolve()
     work_dir = Path(work_dir).resolve()
+    parent = _validate_parent_sandbox_binding(parent, output=output, work_dir=work_dir)
     backend, executable = _sandbox_backend_preflight("required")
 
     if backend == "bubblewrap":
@@ -890,6 +954,7 @@ def build_sandbox_command(
                 module=module,
                 args=args,
                 source_revision=source_revision,
+                parent=parent,
             ),
             backend,
         )
@@ -905,6 +970,7 @@ def build_sandbox_command(
                 module=module,
                 args=args,
                 source_revision=source_revision,
+                parent=parent,
             ),
             backend,
         )
