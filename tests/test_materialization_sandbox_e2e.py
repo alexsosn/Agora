@@ -135,19 +135,19 @@ class RealSandboxMaterializationTests(unittest.TestCase):
             (source / "book.xml").write_text("<book/>", encoding="utf-8")
             (parent / "otype.tf").write_text("parent", encoding="utf-8")
             (plugin / "parent_probe.py").write_text(
-                "from pathlib import Path\\n"
-                "import sys\\n"
-                "source, parent, output = map(Path, sys.argv[1:4])\\n"
-                "revision, version = sys.argv[4:6]\\n"
-                "assert (source / 'book.xml').read_text() == '<book/>'\\n"
-                "assert (parent / 'otype.tf').read_text() == 'parent'\\n"
-                "assert revision == 'a' * 40 and version == '0.2.8'\\n"
-                "try:\\n"
-                "    (parent / 'tampered.tf').write_text('unwanted')\\n"
-                "except OSError:\\n"
-                "    (output / 'result.txt').write_text('read-only')\\n"
-                "else:\\n"
-                "    raise AssertionError('parent was writable')\\n",
+                "from pathlib import Path\n"
+                "import sys\n"
+                "source, parent, output = map(Path, sys.argv[1:4])\n"
+                "revision, version = sys.argv[4:6]\n"
+                "assert (source / 'book.xml').read_text() == '<book/>'\n"
+                "assert (parent / 'otype.tf').read_text() == 'parent'\n"
+                "assert revision == 'a' * 40 and version == '0.2.8'\n"
+                "try:\n"
+                "    (parent / 'tampered.tf').write_text('unwanted')\n"
+                "except OSError:\n"
+                "    (output / 'result.txt').write_text('read-only')\n"
+                "else:\n"
+                "    raise AssertionError('parent was writable')\n",
                 encoding="utf-8",
             )
             binding = host.ParentBinding(
