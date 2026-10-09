@@ -98,20 +98,24 @@ documented handoff while preserving the ownership boundary: the materializer
 produces TF; Context-Fabric imports and queries TF.
 
 
-## Automatic Git acquisition acceptance
+## Bulk exact-source acquisition deferred to #205
 
-The CopticScriptorium-TF #17 contract also requires the Agora-acquired source
-path, not only an equivalent user-local tree. The registration gate therefore
-runs the registered materializer a second time without `--source`. This forces
-Agora to select the manifest's pinned Git acquisition for
-`CopticScriptorium/corpora@3ac067f1709a0012daf39ea8da2fac79980176a5`,
-then executes the converter under the same required network-denied sandbox.
+An additional no-`--source` full-upstream Git acquisition gate was built to
+exercise `CopticScriptorium/corpora@3ac067f1709a0012daf39ea8da2fac79980176a5`
+and verify the previously reviewed full TF invariants (2,628 source records,
+2,394,354 word slots and 130 native TF files). This is valuable and remains
+a separate acceptance target. It is **not proven by this PR**.
 
-Because the canonical manifest intentionally describes the complete upstream
-source tree, this is a full-corpus acceptance rather than a synthetic substitute.
-The post-run check binds source provenance to the exact upstream commit and
-rechecks stable full-corpus invariants already established by the upstream
-converter regression: 2,628 source records, 2,394,354 word slots, 130 native TF
-files, successful bare Text-Fabric reload, and section lookup for a real
-Sahidic Mark record. The job timeout is raised to 35 minutes to preserve margin
-around the previously measured roughly 8-minute full conversion.
+The exact-head registered run 37705732552 failed during `git fetch --depth 1`
+with `fatal: early EOF` and Agora's bounded 120-second Git fetch timeout.
+GitHub reports approximately 2.7 GiB upstream repository size. The downstream
+full-corpus assertions never ran. Increasing the global timeout or silently
+accepting that failed gate would be unjustified.
+
+Issue #205 records RED evidence, research questions and a bounded acquisition
+plan. The current #197 scope is restored to its original tracked acceptance:
+immutable Coptic materializer registration, passive fetch/approved installation,
+required-sandbox **user-local** TT conversion and explicit generated-native-TF
+handoff through Context-Fabric's public import API. The host still advertises
+the exact upstream Git acquisition strategy but its large-source success remains
+unverified, rather than being misrepresented by a green registry check.
