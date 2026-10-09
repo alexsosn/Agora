@@ -310,6 +310,63 @@ class LocalImportLifecycleTests(LocalImportFixture, unittest.TestCase):
         self.assertEqual(self.store.cache_entries(parent['id']), [])
         self.assertEqual(self.store.cache_entries(annotation['id']), [])
 
+    def test_parent_version_cannot_publish_an_unreadable_receipt(self):
+        parent = self.install()
+        module = self.root / 'module-huge-parent-version'
+        module.mkdir()
+        (module / 'lemma.tf').write_text(
+            '@node\n@valueType=str\n\n1\tⲡⲉ\n', encoding='utf-8'
+        )
+
+        with self.assertRaisesRegex(ValueError, 'parent_version'):
+            self.local.install(
+                module,
+                name='Huge parent version',
+                parent=parent['id'],
+                parent_version='v' * (1024 * 1024),
+                parent_revision=parent['source_revision'],
+            )
+
+        self.assertEqual(
+            [record['descriptor']['id'] for record in self.local.records()],
+            [parent['id']],
+        )
+
+    def test_reader_rejects_a_persisted_parent_version_over_the_install_bound(self):
+        parent = self.install()
+        module = self.root / 'module-long-parent-version'
+        module.mkdir()
+        (module / 'lemma.tf').write_text(
+            '@node\n@valueType=str\n\n1\tⲡⲉ\n', encoding='utf-8'
+        )
+        annotation = self.local.install(
+            module,
+            name='Long parent version',
+            parent=parent['id'],
+            parent_version='local',
+            parent_revision=parent['source_revision'],
+        )
+        receipt = (
+            self.local._path(
+                annotation['id'], annotation['source_revision'], 'feature-module'
+            )
+            / '.agora-local.json'
+        )
+        original = receipt.read_text(encoding='utf-8')
+
+        def persist_parent_version(value):
+            document = json.loads(original)
+            document['descriptor']['parent_version'] = value
+            document['receipt_sha256'] = _digest(
+                {key: item for key, item in document.items() if key != 'receipt_sha256'}
+            )
+            receipt.write_text(json.dumps(document, sort_keys=True), encoding='utf-8')
+            return {record['descriptor']['id'] for record in self.local.records()}
+
+        self.assertIn(annotation['id'], persist_parent_version('v' * 200))
+        with self.assertWarnsRegex(RuntimeWarning, 'invalid local import receipt'):
+            self.assertNotIn(annotation['id'], persist_parent_version('v' * 201))
+
     def test_removed_local_parent_cannot_receive_a_new_module(self):
         parent = self.install()
         service = ContextFabricService(self.catalog, self.resolver, object())
