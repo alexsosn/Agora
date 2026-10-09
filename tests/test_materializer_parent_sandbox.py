@@ -72,11 +72,11 @@ class ParentSandboxContractTests(unittest.TestCase):
                 args=["--parent={parent}", "{parent_revision}", "{parent_version}"],
             )
             profile = (work / "materializer.sb").read_text(encoding="utf-8")
-            quoted = json.dumps(str(parent))
+            quoted = json.dumps(str(parent.resolve()))
             self.assertEqual(backend, "sandbox-exec")
             self.assertIn(f"(allow file-read* (subpath {quoted}))", profile)
             self.assertNotIn(f"(allow file-write* (subpath {quoted}))", profile)
-            self.assertIn("--parent=" + str(parent), command)
+            self.assertIn("--parent=" + str(parent.resolve()), command)
             self.assertIn("a" * 40, command)
             self.assertIn("0.2.8", command)
 
