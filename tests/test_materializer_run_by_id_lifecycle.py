@@ -35,7 +35,7 @@ REGISTRY = {"schema_version": 1, "plugins": [PLUGIN]}
 class RegisteredMaterializerLifecycleTests(unittest.TestCase):
     def test_final_integrity_binding_and_execution_share_installer_runtime_lock(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             target = installer.installation_path(PLUGIN, root)
             manifest = target / "runtime" / PLUGIN["manifest"]
             manifest.parent.mkdir(parents=True)

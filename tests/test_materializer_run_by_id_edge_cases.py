@@ -62,7 +62,7 @@ class RegisteredMaterializerEdgeCaseTests(unittest.TestCase):
             ],
         }
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             target = root / "environment"
             manifest = target / "runtime" / "agora.materializer.json"
             manifest.parent.mkdir(parents=True)
