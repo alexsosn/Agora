@@ -121,6 +121,54 @@ class RealSandboxMaterializationTests(unittest.TestCase):
             expected_backend = "bubblewrap" if platform.system() == "Linux" else "sandbox-exec"
             self.assertEqual(provenance["sandbox"], expected_backend)
 
+    def test_real_sandbox_reads_parent_but_cannot_mutate_it(self):
+        _require_sandbox()
+
+        from scripts import agora_materialize as host
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plugin, source, parent = root / "plugin", root / "source", root / "parent"
+            output, work = root / "stage" / "output", root / "work"
+            for directory in (plugin, source, parent, output, work):
+                directory.mkdir(parents=True)
+            (source / "book.xml").write_text("<book/>", encoding="utf-8")
+            (parent / "otype.tf").write_text("parent", encoding="utf-8")
+            (plugin / "parent_probe.py").write_text(
+                "from pathlib import Path\\n"
+                "import sys\\n"
+                "source, parent, output = map(Path, sys.argv[1:4])\\n"
+                "revision, version = sys.argv[4:6]\\n"
+                "assert (source / 'book.xml').read_text() == '<book/>'\\n"
+                "assert (parent / 'otype.tf').read_text() == 'parent'\\n"
+                "assert revision == 'a' * 40 and version == '0.2.8'\\n"
+                "try:\\n"
+                "    (parent / 'tampered.tf').write_text('unwanted')\\n"
+                "except OSError:\\n"
+                "    (output / 'result.txt').write_text('read-only')\\n"
+                "else:\\n"
+                "    raise AssertionError('parent was writable')\\n",
+                encoding="utf-8",
+            )
+            binding = host.ParentBinding(
+                path=parent, resource_id="cuc", version="0.2.8",
+                source_revision="a" * 40, trusted=True,
+            )
+            command, _backend = host.build_sandbox_command(
+                plugin_root=plugin, source=source, output=output, work_dir=work,
+                module="parent_probe", parent=binding,
+                args=["{source}", "{parent}", "{output}",
+                      "{parent_revision}", "{parent_version}"],
+            )
+            env = dict(os.environ, PYTHONPATH=str(plugin), PYTHONDONTWRITEBYTECODE="1")
+            completed = subprocess.run(
+                command, env=env, text=True, capture_output=True, timeout=30,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual((output / "result.txt").read_text(), "read-only")
+            self.assertEqual((parent / "otype.tf").read_text(), "parent")
+            self.assertFalse((parent / "tampered.tf").exists())
+
     def test_real_sandbox_denies_network(self):
         _require_sandbox()
 
