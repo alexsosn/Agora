@@ -129,7 +129,7 @@ class RegisteredMaterializerExecutionRed2Tests(unittest.TestCase):
     def test_registered_execution_resolves_rebinds_then_delegates_unchanged_to_host(self):
         runner = self._runner()
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             target = root / "managed-environment"
             runtime = target / "runtime"
             runtime.mkdir(parents=True)

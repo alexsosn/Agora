@@ -387,7 +387,7 @@ class MaterializerCacheabilityAuthorizationRedTests(unittest.TestCase):
     def test_direct_execution_does_not_consult_cacheability_policy(self):
         plugin = _plugin()
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             target = root / "managed-environment"
             runtime = target / "runtime"
             runtime.mkdir(parents=True)
