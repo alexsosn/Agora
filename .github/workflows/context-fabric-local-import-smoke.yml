@@ -1,0 +1,53 @@
+name: Context-Fabric local-import MCP smoke
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/context-fabric-local-import-smoke.yml'
+      - 'scripts/context_fabric_mcp_result.py'
+      - 'scripts/smoke_context_fabric_local_import.py'
+      - 'tests/test_context_fabric_mcp_result.py'
+      - 'plugins/context-fabric/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/context-fabric-local-import-smoke.yml'
+      - 'scripts/context_fabric_mcp_result.py'
+      - 'scripts/smoke_context_fabric_local_import.py'
+      - 'plugins/context-fabric/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  local-import-mcp:
+    name: Install local Coptic TF plus module and query via real stdio MCP
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact Agora head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Context-Fabric MCP runtime
+        run: python -m pip install -e plugins/context-fabric
+
+      - name: Test real MCP local-import module lifecycle and list result decoding
+        run: python scripts/smoke_context_fabric_local_import.py

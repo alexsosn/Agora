@@ -20,6 +20,7 @@ from scripts.agora_install_materializer import (
     load_registry,
     select_plugin,
 )
+from scripts.context_fabric_mcp_result import decode_mcp_result
 
 COPTIC_COMMIT = "60fec735dd6ef9aefe2cfb9e6459e9f7f15924e7"
 UPSTREAM_COMMIT = "3ac067f1709a0012daf39ea8da2fac79980176a5"
@@ -159,12 +160,7 @@ async def verify_context_fabric(source: Path) -> None:
                 response = await session.call_tool(
                     tool_name, arguments, read_timeout_seconds=deadline
                 )
-                if response.isError:
-                    raise RuntimeError(f"{tool_name}: {response.content}")
-                if response.structuredContent is not None:
-                    content = response.structuredContent
-                    return content["result"] if isinstance(content, dict) and set(content) == {"result"} else content
-                return json.loads(response.content[0].text)
+                return decode_mcp_result(response, tool_name=tool_name)
 
             installed = await call(
                 "install_local_corpus",
