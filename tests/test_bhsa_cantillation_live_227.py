@@ -1,9 +1,9 @@
 """#227 RED: actual registered cantillation tree module over the BHSA warp."""
 from __future__ import annotations
 
-import ast
 from pathlib import Path
 import sys
+from types import ModuleType
 import unittest
 
 
@@ -46,23 +46,50 @@ class BhsaCantillationRealSourceRedTests(unittest.TestCase):
         self.assertIn(("cantillation_depth", 1414389, "2"), expectations)
         self.assertIn(("cantillation_alignment", 1414389, "exact"), expectations)
 
+    def _assert_rejected_revision(self, loaded, error_pattern):
+        """Exercise real run_case control flow with only external acquisition mocked."""
+        from scripts import smoke_context_fabric_resources as smoke
+        from agora_context_fabric.service import ContextFabricService
+        from unittest import mock
+        import tempfile
+
+        fake_mcp = ModuleType("cfabric_mcp")
+        fake_mcp.corpus_manager = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                mock.patch.dict(sys.modules, {"cfabric_mcp": fake_mcp}),
+                mock.patch.object(ContextFabricService, "load", return_value=loaded) as load,
+                mock.patch.object(ContextFabricService, "unload") as unload,
+            ):
+                with self.assertRaisesRegex(RuntimeError, error_pattern):
+                    smoke.run_case("bhsa-cantillation", Path(tmp))
+                unload.assert_called_once_with(loaded["logical_name"])
+                load.assert_called_once()
+                return load.call_args
+
     def test_semantics_are_bound_to_recorded_parent_and_module_source_revisions(self):
-        source = SMOKE_PATH.read_text(encoding="utf-8")
-        self.assertIn("expected_parent_revision", source)
-        self.assertIn("expected_module_revision", source)
-        self.assertIn('result["source_revision"]', source)
-        self.assertIn('result["modules"][0]["source_revision"]', source)
+        base = {
+            "logical_name": "bhsa@2021+bhsa-cantillation-trees",
+            "source_revision": "4db00e2157915495e1a4d3d57e41223df24775da",
+            "modules": [{"source_revision": "445413fa5267b5c1c637d523f07f8a4cf0b3dded"}],
+        }
+        for changes, diagnostic in (
+            ({"source_revision": "a" * 40}, "source revision"),
+            ({"modules": [{"source_revision": "b" * 40}]}, "module source revision"),
+        ):
+            with self.subTest(changes=changes):
+                self._assert_rejected_revision({**base, **changes}, diagnostic)
 
     def test_runtime_passes_explicit_parent_version_to_context_fabric(self):
-        program = ast.parse(SMOKE_PATH.read_text(encoding="utf-8"))
-        assignments = [
-            node for node in ast.walk(program)
-            if isinstance(node, ast.Assign)
-            and any(isinstance(x, ast.Name) and x.id == "load_kwargs" for x in node.targets)
-        ]
-        self.assertTrue(assignments)
-        text = SMOKE_PATH.read_text(encoding="utf-8")
-        self.assertIn('load_kwargs["version"] = case.version', text)
+        loaded = {
+            "logical_name": "bhsa@2021+bhsa-cantillation-trees",
+            "source_revision": "a" * 40,
+            "modules": [{"source_revision": "445413fa5267b5c1c637d523f07f8a4cf0b3dded"}],
+        }
+        call = self._assert_rejected_revision(loaded, "source revision")
+        self.assertEqual(call.args, ("bhsa",))
+        self.assertEqual(call.kwargs["version"], "2021")
+        self.assertEqual(call.kwargs["modules"], ["bhsa-cantillation-trees"])
 
     def test_exact_head_real_cold_load_is_executed_by_workflow(self):
         content = WORKFLOW.read_text(encoding="utf-8")
@@ -114,25 +141,15 @@ class BhsaCantillationRealSourceRedTests(unittest.TestCase):
         self.assertNotIn("cantillation_system", [x.feature for x in
                           smoke.SEMANTIC_EXPECTATIONS["bhsa"]])
 
-    def test_revision_mismatch_still_unloads_prepared_overlay(self):
-        from scripts import smoke_context_fabric_resources as smoke
-        from agora_context_fabric.service import ContextFabricService
-        from unittest import mock
-        import tempfile
-
-        loaded = {
-            "logical_name": "bhsa@2021+bhsa-cantillation-trees",
-            "source_revision": "a" * 40,
-            "modules": [{"source_revision": "445413fa5267b5c1c637d523f07f8a4cf0b3dded"}],
-        }
-        with tempfile.TemporaryDirectory() as tmp:
-            with (
-                mock.patch.object(ContextFabricService, "load", return_value=loaded),
-                mock.patch.object(ContextFabricService, "unload") as unload,
-            ):
-                with self.assertRaisesRegex(RuntimeError, "source revision"):
-                    smoke.run_case("bhsa-cantillation", Path(tmp))
-                unload.assert_called_once_with(loaded["logical_name"])
+    def test_missing_module_revision_still_unloads_prepared_overlay(self):
+        self._assert_rejected_revision(
+            {
+                "logical_name": "bhsa@2021+bhsa-cantillation-trees",
+                "source_revision": "4db00e2157915495e1a4d3d57e41223df24775da",
+                "modules": [],
+            },
+            "module source revision",
+        )
 
     def test_pinned_source_not_incorrectly_promoted_to_verified(self):
         from agora_context_fabric.catalog import Catalog
