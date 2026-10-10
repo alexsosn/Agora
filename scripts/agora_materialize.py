@@ -713,9 +713,6 @@ def _validate_parent_sandbox_binding(
     """A writable staging mount must never expose a supposedly read-only parent."""
     if parent is None:
         return None
-    if not isinstance(parent.relative_path, str) or not parent.relative_path:
-        raise ValueError("trusted parent must have a resolved TF relative_path")
-    _safe_relative(parent.relative_path, where="resolved parent relative_path")
     candidate = Path(parent.path).expanduser()
     if candidate.is_symlink() or not candidate.is_dir():
         raise ValueError("parent sandbox input must be a real directory, not a symlink")
@@ -1117,6 +1114,9 @@ def _validate_execution_parent(
         r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})", parent.source_revision
     ):
         raise ValueError("trusted parent must have an immutable source revision")
+    if not isinstance(parent.relative_path, str) or not parent.relative_path:
+        raise ValueError("trusted parent must have a resolved TF relative_path")
+    _safe_relative(parent.relative_path, where="resolved parent relative_path")
     candidate = Path(parent.path).expanduser()
     if candidate.is_symlink() or not candidate.is_dir():
         raise ValueError("trusted parent must be a real directory, not a symlink")
