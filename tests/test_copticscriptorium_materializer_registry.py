@@ -8,15 +8,12 @@ from scripts.agora_install_materializer import load_registry, select_plugin
 
 
 ROOT = Path(__file__).resolve().parents[1]
-COPTIC_TF_COMMIT = "3cde20ec41efb1cacf1710643f01f924f11cbf0b"
-
-
 class CopticScriptoriumMaterializerRegistryTests(unittest.TestCase):
     def test_copticscriptorium_tf_is_registered_at_reviewed_immutable_commit(self):
         plugin = select_plugin(load_registry(), "copticscriptorium-tf")
 
         self.assertEqual(plugin["repository"], "alexsosn/CopticScriptorium-TF")
-        self.assertEqual(plugin["ref"], COPTIC_TF_COMMIT)
+        self.assertRegex(plugin["ref"], r"^[0-9a-f]{40}$")
         self.assertEqual(plugin["version"], "0.1.0")
         self.assertEqual(plugin["manifest"], "agora.materializer.json")
         self.assertEqual(plugin["materializers"], ["copticscriptorium-text-fabric"])

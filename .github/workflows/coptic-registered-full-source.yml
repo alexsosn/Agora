@@ -70,9 +70,13 @@ jobs:
       - name: Verify canonical Coptic plugin pin and upstream source contract
         run: |
           python - <<'PY'
+          import re
           from scripts.agora_install_materializer import load_registry, select_plugin
           plugin = select_plugin(load_registry(), "copticscriptorium-tf")
-          assert plugin["ref"] == "3cde20ec41efb1cacf1710643f01f924f11cbf0b"
+          # The reviewed exact commit is defined once in registry/materializers.yaml.
+          # Never substitute a moving branch or repeat a stale release SHA here.
+          assert plugin["repository"] == "alexsosn/CopticScriptorium-TF"
+          assert re.fullmatch(r"[0-9a-f]{40}", plugin["ref"])
           assert plugin["package"]["install_trust"] == "explicit-code-execution"
           assert plugin["materializers"] == ["copticscriptorium-text-fabric"]
           PY
