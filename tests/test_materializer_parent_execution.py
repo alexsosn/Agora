@@ -16,7 +16,31 @@ from unittest import mock
 from scripts import agora_materialize as host
 from scripts import agora_materialize_registered as registered
 from scripts import agora_install_materializer as installer
-from tests.test_materialization import _manifest
+def _manifest():
+    return {
+        "schema_version": 1,
+        "plugin": {"id": "example-converter", "name": "Example", "version": "1.0.0"},
+        "materializers": [{
+            "id": "example-to-tf",
+            "description": "Synthetic test materializer",
+            "acquisition": [{
+                "type": "user-local", "path_type": "directory",
+                "prompt": "Select source",
+            }],
+            "input": {
+                "type": "directory", "required_globs": ["*.xml"],
+                "allow_symlinks": False,
+            },
+            "execution": {
+                "type": "python-module", "module": "standalone",
+                "args": ["{source}", "{output}"], "network": "deny",
+            },
+            "output": {
+                "format": "text-fabric",
+                "required_paths": ["otype.tf", "oslots.tf"],
+            },
+        }],
+    }
 
 
 REV = "a" * 40
