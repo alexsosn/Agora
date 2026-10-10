@@ -1,0 +1,19 @@
+# Issue #227 — cold BHSA 2021 + cantillation module verification
+
+## Research against real upstream data (2026-10-10)
+
+Agora already declares `bhsa-cantillation-trees` in both canonical `registry/feature-modules.yaml` and the Context-Fabric plugin copy as a **repository-backed feature module** of `bhsa` with compatible TF version `2021`; no extra materializer/corpus registration is needed. Its provenance declares `openscriptures/morphhb@3d15126fb1ef74867fc1434be1942e837932691f` as source-data. The upstream repository `alexsosn/BHSA-cantillation-trees` has 23 .tf features under `tf/2021/` plus `alignment-report.json`, and `sources.json` records `ETCBC/bhsa@4db00e2157915495e1a4d3d57e41223df24775da` (the BHSA parent used during conversion). The latest observed upstream module repository commit is `445413fa5267b5c1c637d523f07f8a4cf0b3dded`; Agora's feature registry currently does *not* pin this module repository commit. The BHSA parent catalog likewise has no revision pin. This means a smoke run must disclose the exact parent/module revision instead of claiming a cryptographically pinned compatibility contract.
+
+The real upstream `cantillation_depth.tf`, `cantillation_system.tf` and `cantillation_alignment.tf` each advertise `@coreData=BHSA`, `@coreVersion=2021` and `@node`, with verse node **1414389** carrying (respectively) `2`, `prose`, and `exact` as the start of their feature payloads. The existing Agora `scripts/smoke_context_fabric_resources.py` already implements a real BHSA+phono optional-module smoke; its `LoadCase`, `SEMANTIC_EXPECTATIONS`, `service.load` and `run_case` pathways are suitable for cantillation without inventing a new loader or data model.
+
+## Bounded implementation plan
+
+1. Preserved **RED** tests require a distinct `bhsa-cantillation` smoke case, exactly the reviewed `bhsa-cantillation-trees` optional module, explicit BHSA 2021 version selection, Genesis 1:1 word checks plus actual verse-node cantillation alignment/system/depth semantic checks, and a real GitHub Actions job executing a cold cache path on exact PR SHA.
+2. **GREEN** extends the existing smoke script with this one case only and adds a separate dedicated job to the existing Context-Fabric representative-load workflow, using runner-local cold cache and `python -m pip install -e plugins/context-fabric`. This avoids new publication code or source copying.
+3. Record the exact resolved parent source commit and feature module source commit, plus one representative verse-node value. Do not promote registry verification status to `verified` unless the source revision/warp compatibility and live semantics have actually been validated.
+4. Additional negative tests: module is optional (base BHSA case unchanged), incompatible `version=1935` must fail; missing feature must not be silently reported as success. Review GitStore `_validate_feature_module_files` on malicious warp files; it already rejects warp files and the new smoke cannot bypass it. Review source data / module licenses; BHSA is CC BY-NC 4.0 in Agora, module features advertise CC BY 4.0, no data is redistributed.
+5. Exact-head Foundation and real BHSA 2021 + cantillation module smoke must pass. Independent adversarial review of the actual upstream feature files, parent revision, runtime/logs and code, with follow-up issue(s) if version label alone cannot establish exact node identity. Do not claim full alignment certification from only a few representative values.
+
+## Deferred
+
+Pinning the parent repository to the conversion revision can break unrelated BHSA modules and should not happen casually. If actual current BHSA revision differs, perform a real TF-warp hash comparison against the recorded BHSA source commit before adding an exact parent-base dependency and changing the global BHSA acquisition policy.
