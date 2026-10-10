@@ -31,6 +31,8 @@ class LoadCase:
     expected_upstream_error_text: str | None = None
     modules: tuple[str, ...] = ()
     version: str | None = None
+    expected_parent_revision: str | None = None
+    expected_module_revision: str | None = None
 
 
 @dataclass(frozen=True)
@@ -66,6 +68,9 @@ LOAD_CASES = {
         "bhsa", ("g_cons", "cantillation_system", "cantillation_depth",
                  "cantillation_alignment"),
         modules=("bhsa-cantillation-trees",), version="2021",
+        # Exactly the recorded source commits from upstream sources.json.
+        expected_parent_revision="4db00e2157915495e1a4d3d57e41223df24775da",
+        expected_module_revision="445413fa5267b5c1c637d523f07f8a4cf0b3dded",
     ),
 }
 
@@ -580,6 +585,26 @@ def run_case(
         if case.version is not None:
             load_kwargs["version"] = case.version
         loaded = service.load(case.resource_id, **load_kwargs)
+        # Source-version labels are not node-identity proofs. Reject drift
+        # from the *actual* BHSA and cantillation Git revisions reviewed
+        # against upstream sources.json, before claiming a valid overlay.
+        if (
+            case.expected_parent_revision is not None
+            and loaded["source_revision"] != case.expected_parent_revision
+        ):
+            raise RuntimeError(
+                f"{case_name}: source revision {loaded['source_revision']!r} "
+                f"!= reviewed parent {case.expected_parent_revision!r}"
+            )
+        if case.expected_module_revision is not None:
+            modules = loaded.get("modules") or ()
+            if len(modules) != 1 or (
+                modules[0].get("source_revision") != case.expected_module_revision
+            ):
+                raise RuntimeError(
+                    f"{case_name}: module source revision differs from reviewed "
+                    f"{case.expected_module_revision!r}: {modules!r}"
+                )
         logical_name = loaded["logical_name"]
         try:
             api = corpus_manager.get_api(logical_name)
