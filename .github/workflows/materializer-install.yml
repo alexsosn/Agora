@@ -215,6 +215,11 @@ jobs:
           assert manifest['plugin']['repository'] == 'alexsosn/CopticScriptorium-TF'
           assert [item['id'] for item in manifest['materializers']] == ['copticscriptorium-text-fabric']
           assert manifest['materializers'][0]['execution']['network'] == 'deny'
+          acquisition = manifest['materializers'][0]['acquisition'][0]
+          assert acquisition["type"] == "git"
+          assert acquisition["url"] == "https://github.com/CopticScriptorium/corpora.git"
+          assert acquisition["ref"] == "3ac067f1709a0012daf39ea8da2fac79980176a5"
+          assert acquisition["sparse_patterns"] == ["/*/*_TT/**", "/*/*_TT.zip"]
 
           sys.path.insert(0, str(runtime))
           import copticscriptorium_tf.agora  # noqa: F401

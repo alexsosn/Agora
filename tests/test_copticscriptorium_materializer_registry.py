@@ -8,7 +8,7 @@ from scripts.agora_install_materializer import load_registry, select_plugin
 
 
 ROOT = Path(__file__).resolve().parents[1]
-COPTIC_TF_COMMIT = "ca0ee11bec734858628b2a237c11acb463a63863"
+COPTIC_TF_COMMIT = "60fec735dd6ef9aefe2cfb9e6459e9f7f15924e7"
 
 
 class CopticScriptoriumMaterializerRegistryTests(unittest.TestCase):
@@ -46,6 +46,8 @@ class CopticScriptoriumMaterializerRegistryTests(unittest.TestCase):
         self.assertIn("--plugin copticscriptorium-tf", workflow)
         self.assertIn("--materializer copticscriptorium-text-fabric", workflow)
         self.assertIn("--sandbox required", workflow)
+        self.assertIn('assert acquisition["ref"] == "3ac067f1709a0012daf39ea8da2fac79980176a5"', workflow)
+        self.assertIn('assert acquisition["sparse_patterns"] == ["/*/*_TT/**", "/*/*_TT.zip"]', workflow)
         self.assertIn("github.event.pull_request.head.sha || github.sha", workflow)
         self.assertIn('test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"', workflow)
 
