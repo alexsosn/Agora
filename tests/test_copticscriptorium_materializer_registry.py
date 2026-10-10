@@ -8,7 +8,7 @@ from scripts.agora_install_materializer import load_registry, select_plugin
 
 
 ROOT = Path(__file__).resolve().parents[1]
-COPTIC_TF_COMMIT = "60fec735dd6ef9aefe2cfb9e6459e9f7f15924e7"
+COPTIC_TF_COMMIT = "3cde20ec41efb1cacf1710643f01f924f11cbf0b"
 
 
 class CopticScriptoriumMaterializerRegistryTests(unittest.TestCase):
@@ -50,6 +50,14 @@ class CopticScriptoriumMaterializerRegistryTests(unittest.TestCase):
         self.assertIn('assert acquisition["sparse_patterns"] == ["/*/*_TT/**", "/*/*_TT.zip"]', workflow)
         self.assertIn("github.event.pull_request.head.sha || github.sha", workflow)
         self.assertIn('test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"', workflow)
+
+        self.assertIn(
+            "from copticscriptorium_tf.lxx_module import (", workflow
+        )
+        self.assertIn("materialize_lxx_reference_modules_streaming", workflow)
+        self.assertIn("verify_coptic_module_parent", workflow)
+        self.assertIn("callable(materialize_lxx_reference_modules_streaming)", workflow)
+        self.assertIn("callable(verify_coptic_module_parent)", workflow)
 
         self.assertIn("Coptic materializer → Context-Fabric handoff", workflow)
         self.assertIn("install_local_corpus", workflow)

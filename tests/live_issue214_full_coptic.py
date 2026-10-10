@@ -22,7 +22,7 @@ from scripts.agora_install_materializer import (
 )
 from scripts.context_fabric_mcp_result import decode_mcp_result
 
-COPTIC_COMMIT = "60fec735dd6ef9aefe2cfb9e6459e9f7f15924e7"
+COPTIC_COMMIT = "3cde20ec41efb1cacf1710643f01f924f11cbf0b"
 UPSTREAM_COMMIT = "3ac067f1709a0012daf39ea8da2fac79980176a5"
 UPSTREAM_URL = "https://github.com/CopticScriptorium/corpora.git"
 SPARSE = ["/*/*_TT/**", "/*/*_TT.zip"]

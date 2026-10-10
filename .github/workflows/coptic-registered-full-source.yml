@@ -72,7 +72,7 @@ jobs:
           python - <<'PY'
           from scripts.agora_install_materializer import load_registry, select_plugin
           plugin = select_plugin(load_registry(), "copticscriptorium-tf")
-          assert plugin["ref"] == "60fec735dd6ef9aefe2cfb9e6459e9f7f15924e7"
+          assert plugin["ref"] == "3cde20ec41efb1cacf1710643f01f924f11cbf0b"
           assert plugin["package"]["install_trust"] == "explicit-code-execution"
           assert plugin["materializers"] == ["copticscriptorium-text-fabric"]
           PY
