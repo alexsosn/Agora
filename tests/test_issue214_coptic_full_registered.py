@@ -68,6 +68,15 @@ class RegisteredCopticFullSourceAcceptanceContract(unittest.TestCase):
         self.assertEqual(funcs[0].args.args[0].arg, "tool_name")
         self.assertIn('name="Full registered Coptic pinned TT acceptance"', source)
 
+    def test_full_corpus_load_has_bounded_server_and_client_compile_windows(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        source = ACCEPTANCE.read_text(encoding="utf-8")
+        self.assertIn("timeout-minutes: 30", workflow)
+        self.assertIn('tool_name == "load_corpus"', source)
+        self.assertIn("timedelta(minutes=20)", source)
+        self.assertIn("max_compile_minutes=18", source)
+        self.assertIn('"stage": "context-fabric-preflight"', source)
+
     def test_verifier_asserts_real_provenance_complete_native_tf_and_cfabric(self):
         source = ACCEPTANCE.read_text(encoding="utf-8")
         for marker in (
