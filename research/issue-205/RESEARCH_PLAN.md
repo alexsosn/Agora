@@ -8,51 +8,29 @@
 
 ## Complete pinned upstream tree census (independent Git object evidence)
 
-Inspected the root Git tree and **all 79 child directory trees** at
-`3ac067f1709a0012daf39ea8da2fac79980176a5` using GitHub Git Trees API
-(`?recursive=1` for each child). None of the 79 results was truncated.
-A TT payload blob is any file at `<corpus>/<dataset>_TT.zip` or beneath
-`<corpus>/<dataset>_TT/`; the recursive child-tree paths were matched with
-`^([^/]+)_TT\\.zip# Issue #205: selective, immutable Git acquisition for large TT corpora
+The root pinned Git tree and all **79 top-level directory trees** at
+`3ac067f1709a0012daf39ea8da2fac79980176a5` were inspected using
+GitHub Git Trees API, recursively per child. None was truncated.
 
-## Research (2026-10-10)
-
-- Actual baseline failure: CopticScriptorium/corpora pinned `3ac067f1709a0012daf39ea8da2fac79980176a5`, full depth-one fetch (120s) failed with `fatal: early EOF` in PR #198 CI. GitHub reports ~2.7 GiB repository size.
-- The converter accepts `corpus/dataset_TT/` and `corpus/dataset_TT.zip`, not the full parallel ANNIS, PAULA, CoNLL-U, TEI, etc. Pinned Git tree API sampling: sahidica.nt 61,280,149 B across 262 blobs, 5,749,949 B TT ZIP; thomas-gospel 12,307,173 B across 28 blobs, 1,474,064 B TT directory; AP 27,673,453 B across 405 blobs, 3,422,340 B TT files.
-- Verified on a real local Git fixture: `git fetch --filter=blob:none --depth 1 origin <revision>`, before checkout `git sparse-checkout set --no-cone '/*/*_TT/**' '/*/*_TT.zip'`, then detach checkout selected both TT directory files and TT ZIP but not adjacent formats. A local filesystem remote warns it ignores object filtering; GitHub remote support and full upstream timings still require live CI verification.
-
- or `^([^/]+)_TT/.*# Issue #205: selective, immutable Git acquisition for large TT corpora
-
-## Research (2026-10-10)
-
-- Actual baseline failure: CopticScriptorium/corpora pinned `3ac067f1709a0012daf39ea8da2fac79980176a5`, full depth-one fetch (120s) failed with `fatal: early EOF` in PR #198 CI. GitHub reports ~2.7 GiB repository size.
-- The converter accepts `corpus/dataset_TT/` and `corpus/dataset_TT.zip`, not the full parallel ANNIS, PAULA, CoNLL-U, TEI, etc. Pinned Git tree API sampling: sahidica.nt 61,280,149 B across 262 blobs, 5,749,949 B TT ZIP; thomas-gospel 12,307,173 B across 28 blobs, 1,474,064 B TT directory; AP 27,673,453 B across 405 blobs, 3,422,340 B TT files.
-- Verified on a real local Git fixture: `git fetch --filter=blob:none --depth 1 origin <revision>`, before checkout `git sparse-checkout set --no-cone '/*/*_TT/**' '/*/*_TT.zip'`, then detach checkout selected both TT directory files and TT ZIP but not adjacent formats. A local filesystem remote warns it ignores object filtering; GitHub remote support and full upstream timings still require live CI verification.
-
- before adding the top-level
-corpus component.
-
-- 79 top-level directories, **78 containing TT payloads**; `bible/`
+- 79 top-level directories; **78 containing TT payloads**; `bible/`
   has no TT files.
-- **565 TT payload Git blobs, total 220,289,125 bytes (210.08 MiB)**.
-- All tracked file blobs in the pinned root tree: **1,894,430,888 bytes**
+- **565 TT payload Git blobs, totaling 220,289,125 bytes (210.08 MiB)**.
+- All tracked file blobs at that revision: **1,894,430,888 bytes**
   including root `README.md` (3,511 B) and `meta.json` (2,461,846 B).
-- TT files are **11.63% of tracked raw file bytes** at that exact commit.
-  These are uncompressed Git *tree blob-size* totals, **not measured network
-  transfer size, Git pack size, unpacked disk footprint or elapsed time**.
-- Every tracked path containing `_TT` matched one of the two TT payload
-  shapes; no unexpected nested TT-package location was found in any of the
-  79 complete recursive child-tree listings.
-- The root `meta.json` is intentionally *not* selected by the proposed
-  sparse patterns. Current `copticscriptorium_tf.parser.parse_source_tree`
-  only reads `*_TT` directories and `*_TT.zip` packages, so this does
-  not omit an input used by the current converter. Future supplemental
-  metadata / CoNLL-U features must revisit selection explicitly.
+- TT files represent **11.63% of raw tracked file bytes**, not measured
+  transfer, compressed Git pack, or checked-out disk footprint.
+- TT payloads use exactly two path shapes:
+  `<corpus>/<dataset>_TT.zip` or
+  `<corpus>/<dataset>_TT/<member>`.
+  No tracked `_TT`-named path falls outside these shapes.
+- The root `meta.json` is intentionally excluded by the patterns.
+  The current `copticscriptorium_tf.parser.parse_source_tree` reads
+  only TT packages; future CoNLL-U/metadata supplementation needs
+  an explicit selection review.
 
-Census data is derived from the immutable upstream Git **tree objects**,
-independently of running the converter and does not assert a successful
-source fetch. The remaining full-source E2E gate must verify the selected
-TT checkout against that expected 565-blob inventory before conversion.
+Evidence is derived from immutable upstream Git tree objects,
+independently of the converter. A live acquisition + verified checkout,
+then real converter validation, remain required for issue #205.
 
 ## Design and scope
 
