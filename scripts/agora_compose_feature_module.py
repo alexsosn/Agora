@@ -286,6 +286,20 @@ def materialize_requested_feature_module(
         raise ValueError(
             f"module {module_id!r} is not a local-module and must not be materialized here"
         )
+    # A matching parent/version alone would allow any registered converter to
+    # impersonate a canonical module ID. Authorization must originate in the
+    # bundled, reviewed resource registry. Current local-only modules without a
+    # producer declaration remain unpublishable until that pin is reviewed.
+    binding = getattr(module, "materializer", None)
+    if (
+        not isinstance(binding, dict)
+        or set(binding) != {"plugin", "id"}
+        or binding["plugin"] != plugin_id
+        or binding["id"] != materializer_id
+    ):
+        raise ValueError(
+            f"module {module_id!r} has no matching catalog-bound registered producer"
+        )
     if not isinstance(module.parent, str) or not module.parent:
         raise ValueError("feature module must declare a parent corpus")
     if not isinstance(module.tf_path, str) or not module.tf_path:
