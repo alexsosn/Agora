@@ -34,6 +34,26 @@ class RegisteredCopticFullSourceAcceptanceContract(unittest.TestCase):
         self.assertIn("if: always()", workflow)
         self.assertIn("github.event.pull_request.head.sha || github.sha", workflow)
 
+    def test_full_source_runner_preflights_pinned_tf_before_expensive_acquisition(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("text-fabric==13.1.0", workflow)
+        self.assertIn("from tf.fabric import Fabric", workflow)
+        self.assertLess(
+            workflow.index("text-fabric==13.1.0"),
+            workflow.index("Full registered automatic pinned Git acquisition"),
+        )
+        self.assertLess(
+            workflow.index("from tf.fabric import Fabric"),
+            workflow.index("Full registered automatic pinned Git acquisition"),
+        )
+
+    def test_full_source_ci_does_not_cancel_unrelated_main_or_manual_runs(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("github.event_name == 'pull_request'", workflow)
+        self.assertIn("github.run_id", workflow)
+        self.assertIn("github.run_attempt", workflow)
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", workflow)
+
     def test_verifier_asserts_real_provenance_complete_native_tf_and_cfabric(self):
         source = ACCEPTANCE.read_text(encoding="utf-8")
         for marker in (
