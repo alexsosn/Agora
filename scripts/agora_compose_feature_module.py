@@ -121,3 +121,57 @@ def resolve_managed_parent(
         trusted=True,
         relative_path=prepared.relative_path,
     )
+
+
+def materialize_managed_feature_module(
+    *,
+    resolver: Any,
+    plugin_id: str,
+    materializer_id: str,
+    source: Path | None,
+    output: Path,
+    requested_version: str | None = None,
+    install_root: Path | None = None,
+    registry_path: Path | None = None,
+) -> Path:
+    """Run a registered feature-module producer under a pinned parent lease.
+
+    RED3c: internal orchestration building block, *not* a CLI or general
+    authorization surface. A later gate must construct the Context-Fabric
+    resolver from trusted Agora configuration and keep arbitrary callers from
+    substituting it. This function never approves or installs plugin code.
+
+    Parent preparation runs outside the materializer sandbox. The managed
+    snapshot remains leased across the entire registered execution, including
+    final artifact publication and environment integrity re-check.
+    """
+    from scripts import agora_materialize_registered as registered
+    from scripts.agora_materialize import load_manifest, select_materializer
+
+    manifest_path = registered.resolve_installed_manifest(
+        plugin_id, install_root=install_root, registry_path=registry_path,
+    )
+    manifest = load_manifest(manifest_path)
+    spec = select_materializer(manifest, materializer_id)
+    if "parent_input" not in spec:
+        raise ValueError(
+            f"materializer {materializer_id!r} has no parent_input; "
+            "it is not a parent-dependent feature module"
+        )
+    binding = resolve_managed_parent(
+        spec, resolver, requested_version=requested_version,
+    )
+    # GitStore.acquire_cache_lease validates that the exact managed object
+    # still exists and is a valid corpus snapshot. Eviction cannot race the
+    # converter while this shared lease is held.
+    with resolver.store.acquire_cache_lease(binding.path):
+        return registered.materialize_registered(
+            plugin_id=plugin_id,
+            materializer_id=materializer_id,
+            output=Path(output),
+            source=None if source is None else Path(source),
+            sandbox="required",
+            install_root=install_root,
+            registry_path=registry_path,
+            parent=binding,
+        )
