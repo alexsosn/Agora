@@ -15,8 +15,12 @@ from pathlib import Path
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-# This smoke also supports direct `python scripts/<name>.py` execution.
-from context_fabric_mcp_result import decode_mcp_result
+# Support both `python scripts/smoke_context_fabric_local_import.py` and
+# `python -m scripts.smoke_context_fabric_local_import`.
+if __package__:
+    from .context_fabric_mcp_result import decode_mcp_result
+else:
+    from context_fabric_mcp_result import decode_mcp_result
 
 ROOT = Path(__file__).resolve().parents[1]
 
