@@ -86,7 +86,10 @@ def resolve_managed_parent(
     # Check both structural cache identity and the actual path: a real TF
     # directory outside snapshots cannot be promoted to a trusted resource.
     # No .resolve() on the assembled expected path until symlinks are checked.
-    snapshot_root = Path(resolver.store.snapshots_dir).expanduser().resolve(strict=True)
+    snapshot_directory = Path(resolver.store.snapshots_dir).expanduser()
+    if snapshot_directory.is_symlink():
+        raise ValueError("managed parent snapshot root must not be a symlink")
+    snapshot_root = snapshot_directory.resolve(strict=True)
     relative = prepared.relative_path
     if relative == ".":
         parts = ("__root__",)
