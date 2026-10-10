@@ -228,6 +228,7 @@ class RealSandboxMaterializationTests(unittest.TestCase):
             binding = host.ParentBinding(
                 path=parent, resource_id="cuc", version="0.2.8",
                 source_revision="a" * 40, trusted=True,
+                relative_path="tf/0.2.8",
             )
             host.materialize(
                 manifest_path=manifest,
@@ -246,6 +247,7 @@ class RealSandboxMaterializationTests(unittest.TestCase):
                 "resource_id": "cuc",
                 "version": "0.2.8",
                 "source_revision": "a" * 40,
+                "relative_path": "tf/0.2.8",
                 "trusted": True,
             })
             self.assertEqual(provenance["output"]["composition"]["parent"], "cuc")
