@@ -171,6 +171,7 @@ def materialize_registered(
     sandbox: str = "required",
     install_root: Path | None = None,
     registry_path: Path | None = None,
+    parent: host.ParentBinding | None = None,
 ) -> Path:
     """Run one materializer from a verified, already-installed registry plugin.
 
@@ -214,13 +215,20 @@ def materialize_registered(
             raise installer.MaterializerInstallError(
                 f"materializer {materializer_id!r} is not approved by registry plugin {plugin_id!r}"
             )
-        return host.materialize(
+        kwargs = dict(
             manifest_path=manifest,
             materializer_id=materializer_id,
             output=Path(output),
             source=None if source is None else Path(source),
             sandbox=sandbox,
         )
+        if parent is not None:
+            # The CLI exposes no raw parent argument. Only the future trusted
+            # Context-Fabric orchestrator will construct this typed binding.
+            # Keep verification of managed plugin bytes and conversion under
+            # the same existing installer runtime lock.
+            kwargs["parent"] = parent
+        return host.materialize(**kwargs)
 
 
 def _parser() -> argparse.ArgumentParser:
