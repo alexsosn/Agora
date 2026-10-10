@@ -150,7 +150,7 @@ class SparseGitAcquisitionIntegrationTests(unittest.TestCase):
                  "-c", "user.name=test", "commit", "-qm", "test")
         self.commit = self.git("-C", str(self.remote), "rev-parse", "HEAD").strip()
         self.strategy = {
-            "type": "git", "url": str(self.remote), "ref": self.commit,
+            "type": "git", "url": self.remote.as_uri(), "ref": self.commit,
             "subpath": ".", "sparse_patterns": SPARSE,
         }
         self.spec = _manifest(self.commit, sparse=SPARSE)["materializers"][0]
