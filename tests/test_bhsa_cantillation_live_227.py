@@ -22,6 +22,14 @@ class BhsaCantillationRealSourceRedTests(unittest.TestCase):
         self.assertEqual(case.resource_id, "bhsa")
         self.assertEqual(case.modules, ("bhsa-cantillation-trees",))
         self.assertEqual(case.version, "2021")
+        self.assertEqual(
+            case.expected_parent_revision,
+            "4db00e2157915495e1a4d3d57e41223df24775da",
+        )
+        self.assertEqual(
+            case.expected_module_revision,
+            "445413fa5267b5c1c637d523f07f8a4cf0b3dded",
+        )
         self.assertIn("bhsa", smoke.LOAD_CASES)
         self.assertEqual(smoke.LOAD_CASES["bhsa"].modules, ())
 
@@ -37,6 +45,13 @@ class BhsaCantillationRealSourceRedTests(unittest.TestCase):
         self.assertIn(("cantillation_system", 1414389, "prose"), expectations)
         self.assertIn(("cantillation_depth", 1414389, "2"), expectations)
         self.assertIn(("cantillation_alignment", 1414389, "exact"), expectations)
+
+    def test_semantics_are_bound_to_recorded_parent_and_module_source_revisions(self):
+        source = SMOKE_PATH.read_text(encoding="utf-8")
+        self.assertIn("expected_parent_revision", source)
+        self.assertIn("expected_module_revision", source)
+        self.assertIn('result["source_revision"]', source)
+        self.assertIn('result["modules"][0]["source_revision"]', source)
 
     def test_runtime_passes_explicit_parent_version_to_context_fabric(self):
         program = ast.parse(SMOKE_PATH.read_text(encoding="utf-8"))
