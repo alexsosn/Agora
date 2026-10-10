@@ -94,6 +94,8 @@ class SparseGitAcquisitionIntegrationTests(unittest.TestCase):
         self.remote = self.work / "upstream"
         self.remote.mkdir()
         self.git("-C", str(self.remote), "init", "-q")
+        # The fixture server must advertise object filtering, unlike a plain file remote.
+        self.git("-C", str(self.remote), "config", "uploadpack.allowfilter", "true")
         self._file("AP/story_TT/part1.tt", "TT doc 1")
         self._file("AP/story_TT/sub/chapter.tt", "TT doc 2")
         self._file("sahidica.nt/NT_TT.zip", "TT archive")
@@ -166,14 +168,26 @@ class SparseGitAcquisitionIntegrationTests(unittest.TestCase):
                 return "0" * 40
             return original(command, **kwargs)
 
-        with (mock.patch.object(module._run_git.__module__ and module,
-                                "_run_git", side_effect=wrong_revision),
+        with (mock.patch.object(module, "_run_git", side_effect=wrong_revision),
               mock.patch.object(module.tempfile, "mkdtemp", side_effect=record_dir)):
             with self.assertRaises(AcquisitionError) as raised:
                 acquire_git_source(self.strategy, self.spec)
         self.assertIn("commit", str(raised.exception).lower())
         self.assertTrue(acquired_roots)
         self.assertTrue(all(not path.exists() for path in acquired_roots))
+
+    def test_unfiltered_remote_is_not_silently_accepted(self):
+        # A remote that ignores --filter would otherwise hydrate every blob.
+        self.git("-C", str(self.remote), "config", "uploadpack.allowfilter", "false")
+        with self.assertRaises(AcquisitionError) as raised:
+            acquire_git_source(self.strategy, self.spec)
+        self.assertIn("does not support blob filtering", str(raised.exception))
+
+    def test_sparse_contract_missing_tt_files_reports_acquisition_failure(self):
+        strategy = {**self.strategy, "sparse_patterns": ["/does-not-match/*_TT/**"]}
+        with self.assertRaises(AcquisitionError) as raised:
+            acquire_git_source(strategy, self.spec)
+        self.assertIn("sparse input contract", str(raised.exception))
 
     def test_legacy_fetch_remains_complete(self):
         traditional = {k: v for k, v in self.strategy.items() if k != "sparse_patterns"}
