@@ -482,6 +482,64 @@ def materialize_requested_feature_module(
         )
 
 
+def _candidate_versions_for_request(
+    resolver: Any,
+    entry: dict[str, Any],
+    *,
+    install_root: Path | None = None,
+    registry_path: Path | None = None,
+) -> tuple[str, set[str]]:
+    """Read review-pinned version intersection without preparing the parent."""
+    from scripts import agora_materialize as host
+    from scripts import agora_materialize_registered as registered
+
+    module = resolver.catalog.get(entry["module_id"])
+    producer = getattr(module, "materializer", None)
+    if (
+        module.kind != "feature-module"
+        or module.acquisition_strategy != "local-module"
+        or not isinstance(producer, dict)
+        or producer != {
+            "plugin": entry["plugin_id"],
+            "id": entry["materializer_id"],
+        }
+    ):
+        raise ValueError(
+            f"module {entry['module_id']!r} has no matching catalog-bound producer"
+        )
+    if not isinstance(module.parent, str) or not module.parent:
+        raise ValueError("feature module must declare a parent corpus")
+    manifest_path = registered.resolve_installed_manifest(
+        entry["plugin_id"], install_root=install_root, registry_path=registry_path,
+    )
+    spec = host.select_materializer(
+        host.load_manifest(manifest_path), entry["materializer_id"],
+    )
+    parent_input = spec.get("parent_input")
+    composition = spec.get("output", {}).get("composition")
+    if (
+        not isinstance(parent_input, dict)
+        or parent_input.get("resource") != module.parent
+        or not isinstance(composition, dict)
+        or composition.get("kind") != "feature-module"
+        or composition.get("parent") != module.parent
+    ):
+        raise ValueError(
+            f"registered producer {entry['materializer_id']!r} has incompatible parent"
+        )
+    compatible = composition.get("compatibility", {}).get("parent_versions", [])
+    versions = (
+        set(module.parent_versions)
+        & set(parent_input["parent_versions"])
+        & set(compatible)
+    )
+    if not versions:
+        raise ValueError(
+            f"no common compatible parent version for module {entry['module_id']!r}"
+        )
+    return module.parent, versions
+
+
 def materialize_requested_feature_modules(
     requests: list[dict[str, Any]],
     *,
@@ -515,9 +573,49 @@ def materialize_requested_feature_modules(
             raise ValueError(f"duplicate module request {module_id!r}")
         seen.add(module_id)
     resolver = _bundled_context_fabric_resolver(cache_dir=cache_dir)
+    if requested_versions is not None and not isinstance(requested_versions, dict):
+        raise ValueError("requested_versions must be a mapping of parent resource to TF version")
     version_overrides = requested_versions or {}
-    # The existing one-module plan enforces exactly the same immutable producer
-    # and catalog binding, eliminating policy drift from a duplicate validator.
+    by_parent: dict[str, set[str]] = {}
+    candidate_parents = []
+    for entry in requests:
+        parent_id, candidates = _candidate_versions_for_request(
+            resolver, entry, install_root=install_root, registry_path=registry_path,
+        )
+        candidate_parents.append(parent_id)
+        if parent_id in by_parent:
+            by_parent[parent_id].intersection_update(candidates)
+        else:
+            by_parent[parent_id] = set(candidates)
+        if not by_parent[parent_id]:
+            raise ValueError(
+                f"requested modules have no common compatible version for parent {parent_id!r}"
+            )
+
+    unknown = set(version_overrides) - set(by_parent)
+    if unknown:
+        raise ValueError(f"requested versions name unknown parents: {sorted(unknown)}")
+    selected: dict[str, str] = {}
+    for parent_id, choices in by_parent.items():
+        explicit = version_overrides.get(parent_id)
+        if explicit is not None:
+            if explicit not in choices:
+                raise ValueError(
+                    f"requested parent version {explicit!r} is incompatible with all "
+                    f"selected modules for {parent_id!r}"
+                )
+            selected[parent_id] = explicit
+        elif len(choices) == 1:
+            selected[parent_id] = next(iter(choices))
+        else:
+            raise ValueError(
+                f"parent {parent_id!r} has ambiguous common versions "
+                f"{sorted(choices)}; specify requested_versions"
+            )
+
+    # The existing single-module plan performs the full immutable catalog,
+    # manifest, output and producer validation using the already negotiated
+    # common parent version; never silently fall back to per-module defaults.
     plans = tuple(
         _plan_requested_feature_module(
             resolver=resolver,
@@ -525,13 +623,11 @@ def materialize_requested_feature_modules(
             plugin_id=entry["plugin_id"],
             materializer_id=entry["materializer_id"],
             source=entry["source"],
-            requested_version=version_overrides.get(
-                resolver.catalog.get(entry["module_id"]).parent
-            ) if version_overrides else None,
+            requested_version=selected[parent_id],
             install_root=install_root,
             registry_path=registry_path,
         )
-        for entry in requests
+        for entry, parent_id in zip(requests, candidate_parents)
     )
     groups: dict[tuple[str, str, str], list[ModulePublicationPlan]] = {}
     parents: dict[str, tuple[str, str]] = {}
@@ -556,6 +652,10 @@ def materialize_requested_feature_modules(
         for plan in plans:
             _assert_unpublished_destination(resolver.store.cache_dir, plan.output)
 
+        bindings = {}
+        # Prepare and lease EVERY parent group before the FIRST converter runs.
+        # A broken second parent therefore cannot leave an unreported partial
+        # publication of modules from the first group.
         for (parent_id, version, revision), parent_plans in groups.items():
             binding = resolve_managed_parent(
                 parent_plans[0].spec, resolver, requested_version=version
@@ -566,19 +666,23 @@ def materialize_requested_feature_modules(
                 or binding.source_revision.casefold() != revision.casefold()
             ):
                 raise ValueError("prepared parent differs from pinned batch catalog identity")
-            with resolver.store.acquire_cache_lease(binding.path):
-                for plan in parent_plans:
-                    try:
-                        results[plan.module_id] = registered.materialize_registered(
-                            plugin_id=plan.plugin_id,
-                            materializer_id=plan.materializer_id,
-                            source=plan.source,
-                            output=plan.output,
-                            sandbox="required",
-                            install_root=install_root,
-                            registry_path=registry_path,
-                            parent=binding,
-                        )
-                    except Exception as exc:
-                        raise BatchMaterializationError(plan.module_id, results) from exc
+            stack.enter_context(resolver.store.acquire_cache_lease(binding.path))
+            bindings[(parent_id, version, revision)] = binding
+
+        for identity, parent_plans in groups.items():
+            binding = bindings[identity]
+            for plan in parent_plans:
+                try:
+                    results[plan.module_id] = registered.materialize_registered(
+                        plugin_id=plan.plugin_id,
+                        materializer_id=plan.materializer_id,
+                        source=plan.source,
+                        output=plan.output,
+                        sandbox="required",
+                        install_root=install_root,
+                        registry_path=registry_path,
+                        parent=binding,
+                    )
+                except Exception as exc:
+                    raise BatchMaterializationError(plan.module_id, results) from exc
     return results
