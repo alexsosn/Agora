@@ -65,6 +65,13 @@ def validate_registered_output(root: Path, install_root: Path) -> Path:
     assert summary["slots"] == EXPECTED_SLOTS, summary["slots"]
 
     tf_dir = root / "tf"
+    required_native_files = ("otype.tf", "oslots.tf", "otext.tf")
+    missing_native_files = [
+        name for name in required_native_files if not (tf_dir / name).is_file()
+    ]
+    assert not missing_native_files, (
+        f"required native Text-Fabric files absent: {missing_native_files}"
+    )
     tf_files = sorted(tf_dir.glob("*.tf"))
     assert len(tf_files) >= EXPECTED_MIN_TF_FILES, len(tf_files)
     assert summary["tf_files"] == len(tf_files)
