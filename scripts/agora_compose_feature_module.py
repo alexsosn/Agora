@@ -254,31 +254,51 @@ def materialize_registered_managed_feature_module(
     )
 
 
-def materialize_requested_feature_module(
+from contextlib import ExitStack
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ModulePublicationPlan:
+    module_id: str
+    plugin_id: str
+    materializer_id: str
+    source: Path | None
+    parent_id: str
+    parent_revision: str
+    version: str
+    output: Path
+    lock_path: Path
+    spec: dict[str, Any]
+
+
+class BatchMaterializationError(RuntimeError):
+    """A later converter failed after earlier verified modules were published."""
+
+    def __init__(self, failed_module_id: str, published: dict[str, Path]):
+        self.failed_module_id = failed_module_id
+        self.published = dict(published)
+        super().__init__(
+            f"module {failed_module_id!r} failed; "
+            f"already published: {', '.join(self.published) or '(none)'}"
+        )
+
+
+def _plan_requested_feature_module(
     *,
+    resolver: Any,
     module_id: str,
     plugin_id: str,
     materializer_id: str,
     source: Path | None = None,
     requested_version: str | None = None,
-    cache_dir: Path | None = None,
     install_root: Path | None = None,
     registry_path: Path | None = None,
-) -> Path:
-    """Publish one explicitly selected module into Context-Fabric's local store.
-
-    RED3e: internal service entry point, not an automatically activated CLI or
-    MCP tool. Output is derived exclusively from the installed Context-Fabric
-    catalog and local module store; there is no caller-provided destination,
-    parent path, resolver, or trust bit. Registration and authorization for
-    running third-party code remain the responsibility of the existing
-    registered materializer installer and host.
-    """
-    from scripts import agora_install_materializer as installer
+) -> ModulePublicationPlan:
+    """Share exact registry/manifest and target preflight across one/batch runs."""
     from scripts import agora_materialize as host
     from scripts import agora_materialize_registered as registered
 
-    resolver = _bundled_context_fabric_resolver(cache_dir=cache_dir)
     module = resolver.catalog.get(module_id)
     if module.kind != "feature-module":
         raise ValueError(f"requested {module_id!r} is not a feature module")
@@ -393,24 +413,172 @@ def materialize_requested_feature_module(
     lock_path = store.locks_dir / (
         f"materialized-module-{store.safe_cache_key(module.id)}.lock"
     )
-    with installer._lock(lock_path):
-        current = root
-        for part in parts:
-            current = current / part
-            if current.is_symlink():
-                raise ValueError(f"local module publication path is symlinked: {current}")
-        if output.exists() or output.is_symlink():
-            raise ValueError(
-                f"feature module {module_id!r} is already published at {output}; "
-                "refusing to overwrite or reuse it implicitly"
-            )
+
+    return ModulePublicationPlan(
+        module_id=module_id,
+        plugin_id=plugin_id,
+        materializer_id=materializer_id,
+        source=source,
+        parent_id=module.parent,
+        parent_revision=parent.ref,
+        version=version,
+        output=output,
+        lock_path=lock_path,
+        spec=spec,
+    )
+
+
+def _assert_unpublished_destination(root: Path, output: Path) -> None:
+    try:
+        parts = output.relative_to(root).parts
+    except ValueError as exc:
+        raise ValueError("local module destination escapes Context-Fabric cache") from exc
+    current = root
+    if current.is_symlink():
+        raise ValueError(f"local module publication path is symlinked: {current}")
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError(f"local module publication path is symlinked: {current}")
+    if output.exists() or output.is_symlink():
+        raise ValueError(
+            f"feature module destination already published at {output}; "
+            "refusing to overwrite or reuse it implicitly"
+        )
+
+
+def materialize_requested_feature_module(
+    *,
+    module_id: str,
+    plugin_id: str,
+    materializer_id: str,
+    source: Path | None = None,
+    requested_version: str | None = None,
+    cache_dir: Path | None = None,
+    install_root: Path | None = None,
+    registry_path: Path | None = None,
+) -> Path:
+    """Publish one explicitly selected, canonical producer into a local module slot."""
+    from scripts import agora_install_materializer as installer
+
+    resolver = _bundled_context_fabric_resolver(cache_dir=cache_dir)
+    plan = _plan_requested_feature_module(
+        resolver=resolver, module_id=module_id, plugin_id=plugin_id,
+        materializer_id=materializer_id, source=source,
+        requested_version=requested_version, install_root=install_root,
+        registry_path=registry_path,
+    )
+    with installer._lock(plan.lock_path):
+        _assert_unpublished_destination(resolver.store.cache_dir, plan.output)
         return materialize_managed_feature_module(
             resolver=resolver,
             plugin_id=plugin_id,
             materializer_id=materializer_id,
             source=source,
-            output=output,
-            requested_version=version,
+            output=plan.output,
+            requested_version=plan.version,
             install_root=install_root,
             registry_path=registry_path,
         )
+
+
+def materialize_requested_feature_modules(
+    requests: list[dict[str, Any]],
+    *,
+    cache_dir: Path | None = None,
+    install_root: Path | None = None,
+    registry_path: Path | None = None,
+    requested_versions: dict[str, str] | None = None,
+) -> dict[str, Path]:
+    """Batch explicitly selected feature modules with a shared immutable parent.
+
+    Every producer is preflighted before preparing a parent or executing code.
+    Distinct parent groups are independent; a group holds one snapshot lease
+    across all of its sandboxed runs. Publication is per-module and no-clobber;
+    a later producer failure reports already-published output explicitly.
+    """
+    from scripts import agora_install_materializer as installer
+    from scripts import agora_materialize_registered as registered
+
+    if not isinstance(requests, (list, tuple)) or not requests:
+        raise ValueError("module batch requests must be a nonempty sequence")
+    seen: set[str] = set()
+    for entry in requests:
+        if not isinstance(entry, dict) or set(entry) != {
+            "module_id", "plugin_id", "materializer_id", "source"
+        }:
+            raise ValueError("each batch module request must declare exact producer and source keys")
+        module_id = entry["module_id"]
+        if not isinstance(module_id, str) or not module_id:
+            raise ValueError("module ID must be a nonempty string")
+        if module_id in seen:
+            raise ValueError(f"duplicate module request {module_id!r}")
+        seen.add(module_id)
+    resolver = _bundled_context_fabric_resolver(cache_dir=cache_dir)
+    version_overrides = requested_versions or {}
+    # The existing one-module plan enforces exactly the same immutable producer
+    # and catalog binding, eliminating policy drift from a duplicate validator.
+    plans = tuple(
+        _plan_requested_feature_module(
+            resolver=resolver,
+            module_id=entry["module_id"],
+            plugin_id=entry["plugin_id"],
+            materializer_id=entry["materializer_id"],
+            source=entry["source"],
+            requested_version=version_overrides.get(
+                resolver.catalog.get(entry["module_id"]).parent
+            ) if version_overrides else None,
+            install_root=install_root,
+            registry_path=registry_path,
+        )
+        for entry in requests
+    )
+    groups: dict[tuple[str, str, str], list[ModulePublicationPlan]] = {}
+    parents: dict[str, tuple[str, str]] = {}
+    for plan in plans:
+        identity = (plan.version, plan.parent_revision)
+        previous = parents.setdefault(plan.parent_id, identity)
+        if previous != identity:
+            raise ValueError(
+                f"requested modules for parent {plan.parent_id!r} have incompatible "
+                "version or immutable revision; select one compatible version"
+            )
+        groups.setdefault((plan.parent_id, *identity), []).append(plan)
+
+    results: dict[str, Path] = {}
+    # Lock all destinations in deterministic order so a batch never deadlocks
+    # another batch with the same modules requested in reverse order.
+    with ExitStack() as stack:
+        locks = sorted({plan.lock_path for plan in plans}, key=str)
+        for lock_path in locks:
+            stack.enter_context(installer._lock(lock_path))
+        # No producer runs until EVERY canonical output is absent and safe.
+        for plan in plans:
+            _assert_unpublished_destination(resolver.store.cache_dir, plan.output)
+
+        for (parent_id, version, revision), parent_plans in groups.items():
+            binding = resolve_managed_parent(
+                parent_plans[0].spec, resolver, requested_version=version
+            )
+            if (
+                binding.resource_id != parent_id
+                or binding.version != version
+                or binding.source_revision.casefold() != revision.casefold()
+            ):
+                raise ValueError("prepared parent differs from pinned batch catalog identity")
+            with resolver.store.acquire_cache_lease(binding.path):
+                for plan in parent_plans:
+                    try:
+                        results[plan.module_id] = registered.materialize_registered(
+                            plugin_id=plan.plugin_id,
+                            materializer_id=plan.materializer_id,
+                            source=plan.source,
+                            output=plan.output,
+                            sandbox="required",
+                            install_root=install_root,
+                            registry_path=registry_path,
+                            parent=binding,
+                        )
+                    except Exception as exc:
+                        raise BatchMaterializationError(plan.module_id, results) from exc
+    return results
