@@ -15,6 +15,8 @@ from scripts.agora_materialize import (
     acquire_git_source,
     acquire_source,
     load_manifest,
+    _run_git,
+    GIT_TIMEOUT_SECONDS,
 )
 
 GIT = shutil.which("git")
@@ -83,6 +85,32 @@ class SparseManifestContracts(unittest.TestCase):
     def test_legacy_full_git_contract_retained(self):
         loaded = self.check(_manifest("main", sparse=None))
         self.assertNotIn("sparse_patterns", loaded["materializers"][0]["acquisition"][0])
+
+
+class SparseGitFailureReportingTests(unittest.TestCase):
+    def test_timeout_distinguishes_local_acquisition_timeout(self):
+        with mock.patch(
+            "scripts.agora_materialize.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(["git", "fetch"], GIT_TIMEOUT_SECONDS),
+        ):
+            with self.assertRaises(AcquisitionError) as raised:
+                _run_git(["git", "fetch"], env={}, require_filter_support=True)
+        self.assertIn("timed out", str(raised.exception))
+        self.assertIn(str(GIT_TIMEOUT_SECONDS), str(raised.exception))
+
+    def test_remote_early_eof_survives_bounded_error_message(self):
+        stderr = "x" * 4000 + "fatal: early EOF"
+        with mock.patch(
+            "scripts.agora_materialize.subprocess.run",
+            side_effect=subprocess.CalledProcessError(
+                128, ["git", "fetch"], stderr=stderr,
+            ),
+        ):
+            with self.assertRaises(AcquisitionError) as raised:
+                _run_git(["git", "fetch"], env={}, require_filter_support=True)
+        message = str(raised.exception)
+        self.assertIn("early EOF", message)
+        self.assertLess(len(message), 2000)
 
 
 @unittest.skipUnless(GIT, "Git is required for acquisition tests")
