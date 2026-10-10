@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -185,6 +186,22 @@ class SparseGitAcquisitionIntegrationTests(unittest.TestCase):
             self.assertEqual(prepared.provenance["requested_ref"], self.commit)
             self.assertEqual(prepared.provenance["resolved_commit"], self.commit)
             self.assertEqual(prepared.provenance["sparse_patterns"], SPARSE)
+            # The absence of ANNIS on disk alone does not prove the remote
+            # filter was effective. Verify the excluded Git blob is genuinely
+            # missing from the partial clone without triggering lazy retrieval.
+            no_lazy = {**os.environ, "GIT_NO_LAZY_FETCH": "1"}
+            for path, expected in (
+                ("AP/story_TT/part1.tt", 0),
+                ("AP/story_ANNIS/part1.annis", 1),
+            ):
+                oid = self.git("-C", str(self.remote), "rev-parse",
+                               "HEAD:" + path).strip()
+                result = subprocess.run(
+                    [GIT, "-C", str(prepared.path), "cat-file", "-e", oid],
+                    env=no_lazy, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    check=False,
+                )
+                self.assertEqual(result.returncode == 0, expected == 0, path)
             fetch_index = next(i for i, c in enumerate(seen) if "fetch" in c)
             sparse_index = next(i for i, c in enumerate(seen) if "sparse-checkout" in c)
             checkout_index = next(i for i, c in enumerate(seen) if "checkout" in c)
