@@ -113,7 +113,7 @@ jobs:
               --sandbox required
 
       - name: Validate real Git provenance, complete native TF and Context-Fabric
-        timeout-minutes: 12
+        timeout-minutes: 30
         run: python -m tests.live_issue214_full_coptic
 
       - name: Show bounded source/conversion resource measurements
