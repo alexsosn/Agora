@@ -55,6 +55,19 @@ class RegisteredCopticFullSourceAcceptanceContract(unittest.TestCase):
         self.assertIn("github.run_attempt", workflow)
         self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", workflow)
 
+    def test_mcp_call_helper_keeps_tool_name_distinct_from_corpus_name(self):
+        # install_local_corpus requires a name= keyword. The adapter must
+        # not itself have a positional parameter named name.
+        import ast
+
+        source = ACCEPTANCE.read_text(encoding="utf-8")
+        module = ast.parse(source)
+        funcs = [node for node in ast.walk(module)
+                 if isinstance(node, ast.AsyncFunctionDef) and node.name == "call"]
+        self.assertEqual(len(funcs), 1)
+        self.assertEqual(funcs[0].args.args[0].arg, "tool_name")
+        self.assertIn('name="Full registered Coptic pinned TT acceptance"', source)
+
     def test_verifier_asserts_real_provenance_complete_native_tf_and_cfabric(self):
         source = ACCEPTANCE.read_text(encoding="utf-8")
         for marker in (
