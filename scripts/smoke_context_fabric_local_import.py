@@ -15,6 +15,9 @@ from pathlib import Path
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+# This smoke also supports direct `python scripts/<name>.py` execution.
+from context_fabric_mcp_result import decode_mcp_result
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -45,11 +48,7 @@ async def smoke():
 
                 async def call(tool_name, **arguments):
                     result = await session.call_tool(tool_name, arguments, read_timeout_seconds=timedelta(seconds=120))
-                    if result.isError:
-                        raise RuntimeError(f'{tool_name}: {result.content}')
-                    if result.structuredContent is not None:
-                        return result.structuredContent
-                    return json.loads(result.content[0].text)
+                    return decode_mcp_result(result, tool_name=tool_name)
 
                 installed = await call('install_local_corpus', source=str(source), name='Local Coptic smoke')
                 rid = installed['id']
