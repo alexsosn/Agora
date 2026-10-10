@@ -9,7 +9,7 @@
 ## Design and scope
 
 1. Introduce optional `sparse_patterns` on a Git acquisition declaration. **Never** derive sparse selection from `required_globs`, which only proves nonemptiness, not corpus completeness.
-2. Require a 40-character lowercase hex commit pin for sparse mode; reject absolute filesystem escapes, negations, unexpected Git pattern syntax, `..", and ambiguous patterns at validation time. Legacy Git strategies without `sparse_patterns` use unchanged full checkout.
+2. Require a 40-character lowercase hex commit pin for sparse mode; reject absolute filesystem escapes, negations, unexpected Git pattern syntax, `..`, and ambiguous patterns at validation time. Legacy Git strategies without `sparse_patterns` use unchanged full checkout.
 3. For sparse mode: init repository, register HTTPS remote, set Git promisor/partial-clone configuration, `fetch --filter=blob:none --depth 1` at exactly the pinned SHA, configure non-cone sparse patterns *before* checkout, detached checkout, verify `HEAD == requested SHA`, validate input contract, and record the selected patterns in provenance. Acquisition remains outside the network-denied conversion sandbox, with existing transactional cleanup.
 4. Tests first (RED): schema bad and good inputs; real local Git fixture ensuring wanted TT files and exclusion of adjacent formats; asserted Git fetch/select ordering, immutable-revision mismatch refusal, failure cleanup, unchanged full-source behavior. Run cross-platform foundation suites.
 5. Follow-on dependent delivery: CopticScriptorium-TF adds the opt-in manifest paths and its own tests; Agora subsequently updates immutable plugin registry pin and runs **actual pinned remote Git download + representative/full real source conversion**. Until that verification succeeds, #205 and Coptic #17 **remain open**.
@@ -26,8 +26,8 @@
 ## Gates
 
 - [x] Research on repository/source layouts and local Git semantics
-- [ ] RED contract in exact-head CI
-- [ ] Implementation + passing exact-head CI
+- [ ] RED contract in exact-head CI (workflow scheduled; no completion observed yet)
+- [ ] Implementation + passing exact-head CI (implementation committed; final-run verification pending)
 - [ ] Separate adversarial review of exact PR head
 - [ ] Merge only if independent review yields no blockers
 - [ ] Full Coptic remote source verification + upstream issue closure (separate dependent gate)
