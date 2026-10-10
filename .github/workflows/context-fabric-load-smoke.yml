@@ -17,6 +17,7 @@ on:
       - 'plugins/context-fabric/src/**'
       - 'scripts/smoke_context_fabric_cold_load.py'
       - 'scripts/smoke_context_fabric_resources.py'
+      - 'tests/test_bhsa_cantillation_live_227.py'
       - 'tests/test_context_fabric_load_smoke.py'
       - 'tests/test_context_fabric_load_smoke_workflow.py'
       - 'tests/test_context_fabric_cache_lifecycle_smoke.py'
@@ -35,6 +36,7 @@ on:
       - 'plugins/context-fabric/src/**'
       - 'scripts/smoke_context_fabric_cold_load.py'
       - 'scripts/smoke_context_fabric_resources.py'
+      - 'tests/test_bhsa_cantillation_live_227.py'
       - 'tests/test_context_fabric_load_smoke.py'
       - 'tests/test_context_fabric_load_smoke_workflow.py'
       - 'tests/test_context_fabric_cache_lifecycle_smoke.py'
@@ -169,4 +171,50 @@ jobs:
         with:
           name: context-fabric-load-bhsa-phono
           path: context-fabric-load-bhsa-phono.jsonl
+          if-no-files-found: warn
+
+  bhsa-cantillation-live:
+    # Issue #227: separate clean-cache acceptance for the already-registered
+    # repository-backed cantillation module. No verification-status promotion.
+    name: Load real BHSA 2021 + cantillation trees, check verse semantics
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      AGORA_CORPUS_CACHE_MAX_GB: '5'
+      AGORA_CORPUS_MIN_FREE_GB: '2'
+    steps:
+      - name: Check out exact Agora PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact tested Agora head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Context-Fabric runtime
+        run: python -m pip install -e plugins/context-fabric
+
+      - name: Cold BHSA and cantillation module semantic/load/cache lifecycle
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/smoke_context_fabric_resources.py bhsa-cantillation \
+            --lifecycle \
+            --cache-dir "$RUNNER_TEMP/bhsa-cantillation-227" \
+            | tee bhsa-cantillation-227.jsonl
+
+      - name: Upload versioned subject-bound semantic evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bhsa-cantillation-227
+          path: bhsa-cantillation-227.jsonl
           if-no-files-found: warn

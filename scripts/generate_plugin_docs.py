@@ -42,6 +42,18 @@ GUIDANCE: dict[str, dict[str, Any]] = {
             "A plugin-level verification result does not promote every corpus or annotation layer. "
             "Use the resource catalog and compatibility evidence for the specific resource/path."
         ),
+        "module_note": """## Registered BHSA cantillation module
+
+The optional `bhsa-cantillation-trees` feature module attaches verse-level cantillation annotations to the **existing BHSA 2021** parent. It is not a separate corpus and does not require another BHSA download. Inspect `describe_available_corpus(resource_id="bhsa")`, then use the same parent and module selection for both preparation and load:
+
+```text
+prepare_corpus(resource_id="bhsa", version="2021", modules=["bhsa-cantillation-trees"])
+load_corpus(resource_id="bhsa", version="2021", modules=["bhsa-cantillation-trees"], features=["g_cons", "cantillation_system", "cantillation_depth", "cantillation_alignment"])
+```
+
+Inspect the loaded schema and actual feature values before interpreting them. The live 10 October 2026 acceptance verified BHSA Genesis 1:1 words and cantillation `system=prose`, `depth=2`, and `alignment=exact` on BHSA verse node `1414389`; these are representative checks, **not** an audit of all verse alignments. The module's `sources.json` records the BHSA source commit `4db00e2157915495e1a4d3d57e41223df24775da`; the tested module source revision is `445413fa5267b5c1c637d523f07f8a4cf0b3dded`. Registry acquisition currently follows upstream refs, so review the resolved `source_revision` fields on each load; the version label alone does not establish node identity when upstream changes.
+
+The BHSA parent corpus is listed under **CC BY-NC 4.0** in Agora, while the cantillation feature files declare **CC BY 4.0** and cite MorphHB provenance. Preserve attribution, source revisions, and the rights of *each* layer; loading the module does not relax the BHSA noncommercial restriction. The acceptance workflow downloads source data into runner-local caches and does not distribute converted corpora.""",
     },
     "perseus": {
         "access": (
@@ -222,7 +234,7 @@ Canonical capabilities:
 
 {_capabilities(plugin)}
 
-## Important limitations
+{guidance.get('module_note', '').strip() + chr(10) * 2 if guidance.get('module_note') else ''}## Important limitations
 
 {guidance['limitations']}
 

@@ -1,0 +1,180 @@
+"""#227 RED: actual registered cantillation tree module over the BHSA warp."""
+from __future__ import annotations
+
+from pathlib import Path
+import sys
+from types import ModuleType
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SMOKE_PATH = ROOT / "scripts/smoke_context_fabric_resources.py"
+WORKFLOW = ROOT / ".github/workflows/context-fabric-load-smoke.yml"
+CF_SRC = ROOT / "plugins/context-fabric/src"
+if str(CF_SRC) not in sys.path:
+    sys.path.insert(0, str(CF_SRC))
+
+
+class BhsaCantillationRealSourceRedTests(unittest.TestCase):
+    def test_optional_case_is_bhsa_2021_and_not_a_new_corpus(self):
+        from scripts import smoke_context_fabric_resources as smoke
+        case = smoke.LOAD_CASES["bhsa-cantillation"]
+        self.assertEqual(case.resource_id, "bhsa")
+        self.assertEqual(case.modules, ("bhsa-cantillation-trees",))
+        self.assertEqual(case.version, "2021")
+        self.assertEqual(
+            case.expected_parent_revision,
+            "4db00e2157915495e1a4d3d57e41223df24775da",
+        )
+        self.assertEqual(
+            case.expected_module_revision,
+            "445413fa5267b5c1c637d523f07f8a4cf0b3dded",
+        )
+        self.assertIn("bhsa", smoke.LOAD_CASES)
+        self.assertEqual(smoke.LOAD_CASES["bhsa"].modules, ())
+
+    def test_semantics_cover_actual_upstream_verse_and_bhsa_genesis_words(self):
+        from scripts import smoke_context_fabric_resources as smoke
+        expectations = {
+            (x.feature, x.node, x.expected)
+            for x in smoke.SEMANTIC_EXPECTATIONS["bhsa-cantillation"]
+        }
+        self.assertIn(("g_cons", 1, "B"), expectations)
+        self.assertIn(("g_cons", 2, "R>CJT"), expectations)
+        # @node BHSA verse 1414389 from real published module.
+        self.assertIn(("cantillation_system", 1414389, "prose"), expectations)
+        self.assertIn(("cantillation_depth", 1414389, "2"), expectations)
+        self.assertIn(("cantillation_alignment", 1414389, "exact"), expectations)
+
+    def _assert_rejected_revision(self, loaded, error_pattern):
+        """Exercise real run_case control flow with only external acquisition mocked."""
+        from scripts import smoke_context_fabric_resources as smoke
+        from agora_context_fabric.service import ContextFabricService
+        from unittest import mock
+        import tempfile
+
+        fake_mcp = ModuleType("cfabric_mcp")
+        fake_mcp.corpus_manager = mock.Mock()
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                mock.patch.dict(sys.modules, {"cfabric_mcp": fake_mcp}),
+                mock.patch.object(ContextFabricService, "load", return_value=loaded) as load,
+                mock.patch.object(ContextFabricService, "unload") as unload,
+            ):
+                with self.assertRaisesRegex(RuntimeError, error_pattern):
+                    smoke.run_case("bhsa-cantillation", Path(tmp))
+                unload.assert_called_once_with(loaded["logical_name"])
+                load.assert_called_once()
+                return load.call_args
+
+    def test_semantics_are_bound_to_recorded_parent_and_module_source_revisions(self):
+        base = {
+            "logical_name": "bhsa@2021+bhsa-cantillation-trees",
+            "source_revision": "4db00e2157915495e1a4d3d57e41223df24775da",
+            "modules": [{"source_revision": "445413fa5267b5c1c637d523f07f8a4cf0b3dded"}],
+        }
+        for changes, diagnostic in (
+            ({"source_revision": "a" * 40}, "source revision"),
+            ({"modules": [{"source_revision": "b" * 40}]}, "module source revision"),
+        ):
+            with self.subTest(changes=changes):
+                self._assert_rejected_revision({**base, **changes}, diagnostic)
+
+    def test_runtime_passes_explicit_parent_version_to_context_fabric(self):
+        loaded = {
+            "logical_name": "bhsa@2021+bhsa-cantillation-trees",
+            "source_revision": "a" * 40,
+            "modules": [{"source_revision": "445413fa5267b5c1c637d523f07f8a4cf0b3dded"}],
+        }
+        call = self._assert_rejected_revision(loaded, "source revision")
+        self.assertEqual(call.args, ("bhsa",))
+        self.assertEqual(call.kwargs["version"], "2021")
+        self.assertEqual(call.kwargs["modules"], ["bhsa-cantillation-trees"])
+
+    def test_exact_head_real_cold_load_is_executed_by_workflow(self):
+        content = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("bhsa-cantillation", content)
+        self.assertIn("python scripts/smoke_context_fabric_resources.py", content)
+        self.assertIn("--cache-dir", content)
+        self.assertIn("persist-credentials: false", content)
+        self.assertIn("github.event.pull_request.head.sha || github.sha", content)
+        self.assertIn("Install Context-Fabric runtime", content)
+
+    def test_incompatible_parent_version_and_unknown_module_fail_before_acquisition(self):
+        from agora_context_fabric.catalog import Catalog
+        from agora_context_fabric.resolver import ContextFabricResolver, PreparedCorpus
+        from unittest import mock
+        catalog = Catalog.from_plugin_root(ROOT / "plugins/context-fabric")
+        store = mock.Mock()
+        resolver = ContextFabricResolver(catalog, store)
+        wrong = PreparedCorpus(
+            resource_id="bhsa", member_id=None, logical_name="bhsa@1935",
+            relative_path="tf/1935", path=Path("/unused-parent"),
+            version="1935", source_revision="a" * 40,
+        )
+        with self.assertRaisesRegex(ValueError, "compatible|not compatible"):
+            resolver._prepare_feature_modules(wrong, ["bhsa-cantillation-trees"])
+        store.materialize_feature_module.assert_not_called()
+        store.ensure_metadata.assert_not_called()
+
+        valid = PreparedCorpus(
+            resource_id="bhsa", member_id=None, logical_name="bhsa@2021",
+            relative_path="tf/2021", path=Path("/unused-parent"),
+            version="2021", source_revision="a" * 40,
+        )
+        with self.assertRaises(KeyError):
+            resolver._prepare_feature_modules(valid, ["missing-module"])
+        store.materialize_feature_module.assert_not_called()
+
+    def test_missing_cantillation_feature_is_a_failure_not_a_core_bhsa_failure(self):
+        from scripts import smoke_context_fabric_resources as smoke
+        from types import SimpleNamespace
+
+        api = SimpleNamespace(
+            F=SimpleNamespace(g_cons=SimpleNamespace(v=lambda node: "B"))
+        )
+        with self.assertRaisesRegex(RuntimeError, "cantillation_system"):
+            smoke.check_semantic_expectations(
+                "bhsa-cantillation", api,
+                (smoke.SemanticExpectation("cantillation_system", 1414389, "prose"),),
+            )
+        self.assertNotIn("cantillation_system", [x.feature for x in
+                          smoke.SEMANTIC_EXPECTATIONS["bhsa"]])
+
+    def test_missing_module_revision_still_unloads_prepared_overlay(self):
+        self._assert_rejected_revision(
+            {
+                "logical_name": "bhsa@2021+bhsa-cantillation-trees",
+                "source_revision": "4db00e2157915495e1a4d3d57e41223df24775da",
+                "modules": [],
+            },
+            "module source revision",
+        )
+
+    def test_documented_optional_load_preserves_version_and_license_boundaries(self):
+        guide = (ROOT / "wiki/guides/plugins/context-fabric.md").read_text(
+            encoding="utf-8"
+        )
+        for fragment in (
+            'prepare_corpus(resource_id="bhsa", version="2021", modules=["bhsa-cantillation-trees"])',
+            'load_corpus(resource_id="bhsa", version="2021", modules=["bhsa-cantillation-trees"]',
+            "CC BY-NC 4.0",
+            "CC BY 4.0",
+            "source_revision",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, guide)
+
+    def test_pinned_source_not_incorrectly_promoted_to_verified(self):
+        from agora_context_fabric.catalog import Catalog
+        catalog = Catalog.from_plugin_root(ROOT / "plugins/context-fabric")
+        module = catalog.get("bhsa-cantillation-trees")
+        self.assertEqual(module.kind, "feature-module")
+        self.assertEqual(module.parent, "bhsa")
+        self.assertEqual(module.verification_status, "community")
+        self.assertEqual(module.parent_versions, ("2021",))
+        self.assertEqual(module.acquisition_strategy, "repository")
+
+
+if __name__ == "__main__":
+    unittest.main()
