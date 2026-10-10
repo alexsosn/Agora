@@ -19,6 +19,11 @@ on:
 permissions:
   contents: read
 
+# Each PR head replaces earlier checks; every push/manual run keeps a unique run ID.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   sparse-tt-git:
     name: Pinned TT source checkout and complete Git-tree inventory
