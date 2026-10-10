@@ -207,6 +207,37 @@ class RegisteredLocalPublicationRed3e(unittest.TestCase):
                                  cache_dir=store.cache_dir)
                 run.assert_not_called()
 
+    def test_reviewed_cuc_burns_catalog_remains_unpublishable_without_real_producer_pin(self):
+        # The upstream CTC-TF#117 producer manifest is not registered yet.
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(registered, "resolve_installed_manifest") as resolve:
+                with self.assertRaisesRegex(ValueError, "no matching catalog-bound"):
+                    self.publish(
+                        module_id="cuc-burns", plugin_id="unregistered",
+                        materializer_id="burns-cuc-module", source=Path(tmp) / "source",
+                        cache_dir=Path(tmp) / "cache",
+                    )
+                resolve.assert_not_called()
+
+    def test_catalog_resource_document_carries_explicit_producer_binding(self):
+        from agora_context_fabric.catalog import Catalog
+        doc = {"resources": [{
+            "id": "test-module", "name": "Test module", "plugin": "context-fabric",
+            "provider": "context-fabric", "kind": "feature-module",
+            "languages": [], "disciplines": [],
+            "parent": "cuc", "compatibility": {"parent_versions": ["0.2.8"]},
+            "module": {"status": "community"},
+            "upstream": {"repository": "test/repo", "tf_path": "tf/0.2.8",
+                         "module": "test/repo/tf"},
+            "acquisition": {"strategy": "local-module",
+                            "materializer": {"plugin": "fixture", "id": "burns-cuc-module"}},
+        }]}
+        result = Catalog._resources_from_document(doc)
+        self.assertEqual(
+            result[0].materializer,
+            {"plugin": "fixture", "id": "burns-cuc-module"},
+        )
+
     def test_external_path_resolver_or_trust_bit_cannot_be_injected(self):
         fn = getattr(compose, "materialize_requested_feature_module", None)
         self.assertTrue(callable(fn), "RED3e: missing publication facade")
