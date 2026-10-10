@@ -228,6 +228,12 @@ jobs:
 
           sys.path.insert(0, str(runtime))
           import copticscriptorium_tf.agora  # noqa: F401
+          from copticscriptorium_tf.lxx_module import (
+              materialize_lxx_reference_modules_streaming,
+              verify_coptic_module_parent,
+          )
+          assert callable(materialize_lxx_reference_modules_streaming)
+          assert callable(verify_coptic_module_parent)
           PY
 
       - name: Install bubblewrap and enable user namespaces
