@@ -585,28 +585,29 @@ def run_case(
         if case.version is not None:
             load_kwargs["version"] = case.version
         loaded = service.load(case.resource_id, **load_kwargs)
-        # Source-version labels are not node-identity proofs. Reject drift
-        # from the *actual* BHSA and cantillation Git revisions reviewed
-        # against upstream sources.json, before claiming a valid overlay.
-        if (
-            case.expected_parent_revision is not None
-            and loaded["source_revision"] != case.expected_parent_revision
-        ):
-            raise RuntimeError(
-                f"{case_name}: source revision {loaded['source_revision']!r} "
-                f"!= reviewed parent {case.expected_parent_revision!r}"
-            )
-        if case.expected_module_revision is not None:
-            modules = loaded.get("modules") or ()
-            if len(modules) != 1 or (
-                modules[0].get("source_revision") != case.expected_module_revision
-            ):
-                raise RuntimeError(
-                    f"{case_name}: module source revision differs from reviewed "
-                    f"{case.expected_module_revision!r}: {modules!r}"
-                )
         logical_name = loaded["logical_name"]
         try:
+            # Source-version labels are not node-identity proofs. Reject drift
+            # from the actual BHSA and cantillation Git revisions reviewed
+            # against upstream sources.json. Even on drift, unload the live
+            # corpus in the finally block (do not retain cache leases).
+            if (
+                case.expected_parent_revision is not None
+                and loaded["source_revision"] != case.expected_parent_revision
+            ):
+                raise RuntimeError(
+                    f"{case_name}: source revision {loaded['source_revision']!r} "
+                    f"!= reviewed parent {case.expected_parent_revision!r}"
+                )
+            if case.expected_module_revision is not None:
+                modules = loaded.get("modules") or ()
+                if len(modules) != 1 or (
+                    modules[0].get("source_revision") != case.expected_module_revision
+                ):
+                    raise RuntimeError(
+                        f"{case_name}: module source revision differs from reviewed "
+                        f"{case.expected_module_revision!r}: {modules!r}"
+                    )
             api = corpus_manager.get_api(logical_name)
             checks = check_semantic_expectations(
                 case_name,
