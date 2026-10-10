@@ -88,7 +88,7 @@ def _fixture(root: Path, *, write_parent_warp=False):
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     binding = host.ParentBinding(
         path=parent, resource_id="cuc", version="0.2.8",
-        source_revision=REV, trusted=True,
+        source_revision=REV, trusted=True, relative_path="tf/0.2.8",
     )
     return source, parent, output, manifest_path, binding
 
@@ -157,6 +157,7 @@ class ParentBoundHostRed3bTests(unittest.TestCase):
                  ("resource_id", "version", "source_revision", "trusted")},
                 dict(resource_id="cuc", version="0.2.8", source_revision=REV, trusted=True),
             )
+            self.assertEqual(provenance["parent"]["relative_path"], "tf/0.2.8")
             self.assertEqual(provenance["output"]["composition"]["parent"], "cuc")
             self.assertEqual((parent / "otype.tf").read_text(), "parent otype.tf")
             self.assertEqual(sandbox.call_args.kwargs["parent"], binding)
