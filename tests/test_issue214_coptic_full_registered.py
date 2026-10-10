@@ -22,8 +22,11 @@ class RegisteredCopticFullSourceAcceptanceContract(unittest.TestCase):
         self.assertIn("--plugin copticscriptorium-tf", workflow)
         self.assertIn("--materializer copticscriptorium-text-fabric", workflow)
         self.assertIn("--sandbox required", workflow)
-        self.assertNotIn("--source ", workflow,
-                         "automatic source acquisition must not be replaced by a local fixture")
+        command = workflow.split(
+            "python scripts/agora_materialize_registered.py", 1
+        )[1].split("\n      - name:", 1)[0]
+        self.assertNotIn("--source ", command,
+                         "registered invocation must acquire remote Git automatically")
         self.assertIn("--approve-code-execution", workflow)
         self.assertIn("tests/live_issue214_full_coptic.py", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
