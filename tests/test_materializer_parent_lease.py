@@ -10,6 +10,9 @@ from contextlib import contextmanager
 import json
 from pathlib import Path
 from types import SimpleNamespace
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -67,6 +70,69 @@ class ManagedParentLeasingRed3c(unittest.TestCase):
         fn = getattr(compose, "materialize_managed_feature_module", None)
         self.assertTrue(callable(fn), "RED3c: missing leased parent orchestration")
         return fn(**kwargs)
+
+    @unittest.skipUnless(shutil.which("git"), "Git is needed for the real snapshot lease test")
+    def test_real_gitstore_snapshot_lease_prevents_eviction_during_registered_run(self):
+        """Use GitStore's actual cache, immutable commit and OS-backed lease."""
+        plugin_src = Path(__file__).resolve().parents[1] / "plugins" / "context-fabric" / "src"
+        if str(plugin_src) not in sys.path:
+            sys.path.insert(0, str(plugin_src))
+        from agora_context_fabric.gitstore import GitStore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source_repo = root / "actual-upstream"
+            source_repo.mkdir()
+            for args in (
+                ["git", "init", "-q", "-b", "main"],
+                ["git", "config", "user.email", "agora-tests@example.invalid"],
+                ["git", "config", "user.name", "Agora Tests"],
+            ):
+                subprocess.run(args, cwd=source_repo, check=True, capture_output=True)
+            dataset = source_repo / "tf" / "0.2.8"
+            dataset.mkdir(parents=True)
+            for name in ("otype.tf", "oslots.tf", "otext.tf"):
+                (dataset / name).write_text("real snapshot " + name, encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=source_repo, check=True)
+            subprocess.run(["git", "commit", "-qm", "fixture"], cwd=source_repo, check=True)
+
+            store = GitStore(root / "real-cache", min_free_bytes=0)
+            repo = store.ensure_metadata(str(source_repo), cache_key="cuc")
+            snapshot = store.materialize(repo, "tf/0.2.8")
+            revision = store.selected_revision(repo)
+
+            fixture_root = root / "fixture"
+            fixture_root.mkdir()
+            manifest, _unused_parent, resolver = _fixtures(fixture_root)
+            resolver.store = store
+            resolver.prepare.return_value = SimpleNamespace(
+                resource_id="cuc", member_id=None, version="0.2.8",
+                source_revision=revision, relative_path="tf/0.2.8", path=snapshot,
+            )
+            publication = root / "published"
+            def converter(**kwargs):
+                self.assertEqual(kwargs["parent"].path, snapshot.resolve())
+                self.assertEqual(kwargs["parent"].source_revision, revision)
+                self.assertEqual(kwargs["sandbox"], "required")
+                result = store.remove_cache_object(snapshot)
+                self.assertEqual(result["removed_entries"], 0)
+                self.assertEqual(result["skipped_in_use"], 1)
+                self.assertTrue(snapshot.exists())
+                return publication
+
+            with (
+                mock.patch.object(registered, "resolve_installed_manifest", return_value=manifest),
+                mock.patch.object(registered, "materialize_registered", side_effect=converter),
+            ):
+                result = self._run(
+                    resolver=resolver, plugin_id="fixture",
+                    materializer_id="produce-burns-module",
+                    source=root / "source", output=publication,
+                )
+            self.assertEqual(result, publication)
+            removed = store.remove_cache_object(snapshot)
+            self.assertEqual(removed["removed_entries"], 1)
+            self.assertFalse(snapshot.exists())
 
     def test_acquires_lease_on_exact_prepared_snapshot_and_keeps_it_for_converter(self):
         with tempfile.TemporaryDirectory() as tmp:
