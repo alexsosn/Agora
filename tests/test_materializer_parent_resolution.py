@@ -97,6 +97,20 @@ class ManagedParentResolutionRed3aTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "snapshot|managed"):
                 self.resolve(spec, resolver)
 
+    def test_symlinked_snapshot_root_cannot_launder_unmanaged_tree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            spec, resolver, _ = fixture(root)
+            snapshot_root = root / "snapshots"
+            uncontrolled = root / "uncontrolled"
+            snapshot_root.rename(uncontrolled)
+            try:
+                snapshot_root.symlink_to(uncontrolled, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest("directory symlinks unavailable in this environment")
+            with self.assertRaisesRegex(ValueError, "symlink|snapshot"):
+                self.resolve(spec, resolver)
+
     def test_identity_mismatch_after_prepare_fails_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             spec, resolver, prepared = fixture(Path(tmp))
