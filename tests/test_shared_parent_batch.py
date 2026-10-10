@@ -342,6 +342,25 @@ class SharedParentBatchRed4a(unittest.TestCase):
             self.assertTrue((composed.path / "make-module-a.tf").is_file())
             self.assertTrue((composed.path / "make-module-b.tf").is_file())
 
+    def test_distinct_modules_cannot_publish_to_same_resolved_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, resolver, plans, resolve, execute = self.fixture(root)
+            plans["module-b"].output = plans["module-a"].output
+            with (
+                mock.patch.object(compose, "_bundled_context_fabric_resolver", return_value=resolver),
+                mock.patch.object(compose, "_candidate_versions_for_request",
+                                  return_value=("cuc", {"0.2.8"})),
+                mock.patch.object(compose, "_plan_requested_feature_module",
+                                  side_effect=lambda **kw: plans[kw["module_id"]]),
+                mock.patch.object(compose, "resolve_managed_parent", side_effect=resolve),
+                mock.patch.object(registered, "materialize_registered", side_effect=execute) as run,
+            ):
+                with self.assertRaisesRegex(ValueError, "duplicate.*destination|same.*output"):
+                    self.fn(self.requests(), cache_dir=root)
+            self.assertEqual(state["prepare"], 0)
+            run.assert_not_called()
+
     def test_batch_has_no_raw_output_parent_or_resolver_injection(self):
         import inspect
         signature = inspect.signature(self.fn)
