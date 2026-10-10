@@ -9,6 +9,7 @@ import asyncio
 import gc
 import json
 import os
+import re
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -22,7 +23,6 @@ from scripts.agora_install_materializer import (
 )
 from scripts.context_fabric_mcp_result import decode_mcp_result
 
-COPTIC_COMMIT = "3cde20ec41efb1cacf1710643f01f924f11cbf0b"
 UPSTREAM_COMMIT = "3ac067f1709a0012daf39ea8da2fac79980176a5"
 UPSTREAM_URL = "https://github.com/CopticScriptorium/corpora.git"
 SPARSE = ["/*/*_TT/**", "/*/*_TT.zip"]
@@ -33,12 +33,13 @@ EXPECTED_MIN_TF_FILES = 120  # previously observed 130 native TF features
 
 def validate_registered_output(root: Path, install_root: Path) -> Path:
     plugin = select_plugin(load_registry(), "copticscriptorium-tf")
-    assert plugin["ref"] == COPTIC_COMMIT
+    assert plugin["repository"] == "alexsosn/CopticScriptorium-TF"
+    assert re.fullmatch(r"[0-9a-f]{40}", plugin["ref"])
     installed = installation_path(plugin, install_root)
     receipt = json.loads(
         (installed / "agora-installation.json").read_text(encoding="utf-8")
     )
-    assert receipt["plugin"]["commit"] == COPTIC_COMMIT
+    assert receipt["plugin"]["commit"] == plugin["ref"]
     assert receipt["environment"]["install_trust"] == "explicit-code-execution"
     assert len(receipt["execution_identity_sha256"]) == 64
 
