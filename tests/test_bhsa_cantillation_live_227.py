@@ -114,6 +114,26 @@ class BhsaCantillationRealSourceRedTests(unittest.TestCase):
         self.assertNotIn("cantillation_system", [x.feature for x in
                           smoke.SEMANTIC_EXPECTATIONS["bhsa"]])
 
+    def test_revision_mismatch_still_unloads_prepared_overlay(self):
+        from scripts import smoke_context_fabric_resources as smoke
+        from agora_context_fabric.service import ContextFabricService
+        from unittest import mock
+        import tempfile
+
+        loaded = {
+            "logical_name": "bhsa@2021+bhsa-cantillation-trees",
+            "source_revision": "a" * 40,
+            "modules": [{"source_revision": "445413fa5267b5c1c637d523f07f8a4cf0b3dded"}],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            with (
+                mock.patch.object(ContextFabricService, "load", return_value=loaded),
+                mock.patch.object(ContextFabricService, "unload") as unload,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "source revision"):
+                    smoke.run_case("bhsa-cantillation", Path(tmp))
+                unload.assert_called_once_with(loaded["logical_name"])
+
     def test_pinned_source_not_incorrectly_promoted_to_verified(self):
         from agora_context_fabric.catalog import Catalog
         catalog = Catalog.from_plugin_root(ROOT / "plugins/context-fabric")
