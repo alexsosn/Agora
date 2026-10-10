@@ -151,6 +151,20 @@ class BhsaCantillationRealSourceRedTests(unittest.TestCase):
             "module source revision",
         )
 
+    def test_documented_optional_load_preserves_version_and_license_boundaries(self):
+        guide = (ROOT / "wiki/guides/plugins/context-fabric.md").read_text(
+            encoding="utf-8"
+        )
+        for fragment in (
+            'prepare_corpus(resource_id="bhsa", version="2021", modules=["bhsa-cantillation-trees"])',
+            'load_corpus(resource_id="bhsa", version="2021", modules=["bhsa-cantillation-trees"]',
+            "CC BY-NC 4.0",
+            "CC BY 4.0",
+            "source_revision",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, guide)
+
     def test_pinned_source_not_incorrectly_promoted_to_verified(self):
         from agora_context_fabric.catalog import Catalog
         catalog = Catalog.from_plugin_root(ROOT / "plugins/context-fabric")
