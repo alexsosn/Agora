@@ -32,10 +32,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     env:
-      COPTIC_INSTALL_ROOT: ${{ runner.temp }}/coptic-full-materializers
-      COPTIC_FULL_OUTPUT: ${{ runner.temp }}/coptic-full-output
       AGORA_CORPUS_MIN_FREE_GB: '0'
     steps:
+      - name: Set runner-scoped scratch paths
+        shell: bash
+        run: |
+          echo "COPTIC_INSTALL_ROOT=$RUNNER_TEMP/coptic-full-materializers" >> "$GITHUB_ENV"
+          echo "COPTIC_FULL_OUTPUT=$RUNNER_TEMP/coptic-full-output" >> "$GITHUB_ENV"
+
       - name: Check out exact Agora head
         uses: actions/checkout@v4
         with:
