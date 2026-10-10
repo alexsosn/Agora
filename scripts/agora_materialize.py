@@ -118,6 +118,7 @@ class ParentBinding:
     version: str | None
     source_revision: str | None
     trusted: bool
+    relative_path: str | None = None
 
 
 @dataclass(frozen=True)
@@ -712,6 +713,9 @@ def _validate_parent_sandbox_binding(
     """A writable staging mount must never expose a supposedly read-only parent."""
     if parent is None:
         return None
+    if not isinstance(parent.relative_path, str) or not parent.relative_path:
+        raise ValueError("trusted parent must have a resolved TF relative_path")
+    _safe_relative(parent.relative_path, where="resolved parent relative_path")
     candidate = Path(parent.path).expanduser()
     if candidate.is_symlink() or not candidate.is_dir():
         raise ValueError("parent sandbox input must be a real directory, not a symlink")
@@ -733,6 +737,7 @@ def _validate_parent_sandbox_binding(
         version=parent.version,
         source_revision=parent.source_revision,
         trusted=parent.trusted,
+        relative_path=parent.relative_path,
     )
 
 
@@ -1228,6 +1233,7 @@ def materialize(
                 "resource_id": parent.resource_id,
                 "version": parent.version,
                 "source_revision": parent.source_revision,
+                "relative_path": parent.relative_path,
                 "trusted": parent.trusted,
             }
         _write_provenance(staging.output / "agora-materialization.json", provenance)
