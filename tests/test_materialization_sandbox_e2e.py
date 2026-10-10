@@ -191,20 +191,20 @@ class RealSandboxMaterializationTests(unittest.TestCase):
             for name in ("otype.tf", "oslots.tf", "otext.tf"):
                 (parent / name).write_text("parent " + name, encoding="utf-8")
             (plugin / "module_probe.py").write_text(
-                "from pathlib import Path\\n"
-                "import sys\\n"
-                "source, parent, output = map(Path, sys.argv[1:4])\\n"
-                "revision, version = sys.argv[4:6]\\n"
-                "assert (source / 'book.xml').read_text() == '<book/>'\\n"
-                "assert (parent / 'otype.tf').read_text() == 'parent otype.tf'\\n"
-                "assert revision == 'a' * 40 and version == '0.2.8'\\n"
-                "try:\\n"
-                "    (parent / 'tampered.tf').write_text('bad')\\n"
-                "except OSError:\\n"
-                "    pass\\n"
-                "else:\\n"
-                "    raise AssertionError('parent became writable')\\n"
-                "(output / 'burns.tf').write_text('a feature')\\n",
+                "from pathlib import Path\n"
+                "import sys\n"
+                "source, parent, output = map(Path, sys.argv[1:4])\n"
+                "revision, version = sys.argv[4:6]\n"
+                "assert (source / 'book.xml').read_text() == '<book/>'\n"
+                "assert (parent / 'otype.tf').read_text() == 'parent otype.tf'\n"
+                "assert revision == 'a' * 40 and version == '0.2.8'\n"
+                "try:\n"
+                "    (parent / 'tampered.tf').write_text('bad')\n"
+                "except OSError:\n"
+                "    pass\n"
+                "else:\n"
+                "    raise AssertionError('parent became writable')\n"
+                "(output / 'burns.tf').write_text('a feature')\n",
                 encoding="utf-8",
             )
             doc = _manifest(
