@@ -190,6 +190,27 @@ class ParentBoundHostRed3bTests(unittest.TestCase):
             self.assertFalse(output.exists())
             self.assertEqual(list(output.parent.glob(".artifact.agora-stage-*")), [])
 
+    def test_feature_module_cannot_publish_symlink_into_parent_tree(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, parent, output, _manifest_path, _binding = _fixture(root)
+            output.mkdir()
+            (output / "burns.tf").write_text("module", encoding="utf-8")
+            try:
+                (output / "link-to-parent").symlink_to(parent, target_is_directory=True)
+            except (OSError, NotImplementedError):
+                self.skipTest("directory symlinks unavailable in this environment")
+            spec = _manifest()["materializers"][0]
+            spec["output"] = {
+                "format": "text-fabric", "required_paths": ["burns.tf"],
+                "composition": {
+                    "kind": "feature-module", "parent": "cuc",
+                    "compatibility": {"parent_versions": ["0.2.8"]},
+                },
+            }
+            with self.assertRaisesRegex(ValueError, "symlink|feature-module"):
+                host.validate_output(output, spec)
+
     def test_single_source_run_does_not_gain_parent_receipt(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
