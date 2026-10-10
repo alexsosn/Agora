@@ -320,6 +320,11 @@ def materialize_requested_feature_module(
         raise ValueError(
             f"parent version {version!r} is incompatible with module {module_id!r}"
         )
+    if PurePosixPath(module.tf_path).name != version:
+        raise ValueError(
+            f"module {module_id!r} TF path {module.tf_path!r} is inconsistent "
+            f"with selected parent version {version!r}"
+        )
     if not isinstance(parent.tf_path, str) or (
         PurePosixPath(parent.tf_path).name != version
     ):
