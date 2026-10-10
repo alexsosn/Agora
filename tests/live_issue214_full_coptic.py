@@ -147,8 +147,17 @@ async def verify_context_fabric(source: Path) -> None:
             await session.initialize()
 
             async def call(tool_name: str, **arguments):
+                # Full-corpus cold CFM compilation of 2.4m slots can exceed the
+                # ordinary five-minute MCP round-trip; bound the server worker
+                # more tightly than the client so timeout errors remain useful.
+                deadline = (
+                    timedelta(minutes=20) if tool_name == "load_corpus"
+                    else timedelta(seconds=300)
+                )
+                print(json.dumps({"stage": "mcp-call", "tool": tool_name}),
+                      flush=True)
                 response = await session.call_tool(
-                    tool_name, arguments, read_timeout_seconds=timedelta(seconds=300)
+                    tool_name, arguments, read_timeout_seconds=deadline
                 )
                 if response.isError:
                     raise RuntimeError(f"{tool_name}: {response.content}")
@@ -172,9 +181,18 @@ async def verify_context_fabric(source: Path) -> None:
                 "prepare_corpus", resource_id=rid, source_mode="offline"
             )
             assert prepared.get("source_revision") == installed.get("source_revision")
+            print(
+                json.dumps(
+                    {"stage": "context-fabric-preflight",
+                     "load_preflight": prepared.get("load_preflight")},
+                    sort_keys=True, default=str,
+                ),
+                flush=True,
+            )
             loaded = await call(
                 "load_corpus", resource_id=rid, source_mode="offline",
                 features=["norm", "lemma", "pos", "source_record_id"],
+                max_compile_minutes=18,
             )
             logical_name = loaded["logical_name"]
             description = await call("describe_corpus", corpus=logical_name)
