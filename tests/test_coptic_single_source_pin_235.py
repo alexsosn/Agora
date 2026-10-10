@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from copy import deepcopy
-import json
 from pathlib import Path
 import re
 import tempfile
@@ -23,6 +22,16 @@ ACTIVE = (
     "tests/test_issue214_coptic_full_registered.py",
     "tests/live_issue214_full_coptic.py",
 )
+# This is a distinct, independently pinned corpus DATA source, not the plugin
+# release SHA; do not accidentally weaken its identity check while removing
+# redundant CopticScriptorium-TF package-release constants.
+IMMUTABLE_COPTIC_TT_SOURCE = "3ac067f1709a0012daf39ea8da2fac79980176a5"
+
+
+def extraneous_release_sha_literals(source: str) -> set[str]:
+    """Reject OLD as well as NEW release literals in active release consumers."""
+    found = set(re.findall(r"(?<![a-f0-9])[a-f0-9]{40}(?![a-f0-9])", source))
+    return found - {IMMUTABLE_COPTIC_TT_SOURCE}
 
 
 class SingleSourceCopticReleasePinRed235(unittest.TestCase):
@@ -37,11 +46,28 @@ class SingleSourceCopticReleasePinRed235(unittest.TestCase):
         self.assertEqual(plugin["repository"], "alexsosn/CopticScriptorium-TF")
         for path in ACTIVE:
             with self.subTest(path=path):
-                self.assertNotIn(
-                    pin,
-                    (ROOT / path).read_text(encoding="utf-8"),
-                    "duplicate live SHA defeats canonical one-pin update",
+                source = (ROOT / path).read_text(encoding="utf-8")
+                self.assertEqual(
+                    set(), extraneous_release_sha_literals(source),
+                    "an old or new hard-coded release SHA defeats canonical pin updates",
                 )
+
+    def test_a_stale_previous_release_sha_would_be_caught_after_registry_update(self):
+        # Earlier version of this test only searched for the CURRENT registry
+        # value. If the registry changed, it missed the stale old value that
+        # actually broke #234's expensive live acceptance.
+        old_literal = "a" * 40
+        snippet = 'assert plugin["ref"] == "' + old_literal + '"'
+        self.assertEqual(
+            {old_literal},
+            extraneous_release_sha_literals(snippet),
+        )
+        self.assertEqual(
+            set(),
+            extraneous_release_sha_literals(
+                'assert source["requested_ref"] == "' + IMMUTABLE_COPTIC_TT_SOURCE + '"'
+            ),
+        )
 
     def test_registry_ref_is_never_mutable_or_short(self):
         for invalid in ("main", "v0.1.0", "a" * 39, "a" * 41, "A" * 40):
