@@ -146,12 +146,12 @@ async def verify_context_fabric(source: Path) -> None:
         async with ClientSession(reader, writer) as session:
             await session.initialize()
 
-            async def call(name: str, **arguments):
+            async def call(tool_name: str, **arguments):
                 response = await session.call_tool(
-                    name, arguments, read_timeout_seconds=timedelta(seconds=300)
+                    tool_name, arguments, read_timeout_seconds=timedelta(seconds=300)
                 )
                 if response.isError:
-                    raise RuntimeError(f"{name}: {response.content}")
+                    raise RuntimeError(f"{tool_name}: {response.content}")
                 if response.structuredContent is not None:
                     content = response.structuredContent
                     return content["result"] if isinstance(content, dict) and set(content) == {"result"} else content
