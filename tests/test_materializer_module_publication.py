@@ -51,6 +51,7 @@ def fixture(root: Path):
         acquisition_strategy="local-module", tf_path="tf/0.2.8",
         parent_versions=("0.2.8",),
         dependencies=({"role": "parent-base", "ref": REVISION},),
+        materializer={"plugin": "fixture", "id": "burns-cuc-module"},
     )
     parent = SimpleNamespace(id="cuc", kind="corpus", ref=REVISION, tf_path="tf/0.2.8")
     catalog = mock.Mock()
@@ -145,6 +146,21 @@ class RegisteredLocalPublicationRed3e(unittest.TestCase):
                                      materializer_id="burns-cuc-module", source=root / "input",
                                      cache_dir=store.cache_dir)
                     run.assert_not_called()
+                self.assertFalse(target.exists())
+
+    def test_missing_or_mismatched_producer_binding_must_never_impersonate_module_id(self):
+        for binding in (
+            None,
+            {},
+            {"plugin": "unrelated", "id": "burns-cuc-module"},
+            {"plugin": "fixture", "id": "unrelated-module"},
+        ):
+            with self.subTest(binding=binding), tempfile.TemporaryDirectory() as tmp:
+                def mutate(module, parent, store):
+                    module.materializer = binding
+                store, target, run, result = self.invoke(Path(tmp), mutate=mutate)
+                self.assertIsInstance(result, ValueError)
+                run.assert_not_called()
                 self.assertFalse(target.exists())
 
     def test_preexisting_even_empty_or_symlink_destination_never_overwritten(self):
