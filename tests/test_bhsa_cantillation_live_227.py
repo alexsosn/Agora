@@ -58,6 +58,47 @@ class BhsaCantillationRealSourceRedTests(unittest.TestCase):
         self.assertIn("github.event.pull_request.head.sha || github.sha", content)
         self.assertIn("Install Context-Fabric runtime", content)
 
+    def test_incompatible_parent_version_and_unknown_module_fail_before_acquisition(self):
+        from agora_context_fabric.catalog import Catalog
+        from agora_context_fabric.resolver import ContextFabricResolver, PreparedCorpus
+        from unittest import mock
+        catalog = Catalog.from_plugin_root(ROOT / "plugins/context-fabric")
+        store = mock.Mock()
+        resolver = ContextFabricResolver(catalog, store)
+        wrong = PreparedCorpus(
+            resource_id="bhsa", member_id=None, logical_name="bhsa@1935",
+            relative_path="tf/1935", path=Path("/unused-parent"),
+            version="1935", source_revision="a" * 40,
+        )
+        with self.assertRaisesRegex(ValueError, "compatible|not compatible"):
+            resolver._prepare_feature_modules(wrong, ["bhsa-cantillation-trees"])
+        store.materialize_feature_module.assert_not_called()
+        store.ensure_metadata.assert_not_called()
+
+        valid = PreparedCorpus(
+            resource_id="bhsa", member_id=None, logical_name="bhsa@2021",
+            relative_path="tf/2021", path=Path("/unused-parent"),
+            version="2021", source_revision="a" * 40,
+        )
+        with self.assertRaises(KeyError):
+            resolver._prepare_feature_modules(valid, ["missing-module"])
+        store.materialize_feature_module.assert_not_called()
+
+    def test_missing_cantillation_feature_is_a_failure_not_a_core_bhsa_failure(self):
+        from scripts import smoke_context_fabric_resources as smoke
+        from types import SimpleNamespace
+
+        api = SimpleNamespace(
+            F=SimpleNamespace(g_cons=SimpleNamespace(v=lambda node: "B"))
+        )
+        with self.assertRaisesRegex(RuntimeError, "cantillation_system"):
+            smoke.check_semantic_expectations(
+                "bhsa-cantillation", api,
+                (smoke.SemanticExpectation("cantillation_system", 1414389, "prose"),),
+            )
+        self.assertNotIn("cantillation_system", [x.feature for x in
+                          smoke.SEMANTIC_EXPECTATIONS["bhsa"]])
+
     def test_pinned_source_not_incorrectly_promoted_to_verified(self):
         from agora_context_fabric.catalog import Catalog
         catalog = Catalog.from_plugin_root(ROOT / "plugins/context-fabric")
