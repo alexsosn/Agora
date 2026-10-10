@@ -56,6 +56,21 @@ def _manifest(ref: str, *, sparse: list[str] | None) -> dict:
     }
 
 
+class LiveSparseAcquisitionWorkflowContract(unittest.TestCase):
+    def test_live_pinned_tt_tree_inventory_probe_is_gated_by_real_github_job(self):
+        workflow = (Path(__file__).resolve().parents[1]
+                    / ".github/workflows/materialization-sparse-coptic.yml")
+        content = workflow.read_text(encoding="utf-8")
+        self.assertIn("3ac067f1709a0012daf39ea8da2fac79980176a5", content)
+        self.assertIn("acquire_git_source", content)
+        self.assertIn("220289125", content)
+        self.assertIn("565", content)
+        self.assertIn("git", content)
+        self.assertIn("ls-tree", content)
+        self.assertIn("prepared.cleanup()", content)
+        self.assertIn("pull_request:", content)
+
+
 class SparseManifestContracts(unittest.TestCase):
     def check(self, doc: dict) -> dict:
         with tempfile.TemporaryDirectory() as directory:
