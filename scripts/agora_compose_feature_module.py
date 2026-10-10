@@ -252,3 +252,145 @@ def materialize_registered_managed_feature_module(
         install_root=install_root,
         registry_path=registry_path,
     )
+
+
+def materialize_requested_feature_module(
+    *,
+    module_id: str,
+    plugin_id: str,
+    materializer_id: str,
+    source: Path | None = None,
+    requested_version: str | None = None,
+    cache_dir: Path | None = None,
+    install_root: Path | None = None,
+    registry_path: Path | None = None,
+) -> Path:
+    """Publish one explicitly selected module into Context-Fabric's local store.
+
+    RED3e: internal service entry point, not an automatically activated CLI or
+    MCP tool. Output is derived exclusively from the installed Context-Fabric
+    catalog and local module store; there is no caller-provided destination,
+    parent path, resolver, or trust bit. Registration and authorization for
+    running third-party code remain the responsibility of the existing
+    registered materializer installer and host.
+    """
+    from scripts import agora_install_materializer as installer
+    from scripts import agora_materialize as host
+    from scripts import agora_materialize_registered as registered
+
+    resolver = _bundled_context_fabric_resolver(cache_dir=cache_dir)
+    module = resolver.catalog.get(module_id)
+    if module.kind != "feature-module":
+        raise ValueError(f"requested {module_id!r} is not a feature module")
+    if module.acquisition_strategy != "local-module":
+        raise ValueError(
+            f"module {module_id!r} is not a local-module and must not be materialized here"
+        )
+    if not isinstance(module.parent, str) or not module.parent:
+        raise ValueError("feature module must declare a parent corpus")
+    if not isinstance(module.tf_path, str) or not module.tf_path:
+        raise ValueError("feature module has no local Text-Fabric target")
+    parent = resolver.catalog.get(module.parent)
+    if parent.kind != "corpus":
+        raise ValueError(f"feature module parent {module.parent!r} is not a corpus")
+    versions = tuple(module.parent_versions)
+    if not versions:
+        raise ValueError("feature module declares no compatible parent versions")
+    if requested_version is None:
+        if len(versions) != 1:
+            raise ValueError("select a parent version explicitly for multi-version modules")
+        version = versions[0]
+    else:
+        version = requested_version
+    if version not in versions:
+        raise ValueError(
+            f"parent version {version!r} is incompatible with module {module_id!r}"
+        )
+    if not isinstance(parent.tf_path, str) or (
+        PurePosixPath(parent.tf_path).name != version
+    ):
+        raise ValueError("catalog parent default TF path differs from chosen version")
+
+    # Version compatibility alone never proves the node identity: a materialized
+    # weft is valid only against the actual pinned parent source tree.
+    if (
+        not isinstance(parent.ref, str)
+        or not _COMMIT_RE.fullmatch(parent.ref)
+    ):
+        raise ValueError("parent corpus has no pinned immutable source revision")
+    pinned = tuple(
+        dependency.get("ref")
+        for dependency in module.dependencies
+        if dependency.get("role") == "parent-base"
+    )
+    if not pinned or any(
+        not isinstance(revision, str)
+        or revision.casefold() != parent.ref.casefold()
+        for revision in pinned
+    ):
+        raise ValueError("feature module parent-base revision differs from catalog parent")
+
+    # Check the *actual installed* producer declaration rather than trusting an
+    # arbitrary caller-supplied plugin/materializer pair for this module ID.
+    manifest_path = registered.resolve_installed_manifest(
+        plugin_id, install_root=install_root, registry_path=registry_path
+    )
+    manifest = host.load_manifest(manifest_path)
+    spec = host.select_materializer(manifest, materializer_id)
+    parent_input = spec.get("parent_input")
+    composition = spec["output"].get("composition")
+    if (
+        not isinstance(parent_input, dict)
+        or parent_input["resource"] != module.parent
+        or version not in parent_input["parent_versions"]
+        or not isinstance(composition, dict)
+        or composition.get("kind") != "feature-module"
+        or composition.get("parent") != module.parent
+        or version not in composition["compatibility"]["parent_versions"]
+    ):
+        raise ValueError(
+            f"installed materializer {materializer_id!r} is not compatible with "
+            f"requested feature module {module_id!r} on {module.parent}@{version}"
+        )
+
+    store = resolver.store
+    output = store.local_feature_module_path(module.id, module.tf_path)
+    # All paths are computed from the catalog; re-check every component in the
+    # local module cache instead of resolving a symlinked alias out of the cache.
+    root = store.cache_dir
+    try:
+        parts = output.relative_to(root).parts
+    except ValueError as exc:
+        raise ValueError("local module destination escapes Context-Fabric cache") from exc
+    current = root
+    for part in parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError(f"local module publication path is symlinked: {current}")
+
+    # Different registered producers could otherwise race for the same module
+    # destination. Hold this per-module persistent lock through the runtime and
+    # final host atomic publication; never overwrite even an *empty* directory.
+    lock_path = store.locks_dir / (
+        f"materialized-module-{store.safe_cache_key(module.id)}.lock"
+    )
+    with installer._lock(lock_path):
+        for part in parts:
+            current = root / Path(*parts[: parts.index(part) + 1])
+            if current.is_symlink():
+                raise ValueError(f"local module publication path is symlinked: {current}")
+        if output.exists() or output.is_symlink():
+            raise ValueError(
+                f"feature module {module_id!r} is already published at {output}; "
+                "refusing to overwrite or reuse it implicitly"
+            )
+        return materialize_managed_feature_module(
+            resolver=resolver,
+            plugin_id=plugin_id,
+            materializer_id=materializer_id,
+            source=source,
+            output=output,
+            requested_version=version,
+            install_root=install_root,
+            registry_path=registry_path,
+        )
