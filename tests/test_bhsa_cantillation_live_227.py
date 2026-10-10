@@ -3,12 +3,16 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+import sys
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE_PATH = ROOT / "scripts/smoke_context_fabric_resources.py"
 WORKFLOW = ROOT / ".github/workflows/context-fabric-load-smoke.yml"
+CF_SRC = ROOT / "plugins/context-fabric/src"
+if str(CF_SRC) not in sys.path:
+    sys.path.insert(0, str(CF_SRC))
 
 
 class BhsaCantillationRealSourceRedTests(unittest.TestCase):
