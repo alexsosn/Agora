@@ -429,7 +429,22 @@ def _run_git(
         else:
             subprocess.run(command, check=True, env=env, timeout=GIT_TIMEOUT_SECONDS)
         return None
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
+    except subprocess.TimeoutExpired as exc:
+        raise AcquisitionError(
+            f"Git acquisition timed out after {GIT_TIMEOUT_SECONDS} seconds"
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        # Keep diagnostic signal (notably fatal: early EOF) without dumping a
+        # multi-megabyte or attacker-controlled stderr message into receipts.
+        raw = exc.stderr or ""
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8", errors="replace")
+        detail = raw[-800:].strip()
+        suffix = f"; remote stderr tail: {detail!r}" if detail else ""
+        raise AcquisitionError(
+            f"Git acquisition failed (exit {exc.returncode}){suffix}"
+        ) from exc
+    except OSError as exc:
         raise AcquisitionError(f"Git acquisition failed: {exc}") from exc
 
 
