@@ -88,6 +88,8 @@ class SharedParentBatchRed4a(unittest.TestCase):
             state, resolver, plans, resolve, execute = self.fixture(root)
             with (
                 mock.patch.object(compose, "_bundled_context_fabric_resolver", return_value=resolver),
+                mock.patch.object(compose, "_candidate_versions_for_request",
+                                  return_value=("cuc", {"0.2.8"})),
                 mock.patch.object(compose, "_plan_requested_feature_module",
                                   side_effect=lambda **kw: plans[kw["module_id"]]),
                 mock.patch.object(compose, "resolve_managed_parent", side_effect=resolve),
@@ -112,6 +114,8 @@ class SharedParentBatchRed4a(unittest.TestCase):
                 return plans[kw["module_id"]]
             with (
                 mock.patch.object(compose, "_bundled_context_fabric_resolver", return_value=resolver),
+                mock.patch.object(compose, "_candidate_versions_for_request",
+                                  return_value=("cuc", {"0.2.8"})),
                 mock.patch.object(compose, "_plan_requested_feature_module", side_effect=plan),
                 mock.patch.object(compose, "resolve_managed_parent", side_effect=resolve),
                 mock.patch.object(registered, "materialize_registered", side_effect=execute),
@@ -143,6 +147,8 @@ class SharedParentBatchRed4a(unittest.TestCase):
                 return execute(**kw)
             with (
                 mock.patch.object(compose, "_bundled_context_fabric_resolver", return_value=resolver),
+                mock.patch.object(compose, "_candidate_versions_for_request",
+                                  return_value=("cuc", {"0.2.8"})),
                 mock.patch.object(compose, "_plan_requested_feature_module",
                                   side_effect=lambda **kw: plans[kw["module_id"]]),
                 mock.patch.object(compose, "resolve_managed_parent", side_effect=resolve),
@@ -156,6 +162,77 @@ class SharedParentBatchRed4a(unittest.TestCase):
             self.assertEqual(err.failed_module_id, "module-b")
             self.assertEqual(err.published, {"module-a": plans["module-a"].output})
             self.assertFalse(state["leased"])
+
+    def test_unique_common_version_is_selected_across_individually_ambiguous_modules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, resolver, plans, resolve, execute = self.fixture(root)
+            def candidates(_resolver, entry, *, install_root=None, registry_path=None):
+                return (
+                    "cuc",
+                    {"0.2.7", "0.2.8"} if entry["module_id"] == "module-a"
+                    else {"0.2.8"},
+                )
+            def plan(**kw):
+                self.assertEqual(kw["requested_version"], "0.2.8")
+                return plans[kw["module_id"]]
+            with (
+                mock.patch.object(compose, "_bundled_context_fabric_resolver", return_value=resolver),
+                mock.patch.object(compose, "_candidate_versions_for_request", side_effect=candidates),
+                mock.patch.object(compose, "_plan_requested_feature_module", side_effect=plan),
+                mock.patch.object(compose, "resolve_managed_parent", side_effect=resolve),
+                mock.patch.object(registered, "materialize_registered", side_effect=execute),
+                mock.patch("scripts.agora_install_materializer._lock"),
+            ):
+                result = self.fn(self.requests(), cache_dir=root)
+            self.assertEqual(len(result), 2)
+            self.assertEqual(state["prepare"], 1)
+            self.assertEqual(state["lease"], 1)
+
+    def test_disjoint_parent_version_sets_fail_before_plan_or_acquisition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, resolver, plans, resolve, execute = self.fixture(root)
+            with (
+                mock.patch.object(compose, "_bundled_context_fabric_resolver", return_value=resolver),
+                mock.patch.object(compose, "_candidate_versions_for_request",
+                                  side_effect=[("cuc", {"0.2.7"}), ("cuc", {"0.2.8"})]),
+                mock.patch.object(compose, "_plan_requested_feature_module") as plan,
+                mock.patch.object(compose, "resolve_managed_parent", side_effect=resolve),
+                mock.patch.object(registered, "materialize_registered", side_effect=execute),
+            ):
+                with self.assertRaisesRegex(ValueError, "common|incompatible|version"):
+                    self.fn(self.requests(), cache_dir=root)
+                plan.assert_not_called()
+            self.assertEqual(state["prepare"], 0)
+            self.assertEqual(state["execution"], [])
+
+    def test_second_parent_prepare_failure_has_no_partial_publication(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state, resolver, plans, resolve, execute = self.fixture(root)
+            plans["module-b"].parent_id = "bhsa"
+            plans["module-b"].version = "2021"
+            plans["module-b"].parent_revision = "b" * 40
+            def resolution(spec, fake, *, requested_version):
+                if requested_version == "2021":
+                    raise ValueError("second parent snapshot unavailable")
+                return resolve(spec, fake, requested_version)
+            with (
+                mock.patch.object(compose, "_bundled_context_fabric_resolver", return_value=resolver),
+                mock.patch.object(compose, "_candidate_versions_for_request",
+                                  side_effect=[("cuc", {"0.2.8"}), ("bhsa", {"2021"})]),
+                mock.patch.object(compose, "_plan_requested_feature_module",
+                                  side_effect=lambda **kw: plans[kw["module_id"]]),
+                mock.patch.object(compose, "resolve_managed_parent", side_effect=resolution),
+                mock.patch.object(registered, "materialize_registered", side_effect=execute) as run,
+                mock.patch("scripts.agora_install_materializer._lock"),
+            ):
+                with self.assertRaisesRegex(ValueError, "second parent"):
+                    self.fn(self.requests(), cache_dir=root)
+            run.assert_not_called()
+            self.assertEqual(state["execution"], [])
+            self.assertEqual(state["lease"], 1)
 
     def test_batch_has_no_raw_output_parent_or_resolver_injection(self):
         import inspect
