@@ -629,6 +629,13 @@ def materialize_requested_feature_modules(
         )
         for entry, parent_id in zip(requests, candidate_parents)
     )
+    # Filesystem identity, not just logical resource ID, defines publication.
+    # Even distinct catalog names must not alias one output (e.g. on platforms
+    # with case-insensitive paths or future path-normalization policies).
+    destinations = [str(plan.output).casefold() for plan in plans]
+    if len(set(destinations)) != len(destinations):
+        raise ValueError("duplicate canonical local-module publication destination")
+
     groups: dict[tuple[str, str, str], list[ModulePublicationPlan]] = {}
     parents: dict[str, tuple[str, str]] = {}
     for plan in plans:
