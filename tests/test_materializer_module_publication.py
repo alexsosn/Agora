@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 from types import SimpleNamespace
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -105,6 +107,81 @@ class RegisteredLocalPublicationRed3e(unittest.TestCase):
             self.assertTrue((snap / "burns_headword_1.tf").is_file())
             self.assertFalse((snap / "otype.tf").exists())
             self.assertFalse((snap / "oslots.tf").exists())
+
+    @unittest.skipUnless(shutil.which("git"), "requires Git for real snapshot composition")
+    def test_published_local_module_prepares_with_real_parent_without_replacing_warp(self):
+        from agora_context_fabric.catalog import Catalog, ResourceSpec
+        from agora_context_fabric.resolver import ContextFabricResolver
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            parent_source = root / "actual-cuc-fixture"
+            parent_source.mkdir()
+            for args in (
+                ["git", "init", "-q"],
+                ["git", "config", "user.email", "test@example.invalid"],
+                ["git", "config", "user.name", "Agora Test"],
+            ):
+                subprocess.run(args, cwd=parent_source, check=True, capture_output=True)
+            base = parent_source / "tf" / "0.2.8"
+            base.mkdir(parents=True)
+            warp = {
+                "otype.tf": "@node\\n@valueType=str\\n\\n1-3\\tword\\n4\\ttablet\\n",
+                "oslots.tf": "@edge\\n@valueType=str\\n\\n4\\t1-3\\n",
+                "otext.tf": "@config\\n@sectionFeatures=tablet\\n",
+            }
+            for filename, content in warp.items():
+                (base / filename).write_text(content, encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=parent_source, check=True)
+            subprocess.run(["git", "commit", "-qm", "immutable parent fixture"],
+                           cwd=parent_source, check=True)
+            revision = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=parent_source, text=True
+            ).strip()
+
+            def fake_producer(**kwargs):
+                target = kwargs["output"]
+                target.mkdir(parents=True)
+                (target / "burns_headword_1.tf").write_text(
+                    "@node\\n@valueType=str\\n\\n1\\tkt\\n", encoding="utf-8",
+                )
+                return target
+
+            store, target, _, result = self.invoke(root, producer=fake_producer)
+            self.assertEqual(result, target)
+            corpus = ResourceSpec(
+                id="cuc", name="CUC fixture", plugin="context-fabric",
+                provider="context-fabric", kind="corpus",
+                repository=str(parent_source), languages=("ugaritic",),
+                disciplines=("semitic-linguistics",), ref=revision,
+                tf_path="tf/0.2.8",
+            )
+            module = ResourceSpec(
+                id="cuc-burns", name="Burns fixture", plugin="context-fabric",
+                provider="context-fabric", kind="feature-module",
+                repository="upstream/module", languages=("ugaritic",),
+                disciplines=("semitic-linguistics",), parent="cuc",
+                parent_versions=("0.2.8",), tf_path="tf/0.2.8",
+                module_path="example/cuc-burns/tf",
+                acquisition_strategy="local-module",
+                dependencies=({"role": "parent-base", "ref": revision},),
+            )
+            resolver = ContextFabricResolver(Catalog((corpus, module)), store)
+            prepared = resolver.prepare_with_modules(
+                "cuc", version="0.2.8", modules=["cuc-burns"],
+            )
+            self.assertEqual(len(prepared.modules), 1)
+            self.assertEqual(prepared.logical_name, "cuc@0.2.8+cuc-burns")
+            self.assertTrue((prepared.path / "burns_headword_1.tf").is_file())
+            self.assertEqual(
+                (prepared.path / "otype.tf").read_text(encoding="utf-8"),
+                warp["otype.tf"],
+            )
+            self.assertFalse((prepared.modules[0].path / "otype.tf").exists())
+            self.assertEqual(
+                (prepared.modules[0].path / "burns_headword_1.tf").read_text(encoding="utf-8"),
+                (target / "burns_headword_1.tf").read_text(encoding="utf-8"),
+            )
 
     def test_bad_catalog_and_producer_mappings_fail_before_execution(self):
         cases = [
