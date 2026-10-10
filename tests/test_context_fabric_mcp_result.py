@@ -20,6 +20,19 @@ class McpStructuredResultDecoderRedTests(unittest.TestCase):
         from scripts import context_fabric_mcp_result as decoder
         return decoder.decode_mcp_result(result, tool_name="list_available_corpora")
 
+    def test_repaired_direct_local_import_smoke_is_executed_in_ci(self):
+        from pathlib import Path
+
+        workflow = (
+            Path(__file__).resolve().parents[1]
+            / ".github/workflows/context-fabric-local-import-smoke.yml"
+        )
+        self.assertTrue(workflow.is_file(), "RED: missing real stdio local-import CI")
+        text = workflow.read_text(encoding="utf-8")
+        self.assertIn("python scripts/smoke_context_fabric_local_import.py", text)
+        self.assertIn("pip install -e plugins/context-fabric", text)
+        self.assertIn("contents: read", text)
+
     def test_wrapped_list_is_unwrapped_to_iterable_of_dicts(self):
         items = [{"id": "cuc"}, {"id": "bhsa"}]
         self.assertEqual(self.decode(payload(structured={"result": items})), items)
