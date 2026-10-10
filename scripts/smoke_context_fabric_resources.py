@@ -30,6 +30,7 @@ class LoadCase:
     expected_upstream_error_type: str | None = None
     expected_upstream_error_text: str | None = None
     modules: tuple[str, ...] = ()
+    version: str | None = None
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,13 @@ LOAD_CASES = {
     # a registry verification check (checks describe resources and collection
     # members only), so it never promotes module evidence.
     "bhsa-phono": LoadCase("bhsa", ("g_cons", "phono"), modules=("bhsa-phono",)),
+    # Canonical optional module: same BHSA 2021 word/verse node identities,
+    # not a new standalone corpus or another parent copy.
+    "bhsa-cantillation": LoadCase(
+        "bhsa", ("g_cons", "cantillation_system", "cantillation_depth",
+                 "cantillation_alignment"),
+        modules=("bhsa-cantillation-trees",), version="2021",
+    ),
 }
 
 POSITIVE_CLAIMS = frozenset({"materialization", "load", "representative-content"})
@@ -96,6 +104,13 @@ SEMANTIC_EXPECTATIONS = {
         SemanticExpectation("g_cons", 1, "B"),
         SemanticExpectation("phono", 1, "bᵊ"),
         SemanticExpectation("phono", 2, "rēšˌîṯ"),
+    ),
+    "bhsa-cantillation": (
+        SemanticExpectation("g_cons", 1, "B"),
+        SemanticExpectation("g_cons", 2, "R>CJT"),
+        SemanticExpectation("cantillation_system", 1414389, "prose"),
+        SemanticExpectation("cantillation_depth", 1414389, "2"),
+        SemanticExpectation("cantillation_alignment", 1414389, "exact"),
     ),
 }
 
@@ -562,6 +577,8 @@ def run_case(
         }
         if case.modules:
             load_kwargs["modules"] = list(case.modules)
+        if case.version is not None:
+            load_kwargs["version"] = case.version
         loaded = service.load(case.resource_id, **load_kwargs)
         logical_name = loaded["logical_name"]
         try:
