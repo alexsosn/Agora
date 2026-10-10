@@ -239,6 +239,26 @@ def _validate_manifest_semantics(doc: dict[str, Any]) -> None:
                     strategy["subpath"],
                     where=f"materializers[{index}].acquisition[{ai}].subpath",
                 )
+                sparse_patterns = strategy.get("sparse_patterns")
+                if sparse_patterns is not None:
+                    if not re.fullmatch(r"[0-9a-f]{40}", strategy["ref"]):
+                        raise ManifestError(
+                            f"materializers[{index}].acquisition[{ai}].ref must be an "
+                            "immutable full 40-character lowercase commit for sparse acquisition"
+                        )
+                    for pattern in sparse_patterns:
+                        parts = pattern[1:].split("/")
+                        if (
+                            not pattern.startswith("/")
+                            or len(parts) < 2
+                            or any(not part or part.startswith(".") for part in parts)
+                            or any("**" in part for part in parts[:-1])
+                            or ("**" in parts[-1] and parts[-1] != "**")
+                        ):
+                            raise ManifestError(
+                                f"materializers[{index}].acquisition[{ai}].sparse_patterns "
+                                f"contains unsafe/non-anchored pattern {pattern!r}"
+                            )
 
             if strategy_type == "http-archive":
                 parsed = urlparse(strategy["url"])
@@ -386,7 +406,10 @@ def prepare_user_source(path: Path, materializer: dict[str, Any]) -> PreparedSou
     return PreparedSource(path=resolved, provenance=provenance)
 
 
-def _run_git(command: list[str], *, env: dict[str, str], capture: bool = False) -> str | None:
+def _run_git(
+    command: list[str], *, env: dict[str, str], capture: bool = False,
+    require_filter_support: bool = False,
+) -> str | None:
     try:
         if capture:
             return subprocess.check_output(
@@ -395,9 +418,34 @@ def _run_git(command: list[str], *, env: dict[str, str], capture: bool = False) 
                 text=True,
                 timeout=GIT_TIMEOUT_SECONDS,
             ).strip()
-        subprocess.run(command, check=True, env=env, timeout=GIT_TIMEOUT_SECONDS)
+        if require_filter_support:
+            result = subprocess.run(
+                command, check=True, env=env, text=True,
+                capture_output=True, timeout=GIT_TIMEOUT_SECONDS,
+            )
+            if "filtering not recognized by server" in result.stderr.lower():
+                raise AcquisitionError(
+                    "Git remote does not support blob filtering; refusing unbounded full fetch"
+                )
+        else:
+            subprocess.run(command, check=True, env=env, timeout=GIT_TIMEOUT_SECONDS)
         return None
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
+    except subprocess.TimeoutExpired as exc:
+        raise AcquisitionError(
+            f"Git acquisition timed out after {GIT_TIMEOUT_SECONDS} seconds"
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        # Keep diagnostic signal (notably fatal: early EOF) without dumping a
+        # multi-megabyte or attacker-controlled stderr message into receipts.
+        raw = exc.stderr or ""
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8", errors="replace")
+        detail = raw[-800:].strip()
+        suffix = f"; remote stderr tail: {detail!r}" if detail else ""
+        raise AcquisitionError(
+            f"Git acquisition failed (exit {exc.returncode}){suffix}"
+        ) from exc
+    except OSError as exc:
         raise AcquisitionError(f"Git acquisition failed: {exc}") from exc
 
 
@@ -414,30 +462,62 @@ def acquire_git_source(strategy: dict[str, Any], materializer: dict[str, Any]) -
     try:
         _run_git([git, "init", "--quiet", str(repo)], env=env)
         _run_git([git, "-C", str(repo), "remote", "add", "origin", strategy["url"]], env=env)
-        _run_git(
-            [git, "-C", str(repo), "fetch", "--quiet", "--depth", "1", "origin", strategy["ref"]],
-            env=env,
-        )
+        sparse_patterns = strategy.get("sparse_patterns")
+        if sparse_patterns is not None:
+            # Pin source identity and avoid downloading non-TT corpus formats.
+            # The checkout is deliberately *after* sparse selection: even one
+            # early full checkout would hydrate all blobs and defeat the filter.
+            _run_git([git, "-C", str(repo), "config", "remote.origin.promisor", "true"], env=env)
+            _run_git(
+                [git, "-C", str(repo), "config", "remote.origin.partialclonefilter", "blob:none"],
+                env=env,
+            )
+            _run_git(
+                [git, "-C", str(repo), "fetch", "--quiet", "--depth", "1",
+                 "--filter=blob:none", "origin", strategy["ref"]],
+                env=env, require_filter_support=True,
+            )
+            _run_git(
+                [git, "-C", str(repo), "sparse-checkout", "set", "--no-cone",
+                 "--", *sparse_patterns],
+                env=env,
+            )
+        else:
+            # Preserve the historic full-source contract for existing plugins.
+            _run_git(
+                [git, "-C", str(repo), "fetch", "--quiet", "--depth", "1",
+                 "origin", strategy["ref"]],
+                env=env,
+            )
         _run_git([git, "-C", str(repo), "checkout", "--quiet", "--detach", "FETCH_HEAD"], env=env)
         revision = _run_git([git, "-C", str(repo), "rev-parse", "HEAD"], env=env, capture=True)
         assert revision is not None
+        if sparse_patterns is not None and revision != strategy["ref"]:
+            raise AcquisitionError(
+                f"Git sparse acquisition commit mismatch: requested {strategy['ref']} "
+                f"but checkout resolved {revision}"
+            )
 
         repo_root = repo.resolve()
         source = (repo / strategy["subpath"]).resolve()
         if repo_root not in source.parents and source != repo_root:
             raise ValueError("Git acquisition subpath escaped the repository")
-        _validate_source(source, materializer)
-        return PreparedSource(
-            path=source,
-            provenance={
-                "type": "git",
-                "url": strategy["url"],
-                "requested_ref": strategy["ref"],
-                "resolved_commit": revision,
-                "subpath": strategy["subpath"],
-            },
-            cleanup_root=root,
-        )
+        try:
+            _validate_source(source, materializer)
+        except ValueError as exc:
+            if sparse_patterns is not None:
+                raise AcquisitionError(f"Git sparse input contract failed: {exc}") from exc
+            raise
+        provenance: dict[str, Any] = {
+            "type": "git",
+            "url": strategy["url"],
+            "requested_ref": strategy["ref"],
+            "resolved_commit": revision,
+            "subpath": strategy["subpath"],
+        }
+        if sparse_patterns is not None:
+            provenance["sparse_patterns"] = list(sparse_patterns)
+        return PreparedSource(path=source, provenance=provenance, cleanup_root=root)
     except Exception:
         shutil.rmtree(root, ignore_errors=True)
         raise

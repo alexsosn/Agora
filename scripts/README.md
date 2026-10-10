@@ -152,6 +152,23 @@ Supplying `--manifest` is an explicit **materializer execution** trust decision.
 
 The host acquires a declared public Git source or accepts `--source /path/to/local/files`, validates the input contract, runs the materializer without a shell, requires an OS sandbox by default, validates the declared output, records immutable source/code provenance, and atomically publishes the finished artifact.
 
+
+For a large upstream Git repository, a materializer can **opt in** to sparse,
+partial-clone acquisition. Its Git strategy may declare root-anchored,
+non-cone `sparse_patterns`; for example a TT-only converter can use
+`["/*/*_TT/**", "/*/*_TT.zip"]`. In this mode Agora requires a full immutable
+40-hex Git commit, asks Git to fetch trees without blobs, selects sparse paths
+**before checkout**, rejects Git remotes that report unsupported filtering,
+checks the resolved HEAD against the pin, and includes `sparse_patterns` in
+source provenance. Required input globs merely ensure an input shape exists:
+they do **not** establish the complete scholarly data inventory. No
+`sparse_patterns` means the original full Git checkout. A manual `--source`
+override bypasses all Git acquisition. See
+[Agora #205](https://github.com/alexsosn/Agora/issues/205) for live full-corpus
+acceptance and resource/time limits; declaration alone does not verify an
+end-to-end real-source acquisition.
+
+
 Agora does not yet automatically bind a resource to an approved materializer or automatically register/load the produced TF artifact in Context-Fabric/cfabric-mcp. Registry-ID execution removes manual runtime-path plumbing; resource selection, durable artifact caching, and consumer hand-off remain a separate composition problem.
 
 For a managed environment, its `runtime/` directory intentionally has no top-level `src/`; the existing materialization host therefore hashes the complete managed runtime tree as `plugin.code_sha256`. The same tree hash is recorded in `agora-installation.json`, binding artifact code provenance to the installed package/dependency contents rather than only to the upstream `src/` tree.
