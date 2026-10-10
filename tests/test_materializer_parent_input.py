@@ -313,16 +313,11 @@ class ParentInputSemanticsTests(unittest.TestCase):
 
 
 class ParentInputExecutionTests(unittest.TestCase):
-    """A declared parent input must be refused before any side effect.
+    """An unbound declared parent must fail before acquisition or output mutation.
 
-    `_render_args` substitutes only `{source}`, `{output}` and
-    `{source_revision}`. Until the mounting cycle lands, a manifest declaring a
-    parent therefore validated, installed, acquired its source and created a
-    staging directory, and only then died on the leftover `{parent}` -- telling
-    the user their placeholder was invalid moments after validation accepted it.
-
-    The manifest contract itself stays valid and declarable: this is a limit of
-    this host, not of the manifest, so it is reported as one.
+    The host now supports a programmatically supplied, explicitly validated
+    parent binding. Declaring parent_input alone does not authorize mounting
+    any arbitrary user path and must remain a side-effect-free failure.
     """
 
     def _manifest_file(self, document: dict, directory: Path) -> Path:
@@ -349,7 +344,7 @@ class ParentInputExecutionTests(unittest.TestCase):
                     sandbox="off",
                 )
             message = str(caught.exception)
-            self.assertIn("cannot yet bind a parent input", message)
+            self.assertIn("no parent binding was supplied", message)
             self.assertIn("example-module", message)
             acquire_source.assert_not_called()
             self.assertFalse(output.exists())

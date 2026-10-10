@@ -176,6 +176,86 @@ class RealSandboxMaterializationTests(unittest.TestCase):
             self.assertEqual((parent / "otype.tf").read_text(), "parent")
             self.assertFalse((parent / "tampered.tf").exists())
 
+    def test_parent_bound_host_runs_feature_module_and_records_real_identity(self):
+        _require_sandbox()
+
+        from scripts import agora_materialize as host
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plugin, source, parent = root / "plugin", root / "source", root / "parent"
+            output = root / "published" / "module"
+            for directory in (plugin, source, parent, output.parent):
+                directory.mkdir(parents=True)
+            (source / "book.xml").write_text("<book/>", encoding="utf-8")
+            for name in ("otype.tf", "oslots.tf", "otext.tf"):
+                (parent / name).write_text("parent " + name, encoding="utf-8")
+            (plugin / "module_probe.py").write_text(
+                "from pathlib import Path\n"
+                "import sys\n"
+                "source, parent, output = map(Path, sys.argv[1:4])\n"
+                "revision, version = sys.argv[4:6]\n"
+                "assert (source / 'book.xml').read_text() == '<book/>'\n"
+                "assert (parent / 'otype.tf').read_text() == 'parent otype.tf'\n"
+                "assert revision == 'a' * 40 and version == '0.2.8'\n"
+                "try:\n"
+                "    (parent / 'tampered.tf').write_text('bad')\n"
+                "except OSError:\n"
+                "    pass\n"
+                "else:\n"
+                "    raise AssertionError('parent became writable')\n"
+                "(output / 'burns.tf').write_text('a feature')\n",
+                encoding="utf-8",
+            )
+            doc = _manifest(
+                "module_probe",
+                ["{source}", "{parent}", "{output}", "{parent_revision}", "{parent_version}"],
+                ["burns.tf"],
+            )
+            materializer = doc["materializers"][0]
+            materializer["parent_input"] = {
+                "resource": "cuc",
+                "parent_versions": ["0.2.8"],
+                "required_paths": ["otype.tf", "oslots.tf", "otext.tf"],
+            }
+            materializer["output"]["composition"] = {
+                "kind": "feature-module",
+                "parent": "cuc",
+                "compatibility": {"parent_versions": ["0.2.8"]},
+            }
+            manifest = plugin / "agora.materializer.json"
+            manifest.write_text(json.dumps(doc), encoding="utf-8")
+            binding = host.ParentBinding(
+                path=parent, resource_id="cuc", version="0.2.8",
+                source_revision="a" * 40, trusted=True,
+                relative_path="tf/0.2.8",
+            )
+            host.materialize(
+                manifest_path=manifest,
+                materializer_id="fixture",
+                source=source,
+                output=output,
+                sandbox="required",
+                parent=binding,
+            )
+            self.assertEqual((output / "burns.tf").read_text(), "a feature")
+            self.assertFalse((output / "otype.tf").exists())
+            self.assertFalse((parent / "tampered.tf").exists())
+            self.assertEqual((parent / "otype.tf").read_text(), "parent otype.tf")
+            provenance = json.loads((output / "agora-materialization.json").read_text())
+            self.assertEqual(provenance["parent"], {
+                "resource_id": "cuc",
+                "version": "0.2.8",
+                "source_revision": "a" * 40,
+                "relative_path": "tf/0.2.8",
+                "trusted": True,
+            })
+            self.assertEqual(provenance["output"]["composition"]["parent"], "cuc")
+            self.assertEqual(
+                provenance["sandbox"],
+                "bubblewrap" if platform.system() == "Linux" else "sandbox-exec",
+            )
+
     def test_real_sandbox_denies_network(self):
         _require_sandbox()
 

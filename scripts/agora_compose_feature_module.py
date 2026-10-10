@@ -119,4 +119,5 @@ def resolve_managed_parent(
         version=version,
         source_revision=revision,
         trusted=True,
+        relative_path=prepared.relative_path,
     )
