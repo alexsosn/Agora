@@ -123,6 +123,29 @@ class RegisteredLocalPublicationRed3e(unittest.TestCase):
                 materializer.assert_not_called()
                 self.assertFalse(target.exists())
 
+    def test_local_module_tf_target_version_must_match_selected_parent_version(self):
+        # A module advertised for CUC 0.2.8 must not silently publish into
+        # the 0.2.7 local module slot, which Context-Fabric cannot compose.
+        for invalid_path in ("tf/0.2.7", "tf/0.2.8/old", "unversioned"):
+            with self.subTest(invalid_path=invalid_path), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                store, resolver, module, parent, manifest, target = fixture(root)
+                module.tf_path = invalid_path
+                with (
+                    mock.patch.object(compose, "_bundled_context_fabric_resolver", return_value=resolver),
+                    mock.patch.object(registered, "resolve_installed_manifest", return_value=manifest),
+                    mock.patch.object(compose, "materialize_managed_feature_module") as run,
+                ):
+                    with self.assertRaisesRegex(ValueError, "module.*TF path|version"):
+                        self.publish(
+                            module_id="cuc-burns", plugin_id="fixture",
+                            materializer_id="burns-cuc-module", source=root / "input",
+                            cache_dir=store.cache_dir,
+                        )
+                    registered.resolve_installed_manifest.assert_not_called()
+                    run.assert_not_called()
+                self.assertFalse(target.exists())
+
     def test_producer_mismatched_parent_or_output_kind_fails_before_execution(self):
         for field, replace in (
             ("parent resource", lambda x: x["parent_input"].update(resource="bhsa")),
