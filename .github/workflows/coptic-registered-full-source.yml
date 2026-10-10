@@ -1,0 +1,133 @@
+name: Full registered Coptic pinned TT materialization
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/coptic-registered-full-source.yml'
+      - 'tests/live_issue214_full_coptic.py'
+      - 'tests/test_issue214_coptic_full_registered.py'
+      - 'research/issue-214/**'
+      - 'registry/materializers.yaml'
+      - 'scripts/agora_materialize.py'
+      - 'scripts/agora_materialize_registered.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/coptic-registered-full-source.yml'
+      - 'tests/live_issue214_full_coptic.py'
+      - 'tests/test_issue214_coptic_full_registered.py'
+      - 'registry/materializers.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  full-registered-source-to-context-fabric:
+    name: Complete pinned Git TT → network-denied TF → Context-Fabric
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      AGORA_CORPUS_MIN_FREE_GB: '0'
+    steps:
+      - name: Set runner-scoped scratch paths
+        shell: bash
+        run: |
+          echo "COPTIC_INSTALL_ROOT=$RUNNER_TEMP/coptic-full-materializers" >> "$GITHUB_ENV"
+          echo "COPTIC_FULL_OUTPUT=$RUNNER_TEMP/coptic-full-output" >> "$GITHUB_ENV"
+
+      - name: Check out exact Agora head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify immutable tested Agora head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install registry validation and Context-Fabric dependencies
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e ./plugins/context-fabric
+          # The Coptic acceptance verifier imports tf.fabric directly; the
+          # Context-Fabric MCP dependency does not install Text-Fabric.
+          python -m pip install "text-fabric==13.1.0"
+          python -c 'from tf.fabric import Fabric; print("Text-Fabric acceptance preflight OK")'
+          python scripts/validate_registry.py
+          python -m unittest tests.test_issue214_coptic_full_registered -v
+
+      - name: Verify canonical Coptic plugin pin and upstream source contract
+        run: |
+          python - <<'PY'
+          from scripts.agora_install_materializer import load_registry, select_plugin
+          plugin = select_plugin(load_registry(), "copticscriptorium-tf")
+          assert plugin["ref"] == "60fec735dd6ef9aefe2cfb9e6459e9f7f15924e7"
+          assert plugin["package"]["install_trust"] == "explicit-code-execution"
+          assert plugin["materializers"] == ["copticscriptorium-text-fabric"]
+          PY
+
+      - name: Passively fetch and explicitly install immutable Coptic release
+        run: |
+          python scripts/agora_install_materializer.py fetch copticscriptorium-tf \
+            --root "$COPTIC_INSTALL_ROOT"
+          python scripts/agora_install_materializer.py install copticscriptorium-tf \
+            --approve-code-execution \
+            --root "$COPTIC_INSTALL_ROOT"
+
+      - name: Install Linux network-denial sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap
+          if [[ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --unshare-all --ro-bind / / /bin/true
+
+      - name: Check available scratch capacity
+        run: |
+          df -h "$RUNNER_TEMP"
+          du -sh "$COPTIC_INSTALL_ROOT" || true
+
+      - name: Full registered automatic pinned Git acquisition and TF conversion
+        timeout-minutes: 60
+        run: |
+          # No --source override: the *installed canonical* manifest must
+          # acquire every pinned TT dataset using production sparse Git.
+          /usr/bin/time -v -o "$RUNNER_TEMP/coptic-full-time.txt" \
+            python scripts/agora_materialize_registered.py \
+              --plugin copticscriptorium-tf \
+              --materializer copticscriptorium-text-fabric \
+              --output "$COPTIC_FULL_OUTPUT" \
+              --install-root "$COPTIC_INSTALL_ROOT" \
+              --sandbox required
+
+      - name: Validate real Git provenance, complete native TF and Context-Fabric
+        timeout-minutes: 30
+        run: python -m tests.live_issue214_full_coptic
+
+      - name: Show bounded source/conversion resource measurements
+        if: always()
+        run: |
+          df -h "$RUNNER_TEMP"
+          test ! -f "$RUNNER_TEMP/coptic-full-time.txt" || cat "$RUNNER_TEMP/coptic-full-time.txt"
+          test ! -d "$COPTIC_FULL_OUTPUT" || du -sh "$COPTIC_FULL_OUTPUT"
+          test ! -d "$COPTIC_INSTALL_ROOT" || du -sh "$COPTIC_INSTALL_ROOT"
+
+      - name: Retain operational timing only, not the redistributable corpus
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coptic-registered-full-source-timing
+          path: ${{ runner.temp }}/coptic-full-time.txt
+          if-no-files-found: warn
