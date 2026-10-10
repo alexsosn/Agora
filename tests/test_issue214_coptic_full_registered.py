@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/coptic-registered-full-source.yml"
 ACCEPTANCE = ROOT / "tests/live_issue214_full_coptic.py"
-COPTIC_COMMIT = "60fec735dd6ef9aefe2cfb9e6459e9f7f15924e7"
+COPTIC_COMMIT = "3cde20ec41efb1cacf1710643f01f924f11cbf0b"
 UPSTREAM_COMMIT = "3ac067f1709a0012daf39ea8da2fac79980176a5"
 
 
@@ -28,6 +28,7 @@ class RegisteredCopticFullSourceAcceptanceContract(unittest.TestCase):
         self.assertNotIn("--source ", command,
                          "registered invocation must acquire remote Git automatically")
         self.assertIn("--approve-code-execution", workflow)
+        self.assertIn('assert plugin["ref"] == "3cde20ec41efb1cacf1710643f01f924f11cbf0b"', workflow)
         self.assertIn("tests/live_issue214_full_coptic.py", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
         self.assertIn("/usr/bin/time -v", workflow)
