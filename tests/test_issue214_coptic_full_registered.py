@@ -11,7 +11,6 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/coptic-registered-full-source.yml"
 ACCEPTANCE = ROOT / "tests/live_issue214_full_coptic.py"
-COPTIC_COMMIT = "3cde20ec41efb1cacf1710643f01f924f11cbf0b"
 UPSTREAM_COMMIT = "3ac067f1709a0012daf39ea8da2fac79980176a5"
 
 
@@ -28,7 +27,8 @@ class RegisteredCopticFullSourceAcceptanceContract(unittest.TestCase):
         self.assertNotIn("--source ", command,
                          "registered invocation must acquire remote Git automatically")
         self.assertIn("--approve-code-execution", workflow)
-        self.assertIn('assert plugin["ref"] == "3cde20ec41efb1cacf1710643f01f924f11cbf0b"', workflow)
+        self.assertIn('assert plugin["repository"] == "alexsosn/CopticScriptorium-TF"', workflow)
+        self.assertIn('re.fullmatch(r"[0-9a-f]{40}", plugin["ref"])', workflow)
         self.assertIn("tests/live_issue214_full_coptic.py", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
         self.assertIn("/usr/bin/time -v", workflow)
@@ -80,8 +80,8 @@ class RegisteredCopticFullSourceAcceptanceContract(unittest.TestCase):
 
     def test_verifier_asserts_real_provenance_complete_native_tf_and_cfabric(self):
         source = ACCEPTANCE.read_text(encoding="utf-8")
+        self.assertIn('receipt["plugin"]["commit"] == plugin["ref"]', source)
         for marker in (
-            COPTIC_COMMIT,
             UPSTREAM_COMMIT,
             '"git"',
             '"sparse_patterns"',
