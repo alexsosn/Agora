@@ -279,7 +279,16 @@
             "properties": {
               "strategy": {"type": "string"},
               "lazy": {"type": "boolean"},
-              "notes": {"type": "string"}
+              "notes": {"type": "string"},
+              "materializer": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["plugin", "id"],
+                "properties": {
+                  "plugin": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+                  "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"}
+                }
+              }
             }
           },
           "collection": {
