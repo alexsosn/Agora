@@ -37,6 +37,7 @@ class RegisteredCopticFullSourceAcceptanceContract(unittest.TestCase):
     def test_full_source_runner_preflights_pinned_tf_before_expensive_acquisition(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("text-fabric==13.1.0", workflow)
+        self.assertIn("python -m tests.live_issue214_full_coptic", workflow)
         self.assertIn("from tf.fabric import Fabric", workflow)
         self.assertLess(
             workflow.index("text-fabric==13.1.0"),
