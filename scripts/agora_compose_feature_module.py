@@ -175,3 +175,80 @@ def materialize_managed_feature_module(
             registry_path=registry_path,
             parent=binding,
         )
+
+
+
+def _bundled_context_fabric_resolver(
+    *, cache_dir: Path | None = None,
+) -> Any:
+    """Build Context-Fabric from Agora's own bundled, pinned resource catalog.
+
+    The caller may choose a cache *location* but not supply a catalog, resolver,
+    parent corpus directory or trusted marker. This deliberately differs from
+    the injected-resolver unit testing seam above.
+    """
+    import sys
+
+    source_dir = (
+        Path(__file__).resolve().parents[1] / "plugins" / "context-fabric" / "src"
+    ).resolve(strict=True)
+    plugin_root = source_dir.parent
+    if not (plugin_root / "resources" / "catalog.yaml").is_file():
+        raise RuntimeError("Agora bundled Context-Fabric catalog is unavailable")
+    if str(source_dir) not in sys.path:
+        sys.path.insert(0, str(source_dir))
+
+    from agora_context_fabric import catalog as catalog_module
+    from agora_context_fabric import gitstore as store_module
+    from agora_context_fabric import resolver as resolver_module
+    from agora_context_fabric import server as server_module
+
+    # A different Context-Fabric installation may already be in sys.modules
+    # when Agora is imported from an editable clone. Do not silently let it
+    # redefine the "trusted" bundled resource/corpus identity.
+    for module in (
+        catalog_module, store_module, resolver_module, server_module,
+    ):
+        file_path = Path(module.__file__).resolve(strict=True)
+        if not file_path.is_relative_to(source_dir):
+            raise RuntimeError(
+                "Context-Fabric module was imported from outside the Agora bundle"
+            )
+
+    selected_cache = (
+        Path(cache_dir) if cache_dir is not None else server_module.DEFAULT_CACHE_DIR
+    )
+    catalog = catalog_module.Catalog.from_plugin_root(plugin_root)
+    store = store_module.GitStore(selected_cache)
+    return resolver_module.ContextFabricResolver(catalog, store)
+
+
+def materialize_registered_managed_feature_module(
+    *,
+    plugin_id: str,
+    materializer_id: str,
+    output: Path,
+    source: Path | None = None,
+    requested_version: str | None = None,
+    cache_dir: Path | None = None,
+    install_root: Path | None = None,
+    registry_path: Path | None = None,
+) -> Path:
+    """Use Agora's bundled corpus catalog for a registered feature module.
+
+    Internal integration entrypoint, not yet a public CLI/MCP tool. Its caller
+    cannot provide a resolver, arbitrary parent path, resource catalog or
+    `trusted` boolean. The lower-level helper keeps the parent cache leased
+    throughout the verified registered materializer's sandboxed execution.
+    """
+    resolver = _bundled_context_fabric_resolver(cache_dir=cache_dir)
+    return materialize_managed_feature_module(
+        resolver=resolver,
+        plugin_id=plugin_id,
+        materializer_id=materializer_id,
+        source=source,
+        output=output,
+        requested_version=requested_version,
+        install_root=install_root,
+        registry_path=registry_path,
+    )
