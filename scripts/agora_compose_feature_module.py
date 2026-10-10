@@ -375,8 +375,9 @@ def materialize_requested_feature_module(
         f"materialized-module-{store.safe_cache_key(module.id)}.lock"
     )
     with installer._lock(lock_path):
+        current = root
         for part in parts:
-            current = root / Path(*parts[: parts.index(part) + 1])
+            current = current / part
             if current.is_symlink():
                 raise ValueError(f"local module publication path is symlinked: {current}")
         if output.exists() or output.is_symlink():
