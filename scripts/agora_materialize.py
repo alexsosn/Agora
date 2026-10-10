@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import stat
 import subprocess
@@ -1021,6 +1022,15 @@ def validate_output(path: Path, materializer: dict[str, Any]) -> None:
             raise ValueError(f"declared output path escaped output root: {relative}")
         if not candidate.exists():
             raise ValueError(f"materializer did not produce required output path: {relative}")
+    composition = materializer["output"].get("composition")
+    if composition is not None and composition["kind"] == "feature-module":
+        # A feature module is a set of features on the parent's existing nodes.
+        # Warp files would silently turn this into a second, unrelated corpus.
+        for candidate in root.rglob("*"):
+            if candidate.name in {"otype.tf", "oslots.tf", "otext.tf"}:
+                raise ValueError(
+                    f"feature-module output cannot contain parent warp file {candidate.name!r}"
+                )
 
 
 def _runtime_environment(*, plugin_root: Path, work_dir: Path) -> dict[str, str]:
@@ -1060,6 +1070,66 @@ def _write_provenance(path: Path, data: dict[str, Any]) -> None:
         stream.write("\n")
 
 
+def _validate_execution_parent(
+    materializer: dict[str, Any],
+    parent: ParentBinding | None,
+    *,
+    output: Path,
+) -> None:
+    """Fail closed on a mismatched/unresolved parent before acquisition.
+
+    Only the explicit programmatic binding path may authorize execution in
+    RED3b. Constructing the binding from managed Context-Fabric resolution and
+    holding its lease are the orchestrator's subsequent responsibilities.
+    """
+    declared = materializer.get("parent_input")
+    if declared is None:
+        if parent is not None:
+            raise ValueError("materializer has no parent_input but a parent binding was supplied")
+        return
+    if parent is None:
+        raise ManifestError(
+            f"materializer {materializer['id']!r} declares parent_input but no parent binding "
+            "was supplied; no source was acquired"
+        )
+    if not parent.trusted or not parent.resource_id:
+        raise ValueError("parent input must be a resolved trusted resource, not an arbitrary path")
+    if parent.resource_id != declared["resource"]:
+        raise ValueError(
+            f"resolved parent resource {parent.resource_id!r} differs from "
+            f"declared parent resource {declared['resource']!r}"
+        )
+    if parent.version not in declared["parent_versions"]:
+        raise ValueError(
+            f"resolved parent version {parent.version!r} is not compatible with "
+            f"declared versions {declared['parent_versions']!r}"
+        )
+    if not isinstance(parent.source_revision, str) or not re.fullmatch(
+        r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})", parent.source_revision
+    ):
+        raise ValueError("trusted parent must have an immutable source revision")
+    candidate = Path(parent.path).expanduser()
+    if candidate.is_symlink() or not candidate.is_dir():
+        raise ValueError("trusted parent must be a real directory, not a symlink")
+    resolved = candidate.resolve(strict=True)
+    writable_parent = Path(output).expanduser().parent.resolve()
+    if (
+        resolved == writable_parent
+        or resolved in writable_parent.parents
+        or writable_parent in resolved.parents
+    ):
+        raise ValueError("parent snapshot overlaps the writable output directory")
+    for raw in declared["required_paths"]:
+        parts = PurePosixPath(_safe_relative(raw, where="parent_input.required_paths")).parts
+        required = resolved
+        for part in parts:
+            required = required / part
+            if required.is_symlink():
+                raise ValueError(f"parent required path is a symlink: {raw}")
+        if not required.is_file():
+            raise ValueError(f"parent is missing required Text-Fabric file: {raw}")
+
+
 def materialize(
     *,
     manifest_path: Path,
@@ -1067,24 +1137,18 @@ def materialize(
     output: Path,
     source: Path | None = None,
     sandbox: str = "required",
+    parent: ParentBinding | None = None,
 ) -> Path:
     manifest_path = Path(manifest_path).resolve()
     manifest = load_manifest(manifest_path)
     spec = select_materializer(manifest, materializer_id)
     plugin_root = manifest_path.parent
 
-    # Fail before acquisition/network side effects when the destination or sandbox is
-    # unusable, or when the manifest declares an input this host cannot bind.
-    if spec.get("parent_input") is not None:
-        # The manifest is valid; this host is the limitation, so say so. Without
-        # this the run acquires its source and creates staging before
-        # `_render_args` dies on the unsubstituted `{parent}`, reporting a valid
-        # placeholder as invalid.
-        raise ManifestError(
-            f"this Agora cannot yet bind a parent input, and materializer "
-            f"{spec['id']!r} declares one: the manifest contract is validated but "
-            "parent mounting is not implemented. Nothing was acquired."
-        )
+    # All parent-contract failures must precede acquisition, network effects
+    # and staging/output mutation. Caller trust is not inferred from the path.
+    _validate_execution_parent(spec, parent, output=Path(output))
+    if parent is not None and sandbox != "required":
+        raise ValueError("parent-bound materialization requires a read-only OS sandbox")
     final_output = _preflight_output(output)
     preflight_backend, _ = _sandbox_backend_preflight(sandbox)
     code_sha256 = _materializer_code_digest(plugin_root)
@@ -1110,6 +1174,7 @@ def materialize(
                 module=execution["module"],
                 args=execution["args"],
                 source_revision=source_revision,
+                parent=parent,
             )
         else:
             command = [
@@ -1154,6 +1219,13 @@ def materialize(
             "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
+        if parent is not None:
+            provenance["parent"] = {
+                "resource_id": parent.resource_id,
+                "version": parent.version,
+                "source_revision": parent.source_revision,
+                "trusted": parent.trusted,
+            }
         _write_provenance(staging.output / "agora-materialization.json", provenance)
 
         os.replace(staging.output, final_output)
