@@ -1027,6 +1027,10 @@ def validate_output(path: Path, materializer: dict[str, Any]) -> None:
         # A feature module is a set of features on the parent's existing nodes.
         # Warp files would silently turn this into a second, unrelated corpus.
         for candidate in root.rglob("*"):
+            if candidate.is_symlink():
+                raise ValueError(
+                    f"feature-module output must not contain a symlink: {candidate}"
+                )
             if candidate.name in {"otype.tf", "oslots.tf", "otext.tf"}:
                 raise ValueError(
                     f"feature-module output cannot contain parent warp file {candidate.name!r}"
