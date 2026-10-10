@@ -27,6 +27,7 @@ class ResourceSpec:
     ref: str | None = None
     tf_path: str | None = None
     acquisition_strategy: str = "repository"
+    materializer: dict[str, str] | None = None
     parent: str | None = None
     parent_versions: tuple[str, ...] = ()
     module_path: str | None = None
@@ -117,6 +118,11 @@ class Catalog:
                     ref=upstream.get("ref"),
                     tf_path=upstream.get("tf_path"),
                     acquisition_strategy=acquisition.get("strategy", "repository"),
+                    materializer=(
+                        dict(acquisition["materializer"])
+                        if isinstance(acquisition.get("materializer"), dict)
+                        else None
+                    ),
                     parent=item.get("parent"),
                     parent_versions=tuple(str(value) for value in compatibility.get("parent_versions", [])),
                     module_path=upstream.get("module"),
