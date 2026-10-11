@@ -1,7 +1,7 @@
 schema_version: 1
 plugins:
   - id: cuc-burns
-    name: CTC-TF (Burns contextual feature module for CUC)
+    name: Burns contextual feature module for reviewed CUC
     description: Produce a user-local Burns cultic-vocabulary Text-Fabric feature module over existing reviewed CUC 0.2.8 word nodes without duplicating the parent warp.
     repository: alexsosn/CTC-TF
     ref: f58b162197ad8f113b7cd6fc0088ae5dd39a096d
