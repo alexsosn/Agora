@@ -205,6 +205,15 @@ class ReleaseSnapshots:
         control.remaining_acquisition_seconds()
         with self.store.cache_transition():
             path = self._verify_locked(identity, operation=control)
+            # Source .tf hashes/receipt were authenticated above. CFM 0.5.x
+            # may publish empty node features in meta.json without arrays.
+            # Complete only provably empty derived arrays under a per-resource
+            # process lock; never write or reinterpret source feature bytes.
+            from .cfm_compat import complete_empty_compiled_features
+            with self.store._repository_lock("cfm-empty-" + identity["resource_id"]):
+                complete_empty_compiled_features(
+                    path, min_free_bytes=self.store.min_free_bytes,
+                )
         return self._prepared(identity, path)
 
     def install(

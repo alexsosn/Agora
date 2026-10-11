@@ -1,0 +1,68 @@
+name: Pseudepigrapha registered native release corpus consumer
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pseudepigrapha-registered-corpus.yml'
+      - 'registry/resources.yaml'
+      - 'plugins/context-fabric/resources/catalog.yaml'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_archive.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_download.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_snapshots.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/catalog.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/resolver.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/service_source_modes.py'
+      - 'scripts/smoke_pseudepigrapha_release_226.py'
+      - 'tests/test_pseudepigrapha_registration_226.py'
+      - 'tests/test_cfm_empty_feature_263.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/cfm_compat.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pseudepigrapha-registered-corpus.yml'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_snapshots.py'
+      - 'scripts/smoke_pseudepigrapha_release_226.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pinned-native-release:
+    name: Verify released OCP source, apparatus, generated translations and offline restart
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact commit without stored credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Attest exact GitHub head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Context-Fabric and validation dependencies
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e plugins/context-fabric
+          python -m pip install "text-fabric==13.1.0"
+
+      - name: Validate corpus registry, immutable pin and no-network cold policy
+        run: |
+          python -m unittest discover -s tests -p 'test_pseudepigrapha_registration_226.py' -v
+          python -m unittest discover -s tests -p 'test_cfm_empty_feature_263.py' -v
+
+      - name: Fetch real SHA256-pinned v1.0.0 native corpus and test source apparatus translation and offline reload
+        run: python scripts/smoke_pseudepigrapha_release_226.py

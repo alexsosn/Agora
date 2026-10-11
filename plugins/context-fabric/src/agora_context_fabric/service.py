@@ -524,7 +524,26 @@ class ContextFabricService:
                     features=features,
                 )
             except Exception:
+                # Failed load may leave a previously loaded corpus intact.
+                # Do not unload it simply because a replacement failed.
                 new_lease.release()
+                raise
+
+            try:
+                # Context-Fabric 0.5.x's CFM fast path omits C.sections on
+                # selective loads. Restore its in-memory navigation index
+                # before exposing the replacement corpus and its lease.
+                from .cfm_compat import restore_compiled_section_index
+                restore_compiled_section_index(self.loader, logical_name)
+            except Exception:
+                try:
+                    self.loader.unload(logical_name)
+                finally:
+                    with self._loaded_names_lock:
+                        self._loaded_leases.pop(logical_name, None)
+                    if previous_lease is not None:
+                        previous_lease.release()
+                    new_lease.release()
                 raise
 
             with self._loaded_names_lock:
