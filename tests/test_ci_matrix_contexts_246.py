@@ -22,7 +22,7 @@ class MatrixCheckIdentity246(unittest.TestCase):
         for job in ("context-fabric-cache-lifecycle", "materializer-install-locks"):
             with self.subTest(job=job):
                 match = re.search(
-                    rf"(?ms)^  {re.escape(job)}:\n(.*?)(?=^  [a-z][a-z-]*:\n|\\Z)",
+                    rf"(?ms)^  {re.escape(job)}:\n(.*?)(?=^  [a-z][a-z-]*:\n|\Z)",
                     source,
                 )
                 self.assertIsNotNone(match, "OS matrix job is missing")
