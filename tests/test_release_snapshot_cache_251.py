@@ -217,6 +217,11 @@ class PinnedReleaseSnapshot251Tests(unittest.TestCase):
         compiled = prepared.path / ".tf"
         compiled.mkdir()
         (compiled / "compiled-metadata.bin").write_bytes(b"TF-owned derived cache")
+        # Real ORACC native Context-Fabric load creates .cfm/ (not merely .tf/).
+        # This must remain offline-reopenable without relaxing source .tf checks.
+        cfm = prepared.path / ".cfm"
+        cfm.mkdir()
+        (cfm / "compiled-indices.bin").write_bytes(b"Context-Fabric derived cache")
         reopened = self.prepare()
         self.assertEqual(prepared.path, reopened.path)
         self.assertEqual(self.identity["asset_sha256"], reopened.source_revision)
@@ -226,6 +231,11 @@ class PinnedReleaseSnapshot251Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "integrity|symlink"):
             self.prepare()
         compiled.unlink()
+        cfm.rename(self.root / "saved-cfm")
+        cfm.symlink_to(self.root / "saved-cfm", target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "integrity|symlink|unsafe"):
+            self.prepare()
+        cfm.unlink()
         (prepared.path / "unrelated-directory").mkdir()
         with self.assertRaisesRegex(ValueError, "integrity|unexpected"):
             self.prepare()
