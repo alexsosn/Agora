@@ -58,6 +58,14 @@ For corpus-specific interpretation and reproducibility, use the [scholarly guida
 
 ## Research tutorials / recipes
 
+Start after installation with a bounded walkthrough:
+
+- [Context-Fabric / BHSA](first-success/context-fabric.md)
+- [Perseus / Iliad](first-success/perseus.md)
+- [Sefaria / Genesis](first-success/sefaria.md)
+- [SEDRA / Syriac lexicon](first-success/sedra.md)
+
+
 The current [example prompts](../../README.md#example-prompts) are starting points, not full step-by-step tutorials. They show the intended level of research request while preserving source-specific caveats such as schema inspection and ambiguity handling.
 
 For Context-Fabric, the [cache and cold-load guide](context-fabric-cache.md) also documents the recommended `describe → prepare → load` workflow for unfamiliar or expensive corpora. More complete first-success walkthroughs can be added without changing the installation or compatibility contracts.

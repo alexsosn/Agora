@@ -35,7 +35,7 @@ Install `sefaria@agora` through a supported Agora host. Follow the [short instal
 
 > Retrieve Genesis 1:1 in Hebrew and English and show linked classical commentaries for the verse.
 
-This is a bounded starting request, not a full tutorial. The first-success tutorial workstream can expand it without changing this page's capability contract.
+Follow the [first-success walkthrough](../first-success/sefaria.md) for a short post-installation workflow, expected success signal, and interpretation limits.
 
 ## Typical research tasks
 
