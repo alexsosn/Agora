@@ -731,6 +731,8 @@ def main(argv: list[str] | None = None) -> int:
     Raw parent paths, arbitrary executable producers, injected resolvers, and
     code-execution approval are deliberately NOT command-line options.
     """
+    from scripts.agora_install_materializer import MaterializerInstallError
+
     parser = _cli_parser()
     args = parser.parse_args(argv)
     source = args.source.expanduser()
@@ -766,7 +768,7 @@ def main(argv: list[str] | None = None) -> int:
             cache_dir=args.cache_dir,
             install_root=args.install_root,
         )
-    except (ValueError, KeyError, FileNotFoundError) as exc:
+    except (ValueError, KeyError, FileNotFoundError, MaterializerInstallError) as exc:
         parser.error(str(exc))
     print(result)
     return 0
