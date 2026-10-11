@@ -96,6 +96,21 @@ class EmptyCFMFeature263Tests(unittest.TestCase):
         self.snapshots.prepare(**self.identity)
         self.assertIsNone(StringPool.load(str(features / "heading@en")).get(1))
 
+    @unittest.skipUnless(HAS_CFABRIC, "requires Context-Fabric runtime; exercised in native release consumer CI")
+    def test_verified_cached_reinstall_also_repairs_valid_empty_compiled_features(self):
+        # Resolver source_mode=require-fresh always calls install(), even for
+        # a managed snapshot whose verified source bytes are unchanged.
+        # Reinstall must not bypass the same sealed-source CFM compatibility
+        # repair used by offline prepare().
+        from cfabric.storage.string_pool import StringPool
+
+        features = self._compiled(nodes=["prefix_utf8"])
+        self.assertFalse((features / "prefix_utf8_strings.npy").exists())
+        result = self.snapshots.install(self.archive, **self.identity)
+        self.assertEqual(result.path, self.prepared.path)
+        self.assertIsNone(StringPool.load(str(features / "prefix_utf8")).get(1))
+        self.assertEqual((result.path / "prefix_utf8.tf").read_bytes(), FEATURES["prefix_utf8.tf"])
+
     def test_missing_binary_for_nonempty_source_fails_closed(self):
         self._compiled(nodes=["nonempty"])
         with self.assertRaisesRegex(ValueError, "nonempty|empty|integrity"):
