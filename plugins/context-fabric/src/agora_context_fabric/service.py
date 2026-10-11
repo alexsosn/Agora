@@ -136,7 +136,6 @@ class ContextFabricService:
             ),
             "acquisition": {
                 "strategy": resource.acquisition_strategy,
-                **({"release": dict(resource.release)} if resource.release else {}),
                 **({"release": copy.deepcopy(resource.release)} if resource.release else {}),
             },
             "default_version": default_version,
@@ -165,7 +164,6 @@ class ContextFabricService:
                 **({"release": copy.deepcopy(resource.release)} if resource.release else {}),
                 "module": resource.module_path,
                 "dependencies": [dict(value) for value in resource.dependencies],
-                "release": dict(resource.release) if resource.release else None,
             },
         }
 
