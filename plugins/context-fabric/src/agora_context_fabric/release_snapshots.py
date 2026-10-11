@@ -120,7 +120,21 @@ class ReleaseSnapshots:
             raise ValueError("release receipt integrity mismatch")
         files = LocalImports._files(destination, "corpus")
         expected = set(manifest) | {_RECEIPT}
-        if {p.name for p in destination.iterdir()} != expected:
+        actual = {p.name for p in destination.iterdir()}
+        # Native Text-Fabric compiles under .tf/; Context-Fabric also
+        # materializes its own derived indexes under .cfm/ during a real load.
+        # ORACC's published large corpus confirmed .cfm/ is created on first
+        # load even though a minimal Pseudepigrapha fixture only made .tf/.
+        # Neither directory is a source feature or part of the signed receipt.
+        # Permit only these *directories*, never root symlinks, arbitrary
+        # new files/directories, or modified/additional original .tf features.
+        for name in (".tf", ".cfm"):
+            if name in actual:
+                compiled = destination / name
+                if compiled.is_symlink() or not compiled.is_dir():
+                    raise ValueError("release payload integrity mismatch: unsafe compiled cache")
+                actual.remove(name)
+        if actual != expected:
             raise ValueError("release payload integrity mismatch: unexpected cache files")
         if set(manifest) != {path.name for path in files}:
             raise ValueError("release payload integrity mismatch")

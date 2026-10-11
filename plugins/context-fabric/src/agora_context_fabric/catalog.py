@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Iterator
@@ -27,6 +28,7 @@ class ResourceSpec:
     ref: str | None = None
     tf_path: str | None = None
     acquisition_strategy: str = "repository"
+    release_archive: dict[str, Any] | None = None
     materializer: dict[str, str] | None = None
     parent: str | None = None
     parent_versions: tuple[str, ...] = ()
@@ -94,10 +96,47 @@ class Catalog:
                     member_index_path = base_dir / member_index_reference
             acquisition = item.get("acquisition") or {}
             strategy = acquisition.get("strategy", "repository")
-            if strategy not in {"repository", "collection", "local-module"}:
+            if strategy not in {"repository", "collection", "local-module", "github-release-archive"}:
                 raise ValueError(
                     f"Context-Fabric resource {item.get('id')!r} has unsupported "
                     f"acquisition strategy {strategy!r}"
+                )
+            archive = acquisition.get("archive")
+            if strategy == "github-release-archive":
+                if item.get("kind") != "corpus" or not isinstance(archive, dict):
+                    raise ValueError(
+                        f"Context-Fabric resource {item.get('id')!r} requires a typed corpus release archive"
+                    )
+                expected = {
+                    "release_tag", "asset_name", "sha256", "compressed_bytes", "version"
+                }
+                if set(archive) != expected:
+                    raise ValueError(
+                        f"Context-Fabric resource {item.get('id')!r} has incomplete or unsupported release archive metadata"
+                    )
+                # Validate raw canonical declarations even if the caller bypasses JSON schema.
+                from .release_download import _url
+                try:
+                    _url(repository=repository, release_tag=archive["release_tag"],
+                         asset_name=archive["asset_name"])
+                except (TypeError, ValueError) as exc:
+                    raise ValueError("invalid pinned release archive repository, tag or asset") from exc
+                if (not isinstance(archive["sha256"], str)
+                        or not re.fullmatch(r"[0-9a-f]{64}", archive["sha256"])
+                        or not isinstance(archive["compressed_bytes"], int)
+                        or isinstance(archive["compressed_bytes"], bool)
+                        or not 0 < archive["compressed_bytes"] <= 512 * 1024 * 1024
+                        or not isinstance(archive["version"], str)
+                        or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,99}", archive["version"])
+                        or ".." in archive["version"]):
+                    raise ValueError(
+                        f"Context-Fabric resource {item.get('id')!r} has invalid pinned release archive metadata"
+                    )
+                if upstream.get("tf_path") not in (None, "tf/" + archive["version"]):
+                    raise ValueError("release archive TF version/path identity mismatch")
+            elif archive is not None:
+                raise ValueError(
+                    f"Context-Fabric resource {item.get('id')!r} cannot attach an archive to strategy {strategy!r}"
                 )
             compatibility = item.get("compatibility") or {}
             module = item.get("module") or {}
@@ -124,6 +163,7 @@ class Catalog:
                     ref=upstream.get("ref"),
                     tf_path=upstream.get("tf_path"),
                     acquisition_strategy=strategy,
+                    release_archive=copy.deepcopy(archive) if archive is not None else None,
                     materializer=(
                         dict(acquisition["materializer"])
                         if isinstance(acquisition.get("materializer"), dict)

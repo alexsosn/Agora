@@ -58,9 +58,19 @@ class AcquisitionStrategyValidation252Tests(unittest.TestCase):
                     mutated["resources"][0]["acquisition"]["strategy"] = value
                     errors = list(self.validator.iter_errors(mutated))
                     self.assertTrue(errors, "unknown strategy must fail schema validation")
-                    self.assertTrue(
-                        any("strategy" in str(e.path) for e in errors), errors
-                    )
+                    if value == "github-release-archive":
+                        # Typed release strategy exists, but is invalid without
+                        # the complete digest-pinned acquisition.archive object.
+                        self.assertTrue(
+                            any(
+                                e.validator == "required" and "archive" in e.message
+                                for e in errors
+                            ), errors
+                        )
+                    else:
+                        self.assertTrue(
+                            any("strategy" in str(e.path) for e in errors), errors
+                        )
 
     def test_runtime_catalog_rejects_explicit_unknown_strategy_before_discovery(self):
         for doc in (self.resources, self.modules):
@@ -69,14 +79,14 @@ class AcquisitionStrategyValidation252Tests(unittest.TestCase):
                     mutated = copy.deepcopy(doc["resources"][0])
                     mutated["acquisition"]["strategy"] = value
                     with self.assertRaisesRegex(
-                        ValueError, "unsupported acquisition strategy"
+                        ValueError, "unsupported acquisition strategy|requires a typed corpus release archive"
                     ):
                         Catalog._resources_from_document({"resources": [mutated]})
 
     def test_schema_enumeration_matches_runtime_known_values(self):
         acquisition = self.schema["properties"]["resources"]["items"]["properties"]["acquisition"]
         enum = acquisition["properties"]["strategy"]["enum"]
-        self.assertEqual({"repository", "collection", "local-module"}, set(enum))
+        self.assertEqual({"repository", "collection", "local-module", "github-release-archive"}, set(enum))
 
 
 if __name__ == "__main__":

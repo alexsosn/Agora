@@ -212,6 +212,34 @@ class PinnedReleaseSnapshot251Tests(unittest.TestCase):
         self.assertNotIn("upload-artifact", workflow)
         self.assertNotIn("latest", workflow.lower())
 
+    def test_text_fabric_compiled_hidden_cache_survives_offline_verification(self):
+        prepared = self.install()
+        compiled = prepared.path / ".tf"
+        compiled.mkdir()
+        (compiled / "compiled-metadata.bin").write_bytes(b"TF-owned derived cache")
+        # Real ORACC native Context-Fabric load creates .cfm/ (not merely .tf/).
+        # This must remain offline-reopenable without relaxing source .tf checks.
+        cfm = prepared.path / ".cfm"
+        cfm.mkdir()
+        (cfm / "compiled-indices.bin").write_bytes(b"Context-Fabric derived cache")
+        reopened = self.prepare()
+        self.assertEqual(prepared.path, reopened.path)
+        self.assertEqual(self.identity["asset_sha256"], reopened.source_revision)
+
+        compiled.rename(self.root / "saved-compiled")
+        compiled.symlink_to(self.root / "saved-compiled", target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "integrity|symlink"):
+            self.prepare()
+        compiled.unlink()
+        cfm.rename(self.root / "saved-cfm")
+        cfm.symlink_to(self.root / "saved-cfm", target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "integrity|symlink|unsafe"):
+            self.prepare()
+        cfm.unlink()
+        (prepared.path / "unrelated-directory").mkdir()
+        with self.assertRaisesRegex(ValueError, "integrity|unexpected"):
+            self.prepare()
+
     def test_non_network_snapshot_does_not_forge_canonical_discovery(self):
         self.install()
         from agora_context_fabric.catalog import Catalog

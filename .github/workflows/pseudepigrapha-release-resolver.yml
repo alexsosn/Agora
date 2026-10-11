@@ -1,0 +1,130 @@
+name: Pseudepigrapha release-backed Context-Fabric resolver
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pseudepigrapha-release-resolver.yml'
+      - 'plugins/context-fabric/src/agora_context_fabric/catalog.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/resolver.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_download.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_snapshots.py'
+      - 'registry/schema/resources.schema.json'
+      - 'tests/test_release_corpus_strategy_251.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pseudepigrapha-release-resolver.yml'
+      - 'plugins/context-fabric/src/agora_context_fabric/resolver.py'
+      - 'tests/test_release_corpus_strategy_251.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pinned-release-resolver:
+    name: Real pinned Pseudepigrapha resolver to native Text-Fabric with offline reload
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      AGORA_CORPUS_MIN_FREE_GB: '0'
+    steps:
+      - name: Check out exact Agora head without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact tested source identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Install Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Agora and actual native Text-Fabric dependencies
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e ./plugins/context-fabric
+          python -m pip install "text-fabric==13.1.0"
+          python -m unittest tests.test_release_corpus_strategy_251 -v
+          python scripts/validate_registry.py
+
+      - name: Verify pinned upstream release → resolver prepare → native TF query → offline reload
+        run: |
+          # In-memory reviewed test resource only: no public corpus registration.
+          python - <<'PY'
+          import tempfile
+          from pathlib import Path
+          from unittest.mock import patch
+
+          from tf.fabric import Fabric
+          from scripts.probe_tf_release_asset import PINNED_RELEASE_ASSETS
+          from agora_context_fabric.catalog import Catalog
+          from agora_context_fabric.gitstore import GitStore
+          from agora_context_fabric.resolver import ContextFabricResolver
+
+          pinned = PINNED_RELEASE_ASSETS["tf-1.0.zip"]
+          row = {
+              "id": "pseudepigrapha",
+              "name": "Pinned Pseudepigrapha TF 1.0",
+              "plugin": "context-fabric",
+              "provider": "context-fabric",
+              "kind": "corpus",
+              "upstream": {"repository": "alexsosn/Pseudepigrapha-TF"},
+              "acquisition": {
+                  "strategy": "github-release-archive",
+                  "archive": {
+                      "release_tag": "v1.0.0",
+                      "asset_name": "tf-1.0.zip",
+                      "sha256": pinned["sha256"],
+                      "compressed_bytes": pinned["size"],
+                      "version": "1.0",
+                  },
+              },
+          }
+          catalog = Catalog(Catalog._resources_from_document({"resources": [row]}))
+          with tempfile.TemporaryDirectory() as tmp:
+              cache = Path(tmp) / "cache"
+              store = GitStore(cache, min_free_bytes=0)
+              resolver = ContextFabricResolver(catalog, store)
+              assert resolver.corpus_versions("pseudepigrapha") == ("1.0",)
+              prepared = resolver.prepare("pseudepigrapha")
+              assert prepared.resource_id == "pseudepigrapha"
+              assert prepared.version == "1.0"
+              assert prepared.source_revision == pinned["sha256"]
+              assert len(list(prepared.path.glob("*.tf"))) == 96
+              tf = Fabric(locations=str(prepared.path))
+              api = tf.load("otype oslots otext")
+              assert api is not None, "real Text-Fabric core load failed"
+              assert api.F.otype.maxNode > 0
+              slot_type = api.F.otype.slotType
+              first_slot = next(iter(api.F.otype.s(slot_type)))
+              assert api.F.otype.v(first_slot) == slot_type
+              del api, tf
+              reopened = ContextFabricResolver(
+                  catalog, GitStore(cache, min_free_bytes=0)
+              )
+              with reopened.store.source_policy("offline"), patch(
+                  "agora_context_fabric.release_download.download_pinned_release",
+                  side_effect=AssertionError("offline resolver attempted network"),
+              ):
+                  cached = reopened.prepare(
+                      "pseudepigrapha", source_revision=pinned["sha256"]
+                  )
+              assert cached.path == prepared.path
+              assert cached.source_revision == pinned["sha256"]
+              print(
+                  f"PASS real pinned TF release resolver native query "
+                  f"source_revision={prepared.source_revision} "
+                  f"slot_type={slot_type} first_slot={first_slot} offline=true",
+                  flush=True,
+              )
+          PY
