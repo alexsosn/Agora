@@ -51,6 +51,8 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
 
       - name: Acquire all and only pinned TT payload blobs
+        env:
+          AGORA_GIT_PHASE_TIMINGS: "1"
         shell: bash
         run: |
           set -euo pipefail
@@ -58,9 +60,11 @@ jobs:
           import os
           import re
           import subprocess
+          import time
           from pathlib import Path
 
           from scripts.agora_materialize import acquire_git_source
+          from scripts.sparse_git_inventory import verify_selected_sparse_inventory
 
           revision = "3ac067f1709a0012daf39ea8da2fac79980176a5"
           strategy = {
@@ -77,40 +81,40 @@ jobs:
                   "allow_symlinks": False,
               },
           }
+          acquisition_started = time.monotonic()
           prepared = acquire_git_source(strategy, materializer)
           try:
+              acquisition_elapsed_seconds = time.monotonic() - acquisition_started
+              git_pack = prepared.path / ".git" / "objects" / "pack"
+              git_pack_bytes = sum(p.stat().st_size for p in git_pack.glob("*") if p.is_file())
+              scratch_disk_bytes = sum(
+                  p.stat().st_size for p in prepared.cleanup_root.rglob("*")
+                  if p.is_file() and not p.is_symlink()
+              )
+              print(
+                  f"OBSERVED local acquisition_elapsed_seconds={acquisition_elapsed_seconds:.3f} "
+                  f"git_pack_bytes={git_pack_bytes} scratch_disk_bytes={scratch_disk_bytes} "
+                  "(post-acquisition disk state; not measured transfer bytes or peak disk)",
+                  flush=True,
+              )
               assert prepared.provenance["requested_ref"] == revision
               assert prepared.provenance["resolved_commit"] == revision
               assert prepared.provenance["sparse_patterns"] == strategy["sparse_patterns"]
-              tree = subprocess.check_output(
-                  ["git", "-C", str(prepared.path), "ls-tree", "-r", "-z", "--long", "HEAD"],
+              # Metadata-only git ls-tree -r -z HEAD (never --long):
+              # checking all Git blob sizes lazily hydrated excluded data.
+              # The helper verifies every selected Git blob against local bytes
+              # with GIT_NO_LAZY_FETCH=1, preserving true partial-clone semantics.
+              verification_started = time.monotonic()
+              count, total = verify_selected_sparse_inventory(
+                  prepared.path, expected_count=565, expected_bytes=220289125,
               )
-              want = {}
-              for record in tree.split(b"\x00"):
-                  if not record:
-                      continue
-                  attrs, raw_path = record.split(b"\t", 1)
-                  mode, kind, sha, size = attrs.decode("ascii").split()
-                  path = raw_path.decode("utf-8")
-                  if re.fullmatch(r"[^/]+/[^/]+_TT(?:/.*|\.zip)", path):
-                      assert kind == "blob", (path, kind)
-                      want[path] = int(size)
-
-              got = {
-                  candidate.relative_to(prepared.path).as_posix(): candidate.stat().st_size
-                  for candidate in prepared.path.rglob("*")
-                  if candidate.is_file() and
-                  ".git" not in candidate.relative_to(prepared.path).parts
-              }
-              assert len(want) == 565, ("upstream pinned TT inventory changed", len(want))
-              assert sum(want.values()) == 220289125, ("unexpected upstream TT bytes", sum(want.values()))
-              missing = set(want) - set(got)
-              unwanted = set(got) - set(want)
-              assert not missing, ("missing sparse TT paths", sorted(missing)[:15])
-              assert not unwanted, ("unwanted checked-out source paths", sorted(unwanted)[:15])
-              changed = [p for p, size in want.items() if got[p] != size]
-              assert not changed, ("unexpected TT worktree sizes", changed[:15])
-              print(f"PASS: {len(got)} exact TT blob files, {sum(got.values())} bytes, pinned {revision}")
+              inventory_elapsed_seconds = time.monotonic() - verification_started
+              print(
+                  f"OBSERVED inventory_elapsed_seconds={inventory_elapsed_seconds:.3f} "
+                  "(metadata-only tree + local Git blob hashes; no lazy fetch)",
+                  flush=True,
+              )
+              print(f"PASS: {count} exact TT blob files, {total} bytes, pinned {revision}")
           finally:
               prepared.cleanup()
           PY

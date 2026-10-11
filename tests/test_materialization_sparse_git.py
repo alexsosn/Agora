@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import io
 import os
+from contextlib import redirect_stderr
 import shutil
 import subprocess
 import tempfile
@@ -69,6 +71,16 @@ class LiveSparseAcquisitionWorkflowContract(unittest.TestCase):
         self.assertIn("git", content)
         self.assertIn("ls-tree", content)
         self.assertIn("prepared.cleanup()", content)
+        self.assertIn("AGORA_GIT_PHASE_TIMINGS:", content)
+        self.assertIn("acquisition_elapsed_seconds", content)
+        self.assertIn("git_pack_bytes", content)
+        self.assertIn("scratch_disk_bytes", content)
+        self.assertIn("not measured transfer bytes", content)
+        self.assertIn("verify_selected_sparse_inventory", content)
+        self.assertNotIn('"--long"', content)
+        self.assertNotIn('ls-tree", "-r", "-z", "--long"', content)
+
+
         self.assertIn("pull_request:", content)
 
 
@@ -104,6 +116,74 @@ class SparseManifestContracts(unittest.TestCase):
 
 
 class SparseGitFailureReportingTests(unittest.TestCase):
+
+    def test_opt_in_git_phase_timing_is_bounded_labeled_and_off_by_default(self):
+        from scripts import agora_materialize as module
+        command = ["git", "fetch", "https://token-secret.example.invalid/repo"]
+        with (mock.patch.object(module.subprocess, "run") as execute,
+              mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "0"})):
+            output = io.StringIO()
+            with redirect_stderr(output):
+                _run_git(command, env={})
+            self.assertEqual("", output.getvalue())
+            execute.assert_called_once()
+            self.assertEqual(GIT_TIMEOUT_SECONDS, execute.call_args.kwargs["timeout"])
+
+        with (mock.patch.object(module.subprocess, "run") as execute,
+              mock.patch.object(module.time, "monotonic", side_effect=[10.0, 12.25]),
+              mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "1"})):
+            output = io.StringIO()
+            with redirect_stderr(output):
+                _run_git(command, env={}, phase="fetch")
+            self.assertIn("phase=fetch", output.getvalue())
+            self.assertIn("elapsed_seconds=2.250", output.getvalue())
+            self.assertIn("outcome=success", output.getvalue())
+            self.assertNotIn("token-secret", output.getvalue())
+            execute.assert_called_once()
+
+    def test_telemetry_failure_never_changes_subprocess_result_or_original_error(self):
+        from scripts import agora_materialize as module
+        command = ["git", "fetch", "https://credential-should-not-leak.invalid"]
+        with (mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "1"}),
+              mock.patch.object(module.subprocess, "run") as execute,
+              mock.patch.object(module.time, "monotonic",
+                                side_effect=RuntimeError("broken clock"))):
+            self.assertIsNone(_run_git(command, env={}, phase="fetch"))
+            execute.assert_called_once()
+
+        with (mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "1"}),
+              mock.patch.object(module.subprocess, "run", side_effect=subprocess.TimeoutExpired(command, 120)),
+              mock.patch.object(module.time, "monotonic",
+                                side_effect=[1.0, RuntimeError("broken reporting clock")])):
+            with self.assertRaises(AcquisitionError) as raised:
+                _run_git(command, env={}, phase="fetch")
+            self.assertIn("timed out", str(raised.exception))
+
+        class BrokenStderr:
+            def write(self, message):
+                raise RuntimeError("reporting stream unavailable")
+
+        with (mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "1"}),
+              mock.patch.object(module.subprocess, "run") as execute,
+              mock.patch.object(module.time, "monotonic", side_effect=[2.0, 3.0]),
+              mock.patch.object(module.sys, "stderr", new=BrokenStderr())):
+            self.assertIsNone(_run_git(command, env={}, phase="invalid-secret-label"))
+            execute.assert_called_once()
+
+    def test_failed_git_phase_logs_once_and_preserves_timeout_error(self):
+        from scripts import agora_materialize as module
+        with (mock.patch.object(module.subprocess, "run",
+                                side_effect=subprocess.TimeoutExpired(["git", "checkout"], 120)),
+              mock.patch.object(module.time, "monotonic", side_effect=[15.0, 19.5]),
+              mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "1"})):
+            output = io.StringIO()
+            with redirect_stderr(output), self.assertRaises(AcquisitionError) as raised:
+                _run_git(["git", "checkout", "FETCH_HEAD"], env={}, phase="checkout")
+            self.assertIn("timed out", str(raised.exception))
+            self.assertEqual(1, output.getvalue().count("phase=checkout"))
+            self.assertIn("elapsed_seconds=4.500", output.getvalue())
+            self.assertIn("outcome=failure", output.getvalue())
+
     def test_timeout_distinguishes_local_acquisition_timeout(self):
         with mock.patch(
             "scripts.agora_materialize.subprocess.run",
@@ -163,6 +243,53 @@ class SparseGitAcquisitionIntegrationTests(unittest.TestCase):
         target = self.remote / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(contents, encoding="utf-8")
+
+    def test_pinned_inventory_reads_only_sparse_blob_ids_without_hydrating_excluded_objects(self):
+        # Regression for #250: ls-tree --long queries blob sizes of all Git
+        # paths and lazy-fetches excluded ANNIS/CONLLU data. The verifier must
+        # use only tree OIDs and on-disk included content.
+        from scripts.sparse_git_inventory import verify_selected_sparse_inventory
+
+        prepared = acquire_git_source(self.strategy, self.spec)
+        excluded_oid = self.git(
+            "-C", str(self.remote), "rev-parse", "HEAD:AP/story_ANNIS/part1.annis"
+        ).strip()
+        no_lazy_env = {**os.environ, "GIT_NO_LAZY_FETCH": "1"}
+
+        def has_excluded_blob():
+            return subprocess.run(
+                [GIT, "-C", str(prepared.path), "cat-file", "-e", excluded_oid],
+                env=no_lazy_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                check=False,
+            ).returncode == 0
+
+        try:
+            self.assertFalse(has_excluded_blob(), "fixture must start as partial clone")
+            count, total = verify_selected_sparse_inventory(
+                prepared.path,
+                expected_count=3,
+                expected_bytes=sum(
+                    (self.remote / rel).stat().st_size for rel in (
+                        "AP/story_TT/part1.tt", "AP/story_TT/sub/chapter.tt",
+                        "sahidica.nt/NT_TT.zip",
+                    )
+                ),
+            )
+            self.assertEqual(3, count)
+            self.assertGreater(total, 0)
+            self.assertFalse(has_excluded_blob(), "verification must not hydrate excluded Git blobs")
+
+            # Same-size mutation must be detected by Git blob identity, not
+            # accepted just because path count and byte totals still match.
+            target = prepared.path / "AP/story_TT/part1.tt"
+            original = target.read_bytes()
+            target.write_bytes(b"Q" * len(original))
+            with self.assertRaisesRegex(ValueError, "Git blob"):
+                verify_selected_sparse_inventory(
+                    prepared.path, expected_count=3, expected_bytes=total,
+                )
+        finally:
+            prepared.cleanup()
 
     def test_real_git_selects_tt_files_and_zip_but_no_other_source_formats(self):
         from scripts import agora_materialize as module
