@@ -8,7 +8,7 @@ from scripts.ci_change_scope import classify_changed_paths, classify_raw_git_dif
 
 
 class CiChangeScopeContracts(unittest.TestCase):
-    def test_real_docs_workstreams_with_python_tests_and_generators_require_full(self):
+    def test_explicitly_vetted_docs_generators_and_tests_qualify_for_docs(self):
         docs_prs = (
             ("research/issue-169/RESEARCH_PLAN.md", "scripts/generate_plugin_docs.py",
              "scripts/generate_resource_catalog_docs.py", "tests/test_human_scholarly_guidance_169.py",
@@ -32,7 +32,7 @@ class CiChangeScopeContracts(unittest.TestCase):
         )
         for paths in docs_prs:
             with self.subTest(paths=paths):
-                self.assertEqual("full", classify_changed_paths(paths))
+                self.assertEqual("docs", classify_changed_paths(paths))
         self.assertEqual(
             "docs",
             classify_changed_paths(
@@ -76,10 +76,8 @@ class CiChangeScopeContracts(unittest.TestCase):
             with self.subTest(paths=paths):
                 self.assertEqual("full", classify_changed_paths(paths))
 
-    def test_adversarial_python_changes_never_qualify_for_docs_only(self):
-        # Documentation generator/test files execute arbitrary Python: never let
-        # a PR containing those files skip behavioral checks in a future gate.
-        for path in (
+    def test_only_explicitly_reviewed_docs_python_qualifies(self):
+        allowed = (
             "scripts/generate_plugin_docs.py",
             "scripts/generate_resource_catalog_docs.py",
             "tests/test_compatibility_decisions_171.py",
@@ -87,19 +85,26 @@ class CiChangeScopeContracts(unittest.TestCase):
             "tests/test_symptom_recovery_docs_172.py",
             "tests/test_first_success_tutorials_170.py",
             "tests/test_researcher_docs_integrity_173.py",
+            "tests/test_release_front_door.py",
+        )
+        for path in allowed:
+            with self.subTest(path=path):
+                self.assertEqual("docs", classify_changed_paths([path]))
+                self.assertEqual("docs", classify_changed_paths(["README.md", path]))
+        for path in (
             "tests/test_plugin_detail_docs.py",
             "tests/test_resource_catalog_docs.py",
             "tests/test_user_docs_landing.py",
             "tests/test_user_docs_mental_model.py",
-            "tests/test_release_front_door.py",
+            "tests/test_ci_change_scope_246.py",
+            "scripts/generate_marketplaces.py",
+            "scripts/generate_context_fabric_catalog.py",
         ):
             with self.subTest(path=path):
                 self.assertEqual("full", classify_changed_paths([path]))
-                self.assertEqual(
-                    "full", classify_changed_paths(["README.md", path])
-                )
+                self.assertEqual("full", classify_changed_paths(["README.md", path]))
 
-    def test_report_only_in_foundation_cannot_silently_skip_required_matrix_jobs(self):
+    def test_docs_scope_preserves_required_check_names_and_full_main_validation(self):
         workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/foundation.yml").read_text(encoding="utf-8")
         self.assertIn("fetch-depth: 2", workflow)
         self.assertIn("python scripts/ci_change_scope.py --git-report", workflow)
@@ -109,6 +114,12 @@ class CiChangeScopeContracts(unittest.TestCase):
             "Scope reporter must run using the repository's pinned Python.",
         )
         self.assertIn("continue-on-error: true", workflow)
+        self.assertIn("python scripts/ci_change_scope.py --git-classify", workflow)
+        self.assertIn("needs: scope", workflow)
+        self.assertIn("name: Repository foundation, registry, and manifests", workflow)
+        self.assertIn('if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then', workflow)
+        self.assertIn("scope=full", workflow)
+        self.assertIn("validation=$scope", workflow)
         self.assertIn("python -m unittest discover -s tests -v", workflow)
         self.assertIn("context-fabric-cache-lifecycle:", workflow)
         self.assertIn("materializer-install-locks:", workflow)

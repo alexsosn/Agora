@@ -1,10 +1,9 @@
 """Fail-closed classification of changed paths for risk-based CI.
 
-Pure decision only: a future workflow may use a documentation fast path
-*only* for ordinary Markdown. Executable Python tests and documentation
-generators are always full-scope, even when their intent is prose-only. Unknown, mixed, unsafe, or absent paths require full validation.
-
-No CI job is skipped by this module until workflow integration is reviewed.
+Fail closed on unknown paths, symlinks, modes, mixed runtime/doc changes,
+malformed raw diffs, and non-PR invocations. Exactly enumerated vetted
+researcher-documentation generator/test files may use the docs fast path,
+provided all changed paths qualify.
 """
 from __future__ import annotations
 
@@ -19,6 +18,16 @@ SAFE_EXACT = frozenset(
         "README.md",
         "CONTRIBUTING.md",
         "wiki/README.md",
+        # Explicitly reviewed doc generators and documentation contracts.
+        # No general scripts/ or tests/ pattern is permitted.
+        "scripts/generate_plugin_docs.py",
+        "scripts/generate_resource_catalog_docs.py",
+        "tests/test_human_scholarly_guidance_169.py",
+        "tests/test_release_front_door.py",
+        "tests/test_symptom_recovery_docs_172.py",
+        "tests/test_first_success_tutorials_170.py",
+        "tests/test_compatibility_decisions_171.py",
+        "tests/test_researcher_docs_integrity_173.py",
     }
 )
 RESEARCH_PLAN = re.compile(r"research/issue-[0-9]+/RESEARCH_PLAN\.md\Z")
@@ -125,11 +134,16 @@ def classify_pr_checkout(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Non-gating CI scope diagnostic")
-    parser.add_argument("--git-report", action="store_true", required=True)
-    parser.parse_args()
+    parser = argparse.ArgumentParser(description="Fail-closed CI scope classification")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--git-report", action="store_true")
+    mode.add_argument("--git-classify", action="store_true")
+    args = parser.parse_args()
     decision = classify_pr_checkout()
-    print(f"CI change-scope observation: {decision} (report only; all jobs still run)")
+    if args.git_classify:
+        print(decision)
+    else:
+        print(f"CI change-scope observation: {decision} (report only)")
     return 0
 
 
