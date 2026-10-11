@@ -52,7 +52,7 @@ jobs:
           python -m pip install -r requirements-dev.txt
           python -m pip install -e ./plugins/context-fabric
           python -m pip install "text-fabric==13.1.0" "pdfplumber>=0.11"
-          python -c 'from tf.fabric import Fabric; import pdfplumber; print("Burns acceptance preflight OK")'
+          python -c 'from tf.fabric import Fabric; import pdfplumber; from mcp import ClientSession; from scripts.context_fabric_mcp_result import decode_mcp_result; print("Burns + MCP acceptance preflight OK")'
           python scripts/validate_registry.py
           python -m unittest tests.test_ctc_burns_registered_237 tests.test_ctc_burns_registered_smoke_237 -v
       - name: Parse original Burns Workbooks into private runner-local CSVs

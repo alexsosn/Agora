@@ -66,10 +66,14 @@ class RegisteredCucBurnsFullAcceptanceContracts(unittest.TestCase):
 
     def test_real_data_native_tf_and_parent_identity_preserved(self):
         script = VERIFIER.read_text(encoding="utf-8")
+        # User-facing integration intentionally selects the producer by
+        # catalog module ID; the helper's implementation/producer ID must
+        # not be hard-coded in the CLI invocation.
+        self.assertIn("module_cli([", script)
+        self.assertNotIn("materialize_requested_feature_module(", script)
         for marker in (
-            "materialize_requested_feature_module",
-            '"cuc-burns"',
-            '"cuc-burns-csv"',
+            '"--module", "cuc-burns"',
+            '"--parent-version", "0.2.8"',
             "0408967b1808c1f22c69e299d302b1e7b5e26354",
             "Fabric(",
             "burns_headword_1",
@@ -82,6 +86,16 @@ class RegisteredCucBurnsFullAcceptanceContracts(unittest.TestCase):
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, script)
+
+        # Producer identity is immutable *catalog metadata*, not a caller
+        # argument to the researcher CLI.
+        import yaml
+        registry = yaml.safe_load(
+            (ROOT / "registry/materializers.yaml").read_text(encoding="utf-8")
+        )
+        matches = [p for p in registry["plugins"] if p["id"] == "cuc-burns"]
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0]["materializers"], ["cuc-burns-csv"])
 
 
 if __name__ == "__main__":
