@@ -181,6 +181,37 @@ class PinnedReleaseSnapshot251Tests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "symlink|changed|integrity"):
                 self.prepare()
 
+    def test_unexpected_cache_files_and_early_cancellation_fail_closed(self):
+        from agora_context_fabric.operation import OperationCancelled, OperationControl
+
+        control = OperationControl()
+        control.cancel()
+        with self.assertRaises(OperationCancelled):
+            self.install(operation=control)
+        self.assertEqual([], self.store.cache_entries())
+        prepared = self.install()
+        (prepared.path / "unregistered.py").write_text("raise RuntimeError()")
+        with self.assertRaisesRegex(ValueError, "integrity"):
+            self.prepare()
+
+    def test_live_pinned_snapshot_workflow_covers_offline_cache_reopen(self):
+        workflow = (
+            ROOT / ".github/workflows/pseudepigrapha-release-snapshot.yml"
+        ).read_text(encoding="utf-8")
+        for name in (
+            "tf-1.0.zip",
+            "PINNED_RELEASE_ASSETS",
+            "ReleaseSnapshots",
+            "source_revision",
+            "acquire_cache_lease",
+            "remove_cache_object",
+            "pseudepigrapha",
+            "persist-credentials: false",
+        ):
+            self.assertIn(name, workflow)
+        self.assertNotIn("upload-artifact", workflow)
+        self.assertNotIn("latest", workflow.lower())
+
     def test_non_network_snapshot_does_not_forge_canonical_discovery(self):
         self.install()
         from agora_context_fabric.catalog import Catalog
