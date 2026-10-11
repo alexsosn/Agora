@@ -136,6 +136,7 @@ class ContextFabricService:
             ),
             "acquisition": {
                 "strategy": resource.acquisition_strategy,
+                **({"release": dict(resource.release)} if resource.release else {}),
                 **({"release": copy.deepcopy(resource.release)} if resource.release else {}),
             },
             "default_version": default_version,
