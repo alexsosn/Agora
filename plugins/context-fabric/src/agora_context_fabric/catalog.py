@@ -93,6 +93,12 @@ class Catalog:
                 else:
                     member_index_path = base_dir / member_index_reference
             acquisition = item.get("acquisition") or {}
+            strategy = acquisition.get("strategy", "repository")
+            if strategy not in {"repository", "collection", "local-module"}:
+                raise ValueError(
+                    f"Context-Fabric resource {item.get('id')!r} has unsupported "
+                    f"acquisition strategy {strategy!r}"
+                )
             compatibility = item.get("compatibility") or {}
             module = item.get("module") or {}
             verification = item.get("verification") or {}
@@ -117,7 +123,7 @@ class Catalog:
                     lazy_members=bool(collection.get("lazy_members", False)),
                     ref=upstream.get("ref"),
                     tf_path=upstream.get("tf_path"),
-                    acquisition_strategy=acquisition.get("strategy", "repository"),
+                    acquisition_strategy=strategy,
                     materializer=(
                         dict(acquisition["materializer"])
                         if isinstance(acquisition.get("materializer"), dict)
