@@ -190,3 +190,7 @@ jobs:
           )
           assert f'@upstreamCommit={expected}' in tf_metadata
           PY
+
+  registered-burns-cuc-e2e:
+    name: Registered CUC Burns real-data native module
+    uses: ./.github/workflows/ctc-burns-registered-e2e.yml
