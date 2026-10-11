@@ -51,3 +51,27 @@ These data show opportunity, **not** realized savings; the actual fast-path
 needs a fresh docs-only PR and observed runner start/end times. This API
 exposure does not provide per-job `started_at`/`completed_at` in the
 connected job view, so aggregate paid runner minutes are unverified.
+
+
+## Adversarial acceptance finding: GitHub matrix check identities (2026-10-12)
+
+Real successful [#264 Foundation run 38172436189](https://github.com/alexsosn/Agora/actions/runs/38172436189)
+ran the full scope and emitted all six original OS-specific check names.
+The separately stacked docs-only [#265 Foundation run 38172482376](https://github.com/alexsosn/Agora/actions/runs/38172482376)
+correctly printed `Foundation validation scope: docs`, ran generated-guide and
+first-contact checks, and skipped the full unit suite, **but a job-level
+`if: ... == 'full'` prevented matrix expansion**. GitHub returned only two
+generic skipped jobs with literal `(${{ matrix.os }})` in their names.
+This was an independent-review blocker: individual OS-specific required status
+contexts, if configured, might stay pending even when the workflow is green.
+
+TDD fix: `tests/test_ci_matrix_contexts_246.py` was added as RED before
+the workflow change. It requires matrix expansion for both job families and
+checks each costly OS step has an exact full-scope guard. The revised workflow
+always instantiates the 3x2 matrix jobs, executes a tiny docs-only stub,
+and skips checkout, Python/tool setup, dependency installation, and runtime
+regressions for docs scope. Full-scope steps and check names stay intact;
+new exact-head Foundation and real #265 docs-only acceptance checks are
+required before merging. This trades six minimal runner startups for preserved
+existing required-status identities. The branch-protection 403 persists; this
+is not evidence that any required-check policy was independently read.
