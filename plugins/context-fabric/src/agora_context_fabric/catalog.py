@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Iterator
@@ -28,6 +29,7 @@ class ResourceSpec:
     tf_path: str | None = None
     acquisition_strategy: str = "repository"
     materializer: dict[str, str] | None = None
+    release: dict[str, Any] | None = None
     parent: str | None = None
     parent_versions: tuple[str, ...] = ()
     module_path: str | None = None
@@ -94,11 +96,37 @@ class Catalog:
                     member_index_path = base_dir / member_index_reference
             acquisition = item.get("acquisition") or {}
             strategy = acquisition.get("strategy", "repository")
-            if strategy not in {"repository", "collection", "local-module"}:
+            if strategy not in {"repository", "collection", "local-module", "github-release-archive"}:
                 raise ValueError(
                     f"Context-Fabric resource {item.get('id')!r} has unsupported "
                     f"acquisition strategy {strategy!r}"
                 )
+            release = None
+            if strategy == "github-release-archive":
+                release = acquisition.get("release")
+                required = {"tag", "asset", "sha256", "bytes", "dataset", "release_id", "tf_version"}
+                if (
+                    item.get("kind") != "corpus"
+                    or not isinstance(release, dict)
+                    or set(release) != required
+                    or not isinstance(upstream.get("ref"), str)
+                    or re.fullmatch(r"[0-9a-f]{40}", upstream["ref"]) is None
+                    or upstream.get("tf_path") is not None
+                ):
+                    raise ValueError(f"Context-Fabric release corpus {item.get('id')!r} has invalid immutable acquisition descriptor")
+                from .release_resource import ReleaseArchiveAcquirer
+                # Validate field types and portable identity tokens before discovery.
+                candidate = ResourceSpec(
+                    id=item["id"], name=item["name"], plugin=item["plugin"],
+                    provider=item["provider"], kind=item["kind"],
+                    repository=repository, languages=tuple(item.get("languages", [])),
+                    disciplines=tuple(item.get("disciplines", [])),
+                    ref=upstream["ref"], tf_path="tf/" + str(release["tf_version"]),
+                    acquisition_strategy=strategy, release=release,
+                )
+                ReleaseArchiveAcquirer._validated_release(candidate)
+            elif "release" in acquisition:
+                raise ValueError(f"Context-Fabric resource {item.get('id')!r} cannot attach release identity to {strategy!r}")
             compatibility = item.get("compatibility") or {}
             module = item.get("module") or {}
             verification = item.get("verification") or {}
@@ -122,8 +150,9 @@ class Catalog:
                     member_id_scheme=collection.get("member_id_scheme"),
                     lazy_members=bool(collection.get("lazy_members", False)),
                     ref=upstream.get("ref"),
-                    tf_path=upstream.get("tf_path"),
+                    tf_path=("tf/" + release["tf_version"]) if release is not None else upstream.get("tf_path"),
                     acquisition_strategy=strategy,
+                    release=dict(release) if release is not None else None,
                     materializer=(
                         dict(acquisition["materializer"])
                         if isinstance(acquisition.get("materializer"), dict)
