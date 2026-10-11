@@ -30,6 +30,17 @@ class RegisteredCucBurnsFullAcceptanceContracts(unittest.TestCase):
         self.assertNotIn("upload-artifact", workflow)
         self.assertNotIn("--source-archive", workflow)
 
+    def test_real_acceptance_is_reachable_from_existing_required_sandbox_workflow(self):
+        # A brand-new GitHub Actions workflow may not register its first PR
+        # event until the file exists on the default branch. Reuse an existing
+        # required workflow and avoid caller/callee concurrency self-cancel.
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        caller = (ROOT / ".github/workflows/materialization-sandbox.yml").read_text()
+        self.assertIn("workflow_call:", workflow)
+        self.assertIn("./.github/workflows/ctc-burns-registered-e2e.yml", caller)
+        self.assertIn("ctc-burns-registered-", workflow)
+        self.assertNotIn("group: ${{ github.workflow }}-", workflow)
+
     def test_real_data_native_tf_and_parent_identity_preserved(self):
         script = VERIFIER.read_text(encoding="utf-8")
         for marker in (
