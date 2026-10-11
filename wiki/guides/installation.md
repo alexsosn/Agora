@@ -58,14 +58,7 @@ The generated `.claude-plugin/marketplace.json` deliberately contains only field
 
 ## ChatGPT / managed Codex workspace import
 
-Where GitHub marketplace import is available to your workspace, an administrator can import Agora directly from GitHub:
-
-1. Open **Workspace settings → Plugins**.
-2. Choose **Add → Import marketplace**.
-3. Set **Source** to `https://github.com/alexsosn/Agora`.
-4. Leave **Path** empty because `.agents/plugins/marketplace.json` is at the repository root.
-5. Leave the branch empty to track the default `main` branch, or explicitly enter `main`.
-6. Import the marketplace and review the four imported plugins and their installation policies.
+Where workspace GitHub marketplace import is available, an administrator can import Agora from `https://github.com/alexsosn/Agora`. The marketplace manifest is at the repository root, so leave Path empty; the default branch is `main`. Follow the [official GitHub marketplace import and sync guide](https://help.openai.com/en/articles/20001504-importing-and-syncing-plugin-marketplaces-from-github) for current UI, permissions, rollout and import diagnostics.
 
 GitHub marketplace sync imports plugin content; it does not grant access to unrelated external accounts or bypass workspace policy.
 
@@ -73,29 +66,7 @@ Agora plugins declare MCP servers. Current GitHub-imported MCP plugins can there
 
 Availability of marketplace import, plugin installation, and particular surfaces depends on the current ChatGPT/Codex plan, workspace, role, and rollout.
 
-## Local Codex development/testing
-
-Codex supports repo/team marketplaces at `<repo-root>/.agents/plugins/marketplace.json`. A local Agora clone therefore already has the expected marketplace layout.
-
-Clone Agora:
-
-```bash
-git clone https://github.com/alexsosn/Agora.git
-cd Agora
-```
-
-For a non-default local marketplace, current Codex tooling supports adding the marketplace root and then installing a plugin from its marketplace name:
-
-```bash
-codex plugin marketplace add /absolute/path/to/Agora
-codex plugin add context-fabric@agora
-```
-
-Repeat the `codex plugin add ...@agora` command for `perseus`, `sefaria`, or `sedra` as needed.
-
-After reinstalling or updating a local plugin, start a new Codex thread when necessary so the updated skill/MCP package is picked up cleanly.
-
-For user-wide local plugin development, Codex also supports the default personal marketplace at `~/.agents/plugins/marketplace.json`; a marketplace entry's `source.path` is resolved relative to that marketplace root. Agora does not overwrite or manage a user's personal marketplace file automatically.
+Local checkout and Codex plugin development commands are in the [local development setup](development-setup.md) guide; they are not required for ordinary researcher installation.
 
 ## Runtime prerequisites
 
@@ -198,9 +169,4 @@ Removing a plugin does not imply deleting Context-Fabric corpus cache data. Use 
 
 ## Troubleshooting
 
-- **`uv` or `uvx` is missing:** install `uv` with Astral's supported installer and confirm it is on `PATH`, then retry the plugin launch.
-- **Python cannot be resolved:** Context-Fabric requires **Python 3.13** and SEDRA requires Python 3.11 or later. Make sure `uv` can obtain a compatible interpreter rather than editing generated launch commands.
-- **A remote lookup fails:** Perseus/Scaife, Sefaria, and SEDRA depend on network/provider availability. Preserve the provider error and check network/service status; reinstalling the plugin does not repair an unavailable upstream service.
-- **A Context-Fabric load keeps timing out or reports `timed out waiting for Git cache lock`:** a cold load has to finish within one tool call. Agora's generated configuration allows 90 minutes for the Context-Fabric server; if you override that per-server timeout with a shorter value, restore it, then check `corpus_cache_status` before retrying. The lock message means another request or process is still using that corpus repository.
-- **A Context-Fabric corpus is slow to acquire or compile:** use `describe_available_corpus` → `prepare_corpus` → `load_corpus`, inspect `corpus_cache_status`, and do not start duplicate blind retries. See the [cache guide](context-fabric-cache.md) for bounded acquisition/compile behavior and cancellation.
-- **The plugin is unavailable in the current ChatGPT surface:** imported MCP plugins may be **Desktop only** and therefore unavailable in ChatGPT web. Client/platform evidence is intentionally limited; in particular, current local-runtime platform checks cover Linux x86_64, Intel macOS x86_64, and Windows x86_64, not Apple Silicon. Check [compatibility and verification](compatibility.md) before treating an unlisted platform as supported.
+Start from the observed error in [troubleshooting by symptom](troubleshooting.md). It covers visibility, startup, runtimes, provider outages, cold loads, disk usage, known search limitations and client differences. For the exact path verified in each host, see [compatibility](compatibility.md).

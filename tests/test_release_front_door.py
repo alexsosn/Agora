@@ -51,14 +51,18 @@ class ReleaseFrontDoorTests(unittest.TestCase):
 
     def test_installation_has_compact_first_run_troubleshooting(self):
         self.assertIn("## Troubleshooting", self.install)
-        for token in (
-            "uv",
-            "Python 3.13",
-            "network",
-            "Desktop only",
-            "corpus_cache_status",
-        ):
+        self.assertIn("[troubleshooting by symptom](troubleshooting.md)", self.install)
+        for token in ("uv", "Python 3.13", "Desktop only", "corpus_cache_status"):
             self.assertIn(token, self.install)
+        recovery = (ROOT / "wiki" / "guides" / "troubleshooting.md").read_text(encoding="utf-8")
+        for symptom in (
+            "uv, uvx or Python is not found",
+            "Remote lookup fails",
+            "Corpus acquisition or compilation appears stuck",
+            "Plugin works in one client but not another",
+        ):
+            self.assertIn("## " + symptom, recovery)
+        self.assertIn("network", recovery.lower())
 
     def test_public_install_docs_rerun_existing_eight_cell_live_smoke(self):
         self.assertIn('"README.md"', self.live_smoke)

@@ -89,7 +89,9 @@ These fields describe the plugin/software/service boundary. Corpus, edition, ann
 
 ## Troubleshooting
 
-Start from the observed symptom in [installation troubleshooting](../installation.md#troubleshooting). For current client/platform evidence and structured advisories, use [compatibility and known limitations](../compatibility.md#current-upstream-limitations).
+Start from [symptom-based troubleshooting](../troubleshooting.md), with [compatibility and known limitations](../compatibility.md#current-upstream-limitations) for client and upstream boundaries.
+
+If a corpus load stalls, see [cold-load recovery](../troubleshooting.md#corpus-acquisition-or-compilation-appears-stuck); for result interpretation, see the [10,000-count cap](../troubleshooting.md#search-count-stops-at-10000) and [CUC text-format discovery](../troubleshooting.md#cuc-text-formats-appear-missing).
 
 ## Upstream
 
