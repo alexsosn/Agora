@@ -43,6 +43,15 @@ class RegisteredCucBurnsFullAcceptanceContracts(unittest.TestCase):
         self.assertIn("ctc-burns-registered-", workflow)
         self.assertNotIn("group: ${{ github.workflow }}-", workflow)
 
+    def test_reusable_live_workflow_has_one_pr_invocation_path(self):
+        # The standalone pull_request event and the sandbox caller have the
+        # same PR-concurrency group and cancel each other at the same head.
+        import yaml
+        doc = yaml.load(WORKFLOW.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+        self.assertIn("workflow_call", doc["on"])
+        self.assertNotIn("pull_request", doc["on"])
+        self.assertNotIn("push", doc["on"])
+
     def test_runner_private_paths_are_initialized_in_step_context(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn('GITHUB_ENV', workflow)
