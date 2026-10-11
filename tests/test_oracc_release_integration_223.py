@@ -131,6 +131,44 @@ class ReleaseArchive223Tests(unittest.TestCase):
             acquirer.prepare(self.resource)
         self.assertEqual(self.downloads, 1)
 
+    def test_git_source_audit_does_not_clone_builder_for_release_archive(self):
+        from scripts.audit_context_fabric_sources import audit_catalog
+
+        class NoGitStore:
+            def ensure_metadata(self, *args, **kwargs):
+                raise AssertionError("release audit must never clone ORACC builder")
+
+        report = audit_catalog(Catalog([self.resource]), NoGitStore())
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["skipped"], 1)
+        self.assertEqual(report["resources"][0]["asset_sha256"], self.descriptor["sha256"])
+
+    def test_discovery_reports_archive_identity_and_no_fictitious_git_tf_path(self):
+        from agora_context_fabric.service import ContextFabricService
+        resolver = ContextFabricResolver(Catalog([self.resource]), self.store,
+                                         release_acquirer=ReleaseArchiveAcquirer(
+                                             self.store, download=self.downloader))
+        service = ContextFabricService(Catalog([self.resource]), resolver, object())
+        described = service.describe_resource(self.resource.id)
+        self.assertEqual(described["acquisition"]["release"], self.descriptor)
+        self.assertEqual(described["source"]["release"]["sha256"], self.descriptor["sha256"])
+        self.assertEqual(resolver.corpus_versions(self.resource.id), ("1.0.0",))
+        self.assertEqual(resolver.default_corpus_version(self.resource.id), "1.0.0")
+        self.assertEqual(self.downloads, 0)
+
+    def test_redirect_policy_rejects_non_https_and_third_party_hosts(self):
+        from agora_context_fabric.release_resource import _PinnedReleaseRedirect
+        handler = _PinnedReleaseRedirect()
+        request = __import__("urllib.request", fromlist=["Request"]).Request(
+            "https://github.com/alexsosn/ORACC-TF/releases/download/v1.0.0/archive.zip"
+        )
+        for url in ("http://release-assets.githubusercontent.com/asset",
+                    "https://evil.example/asset",
+                    "https://github.com.evil.example/asset",
+                    "https://user:password@github.com/asset"):
+            with self.subTest(url=url), self.assertRaisesRegex(ValueError, "trusted HTTPS"):
+                handler.redirect_request(request, None, 302, "Found", {}, url)
+
     def test_pinned_revision_and_version_mismatch_rejected_without_download(self):
         acquirer = ReleaseArchiveAcquirer(self.store, download=self.downloader)
         with self.assertRaisesRegex(ValueError, "version"):
