@@ -87,6 +87,8 @@ class ReleaseArchive223Tests(unittest.TestCase):
         self.assertEqual(canonical.release["sha256"],
                          "788f580604e30054fab34c4c3ea60ec3eb4f399412f1da90f778469d03507468")
         self.assertEqual(canonical.acquisition_strategy, "github-release-archive")
+        self.assertEqual(canonical.release["release_id"], "1.0.0")
+        self.assertEqual(canonical.release["tf_version"], "0.4.0")
 
     def test_prepare_then_offline_reuse_same_registered_resource(self):
         acquirer = ReleaseArchiveAcquirer(self.store, download=self.downloader)

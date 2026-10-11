@@ -19,3 +19,6 @@
 - Adding all ORACC subprojects as a collection.
 - Running the third-party converter or hosting a standalone Text-Fabric web app through the Agora MCP plugin.
 - Replacing upstream's per-project licensing claims with a blanket MIT/CC0 assertion.
+
+## Published-release identity correction
+The GitHub **distribution release ID** is `1.0.0`, while the **Text-Fabric data schema** is `0.4.0` (`TF_VERSION` from immutable ORACC-TF `v1.0.0` commit `programs/oracc_tf/__init__.py`). The exact archive manifests `tf/0.4.0`, not `tf/1.0.0`. Keep these independently pinned; the builder package is `0.1.0`.

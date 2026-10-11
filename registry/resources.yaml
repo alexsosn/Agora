@@ -776,7 +776,7 @@ resources:
       bytes: 41285702
       dataset: assyrian-royal-inscriptions
       release_id: 1.0.0
-      tf_version: 1.0.0
+      tf_version: 0.4.0
     notes: Strict digest-pinned pure-data TF extraction; no ORACC builder checkout or converter execution; release app/docs are not executed by Agora.
   licenses:
     data: Mixed upstream terms (ORACC project-specific CC0/CC BY-SA 3.0 and qualified official TEI translation rights)
