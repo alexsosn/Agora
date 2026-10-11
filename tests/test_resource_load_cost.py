@@ -253,7 +253,7 @@ class CanonicalLoadCostTests(unittest.TestCase):
             for resource_id, resource in self.canonical.items()
             if "load_cost" in resource
         }
-        self.assertEqual(measured, {"bhsa", "cuc", "TLHdig-TF", "greek_literature"})
+        self.assertEqual(measured, {"bhsa", "cuc", "TLHdig-TF", "greek_literature", "assyrian-royal-inscriptions"})
 
     def test_seeded_corpora_have_resource_scope_and_provenance(self):
         for resource_id in ("bhsa", "cuc", "TLHdig-TF"):

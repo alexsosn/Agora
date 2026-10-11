@@ -103,6 +103,15 @@ class Catalog:
                 )
             archive = acquisition.get("archive")
             if strategy == "github-release-archive":
+                # Schema and in-process catalogs must reject the same ambiguity:
+                # otherwise a legacy acquisition.release can silently disagree
+                # with the pinned, authoritative acquisition.archive descriptor.
+                unexpected = set(acquisition) - {"strategy", "archive", "lazy", "notes"}
+                if unexpected:
+                    raise ValueError(
+                        f"Context-Fabric resource {item.get('id')!r} has unsupported "
+                        f"release acquisition keys {sorted(unexpected)!r}"
+                    )
                 if item.get("kind") != "corpus" or not isinstance(archive, dict):
                     raise ValueError(
                         f"Context-Fabric resource {item.get('id')!r} requires a typed corpus release archive"

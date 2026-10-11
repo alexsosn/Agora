@@ -109,6 +109,14 @@ class ContextFabricService(_BaseContextFabricService):
         resource = self.catalog.get(resource_id)
         if resource.acquisition_strategy == "user-local":
             annotated.update(source_resolution="user-local", source_revision_verified=True)
+        elif resource.acquisition_strategy == "github-release-archive":
+            annotated.update(
+                source_resolution="pinned-github-release-archive",
+                source_revision_verified=True,
+                release_asset_sha256=resource.release_archive["sha256"],
+                release_tag=resource.release_archive["release_tag"],
+                release_asset=resource.release_archive["asset_name"],
+            )
         modules = annotated.get("modules")
         if isinstance(modules, list) and policy is not None:
             annotated_modules: list[Any] = []
