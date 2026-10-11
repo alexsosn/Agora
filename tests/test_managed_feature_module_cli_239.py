@@ -147,6 +147,9 @@ class ManagedFeatureModuleCliRedTests(unittest.TestCase):
         self.assertIn('"--module", "cuc-burns"', script)
         self.assertIn('"--parent-version", "0.2.8"', script)
         self.assertNotIn("materialize_requested_feature_module(", script)
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/materialization-sandbox.yml").read_text(encoding="utf-8")
+        self.assertIn("'scripts/agora_compose_feature_module.py'", workflow)
 
     def test_nonexistent_source_refused_without_materializer_execution(self):
         with mock.patch.object(compose, "materialize_requested_feature_module") as produce, (
