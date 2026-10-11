@@ -2,25 +2,6 @@ name: Registered Burns Workbooks with managed CUC and Context-Fabric
 
 on:
   workflow_call:
-  pull_request:
-    paths:
-      - '.github/workflows/ctc-burns-registered-e2e.yml'
-      - 'tests/test_ctc_burns_registered_237.py'
-      - 'tests/test_ctc_burns_registered_smoke_237.py'
-      - 'tests/live_ctc_burns_registered_237.py'
-      - 'registry/materializers.yaml'
-      - 'registry/feature-modules.yaml'
-      - 'plugins/context-fabric/resources/feature-modules.yaml'
-      - 'scripts/agora_compose_feature_module.py'
-      - 'scripts/agora_materialize_registered.py'
-      - 'scripts/agora_materialize.py'
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/ctc-burns-registered-e2e.yml'
-      - 'tests/live_ctc_burns_registered_237.py'
-      - 'registry/materializers.yaml'
-      - 'registry/feature-modules.yaml'
   workflow_dispatch:
 
 permissions:
