@@ -76,6 +76,10 @@ class LiveSparseAcquisitionWorkflowContract(unittest.TestCase):
         self.assertIn("git_pack_bytes", content)
         self.assertIn("scratch_disk_bytes", content)
         self.assertIn("not measured transfer bytes", content)
+        self.assertIn("verify_selected_sparse_inventory", content)
+        self.assertNotIn('"--long"', content)
+        self.assertNotIn('ls-tree", "-r", "-z", "--long"', content)
+
 
         self.assertIn("pull_request:", content)
 
@@ -239,6 +243,53 @@ class SparseGitAcquisitionIntegrationTests(unittest.TestCase):
         target = self.remote / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(contents, encoding="utf-8")
+
+    def test_pinned_inventory_reads_only_sparse_blob_ids_without_hydrating_excluded_objects(self):
+        # Regression for #250: ls-tree --long queries blob sizes of all Git
+        # paths and lazy-fetches excluded ANNIS/CONLLU data. The verifier must
+        # use only tree OIDs and on-disk included content.
+        from scripts.sparse_git_inventory import verify_selected_sparse_inventory
+
+        prepared = acquire_git_source(self.strategy, self.spec)
+        excluded_oid = self.git(
+            "-C", str(self.remote), "rev-parse", "HEAD:AP/story_ANNIS/part1.annis"
+        ).strip()
+        no_lazy_env = {**os.environ, "GIT_NO_LAZY_FETCH": "1"}
+
+        def has_excluded_blob():
+            return subprocess.run(
+                [GIT, "-C", str(prepared.path), "cat-file", "-e", excluded_oid],
+                env=no_lazy_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                check=False,
+            ).returncode == 0
+
+        try:
+            self.assertFalse(has_excluded_blob(), "fixture must start as partial clone")
+            count, total = verify_selected_sparse_inventory(
+                prepared.path,
+                expected_count=3,
+                expected_bytes=sum(
+                    (self.remote / rel).stat().st_size for rel in (
+                        "AP/story_TT/part1.tt", "AP/story_TT/sub/chapter.tt",
+                        "sahidica.nt/NT_TT.zip",
+                    )
+                ),
+            )
+            self.assertEqual(3, count)
+            self.assertGreater(total, 0)
+            self.assertFalse(has_excluded_blob(), "verification must not hydrate excluded Git blobs")
+
+            # Same-size mutation must be detected by Git blob identity, not
+            # accepted just because path count and byte totals still match.
+            target = prepared.path / "AP/story_TT/part1.tt"
+            original = target.read_bytes()
+            target.write_bytes(b"Q" * len(original))
+            with self.assertRaisesRegex(ValueError, "Git blob"):
+                verify_selected_sparse_inventory(
+                    prepared.path, expected_count=3, expected_bytes=total,
+                )
+        finally:
+            prepared.cleanup()
 
     def test_real_git_selects_tt_files_and_zip_but_no_other_source_formats(self):
         from scripts import agora_materialize as module
