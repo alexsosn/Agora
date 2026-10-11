@@ -147,6 +147,40 @@ class PinnedReleaseSnapshot251Tests(unittest.TestCase):
         self.assertFalse(self.store._access_path(destination).exists())
         self.assertEqual([], self.store.cache_entries())
 
+    def test_symlinked_cache_ancestor_cannot_redirect_publication_outside_cache(self):
+        outside = self.root / "outside-cache"
+        outside.mkdir()
+        (self.store.snapshots_dir / "pseudepigrapha").symlink_to(
+            outside, target_is_directory=True,
+        )
+        with self.assertRaisesRegex(ValueError, "symlink|outside|cache"):
+            self.install()
+        self.assertEqual(
+            [], list(outside.rglob("*")),
+            "even transiently published folders must not survive outside the cache",
+        )
+        with self.assertRaises((ValueError, FileNotFoundError)):
+            self.prepare()
+
+    def test_cached_feature_swap_to_identical_symlink_is_rejected(self):
+        from agora_context_fabric.local_import import LocalImports
+        prepared = self.install()
+        outside = self.root / "external-norm.tf"
+        outside.write_bytes(FEATURES["norm.tf"])
+        true_files = LocalImports._files
+
+        def swap_after_regular_file_enumeration(path, kind):
+            files = true_files(path, kind)
+            if path == prepared.path:
+                feature = path / "norm.tf"
+                feature.rename(path / "original-norm.tf.bak")
+                feature.symlink_to(outside)
+            return files
+
+        with patch.object(LocalImports, "_files", side_effect=swap_after_regular_file_enumeration):
+            with self.assertRaisesRegex(ValueError, "symlink|changed|integrity"):
+                self.prepare()
+
     def test_non_network_snapshot_does_not_forge_canonical_discovery(self):
         self.install()
         from agora_context_fabric.catalog import Catalog
