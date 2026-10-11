@@ -786,9 +786,9 @@ resources:
       status: component-specific
       checked_at: '2026-10-11'
       sources:
-      - https://github.com/alexsosn/ORACC-TF/blob/main/LICENSE_SCOPE.md
-      - https://github.com/alexsosn/ORACC-TF/blob/main/docs/reference/citation.md
-      - https://github.com/alexsosn/ORACC-TF/blob/main/docs/reference/reproducibility.md
+      - https://github.com/alexsosn/ORACC-TF/blob/v1.0.0/LICENSE_SCOPE.md
+      - https://github.com/alexsosn/ORACC-TF/blob/v1.0.0/docs/reference/citation.md
+      - https://github.com/alexsosn/ORACC-TF/blob/v1.0.0/docs/reference/reproducibility.md
   load_cost:
     scope: resource
     total_cache_mb: 1143.6
