@@ -56,7 +56,7 @@ def main():
         service = ContextFabricService(
             catalog, ContextFabricResolver(catalog, store), corpus_manager
         )
-        listed = service.list_resources(query="Assyrian")
+        listed = service.list_resources(query=RESOURCE)
         assert len(listed) == 1 and listed[0]["id"] == RESOURCE
         assert service.resolver.corpus_versions(RESOURCE) == ("1.0.0",)
         prepared = service.prepare(RESOURCE, source_mode="require-fresh")
