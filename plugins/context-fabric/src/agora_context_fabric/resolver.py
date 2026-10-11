@@ -150,10 +150,14 @@ def select_dataset_version(roots: Iterable[str], version: str) -> str:
 
 
 class ContextFabricResolver:
-    def __init__(self, catalog: Catalog, store: GitStore, *, local_imports=None):
+    def __init__(self, catalog: Catalog, store: GitStore, *, local_imports=None, release_acquirer=None):
         self.local_imports = local_imports
         self.catalog = catalog
         self.store = store
+        if release_acquirer is None:
+            from .release_resource import ReleaseArchiveAcquirer
+            release_acquirer = ReleaseArchiveAcquirer(store)
+        self.release_acquirer = release_acquirer
         self._collection_indexes: CollectionIndexManager | None = None
 
     def _collection_index_manager(self) -> CollectionIndexManager:
@@ -284,6 +288,8 @@ class ContextFabricResolver:
         resource = self.catalog.get(resource_id)
         if resource.kind != "corpus":
             raise ValueError(f"resource {resource_id!r} is not a corpus")
+        if resource.acquisition_strategy == "github-release-archive":
+            return (resource.release["tf_version"],)
         repo, revision = self._repo(resource)
         roots = self.store.dataset_roots(repo, revision)
         if resource.tf_path is not None:
@@ -295,6 +301,8 @@ class ContextFabricResolver:
         resource = self.catalog.get(resource_id)
         if resource.kind != "corpus":
             raise ValueError(f"resource {resource_id!r} is not a corpus")
+        if resource.acquisition_strategy == "github-release-archive":
+            return resource.release["tf_version"]
         repo, revision = self._repo(resource)
         relative = self._select_resource_root(resource, self.store.dataset_roots(repo, revision))
         return dataset_version(relative)
@@ -391,6 +399,12 @@ class ContextFabricResolver:
             if policy is not None and policy.mode == "require-fresh":
                 raise ValueError("local corpora have no remote source to refresh")
             return self.local_imports.prepared(resource)
+        if resource.acquisition_strategy == "github-release-archive":
+            if member_id is not None:
+                raise ValueError("release corpus is not a collection; member_id is invalid")
+            return self.release_acquirer.prepare(
+                resource, version=version, source_revision=source_revision,
+            )
         if resource.kind == "collection":
             if version is not None:
                 raise ValueError("version selection is supported only for corpus resources")
