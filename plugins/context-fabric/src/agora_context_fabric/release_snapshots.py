@@ -179,6 +179,23 @@ class ReleaseSnapshots:
         self.store.touch_cache_object(destination)
         return destination
 
+    def _verify_and_complete_locked(
+        self, identity: dict[str, str], *, operation: OperationControl,
+    ) -> Path:
+        """Verify immutable release source before touching optional CFM products.
+
+        Caller holds the shared cache transition lock. Both offline prepare()
+        and require-fresh reinstall() must obey this same trust boundary.
+        """
+        path = self._verify_locked(identity, operation=operation)
+        from .cfm_compat import complete_empty_compiled_features
+
+        with self.store._repository_lock("cfm-empty-" + identity["resource_id"]):
+            complete_empty_compiled_features(
+                path, min_free_bytes=self.store.min_free_bytes,
+            )
+        return path
+
     @staticmethod
     def _prepared(identity: dict[str, str], path: Path):
         from .resolver import PreparedCorpus
@@ -204,16 +221,7 @@ class ReleaseSnapshots:
         control = operation or current_operation() or OperationControl()
         control.remaining_acquisition_seconds()
         with self.store.cache_transition():
-            path = self._verify_locked(identity, operation=control)
-            # Source .tf hashes/receipt were authenticated above. CFM 0.5.x
-            # may publish empty node features in meta.json without arrays.
-            # Complete only provably empty derived arrays under a per-resource
-            # process lock; never write or reinterpret source feature bytes.
-            from .cfm_compat import complete_empty_compiled_features
-            with self.store._repository_lock("cfm-empty-" + identity["resource_id"]):
-                complete_empty_compiled_features(
-                    path, min_free_bytes=self.store.min_free_bytes,
-                )
+            path = self._verify_and_complete_locked(identity, operation=control)
         return self._prepared(identity, path)
 
     def install(
@@ -241,7 +249,7 @@ class ReleaseSnapshots:
             with self.store.cache_transition():
                 if destination.exists() or destination.is_symlink():
                     return self._prepared(
-                        identity, self._verify_locked(identity, operation=control)
+                        identity, self._verify_and_complete_locked(identity, operation=control)
                     )
                 temporary = Path(tempfile.mkdtemp(prefix="release-import-", dir=self.store.tmp_dir))
                 published = False
