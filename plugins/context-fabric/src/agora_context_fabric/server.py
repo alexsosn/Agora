@@ -14,6 +14,7 @@ from .local_import import LocalCatalog, LocalImports
 from .mcp_tools import register_tools
 from .operation import install_shutdown_cleanup
 from .resolver import ContextFabricResolver
+from .release_resource import ReleaseArchiveAcquirer
 from .service import ContextFabricService
 
 LOGGER = logging.getLogger("agora_context_fabric")
@@ -90,7 +91,8 @@ def build_runtime(
     store = GitStore(Path(cache_dir))
     local_imports = LocalImports(store)
     catalog = LocalCatalog(catalog, local_imports)
-    resolver = ContextFabricResolver(catalog, store, local_imports=local_imports)
+    resolver = ContextFabricResolver(catalog, store, local_imports=local_imports,
+                                   release_acquirer=ReleaseArchiveAcquirer(store))
     cfm_version = current_cfm_version()
     cold_compiler = ColdCompileSupervisor(cfm_version=cfm_version)
     service = ContextFabricService(
