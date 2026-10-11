@@ -1,0 +1,89 @@
+name: Pseudepigrapha verified TF ZIP staging
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pseudepigrapha-release-staging.yml'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_archive.py'
+      - 'tests/test_verified_tf_release_staging_251.py'
+      - 'scripts/probe_tf_release_asset.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pseudepigrapha-release-staging.yml'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_archive.py'
+      - 'tests/test_verified_tf_release_staging_251.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  stage-pinned-tf:
+    name: Verify published v1.0.0 TF features without corpus publication
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out immutable Agora head without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Assert reviewed code identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Configure Python and install test dependencies
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install bounded validation dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Reject malicious ZIP fixtures and validate temporary cleanup
+        run: python -m unittest tests.test_verified_tf_release_staging_251 -v
+
+      - name: Stage both checksum-pinned release assets in isolation
+        run: |
+          # Research-only, no corpus cache publication or third-party code execution.
+          python - <<'PY'
+          import sys
+          import tempfile
+          from pathlib import Path
+          from scripts.agora_materialize import _download_pinned_archive
+          from scripts.probe_tf_release_asset import PINNED_RELEASE_ASSETS
+
+          sys.path.insert(0, str(Path.cwd() / "plugins/context-fabric/src"))
+          from agora_context_fabric.release_archive import staged_verified_tf_zip
+
+          url = "https://github.com/alexsosn/Pseudepigrapha-TF/releases/download/v1.0.0/"
+          for name, pinned in sorted(PINNED_RELEASE_ASSETS.items()):
+              with tempfile.TemporaryDirectory() as temp:
+                  asset = Path(temp) / "source.zip"
+                  _download_pinned_archive(
+                      {"url": url + name, "sha256": pinned["sha256"]}, asset
+                  )
+                  assert asset.stat().st_size == pinned["size"]
+                  with staged_verified_tf_zip(
+                      asset, expected_sha256=pinned["sha256"],
+                      staging_parent=Path(temp),
+                  ) as features:
+                      count = len(list(features.glob("*.tf")))
+                      feature_bytes = sum(p.stat().st_size for p in features.glob("*.tf"))
+                      assert count >= 90, (name, count)
+                      print(
+                          f"VERIFIED pinned TF staging asset={name} "
+                          f"features={count} feature_bytes={feature_bytes} "
+                          f"sha256={pinned['sha256']}",
+                          flush=True,
+                      )
+                      staged_path = features
+                  assert not staged_path.exists(), "temporary data leaked"
+          PY
