@@ -1,6 +1,7 @@
 name: Registered Burns Workbooks with managed CUC and Context-Fabric
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - '.github/workflows/ctc-burns-registered-e2e.yml'
@@ -26,7 +27,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  group: ctc-burns-registered-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
