@@ -34,9 +34,15 @@ def check(api):
     words = api.L.d(lines[0], otype="word")
     if not words or not any(api.F.form.v(n) for n in words):
         raise AssertionError("released corpus has no transliterated words for Q001801.1")
+    # Immutable upstream v1.0.0 browser acceptance uses these exact glyph/form
+    # oracles, not merely feature presence or inferred transliteration.
+    if "E₂" not in {api.F.form.v(n) for n in words}:
+        raise AssertionError("released Q001801.1 lost source-grounded E₂ word")
     signs = api.L.d(lines[0], otype="sign")
     if not any(api.F.utf8.v(n) for n in signs):
         raise AssertionError("released corpus has no cuneiform signs for Q001801.1")
+    if "𒂍" not in {api.F.utf8.v(n) for n in signs}:
+        raise AssertionError("released Q001801.1 lost source-grounded 𒂍 sign")
     translations = api.E.translation_line.t(lines[0])
     if not translations or not any(api.F.translation_text.v(n) for n in translations):
         raise AssertionError("released corpus has no upstream-aligned TEI text for Q001801.1")
