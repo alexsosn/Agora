@@ -214,7 +214,6 @@ jobs:
   context-fabric-cache-lifecycle:
     name: Context-Fabric cache lifecycle (${{ matrix.os }})
     needs: scope
-    if: needs.scope.outputs.validation == 'full'
     strategy:
       fail-fast: false
       matrix:
@@ -222,10 +221,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
+      - name: Document docs-only validation skip
+        if: needs.scope.outputs.validation == 'docs'
+        run: echo "Docs-only PR; OS runtime tests skipped, check identity preserved."
+
       - name: Check out repository
+        if: needs.scope.outputs.validation == 'full'
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: needs.scope.outputs.validation == 'full'
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -233,18 +238,20 @@ jobs:
           cache-dependency-path: requirements-dev.txt
 
       - name: Install cache lifecycle test dependencies
+        if: needs.scope.outputs.validation == 'full'
         run: python -m pip install -r requirements-dev.txt
 
       - name: Run cross-process cache lifecycle regressions
+        if: needs.scope.outputs.validation == 'full'
         run: python tests/test_context_fabric_cache_lifecycle.py
 
       - name: Run conservative cache discovery regressions
+        if: needs.scope.outputs.validation == 'full'
         run: python tests/test_context_fabric_cache_discovery.py
 
   materializer-install-locks:
     name: Materializer install locks (${{ matrix.os }})
     needs: scope
-    if: needs.scope.outputs.validation == 'full'
     strategy:
       fail-fast: false
       matrix:
@@ -252,10 +259,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
+      - name: Document docs-only validation skip
+        if: needs.scope.outputs.validation == 'docs'
+        run: echo "Docs-only PR; OS runtime tests skipped, check identity preserved."
+
       - name: Check out repository
+        if: needs.scope.outputs.validation == 'full'
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: needs.scope.outputs.validation == 'full'
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -263,13 +276,16 @@ jobs:
           cache-dependency-path: requirements-dev.txt
 
       - name: Install lock test dependencies
+        if: needs.scope.outputs.validation == 'full'
         run: python -m pip install -r requirements-dev.txt
 
       # Installation locking is per-OS behaviour, like the Context-Fabric cache
       # locks above: process-death release, bounded waiting, and mixed-version
       # migration semantics have to hold everywhere Agora installs.
       - name: Run installation lock regressions
+        if: needs.scope.outputs.validation == 'full'
         run: python -m unittest discover -s tests -p 'test_materializer_installation.py' -v
 
       - name: Run lock migration regressions
+        if: needs.scope.outputs.validation == 'full'
         run: python -m unittest discover -s tests -p 'test_materializer_lock_migration.py' -v
