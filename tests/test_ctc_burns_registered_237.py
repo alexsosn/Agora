@@ -33,6 +33,7 @@ class CtcBurnsCanonicalProducerRegistrationRedTests(unittest.TestCase):
         self.assertEqual(len(matches), 1)
         p = matches[0]
         self.assertEqual(p["repository"], "alexsosn/CTC-TF")
+        self.assertEqual(p["name"], "Burns contextual feature module for reviewed CUC")
         self.assertEqual(p["ref"], UPSTREAM_COMMIT)
         self.assertEqual(p["version"], "0.3.0")
         self.assertEqual(p["manifest"], "agora.materializer.json")
