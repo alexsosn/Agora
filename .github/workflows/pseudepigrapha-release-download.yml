@@ -1,0 +1,102 @@
+name: Pseudepigrapha trusted pinned HTTPS release download
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pseudepigrapha-release-download.yml'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_download.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_archive.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_snapshots.py'
+      - 'tests/test_pinned_release_download_251.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pseudepigrapha-release-download.yml'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_download.py'
+      - 'tests/test_pinned_release_download_251.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verified-https-download:
+    name: Download pinned v1.0.0 TF with safe redirects and offline snapshot reopen
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact Agora source head without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify tested source head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install test requirements
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run adversarial redirect and deadline tests
+        run: python -m unittest tests.test_pinned_release_download_251 -v
+
+      - name: Fetch exact public GitHub asset and reopen immutable snapshot offline
+        run: |
+          # Data-only integration, no corpus discovery or third-party converter execution.
+          python - <<'PY'
+          import sys
+          import tempfile
+          from pathlib import Path
+          from scripts.probe_tf_release_asset import PINNED_RELEASE_ASSETS
+
+          sys.path.insert(0, str(Path.cwd() / "plugins/context-fabric/src"))
+          from agora_context_fabric.release_download import download_pinned_release
+          from agora_context_fabric.release_snapshots import ReleaseSnapshots
+          from agora_context_fabric.gitstore import GitStore
+
+          pinned = PINNED_RELEASE_ASSETS["tf-1.0.zip"]
+          identity = dict(
+              resource_id="pseudepigrapha",
+              repository="alexsosn/Pseudepigrapha-TF",
+              release_tag="v1.0.0",
+              version="1.0",
+              asset_sha256=pinned["sha256"],
+          )
+          with tempfile.TemporaryDirectory() as temp:
+              parent = Path(temp)
+              store = GitStore(parent / "cache", min_free_bytes=0)
+              with download_pinned_release(
+                  repository=identity["repository"],
+                  release_tag=identity["release_tag"],
+                  asset_name="tf-1.0.zip",
+                  asset_sha256=pinned["sha256"],
+                  asset_bytes=pinned["size"],
+                  temporary_parent=store.tmp_dir,
+              ) as asset:
+                  prepared = ReleaseSnapshots(store).install(asset, **identity)
+                  assert prepared.source_revision == pinned["sha256"]
+                  assert len(list(prepared.path.glob("*.tf"))) == 96
+                  assert sum(p.stat().st_size for p in prepared.path.glob("*.tf")) == 101762166
+                  staged_path = asset
+              assert not staged_path.exists()
+              reopened = ReleaseSnapshots(GitStore(parent / "cache", min_free_bytes=0)).prepare(**identity)
+              assert reopened.path == prepared.path
+              assert reopened.resource_id == "pseudepigrapha"
+              assert reopened.source_revision == pinned["sha256"]
+              print(
+                  f"PASS pinned release HTTPS -> native TF snapshot -> offline reopen "
+                  f"source_revision={pinned['sha256']}",
+                  flush=True,
+              )
+          PY
