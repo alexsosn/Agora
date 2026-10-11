@@ -14,8 +14,46 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  scope:
+    name: Fail-closed CI change scope
+    runs-on: ubuntu-latest
+    outputs:
+      validation: ${{ steps.decide.outputs.validation }}
+    steps:
+      - name: Check out complete PR merge parents
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Set up Python for scope classifier
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Select conservative validation gate
+        id: decide
+        shell: bash
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            scope="$(python scripts/ci_change_scope.py --git-classify)"
+            if [[ "$scope" != "full" && "$scope" != "docs" ]]; then
+              echo "Unexpected scope: $scope" >&2
+              exit 1
+            fi
+          else
+            # Main, scheduled and manually dispatched runs retain full CI.
+            scope=full
+          fi
+          echo "validation=$scope" >> "$GITHUB_OUTPUT"
+          echo "Foundation validation scope: $scope"
+
   foundation:
     name: Repository foundation, registry, and manifests
+    needs: scope
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -144,11 +182,38 @@ jobs:
       - name: Verify v0.1 release status is fresh
         run: python scripts/generate_release_status.py --check
 
+      - name: Validate generated researcher documentation contract
+        if: needs.scope.outputs.validation == 'docs'
+        run: |
+          python scripts/generate_plugin_docs.py --check
+          python scripts/generate_resource_catalog_docs.py --check
+
+      - name: Run bounded docs/first-contact unit tests
+        if: needs.scope.outputs.validation == 'docs'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test_pattern in \
+            test_human_scholarly_guidance_169.py \
+            test_symptom_recovery_docs_172.py \
+            test_first_success_tutorials_170.py \
+            test_researcher_docs_integrity_173.py \
+            test_compatibility_decisions_171.py \
+            test_release_front_door.py \
+            test_plugin_detail_docs.py \
+            test_resource_catalog_docs.py \
+            test_user_docs_landing.py \
+            test_user_docs_mental_model.py; do
+            python -m unittest discover -s tests -p "$test_pattern" -v
+          done
+
       - name: Run unit tests
+        if: needs.scope.outputs.validation == 'full'
         run: python -m unittest discover -s tests -v
 
   context-fabric-cache-lifecycle:
     name: Context-Fabric cache lifecycle (${{ matrix.os }})
+    needs: scope
     strategy:
       fail-fast: false
       matrix:
@@ -156,10 +221,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
+      - name: Document docs-only validation skip
+        if: needs.scope.outputs.validation == 'docs'
+        run: echo "Docs-only PR; OS runtime tests skipped, check identity preserved."
+
       - name: Check out repository
+        if: needs.scope.outputs.validation == 'full'
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: needs.scope.outputs.validation == 'full'
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -167,16 +238,20 @@ jobs:
           cache-dependency-path: requirements-dev.txt
 
       - name: Install cache lifecycle test dependencies
+        if: needs.scope.outputs.validation == 'full'
         run: python -m pip install -r requirements-dev.txt
 
       - name: Run cross-process cache lifecycle regressions
+        if: needs.scope.outputs.validation == 'full'
         run: python tests/test_context_fabric_cache_lifecycle.py
 
       - name: Run conservative cache discovery regressions
+        if: needs.scope.outputs.validation == 'full'
         run: python tests/test_context_fabric_cache_discovery.py
 
   materializer-install-locks:
     name: Materializer install locks (${{ matrix.os }})
+    needs: scope
     strategy:
       fail-fast: false
       matrix:
@@ -184,10 +259,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
+      - name: Document docs-only validation skip
+        if: needs.scope.outputs.validation == 'docs'
+        run: echo "Docs-only PR; OS runtime tests skipped, check identity preserved."
+
       - name: Check out repository
+        if: needs.scope.outputs.validation == 'full'
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: needs.scope.outputs.validation == 'full'
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -195,13 +276,16 @@ jobs:
           cache-dependency-path: requirements-dev.txt
 
       - name: Install lock test dependencies
+        if: needs.scope.outputs.validation == 'full'
         run: python -m pip install -r requirements-dev.txt
 
       # Installation locking is per-OS behaviour, like the Context-Fabric cache
       # locks above: process-death release, bounded waiting, and mixed-version
       # migration semantics have to hold everywhere Agora installs.
       - name: Run installation lock regressions
+        if: needs.scope.outputs.validation == 'full'
         run: python -m unittest discover -s tests -p 'test_materializer_installation.py' -v
 
       - name: Run lock migration regressions
+        if: needs.scope.outputs.validation == 'full'
         run: python -m unittest discover -s tests -p 'test_materializer_lock_migration.py' -v
