@@ -14,7 +14,7 @@ from tf.fabric import Fabric
 
 from scripts.agora_compose_feature_module import (
     _bundled_context_fabric_resolver,
-    materialize_requested_feature_module,
+    main as module_cli,
 )
 
 CUC_COMMIT = "0408967b1808c1f22c69e299d302b1e7b5e26354"
@@ -43,11 +43,16 @@ def main() -> None:
     slots = parent_api.F.otype.maxSlot
     nodes = parent_api.F.otype.maxNode
 
-    module_path = materialize_requested_feature_module(
-        module_id="cuc-burns", plugin_id="cuc-burns",
-        materializer_id="cuc-burns-csv", source=csv,
-        cache_dir=cache, install_root=install_root,
-    )
+    # This is the exact documented researcher command, not a direct internal
+    # call that could miss argument parsing or canonical producer authorization.
+    assert module_cli([
+        "--module", "cuc-burns",
+        "--source", str(csv),
+        "--cache-dir", str(cache),
+        "--install-root", str(install_root),
+        "--parent-version", "0.2.8",
+    ]) == 0
+    module_path = resolver.store.local_feature_module_path("cuc-burns", "tf/0.2.8")
     assert module_path.is_dir()
     assert (module_path / "burns_headword_1.tf").is_file()
     assert (module_path / "burns-feature-module-report.json").is_file()
