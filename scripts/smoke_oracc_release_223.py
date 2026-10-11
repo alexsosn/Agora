@@ -58,7 +58,7 @@ def main():
         )
         listed = service.list_resources(query=RESOURCE)
         assert len(listed) == 1 and listed[0]["id"] == RESOURCE
-        assert service.resolver.corpus_versions(RESOURCE) == ("1.0.0",)
+        assert service.resolver.corpus_versions(RESOURCE) == ("0.4.0",)
         prepared = service.prepare(RESOURCE, source_mode="require-fresh")
         assert prepared["source_revision"] == ASSET_SHA
         assert (Path(prepared["path"]) / ".agora-release.json").is_file()
