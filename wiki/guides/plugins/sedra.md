@@ -39,6 +39,8 @@ This is a bounded starting request, not a full tutorial. The first-success tutor
 
 For agent-side morphology and ambiguity guidance, see the [SEDRA research skill](../../../plugins/sedra/skills/sedra-research/SKILL.md).
 
+See the [human scholarly guidance](../scholarly-guidance.md) for direct links to source-specific research-method sections maintained with the agent skills.
+
 Canonical capabilities:
 
 - **Dictionary lookup** (`dictionary-lookup`)

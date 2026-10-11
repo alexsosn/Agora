@@ -230,6 +230,8 @@ This is a bounded starting request, not a full tutorial. The first-success tutor
 
 {guidance['tasks']}
 
+See the [human scholarly guidance](../scholarly-guidance.md) for direct links to source-specific research-method sections maintained with the agent skills.
+
 Canonical capabilities:
 
 {_capabilities(plugin)}

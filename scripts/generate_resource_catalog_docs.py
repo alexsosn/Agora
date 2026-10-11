@@ -169,6 +169,8 @@ def render() -> str:
         "",
         "Rights are reported from the canonical data-licensing evidence. `component-specific`, `member-specific`, and `unresolved` are intentionally visible states; `unknown` is not silently treated as open data.",
         "",
+        "Follow the [scholarly guidance index](scholarly-guidance.md) for corpus-specific research-method sections maintained in existing skills; corpus versions, verification and rights remain recorded in this catalog.",
+        "",
         "Load-cost values below are **historical measurements** tied to the recorded machine, revision, and date. They are **not requirements or predictions** for another environment.",
         "",
         "## Resources",
