@@ -135,7 +135,8 @@ class ManagedFeatureModuleCliRedTests(unittest.TestCase):
             "python -m scripts.agora_compose_feature_module",
             "--module cuc-burns --source",
             'modules=["cuc-burns"]',
-            'template="word burns_headword_1"',
+            'features=["burns_headword_1"]',
+            'search(corpus=loaded["logical_name"], template="word burns_headword_1"',
             'return_type="count"',
             'unload_corpus(logical_name=loaded["logical_name"])',
             "0.2.8",
@@ -143,6 +144,7 @@ class ManagedFeatureModuleCliRedTests(unittest.TestCase):
         ):
             with self.subTest(snippet=snippet):
                 self.assertIn(snippet, content)
+        self.assertNotIn('search(logical_name=', content)
 
     def test_real_burns_acceptance_exercises_the_public_command_not_only_internal_helper(self):
         script = (Path(__file__).resolve().parents[1] /
