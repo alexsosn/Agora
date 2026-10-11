@@ -36,14 +36,17 @@ class RegistryValidationTests(unittest.TestCase):
 
     def test_duplicate_materializer_plugin_id_is_rejected(self):
         def mutate(doc):
-            doc["plugins"].append(copy.deepcopy(doc["plugins"][0]))
+            # Test a fixed registered ID, regardless of sorted registry order.
+            original = next(p for p in doc["plugins"] if p["id"] == "pseudepigrapha-tf")
+            doc["plugins"].append(copy.deepcopy(original))
 
         errors = self.validate_mutation("registry/materializers.yaml", mutate)
         self.assertTrue(any("materializers.yaml: duplicate id 'pseudepigrapha-tf'" in error for error in errors), errors)
 
     def test_unknown_materializer_discipline_is_rejected(self):
         def mutate(doc):
-            doc["plugins"][0]["disciplines"] = ["typo-discipline"]
+            original = next(p for p in doc["plugins"] if p["id"] == "pseudepigrapha-tf")
+            original["disciplines"] = ["typo-discipline"]
 
         errors = self.validate_mutation("registry/materializers.yaml", mutate)
         self.assertTrue(

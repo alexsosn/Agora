@@ -307,17 +307,21 @@ class RegisteredLocalPublicationRed3e(unittest.TestCase):
                                  cache_dir=store.cache_dir)
                 run.assert_not_called()
 
-    def test_reviewed_cuc_burns_catalog_remains_unpublishable_without_real_producer_pin(self):
-        # The upstream CTC-TF#117 producer manifest is not registered yet.
+    def test_registered_cuc_burns_without_installation_fails_before_parent_preparation(self):
+        # The catalog names a producer, but Agora must NEVER install or approve
+        # third-party Burns code as a side effect of requesting publication.
         with tempfile.TemporaryDirectory() as tmp:
-            with mock.patch.object(registered, "resolve_installed_manifest") as resolve:
-                with self.assertRaisesRegex(ValueError, "no matching catalog-bound"):
+            with mock.patch.object(
+                registered, "resolve_installed_manifest",
+                side_effect=RuntimeError("producer not installed")
+            ) as resolve:
+                with self.assertRaisesRegex(RuntimeError, "producer not installed"):
                     self.publish(
-                        module_id="cuc-burns", plugin_id="unregistered",
-                        materializer_id="burns-cuc-module", source=Path(tmp) / "source",
+                        module_id="cuc-burns", plugin_id="cuc-burns",
+                        materializer_id="cuc-burns-csv", source=Path(tmp) / "source",
                         cache_dir=Path(tmp) / "cache",
                     )
-                resolve.assert_not_called()
+                resolve.assert_called_once()
 
     def test_catalog_resource_document_carries_explicit_producer_binding(self):
         from agora_context_fabric.catalog import Catalog
