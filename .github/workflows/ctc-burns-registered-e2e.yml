@@ -37,10 +37,13 @@ jobs:
     timeout-minutes: 65
     env:
       AGORA_CORPUS_MIN_FREE_GB: '0'
-      AGORA_CORPUS_CACHE: ${{ runner.temp }}/managed-cuc-burns-cache
-      BURNS_INSTALL_ROOT: ${{ runner.temp }}/burns-installed-producer
-      BURNS_CSV_DIR: ${{ runner.temp }}/burns-csv
     steps:
+      - name: Set private runner-scoped scratch paths
+        shell: bash
+        run: |
+          echo "AGORA_CORPUS_CACHE=$RUNNER_TEMP/managed-cuc-burns-cache" >> "$GITHUB_ENV"
+          echo "BURNS_INSTALL_ROOT=$RUNNER_TEMP/burns-installed-producer" >> "$GITHUB_ENV"
+          echo "BURNS_CSV_DIR=$RUNNER_TEMP/burns-csv" >> "$GITHUB_ENV"
       - name: Check out exact tested Agora head
         uses: actions/checkout@v4
         with:
