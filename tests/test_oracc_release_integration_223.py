@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -134,6 +135,30 @@ class ReleaseArchive223Tests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "sha256|manifest|dataset"):
                     acquirer.prepare(self.resource)
                 self.assertEqual([], list(self.store.snapshots_dir.rglob("otype.tf")))
+
+    def test_manifest_identity_is_read_from_the_same_digest_verified_private_zip(self):
+        # The mutable download location is not an authenticated source after
+        # the ZIP has been copied to the staging validator's private inode.
+        from agora_context_fabric import release_resource as module
+        original_stage = module.staged_verified_tf_zip
+        malicious = archive_bytes(manifest_updates={
+            "builder_commit": "e" * 40,
+            "source_state": "sha256:" + "f" * 64,
+        })
+
+        @contextmanager
+        def after_private_copy(path, **kwargs):
+            with original_stage(path, **kwargs) as staged:
+                Path(path).write_bytes(malicious)
+                yield staged
+
+        with patch.object(module, "staged_verified_tf_zip", side_effect=after_private_copy):
+            acquirer = ReleaseArchiveAcquirer(self.store, download=self.downloader)
+            prepared = acquirer.prepare(self.resource)
+        self.assertEqual((prepared.path / "form.tf").read_bytes(), FEATURES["form.tf"])
+        receipt = json.loads((prepared.path / ".agora-release.json").read_text())
+        self.assertEqual(receipt["manifest"]["builder_commit"], "1" * 40)
+        self.assertEqual(receipt["manifest"]["source_state"], "sha256:" + "2" * 64)
 
     def test_corrupted_warm_cache_fails_closed_instead_of_redownload_or_load(self):
         acquirer = ReleaseArchiveAcquirer(self.store, download=self.downloader)
