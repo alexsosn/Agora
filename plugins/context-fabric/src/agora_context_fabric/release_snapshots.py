@@ -74,10 +74,25 @@ class ReleaseSnapshots:
             identity["asset_sha256"] / "corpora" / "__root__"
         )
 
+    def _assert_managed_destination(self, destination: Path) -> None:
+        """Reject symlinked cache ancestors before any mkdir or publication."""
+        root = self.store.snapshots_dir
+        if root.is_symlink() or root.resolve() != root.absolute():
+            raise ValueError("release cache root is a symlink or outside managed cache")
+        relative = destination.relative_to(root)
+        candidate = root
+        for component in relative.parts:
+            candidate = candidate / component
+            if candidate.is_symlink():
+                raise ValueError("release cache path contains a symlink")
+        if not destination.resolve().is_relative_to(root):
+            raise ValueError("release snapshot path is outside managed cache")
+
     def _verify_locked(
         self, identity: dict[str, str], *, operation: OperationControl,
     ) -> Path:
         destination = self._destination(identity)
+        self._assert_managed_destination(destination)
         if not destination.is_dir() or destination.is_symlink():
             raise FileNotFoundError(
                 "pinned release snapshot is not cached; acquire the reviewed asset first"
@@ -104,6 +119,9 @@ class ReleaseSnapshots:
         if not isinstance(manifest, dict) or not manifest:
             raise ValueError("release receipt integrity mismatch")
         files = LocalImports._files(destination, "corpus")
+        expected = set(manifest) | {_RECEIPT}
+        if {p.name for p in destination.iterdir()} != expected:
+            raise ValueError("release payload integrity mismatch: unexpected cache files")
         if set(manifest) != {path.name for path in files}:
             raise ValueError("release payload integrity mismatch")
         for path in files:
@@ -117,11 +135,31 @@ class ReleaseSnapshots:
                 raise ValueError("release receipt integrity mismatch")
             h = hashlib.sha256()
             size = 0
-            with path.open("rb") as reader:
-                while chunk := reader.read(1 << 20):
-                    operation.remaining_acquisition_seconds()
-                    h.update(chunk)
-                    size += len(chunk)
+            before = path.lstat()
+            if not stat.S_ISREG(before.st_mode):
+                raise ValueError("release payload integrity mismatch: feature changed type")
+            try:
+                fd = os.open(
+                    path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                    | getattr(os, "O_NONBLOCK", 0)
+                )
+                with os.fdopen(fd, "rb") as reader:
+                    opened = os.fstat(reader.fileno())
+                    if (not stat.S_ISREG(opened.st_mode)
+                            or (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino)):
+                        raise ValueError("release payload integrity mismatch: feature changed")
+                    while chunk := reader.read(1 << 20):
+                        operation.remaining_acquisition_seconds()
+                        h.update(chunk)
+                        size += len(chunk)
+                    after = os.fstat(reader.fileno())
+                    named = path.lstat()
+                    if ((after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+                            != (opened.st_dev, opened.st_ino, opened.st_size, opened.st_mtime_ns)
+                            or (named.st_dev, named.st_ino) != (opened.st_dev, opened.st_ino)):
+                        raise ValueError("release payload integrity mismatch: feature changed")
+            except OSError as exc:
+                raise ValueError("release payload integrity mismatch: unsafe/changed feature") from exc
             if (size != entry["bytes"] or h.hexdigest() != entry["sha256"]):
                 raise ValueError("release payload integrity mismatch")
         self.store.touch_cache_object(destination)
@@ -168,6 +206,7 @@ class ReleaseSnapshots:
         control.stage("acquiring/materializing")
         control.remaining_acquisition_seconds()
         destination = self._destination(identity)
+        self._assert_managed_destination(destination)
         # The private-copy + SHA256 check precedes any ZIP member extraction.
         # Both stage and publication occur within managed temporary storage.
         with staged_verified_tf_zip(
@@ -225,7 +264,11 @@ class ReleaseSnapshots:
                     (temporary / _RECEIPT).write_text(
                         json.dumps(receipt, sort_keys=True), encoding="utf-8"
                     )
+                    # Check again while holding the cache transition lock:
+                    # no cache ancestor may be redirected to an external path.
+                    self._assert_managed_destination(destination)
                     destination.parent.mkdir(parents=True, exist_ok=True)
+                    self._assert_managed_destination(destination)
                     control.remaining_acquisition_seconds()
                     temporary.rename(destination)
                     published = True
