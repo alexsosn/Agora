@@ -420,7 +420,13 @@ def _run_git(
     # never forward host GIT_TRACE*, credentials or config into the isolated
     # Git environment. Phase labels are controlled, never raw command/URL text.
     trace = os.environ.get("AGORA_GIT_PHASE_TIMINGS") == "1"
-    started = time.monotonic() if trace else None
+    started = None
+    if trace:
+        try:
+            started = time.monotonic()
+        except Exception:
+            # Failure of optional diagnostics cannot stop source acquisition.
+            pass
     succeeded = False
     try:
         if capture:
@@ -473,8 +479,9 @@ def _run_git(
                     f"outcome={outcome}",
                     file=sys.stderr,
                 )
-            except (OSError, ValueError):
-                # Observability must not change acquisition/cleanup semantics.
+            except Exception:
+                # Only observability is optional: never replace the Git result
+                # or a transaction-cleanup-triggering AcquisitionError.
                 pass
 
 
