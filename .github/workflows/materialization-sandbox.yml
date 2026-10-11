@@ -16,6 +16,7 @@ on:
       - 'registry/schema/materializers.schema.json'
       - 'scripts/agora_install_materializer.py'
       - 'scripts/agora_materialize.py'
+      - 'scripts/agora_compose_feature_module.py'
       - 'tests/test_materialization*.py'
   pull_request:
     paths:
@@ -31,6 +32,7 @@ on:
       - 'registry/schema/materializers.schema.json'
       - 'scripts/agora_install_materializer.py'
       - 'scripts/agora_materialize.py'
+      - 'scripts/agora_compose_feature_module.py'
       - 'tests/test_materialization*.py'
 
 permissions:
