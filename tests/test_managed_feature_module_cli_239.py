@@ -135,6 +135,9 @@ class ManagedFeatureModuleCliRedTests(unittest.TestCase):
             "python -m scripts.agora_compose_feature_module",
             "--module cuc-burns --source",
             'modules=["cuc-burns"]',
+            'template="word burns_headword_1"',
+            'return_type="count"',
+            'unload_corpus(logical_name=loaded["logical_name"])',
             "0.2.8",
             "CC-BY-NC-ND",
         ):
