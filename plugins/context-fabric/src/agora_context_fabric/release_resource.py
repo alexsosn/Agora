@@ -194,7 +194,10 @@ class ReleaseArchiveAcquirer:
                         downloaded, expected_sha256=revision, staging_parent=tmp,
                         max_archive_bytes=release["bytes"],
                     ) as staged:
-                        manifest = self._manifest(downloaded, release)
+                        # Read provenance from the same private, digest-verified ZIP whose
+                        # feature bytes were just staged. The downloader's
+                        # original file may be replaced after verification.
+                        manifest = self._manifest(staged.parent / "input.zip", release)
                         if not exists:
                             staging = Path(tempfile.mkdtemp(prefix="release-snapshot-", dir=self.store.tmp_dir))
                             published = False
