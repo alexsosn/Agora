@@ -107,8 +107,6 @@ class ContextFabricService(_BaseContextFabricService):
             )
         )
         resource = self.catalog.get(resource_id)
-        if resource.acquisition_strategy == "github-release-archive":
-            annotated.update(source_resolution="pinned-release-archive", source_revision_verified=True)
         if resource.acquisition_strategy == "user-local":
             annotated.update(source_resolution="user-local", source_revision_verified=True)
         elif resource.acquisition_strategy == "github-release-archive":
