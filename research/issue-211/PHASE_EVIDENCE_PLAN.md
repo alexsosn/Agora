@@ -1,0 +1,16 @@
+# Issue #211 — stage-specific sparse Git timing evidence (bounded first slice)
+
+## Grounded research (2026-10-11)
+- Existing production acquisition in `scripts/agora_materialize.py` uses isolated `_git_environment()`, per-process 120-second timeouts, `git fetch --filter=blob:none`, sparse-checkout before checkout, immutable ref equality, required-glob verification, and transactional source cleanup on exception. The current `GIT_TIMEOUT_SECONDS` is not an end-to-end budget.
+- Existing pinned source CI in `.github/workflows/materialization-sparse-coptic.yml` tests `CopticScriptorium/corpora@3ac067f1709a0012daf39ea8da2fac79980176a5`, exactly 565 TT payload files / 220,289,125 raw worktree bytes, and refuses non-TT hydration. The prior successful source-acquisition/inventory step took ~15m30 inside the 20-minute job. That is **not** a measured Git download amount, peak RSS, or full converter runtime.
+- Before choosing a cumulative acquisition timeout or disk cap for both small-source and intentionally large Coptic sources, the actual fetch/checkout/lazy-hydration phase split is needed. A full-corpus pin must not be downgraded to a mutable ref or given a full-fetch fallback to obtain timing.
+- Git subprocesses already pass only the restrictive environment built by `_git_environment`. Do **not** pass arbitrary host `GIT_TRACE*` variables into this environment. A separate opt-in diagnostic toggle controlling only bounded stderr timing messages is safer and does not change git invocation semantics.
+
+## Research–plan–RED–GREEN–test gates for this slice
+1. **RED**: deterministic instrumentation tests require opt-in timings at _run_git phase level on both success and failure (with fake clock), no report when opted out, no secrets/URLs in diagnostics, unchanged exception behavior, and dedicated pinned Git workflow wiring.
+2. **GREEN**: add an optional labeled `phase` argument to `_run_git` callsites in `acquire_git_source`, timestamp around subprocess only when `AGORA_GIT_PHASE_TIMINGS=1`, and report duration/status to stderr with controlled predefined label (no command or URL). Preserve all subprocess argument/environment/timeouts, sparse order, integrity and cleanup. Use `time.monotonic`, not wall time.
+3. In pinned workflow enable diagnostic only for the source acquisition step. Report aggregate elapsed seconds **and** actual local post-acquisition sizes of payload worktree and `.git` scratch/pack objects; distinguish these from network transfer bytes and *peak* scratch disk (not measured by post-state counters). Maintain pinned 565/220289125 inventory and cleanup assertions.
+4. Independently audit metric accuracy, errors and possible secret leakage; run existing sparse real local fixture tests, exact-head Foundation, and the pinned upstream Git Actions inventory in the PR. Merge only after all gates pass.
+
+## Explicit incompleteness
+This is the **measurement prerequisite**, not issue #211 completion. Cumulative wall-time and capacity enforcement, transfer-byte tracing, peak disk accounting, performance comparisons, and throughput diagnosis remain open until measured pinned-upstream evidence is obtained. Do not label the issue done after merging this slice.
