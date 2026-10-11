@@ -43,6 +43,14 @@ class RegisteredCucBurnsFullAcceptanceContracts(unittest.TestCase):
         self.assertIn("ctc-burns-registered-", workflow)
         self.assertNotIn("group: ${{ github.workflow }}-", workflow)
 
+    def test_runner_private_paths_are_initialized_in_step_context(self):
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn('GITHUB_ENV', workflow)
+        self.assertIn('RUNNER_TEMP', workflow)
+        self.assertNotIn('AGORA_CORPUS_CACHE: ${{ runner.temp }}', workflow)
+        self.assertNotIn('BURNS_INSTALL_ROOT: ${{ runner.temp }}', workflow)
+        self.assertNotIn('BURNS_CSV_DIR: ${{ runner.temp }}', workflow)
+
     def test_real_data_native_tf_and_parent_identity_preserved(self):
         script = VERIFIER.read_text(encoding="utf-8")
         for marker in (
