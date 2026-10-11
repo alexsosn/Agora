@@ -86,6 +86,8 @@ class ReleaseArchiveAcquirer:
                 raise ValueError(f"release {name} must be a fixed portable token")
         if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", resource.repository):
             raise ValueError("release requires a canonical owner/repository")
+        if not release["asset"].endswith(".zip"):
+            raise ValueError("release asset must name a pinned ZIP")
         if not isinstance(resource.ref, str) or not _COMMIT.fullmatch(resource.ref):
             raise ValueError("release upstream.ref must be a 40-hex immutable commit")
         if not isinstance(release["sha256"], str) or not _SHA256.fullmatch(release["sha256"]):
@@ -174,6 +176,7 @@ class ReleaseArchiveAcquirer:
         mode = policy.mode if policy is not None else "prefer-fresh"
         url = (f"https://github.com/{resource.repository}/releases/download/"
                f"{release['tag']}/{release['asset']}")
+        operation = current_operation() or OperationControl()
         with self.store._repository_lock("release-" + resource.id):
             exists = destination.exists() or destination.is_symlink()
             if exists:
@@ -202,7 +205,6 @@ class ReleaseArchiveAcquirer:
                                     size = 0
                                     with source.open("rb") as inp, (staging / source.name).open("xb") as out:
                                         while chunk := inp.read(1 << 20):
-                                            operation = current_operation() or OperationControl()
                                             operation.remaining_acquisition_seconds()
                                             if shutil.disk_usage(staging).free - len(chunk) < self.store.min_free_bytes:
                                                 raise ValueError("release snapshot would violate disk free-space reserve")
