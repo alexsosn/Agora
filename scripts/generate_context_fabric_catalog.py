@@ -40,6 +40,15 @@ def build_catalog_document(root: Path = ROOT) -> dict[str, Any]:
             ) from exc
         ordered.append(item)
 
+    # Keep the v0.1 release-contract resources in their original order; add
+    # reviewed post-1.0 registrations without rewriting historical scope.
+    scoped = set(scope_doc["required_resources"])
+    ordered.extend(
+        sorted(
+            (row for row in by_id.values() if row["id"] not in scoped),
+            key=lambda row: row["id"],
+        )
+    )
     return {
         "schema_version": resources_doc["schema_version"],
         "resources": ordered,
