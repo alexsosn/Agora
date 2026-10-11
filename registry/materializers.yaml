@@ -1,5 +1,31 @@
 schema_version: 1
 plugins:
+  - id: cuc-burns
+    name: Burns contextual feature module for reviewed CUC
+    description: Produce a user-local Burns cultic-vocabulary Text-Fabric feature module over existing reviewed CUC 0.2.8 word nodes without duplicating the parent warp.
+    repository: alexsosn/CTC-TF
+    ref: f58b162197ad8f113b7cd6fc0088ae5dd39a096d
+    version: 0.3.0
+    release_tracking:
+      mode: disabled
+    manifest: agora.materializer.json
+    package:
+      type: python-project
+      path: .
+      install_trust: explicit-code-execution
+    materializers:
+      - cuc-burns-csv
+    disciplines: [semitic-linguistics, digital-philology]
+    licenses:
+      software: MIT
+      data: CC-BY-NC-ND-2.5
+    verification:
+      status: community
+      notes:
+        - Immutable upstream manifest and Agora bridge reviewed at CTC-TF PR 122; Burns native feature module was exercised with real licensed Workbooks and pinned CUC in upstream CI.
+        - Third-party Python installation requires explicit approval; no Burns source is acquired automatically. The producer accepts user-local licensed Workbooks CSV and runs network-denied.
+        - Only feature files are published to the existing CUC node universe; no row-slot standalone Burns corpus, copied CUC warp, or redistributable corpus artifact is installed.
+
   - id: pseudepigrapha-tf
     name: Pseudepigrapha-TF
     description: Convert Online Critical Pseudepigrapha XML editions into local Text-Fabric artifacts.

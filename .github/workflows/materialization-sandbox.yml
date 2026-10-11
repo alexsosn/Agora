@@ -5,6 +5,12 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/materialization-sandbox.yml'
+      - '.github/workflows/ctc-burns-registered-e2e.yml'
+      - 'tests/live_ctc_burns_registered_237.py'
+      - 'tests/test_ctc_burns_registered_237.py'
+      - 'tests/test_ctc_burns_registered_smoke_237.py'
+      - 'registry/feature-modules.yaml'
+      - 'plugins/context-fabric/resources/feature-modules.yaml'
       - 'registry/materializers.yaml'
       - 'registry/schema/materializer-plugin.schema.json'
       - 'registry/schema/materializers.schema.json'
@@ -14,6 +20,12 @@ on:
   pull_request:
     paths:
       - '.github/workflows/materialization-sandbox.yml'
+      - '.github/workflows/ctc-burns-registered-e2e.yml'
+      - 'tests/live_ctc_burns_registered_237.py'
+      - 'tests/test_ctc_burns_registered_237.py'
+      - 'tests/test_ctc_burns_registered_smoke_237.py'
+      - 'registry/feature-modules.yaml'
+      - 'plugins/context-fabric/resources/feature-modules.yaml'
       - 'registry/materializers.yaml'
       - 'registry/schema/materializer-plugin.schema.json'
       - 'registry/schema/materializers.schema.json'
@@ -190,3 +202,7 @@ jobs:
           )
           assert f'@upstreamCommit={expected}' in tf_metadata
           PY
+
+  registered-burns-cuc-e2e:
+    name: Registered CUC Burns real-data native module
+    uses: ./.github/workflows/ctc-burns-registered-e2e.yml

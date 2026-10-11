@@ -1,0 +1,80 @@
+name: Registered Burns Workbooks with managed CUC and Context-Fabric
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ctc-burns-registered-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  registered-burns-cuc:
+    name: Pinned source → approved Burns producer → immutable CUC → native TF composition
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      AGORA_CORPUS_MIN_FREE_GB: '0'
+    steps:
+      - name: Set private runner-scoped scratch paths
+        shell: bash
+        run: |
+          echo "AGORA_CORPUS_CACHE=$RUNNER_TEMP/managed-cuc-burns-cache" >> "$GITHUB_ENV"
+          echo "BURNS_INSTALL_ROOT=$RUNNER_TEMP/burns-installed-producer" >> "$GITHUB_ENV"
+          echo "BURNS_CSV_DIR=$RUNNER_TEMP/burns-csv" >> "$GITHUB_ENV"
+      - name: Check out exact tested Agora head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify exact Agora head
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Check out immutable CTC-TF parser for real licensed Workbooks
+        uses: actions/checkout@v4
+        with:
+          repository: alexsosn/CTC-TF
+          ref: f58b162197ad8f113b7cd6fc0088ae5dd39a096d
+          path: ctc-source
+          persist-credentials: false
+      - name: Verify pinned upstream producer revision
+        run: test "$(git -C ctc-source rev-parse HEAD)" = f58b162197ad8f113b7cd6fc0088ae5dd39a096d
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install host test, Text-Fabric and PDF extraction requirements
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e ./plugins/context-fabric
+          python -m pip install "text-fabric==13.1.0" "pdfplumber>=0.11"
+          python -c 'from tf.fabric import Fabric; import pdfplumber; print("Burns acceptance preflight OK")'
+          python scripts/validate_registry.py
+          python -m unittest tests.test_ctc_burns_registered_237 tests.test_ctc_burns_registered_smoke_237 -v
+      - name: Parse original Burns Workbooks into private runner-local CSVs
+        timeout-minutes: 15
+        run: |
+          python ctc-source/scripts/parse_workbooks_to_csv.py --output "$BURNS_CSV_DIR"
+          test "$(find "$BURNS_CSV_DIR" -name '*.csv' -type f | wc -l)" -ge 45
+      - name: Passively fetch immutable registered Burns producer
+        run: |
+          python scripts/agora_install_materializer.py fetch cuc-burns --root "$BURNS_INSTALL_ROOT"
+      - name: Explicitly approve and install reviewed third-party producer
+        run: |
+          python scripts/agora_install_materializer.py install cuc-burns --approve-code-execution --root "$BURNS_INSTALL_ROOT"
+      - name: Establish Linux kernel-backed network denial
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap
+          if [[ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --unshare-all --ro-bind / / /bin/true
+      - name: Run registered producer against managed CUC and verify true native TF overlay
+        timeout-minutes: 30
+        run: python -m tests.live_ctc_burns_registered_237
+      # Licensed Burns PDFs/CSVs and generated TF modules are never uploaded or committed.
