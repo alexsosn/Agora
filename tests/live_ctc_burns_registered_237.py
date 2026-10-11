@@ -5,17 +5,21 @@ local artifacts. Neither source PDFs, generated CSV, nor TF are redistributed.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
+import sys
+from datetime import timedelta
 from pathlib import Path
 
 from tf.fabric import Fabric
 
 from scripts.agora_compose_feature_module import (
     _bundled_context_fabric_resolver,
-    materialize_requested_feature_module,
+    main as module_cli,
 )
+from scripts.context_fabric_mcp_result import decode_mcp_result
 
 CUC_COMMIT = "0408967b1808c1f22c69e299d302b1e7b5e26354"
 WARP = ("otype.tf", "oslots.tf", "otext.tf")
@@ -24,6 +28,97 @@ WARP = ("otype.tf", "oslots.tf", "otext.tf")
 def _hash_warp(root: Path) -> dict[str, str]:
     return {name: hashlib.sha256((root / name).read_bytes()).hexdigest()
             for name in WARP}
+
+
+async def verify_context_fabric_mcp(
+    cache: Path, *, expected_slots: int, expected_carriers: int,
+) -> None:
+    """Exercise the supported public MCP consumer with the real local module.
+
+    Preparation/load must reuse the same immutable CUC cache and the published
+    Burns module; it must not download or install third-party code.
+    """
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    root = Path(__file__).resolve().parents[1]
+    env = dict(
+        os.environ,
+        PYTHONPATH=str(root / "plugins/context-fabric/src"),
+        AGORA_CORPUS_MIN_FREE_GB="0",
+    )
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=[
+            "-m", "agora_context_fabric.server",
+            "--plugin-root", str(root / "plugins/context-fabric"),
+            "--cache-dir", str(cache),
+        ],
+        env=env,
+    )
+    async with stdio_client(params) as (reader, writer):
+        async with ClientSession(reader, writer) as session:
+            await session.initialize()
+
+            async def call(tool_name: str, **arguments):
+                response = await session.call_tool(
+                    tool_name, arguments,
+                    read_timeout_seconds=(
+                        timedelta(minutes=15) if tool_name == "load_corpus"
+                        else timedelta(minutes=5)
+                    ),
+                )
+                return decode_mcp_result(response, tool_name=tool_name)
+
+            prepared = await call(
+                "prepare_corpus", resource_id="cuc", version="0.2.8",
+                source_mode="offline", modules=["cuc-burns"],
+            )
+            if prepared.get("source_revision") != CUC_COMMIT:
+                raise AssertionError(
+                    f"MCP prepared a different parent: {prepared.get('source_revision')}"
+                )
+            loaded = await call(
+                "load_corpus", resource_id="cuc", version="0.2.8",
+                source_mode="offline", modules=["cuc-burns"],
+                features=["burns_headword_1"],
+                max_compile_minutes=12,
+            )
+            logical_name = loaded["logical_name"]
+            assert "cuc-burns" in logical_name, logical_name
+            try:
+                description = await call(
+                    "describe_corpus", corpus=logical_name,
+                )
+                assert description, "MCP did not describe loaded CUC+Burns"
+                count = await call(
+                    "search", corpus=logical_name,
+                    template="word burns_headword_1",
+                    return_type="count",
+                )
+                # Real cfabric_mcp search(return_type="count") returns
+                # {"total_count": N, "template": query}, not {"count": N}.
+                assert isinstance(count, dict), count
+                result_count = count.get("total_count")
+                assert isinstance(result_count, int) and not isinstance(result_count, bool), count
+                assert result_count == expected_carriers and result_count > 0, (
+                    "MCP Burns hit count differs from native TF carrier count",
+                    count, expected_carriers,
+                )
+                print(json.dumps({
+                    "stage": "context-fabric-mcp",
+                    "prepared_revision": prepared["source_revision"],
+                    "logical_name": logical_name,
+                    "burns_query_count": int(result_count),
+                    "native_carriers": expected_carriers,
+                    "native_slots": expected_slots,
+                    "loaded": True,
+                }, sort_keys=True), flush=True)
+            finally:
+                unloaded = await call(
+                    "unload_corpus", logical_name=logical_name,
+                )
+                assert unloaded.get("was_loaded"), unloaded
 
 
 def main() -> None:
@@ -43,11 +138,16 @@ def main() -> None:
     slots = parent_api.F.otype.maxSlot
     nodes = parent_api.F.otype.maxNode
 
-    module_path = materialize_requested_feature_module(
-        module_id="cuc-burns", plugin_id="cuc-burns",
-        materializer_id="cuc-burns-csv", source=csv,
-        cache_dir=cache, install_root=install_root,
-    )
+    # This is the exact documented researcher command, not a direct internal
+    # call that could miss argument parsing or canonical producer authorization.
+    assert module_cli([
+        "--module", "cuc-burns",
+        "--source", str(csv),
+        "--cache-dir", str(cache),
+        "--install-root", str(install_root),
+        "--parent-version", "0.2.8",
+    ]) == 0
+    module_path = resolver.store.local_feature_module_path("cuc-burns", "tf/0.2.8")
     assert module_path.is_dir()
     assert (module_path / "burns_headword_1.tf").is_file()
     assert (module_path / "burns-feature-module-report.json").is_file()
@@ -86,6 +186,9 @@ def main() -> None:
         "sandbox": receipt["sandbox"], "module_snapshot": composed.modules[0].source_revision,
         "parent_warp_unchanged": True,
     }, sort_keys=True), flush=True)
+    asyncio.run(verify_context_fabric_mcp(
+        cache, expected_slots=slots, expected_carriers=carriers,
+    ))
 
 
 if __name__ == "__main__":
