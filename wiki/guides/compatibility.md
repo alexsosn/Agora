@@ -1,5 +1,22 @@
 # Client and platform compatibility evidence
 
+## Can I use this plugin?
+
+The canonical Agora registry currently records **verified generated MCP integration paths** for these Claude Code and Codex configurations. Each path has passed a bounded representative operation through the generated configuration and transport. The verification harness **does not launch the Claude Code or Codex application executable**; a supported path still depends on the actual client, installed dependencies, and access to its provider or corpus.
+
+| Plugin | Claude Code | Codex | Check before relying on the result |
+|---|---|---|---|
+| Context-Fabric | Verified path (stdio) | Verified path (stdio) | Corpora are acquired separately; a 10,000-result count may be truncated and CUC text-format discovery can omit sign features. |
+| Perseus | Verified path (stdio) | Verified path (stdio) | Passage retrieval and Scaife discovery work through a different path than unreliable legacy CTS metadata/navigation. |
+| Sefaria | Verified path (direct SSE) | Verified path (stdio via SSE proxy) | Duplicate version-indexed search references must not be counted as independent occurrences. |
+| SEDRA | Verified path (stdio) | Verified path (stdio) | A successful integration check is not a guarantee of remote service availability or a unique Syriac analysis. |
+
+**ChatGPT web / managed workspaces.** Imported MCP plugins can be labeled **Desktop only**. A Desktop-only plugin **cannot run in ChatGPT web**. Marketplace availability and supported surfaces also depend on the user's **plan** and **workspace** settings and rollout. The Codex generated-path checks above do not establish a ChatGPT web execution path. See the [installation guide](installation.md#chatgpt--managed-codex-workspace-import).
+
+**Platform bounds.** The measured **startup-only** matrix covers the Agora-owned local runtimes **Context-Fabric and SEDRA** on **Linux x86_64**, **Intel macOS x86_64**, and **Windows x86_64**. The matrix does not certify complete corpus acquisition or the native client application on those platforms. It has no **Apple Silicon** or ARM coverage; it also does not claim that hosted Sefaria or upstream Perseus were independently tested across those OS cells.
+
+For a specific failure or unreliable result, consult [current upstream limitations](#current-upstream-limitations) and [troubleshooting](installation.md#troubleshooting). Keep **provider/service health**, **plugin/client integration evidence**, **individual resource/data status**, and **scholarly suitability** separate when deciding whether a result is usable. The exact check IDs, evidence levels, and transport distinctions follow below.
+
 Agora records compatibility as executable evidence, not as a blanket claim that every plugin works through every client on every operating system. The canonical check definitions are in `registry/verification-checks.yaml`; current workflow runs and their JSON artifacts are the mutable observations.
 
 ## What the evidence means
