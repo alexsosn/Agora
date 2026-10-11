@@ -1,6 +1,6 @@
 # Scholarly resource catalog
 
-This page is generated from Agora's canonical registry. It describes the resources currently selectable through the **Context-Fabric plugin**; installing the plugin does not download every resource.
+This page is generated from Agora's canonical registry. It describes the resources currently selectable through the [Context-Fabric plugin](plugins/context-fabric.md); installing the plugin does not download every resource.
 
 **Integration evidence** (`Experimental`, `Community`, `Verified`) describes Agora's integration/load evidence. It **does not certify scholarly quality** or suitability of an edition, annotation layer, or dataset.
 
