@@ -9,6 +9,7 @@ Use this page to choose the shortest path for a research task. You can start her
 | **Browse resources** | [Browse the resource catalog](resources.md) |
 | **Scholarly methods** | [Scholarly guidance](scholarly-guidance.md) |
 | **Research tutorials / recipes** | [Start from the current example prompts](../../README.md#example-prompts) |
+| **Walkthroughs** | [Cognitive walkthroughs](cognitive-walkthroughs.md) |
 | **Compatibility** | [Check client, platform, and known limitations](compatibility.md) |
 | **Troubleshooting** | [Start from the symptom you see](troubleshooting.md) |
 
