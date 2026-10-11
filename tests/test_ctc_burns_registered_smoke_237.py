@@ -38,6 +38,8 @@ class RegisteredCucBurnsFullAcceptanceContracts(unittest.TestCase):
         caller = (ROOT / ".github/workflows/materialization-sandbox.yml").read_text()
         self.assertIn("workflow_call:", workflow)
         self.assertIn("./.github/workflows/ctc-burns-registered-e2e.yml", caller)
+        self.assertIn("'tests/live_ctc_burns_registered_237.py'", caller)
+        self.assertIn("'.github/workflows/ctc-burns-registered-e2e.yml'", caller)
         self.assertIn("ctc-burns-registered-", workflow)
         self.assertNotIn("group: ${{ github.workflow }}-", workflow)
 
