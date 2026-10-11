@@ -70,7 +70,7 @@ class ResourceLicenseEvidenceTests(unittest.TestCase):
     def test_every_corpus_and_collection_has_reproducible_license_evidence(self):
         doc = yaml.safe_load((ROOT / "registry" / "resources.yaml").read_text(encoding="utf-8"))
         audited = [item for item in doc["resources"] if item["kind"] in {"corpus", "collection"}]
-        self.assertEqual(len(audited), 39)
+        self.assertEqual(len(audited), 40)
         for resource in audited:
             with self.subTest(resource=resource["id"]):
                 evidence = resource["licenses"]["evidence"]
