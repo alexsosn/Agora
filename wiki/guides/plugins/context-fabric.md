@@ -52,6 +52,14 @@ Canonical capabilities:
 - **Structured search** (`structured-search`)
 - **Feature inspection** (`feature-inspection`)
 
+## Published Online Critical Pseudepigrapha (Pseudepigrapha-TF)
+
+The registered `pseudepigrapha` corpus is the native Text-Fabric **1.0** dataset from [Pseudepigrapha-TF v1.0.0](https://github.com/alexsosn/Pseudepigrapha-TF/releases/tag/v1.0.0). Agora fetches only checksum-pinned `tf-1.0.zip` (9.63 MB), installs source features lazily and permits later offline reload. No OCP clone or converter execution is needed; the `pseudepigrapha-tf` materializer remains separately available for explicit source rebuilding.
+
+Use `describe_available_corpus(resource_id="pseudepigrapha")`, then `prepare_corpus(resource_id="pseudepigrapha")` and `load_corpus(resource_id="pseudepigrapha", features=["source_ref", "version_id", "version_kind", "reading_of", "witness", "is_primary", "translation_of", "translation_unit_of"])`. Look up `("1En__Ethiopic", "1", "2")` as a source-version-qualified section and inspect the literal `source_ref`. Multiple source versions are not automatically aligned; omitted and unattested witnesses are distinct. OCP-generated English/French translations use `version_kind=generated_translation` and explicit translation links. They are **not historical manuscript witnesses**.
+
+Data rights are **CC BY 4.0** for the pinned OCP text/TEI scope, requiring OCP's general citation and per-work/editor attribution. The OCP application has GPL-3.0 terms and the converter is MIT; neither replaces corpus text rights. See the pinned [data licence and provenance](https://github.com/alexsosn/Pseudepigrapha-TF/blob/v1.0.0/DATA_LICENSE.md) and [feature reference](https://github.com/alexsosn/Pseudepigrapha-TF/blob/v1.0.0/docs/features/0_home.md).
+
 ## Released Assyrian royal inscriptions (ORACC-TF)
 
 The registered `assyrian-royal-inscriptions` corpus is the pinned RIAO+RINAP dataset from [ORACC-TF v1.0.0](https://github.com/alexsosn/ORACC-TF/releases/tag/v1.0.0). Agora downloads only the published standalone ZIP (41.3 MB), verifies its exact SHA-256 against the registry, validates native TF feature data and pins the bundled provenance manifest by the verified archive digest, then prepares an evictable managed snapshot. **No clone of the multi-GB builder repository and no converter execution are required.** Use:
