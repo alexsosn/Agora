@@ -406,18 +406,32 @@ def prepare_user_source(path: Path, materializer: dict[str, Any]) -> PreparedSou
     return PreparedSource(path=resolved, provenance=provenance)
 
 
+_GIT_PHASES = frozenset({
+    "init", "remote", "config-promisor", "config-filter",
+    "fetch", "sparse-select", "checkout", "resolve-ref",
+})
+
+
 def _run_git(
     command: list[str], *, env: dict[str, str], capture: bool = False,
-    require_filter_support: bool = False,
+    require_filter_support: bool = False, phase: str | None = None,
 ) -> str | None:
+    # Only this opt-in switch is read from the host environment. We deliberately
+    # never forward host GIT_TRACE*, credentials or config into the isolated
+    # Git environment. Phase labels are controlled, never raw command/URL text.
+    trace = os.environ.get("AGORA_GIT_PHASE_TIMINGS") == "1"
+    started = time.monotonic() if trace else None
+    succeeded = False
     try:
         if capture:
-            return subprocess.check_output(
+            result = subprocess.check_output(
                 command,
                 env=env,
                 text=True,
                 timeout=GIT_TIMEOUT_SECONDS,
             ).strip()
+            succeeded = True
+            return result
         if require_filter_support:
             result = subprocess.run(
                 command, check=True, env=env, text=True,
@@ -429,6 +443,7 @@ def _run_git(
                 )
         else:
             subprocess.run(command, check=True, env=env, timeout=GIT_TIMEOUT_SECONDS)
+        succeeded = True
         return None
     except subprocess.TimeoutExpired as exc:
         raise AcquisitionError(
@@ -447,6 +462,20 @@ def _run_git(
         ) from exc
     except OSError as exc:
         raise AcquisitionError(f"Git acquisition failed: {exc}") from exc
+    finally:
+        if started is not None:
+            try:
+                elapsed = max(0.0, time.monotonic() - started)
+                label = phase if phase in _GIT_PHASES else "other"
+                outcome = "success" if succeeded else "failure"
+                print(
+                    f"agora_git_phase phase={label} elapsed_seconds={elapsed:.3f} "
+                    f"outcome={outcome}",
+                    file=sys.stderr,
+                )
+            except (OSError, ValueError):
+                # Observability must not change acquisition/cleanup semantics.
+                pass
 
 
 def acquire_git_source(strategy: dict[str, Any], materializer: dict[str, Any]) -> PreparedSource:
@@ -460,37 +489,37 @@ def acquire_git_source(strategy: dict[str, Any], materializer: dict[str, Any]) -
     home.mkdir()
     env = _git_environment(home)
     try:
-        _run_git([git, "init", "--quiet", str(repo)], env=env)
-        _run_git([git, "-C", str(repo), "remote", "add", "origin", strategy["url"]], env=env)
+        _run_git([git, "init", "--quiet", str(repo)], env=env, phase="init")
+        _run_git([git, "-C", str(repo), "remote", "add", "origin", strategy["url"]], env=env, phase="remote")
         sparse_patterns = strategy.get("sparse_patterns")
         if sparse_patterns is not None:
             # Pin source identity and avoid downloading non-TT corpus formats.
             # The checkout is deliberately *after* sparse selection: even one
             # early full checkout would hydrate all blobs and defeat the filter.
-            _run_git([git, "-C", str(repo), "config", "remote.origin.promisor", "true"], env=env)
+            _run_git([git, "-C", str(repo), "config", "remote.origin.promisor", "true"], env=env, phase="config-promisor")
             _run_git(
                 [git, "-C", str(repo), "config", "remote.origin.partialclonefilter", "blob:none"],
-                env=env,
+                env=env, phase="config-filter",
             )
             _run_git(
                 [git, "-C", str(repo), "fetch", "--quiet", "--depth", "1",
                  "--filter=blob:none", "origin", strategy["ref"]],
-                env=env, require_filter_support=True,
+                env=env, require_filter_support=True, phase="fetch",
             )
             _run_git(
                 [git, "-C", str(repo), "sparse-checkout", "set", "--no-cone",
                  "--", *sparse_patterns],
-                env=env,
+                env=env, phase="sparse-select",
             )
         else:
             # Preserve the historic full-source contract for existing plugins.
             _run_git(
                 [git, "-C", str(repo), "fetch", "--quiet", "--depth", "1",
                  "origin", strategy["ref"]],
-                env=env,
+                env=env, phase="fetch",
             )
-        _run_git([git, "-C", str(repo), "checkout", "--quiet", "--detach", "FETCH_HEAD"], env=env)
-        revision = _run_git([git, "-C", str(repo), "rev-parse", "HEAD"], env=env, capture=True)
+        _run_git([git, "-C", str(repo), "checkout", "--quiet", "--detach", "FETCH_HEAD"], env=env, phase="checkout")
+        revision = _run_git([git, "-C", str(repo), "rev-parse", "HEAD"], env=env, capture=True, phase="resolve-ref")
         assert revision is not None
         if sparse_patterns is not None and revision != strategy["ref"]:
             raise AcquisitionError(
