@@ -120,7 +120,18 @@ class ReleaseSnapshots:
             raise ValueError("release receipt integrity mismatch")
         files = LocalImports._files(destination, "corpus")
         expected = set(manifest) | {_RECEIPT}
-        if {p.name for p in destination.iterdir()} != expected:
+        actual = {p.name for p in destination.iterdir()}
+        # Text-Fabric itself compiles private acceleration files under .tf/
+        # after the first successful native load. These are derived data, not
+        # source features or part of the signed-by-content release receipt.
+        # Refuse symlinks and other unexpected additions, and keep checking
+        # every original release .tf feature against its manifest on reopen.
+        if ".tf" in actual:
+            compiled = destination / ".tf"
+            if compiled.is_symlink() or not compiled.is_dir():
+                raise ValueError("release payload integrity mismatch: unsafe compiled cache")
+            actual.remove(".tf")
+        if actual != expected:
             raise ValueError("release payload integrity mismatch: unexpected cache files")
         if set(manifest) != {path.name for path in files}:
             raise ValueError("release payload integrity mismatch")

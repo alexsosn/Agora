@@ -277,9 +277,21 @@
             "additionalProperties": false,
             "required": ["strategy"],
             "properties": {
-              "strategy": {"type": "string", "enum": ["repository", "collection", "local-module"]},
+              "strategy": {"type": "string", "enum": ["repository", "collection", "local-module", "github-release-archive"]},
               "lazy": {"type": "boolean"},
               "notes": {"type": "string"},
+              "archive": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["release_tag", "asset_name", "sha256", "compressed_bytes", "version"],
+                "properties": {
+                  "release_tag": {"type": "string", "pattern": "^(?!latest$)(?!.*\\.\\.)([A-Za-z0-9][A-Za-z0-9._-]{0,99})$"},
+                  "asset_name": {"type": "string", "pattern": "^(?!.*\\.\\.)([A-Za-z0-9][A-Za-z0-9._-]{0,99}\\.zip)$"},
+                  "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                  "compressed_bytes": {"type": "integer", "minimum": 1, "maximum": 536870912},
+                  "version": {"type": "string", "pattern": "^(?!.*\\.\\.)([A-Za-z0-9_][A-Za-z0-9._-]{0,99})$"}
+                }
+              },
               "materializer": {
                 "type": "object",
                 "additionalProperties": false,
@@ -289,7 +301,12 @@
                   "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"}
                 }
               }
-            }
+            },
+            "allOf": [{
+              "if": {"properties": {"strategy": {"const": "github-release-archive"}}, "required": ["strategy"]},
+              "then": {"required": ["archive"], "not": {"required": ["materializer"]}},
+              "else": {"not": {"required": ["archive"]}}
+            }]
           },
           "collection": {
             "type": "object",

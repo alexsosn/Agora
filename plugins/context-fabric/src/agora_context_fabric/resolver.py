@@ -284,6 +284,9 @@ class ContextFabricResolver:
         resource = self.catalog.get(resource_id)
         if resource.kind != "corpus":
             raise ValueError(f"resource {resource_id!r} is not a corpus")
+        if resource.acquisition_strategy == "github-release-archive":
+            assert resource.release_archive is not None
+            return (resource.release_archive["version"],)
         repo, revision = self._repo(resource)
         roots = self.store.dataset_roots(repo, revision)
         if resource.tf_path is not None:
@@ -295,6 +298,9 @@ class ContextFabricResolver:
         resource = self.catalog.get(resource_id)
         if resource.kind != "corpus":
             raise ValueError(f"resource {resource_id!r} is not a corpus")
+        if resource.acquisition_strategy == "github-release-archive":
+            assert resource.release_archive is not None
+            return resource.release_archive["version"]
         repo, revision = self._repo(resource)
         relative = self._select_resource_root(resource, self.store.dataset_roots(repo, revision))
         return dataset_version(relative)
@@ -380,6 +386,51 @@ class ContextFabricResolver:
             raise ValueError(
                 f"feature module {resource_id!r} must be selected while preparing its parent corpus {resource.parent!r}"
             )
+        if resource.acquisition_strategy == "github-release-archive":
+            if member_id is not None:
+                raise ValueError("release-backed corpus has no collection members")
+            archive = resource.release_archive
+            if archive is None:
+                raise ValueError("release-backed corpus lacks pinned archive metadata")
+            pinned_version = archive["version"]
+            digest = archive["sha256"]
+            if version is not None and version != pinned_version:
+                raise ValueError(
+                    f"resource {resource_id!r} is pinned to version {pinned_version!r}, not {version!r}"
+                )
+            if source_revision is not None and source_revision != digest:
+                raise ValueError("release-backed corpus source_revision must match pinned asset sha256")
+            from .operation import current_operation
+            from .release_snapshots import ReleaseSnapshots
+            from .release_download import download_pinned_release
+
+            snapshots = ReleaseSnapshots(self.store)
+            identity = dict(
+                resource_id=resource.id, repository=resource.repository,
+                release_tag=archive["release_tag"], version=pinned_version,
+                asset_sha256=digest,
+            )
+            policy = self.store.current_source_policy()
+            mode = policy.mode if policy is not None else "prefer-fresh"
+            if mode != "require-fresh":
+                try:
+                    return snapshots.prepare(**identity, operation=current_operation())
+                except FileNotFoundError:
+                    if mode == "offline":
+                        raise FileNotFoundError(
+                            f"release corpus {resource.id!r} has no cached pinned asset; "
+                            "source_mode=offline forbids network acquisition"
+                        ) from None
+            with download_pinned_release(
+                repository=resource.repository, release_tag=archive["release_tag"],
+                asset_name=archive["asset_name"], asset_sha256=digest,
+                asset_bytes=archive["compressed_bytes"],
+                temporary_parent=self.store.tmp_dir,
+                operation=current_operation(),
+            ) as downloaded:
+                return snapshots.install(
+                    downloaded, **identity, operation=current_operation(),
+                )
         if resource.acquisition_strategy == "user-local":
             if member_id is not None:
                 raise ValueError("local corpora do not have collection members")
