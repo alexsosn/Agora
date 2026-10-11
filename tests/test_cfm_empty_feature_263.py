@@ -30,6 +30,7 @@ FEATURES = {
     "oslots.tf": b"@edge\n\n3\t1-2\n",
     "otext.tf": b"@config\n@sectionTypes=document\n@sectionFeatures=title\n\n",
     "prefix_utf8.tf": b"@node\n@valueType=str\n\n",
+    "heading@en.tf": b"@node\n@valueType=str\n\n",
     "empty_int.tf": b"@node\n@valueType=int\n\n",
     "nonempty.tf": b"@node\n@valueType=str\n\n1\treal\n",
 }
@@ -85,6 +86,16 @@ class EmptyCFMFeature263Tests(unittest.TestCase):
         self.assertEqual((reopened.path / "empty_int.tf").read_bytes(), FEATURES["empty_int.tf"])
 
     @unittest.skipUnless(HAS_CFABRIC, "requires Context-Fabric runtime; exercised in native release consumer CI")
+    @unittest.skipUnless(HAS_CFABRIC, "requires Context-Fabric runtime; exercised in native release consumer CI")
+    def test_language_qualified_empty_tf_feature_compiles_without_rejection(self):
+        # CFM itself supports name@en section variants. Rejecting '@' in the
+        # verified feature basename would make a valid corpus unreloadable.
+        from cfabric.storage.string_pool import StringPool
+
+        features = self._compiled(nodes=["heading@en"])
+        self.snapshots.prepare(**self.identity)
+        self.assertIsNone(StringPool.load(str(features / "heading@en")).get(1))
+
     def test_missing_binary_for_nonempty_source_fails_closed(self):
         self._compiled(nodes=["nonempty"])
         with self.assertRaisesRegex(ValueError, "nonempty|empty|integrity"):
