@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import io
 import os
+from contextlib import redirect_stderr
 import shutil
 import subprocess
 import tempfile
@@ -69,6 +71,12 @@ class LiveSparseAcquisitionWorkflowContract(unittest.TestCase):
         self.assertIn("git", content)
         self.assertIn("ls-tree", content)
         self.assertIn("prepared.cleanup()", content)
+        self.assertIn("AGORA_GIT_PHASE_TIMINGS:", content)
+        self.assertIn("acquisition_elapsed_seconds", content)
+        self.assertIn("git_pack_bytes", content)
+        self.assertIn("scratch_disk_bytes", content)
+        self.assertIn("not measured transfer bytes", content)
+
         self.assertIn("pull_request:", content)
 
 
@@ -104,6 +112,45 @@ class SparseManifestContracts(unittest.TestCase):
 
 
 class SparseGitFailureReportingTests(unittest.TestCase):
+
+    def test_opt_in_git_phase_timing_is_bounded_labeled_and_off_by_default(self):
+        from scripts import agora_materialize as module
+        command = ["git", "fetch", "https://token-secret.example.invalid/repo"]
+        with (mock.patch.object(module.subprocess, "run") as execute,
+              mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "0"})):
+            output = io.StringIO()
+            with redirect_stderr(output):
+                _run_git(command, env={})
+            self.assertEqual("", output.getvalue())
+            execute.assert_called_once()
+            self.assertEqual(GIT_TIMEOUT_SECONDS, execute.call_args.kwargs["timeout"])
+
+        with (mock.patch.object(module.subprocess, "run") as execute,
+              mock.patch.object(module.time, "monotonic", side_effect=[10.0, 12.25]),
+              mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "1"})):
+            output = io.StringIO()
+            with redirect_stderr(output):
+                _run_git(command, env={}, phase="fetch")
+            self.assertIn("phase=fetch", output.getvalue())
+            self.assertIn("elapsed_seconds=2.250", output.getvalue())
+            self.assertIn("outcome=success", output.getvalue())
+            self.assertNotIn("token-secret", output.getvalue())
+            execute.assert_called_once()
+
+    def test_failed_git_phase_logs_once_and_preserves_timeout_error(self):
+        from scripts import agora_materialize as module
+        with (mock.patch.object(module.subprocess, "run",
+                                side_effect=subprocess.TimeoutExpired(["git", "checkout"], 120)),
+              mock.patch.object(module.time, "monotonic", side_effect=[15.0, 19.5]),
+              mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "1"})):
+            output = io.StringIO()
+            with redirect_stderr(output), self.assertRaises(AcquisitionError) as raised:
+                _run_git(["git", "checkout", "FETCH_HEAD"], env={}, phase="checkout")
+            self.assertIn("timed out", str(raised.exception))
+            self.assertEqual(1, output.getvalue().count("phase=checkout"))
+            self.assertIn("elapsed_seconds=4.500", output.getvalue())
+            self.assertIn("outcome=failure", output.getvalue())
+
     def test_timeout_distinguishes_local_acquisition_timeout(self):
         with mock.patch(
             "scripts.agora_materialize.subprocess.run",
