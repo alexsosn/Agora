@@ -16,7 +16,6 @@ class RegisteredCucBurnsFullAcceptanceContracts(unittest.TestCase):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         for marker in (
             "f58b162197ad8f113b7cd6fc0088ae5dd39a096d",
-            "0408967b1808c1f22c69e299d302b1e7b5e26354",
             "scripts/parse_workbooks_to_csv.py",
             "agora_install_materializer.py fetch cuc-burns",
             "agora_install_materializer.py install cuc-burns",
@@ -27,6 +26,11 @@ class RegisteredCucBurnsFullAcceptanceContracts(unittest.TestCase):
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, workflow)
+        self.assertIn(
+            "0408967b1808c1f22c69e299d302b1e7b5e26354",
+            VERIFIER.read_text(encoding="utf-8"),
+            "CUC source identity must be verified in executable acceptance logic",
+        )
         self.assertNotIn("upload-artifact", workflow)
         self.assertNotIn("--source-archive", workflow)
 
