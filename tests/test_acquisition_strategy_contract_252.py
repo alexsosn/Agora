@@ -35,7 +35,7 @@ class AcquisitionStrategyValidation252Tests(unittest.TestCase):
 
     def test_real_corpus_collection_and_burns_local_module_remain_valid(self):
         self.assertEqual([], validate_registry())
-        allowed = {"repository", "collection", "local-module"}
+        allowed = {"repository", "collection", "local-module", "github-release-archive"}
         values = {
             row["acquisition"]["strategy"]
             for doc in (self.resources, self.modules)
@@ -52,7 +52,7 @@ class AcquisitionStrategyValidation252Tests(unittest.TestCase):
 
     def test_schema_rejects_misspelled_or_speculative_unimplemented_strategies(self):
         for document in (self.resources, self.modules):
-            for value in ("reposiotry", "github-release-archive", "auto-git", ""):
+            for value in ("reposiotry", "auto-git", ""):
                 with self.subTest(value=value):
                     mutated = copy.deepcopy(document)
                     mutated["resources"][0]["acquisition"]["strategy"] = value
@@ -64,7 +64,7 @@ class AcquisitionStrategyValidation252Tests(unittest.TestCase):
 
     def test_runtime_catalog_rejects_explicit_unknown_strategy_before_discovery(self):
         for doc in (self.resources, self.modules):
-            for value in ("reposiotry", "github-release-archive", "", None):
+            for value in ("reposiotry", "", None):
                 with self.subTest(value=value):
                     mutated = copy.deepcopy(doc["resources"][0])
                     mutated["acquisition"]["strategy"] = value
