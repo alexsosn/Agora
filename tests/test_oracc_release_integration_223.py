@@ -115,9 +115,19 @@ class ReleaseArchive223Tests(unittest.TestCase):
         self.assertEqual([], list(self.store.repositories_dir.iterdir()))
 
     def test_bad_sha_or_manifest_does_not_publish_any_snapshot(self):
-        for payload in (self.payload + b"corruption", archive_bytes(manifest_updates={"dataset": "other"})):
-            with self.subTest(payload=payload[-20:]):
+        original = self.payload
+        # Preserve the pinned length to exercise the digest guard rather
+        # than an unrelated mocked downloader size assertion.
+        altered = original[:-1] + bytes([original[-1] ^ 1])
+        malformed = archive_bytes(manifest_updates={"dataset": "other"})
+        for label, payload in (("bad-sha", altered), ("bad-manifest", malformed)):
+            with self.subTest(label=label):
                 self.payload = payload
+                if label == "bad-manifest":
+                    # Re-pin only this synthetic fixture to prove that a
+                    # valid checksum cannot override a wrong dataset identity.
+                    self.descriptor["bytes"] = len(payload)
+                    self.descriptor["sha256"] = hashlib.sha256(payload).hexdigest()
                 acquirer = ReleaseArchiveAcquirer(self.store, download=self.downloader)
                 with self.assertRaisesRegex(ValueError, "sha256|manifest|dataset"):
                     acquirer.prepare(self.resource)
