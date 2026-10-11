@@ -137,6 +137,35 @@ class SparseGitFailureReportingTests(unittest.TestCase):
             self.assertNotIn("token-secret", output.getvalue())
             execute.assert_called_once()
 
+    def test_telemetry_failure_never_changes_subprocess_result_or_original_error(self):
+        from scripts import agora_materialize as module
+        command = ["git", "fetch", "https://credential-should-not-leak.invalid"]
+        with (mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "1"}),
+              mock.patch.object(module.subprocess, "run") as execute,
+              mock.patch.object(module.time, "monotonic",
+                                side_effect=RuntimeError("broken clock"))):
+            self.assertIsNone(_run_git(command, env={}, phase="fetch"))
+            execute.assert_called_once()
+
+        with (mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "1"}),
+              mock.patch.object(module.subprocess, "run", side_effect=subprocess.TimeoutExpired(command, 120)),
+              mock.patch.object(module.time, "monotonic",
+                                side_effect=[1.0, RuntimeError("broken reporting clock")])):
+            with self.assertRaises(AcquisitionError) as raised:
+                _run_git(command, env={}, phase="fetch")
+            self.assertIn("timed out", str(raised.exception))
+
+        class BrokenStderr:
+            def write(self, message):
+                raise RuntimeError("reporting stream unavailable")
+
+        with (mock.patch.dict(os.environ, {"AGORA_GIT_PHASE_TIMINGS": "1"}),
+              mock.patch.object(module.subprocess, "run") as execute,
+              mock.patch.object(module.time, "monotonic", side_effect=[2.0, 3.0]),
+              mock.patch.object(module.sys, "stderr", new=BrokenStderr())):
+            self.assertIsNone(_run_git(command, env={}, phase="invalid-secret-label"))
+            execute.assert_called_once()
+
     def test_failed_git_phase_logs_once_and_preserves_timeout_error(self):
         from scripts import agora_materialize as module
         with (mock.patch.object(module.subprocess, "run",
