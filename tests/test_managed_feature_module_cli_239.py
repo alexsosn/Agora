@@ -112,6 +112,14 @@ class ManagedFeatureModuleCliRedTests(unittest.TestCase):
             with self.subTest(snippet=snippet):
                 self.assertIn(snippet, content)
 
+    def test_real_burns_acceptance_exercises_the_public_command_not_only_internal_helper(self):
+        script = (Path(__file__).resolve().parents[1] /
+                  "tests/live_ctc_burns_registered_237.py").read_text(encoding="utf-8")
+        self.assertIn("module_cli([", script)
+        self.assertIn('"--module", "cuc-burns"', script)
+        self.assertIn('"--parent-version", "0.2.8"', script)
+        self.assertNotIn("materialize_requested_feature_module(", script)
+
     def test_nonexistent_source_refused_without_materializer_execution(self):
         with mock.patch.object(compose, "materialize_requested_feature_module") as produce, (
             contextlib.redirect_stderr(io.StringIO())
