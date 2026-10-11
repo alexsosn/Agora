@@ -97,6 +97,21 @@ class ManagedFeatureModuleCliRedTests(unittest.TestCase):
                     self.assertEqual(ex.exception.code, 2)
                     produce.assert_not_called()
 
+    def test_guide_explicit_approval_and_local_cuc_burns_query(self):
+        guide = Path(__file__).resolve().parents[1] / "wiki/guides/cuc-burns-managed.md"
+        content = guide.read_text(encoding="utf-8")
+        for snippet in (
+            "fetch cuc-burns",
+            "install cuc-burns --approve-code-execution",
+            "python -m scripts.agora_compose_feature_module",
+            "--module cuc-burns --source",
+            'modules=["cuc-burns"]',
+            "0.2.8",
+            "CC-BY-NC-ND",
+        ):
+            with self.subTest(snippet=snippet):
+                self.assertIn(snippet, content)
+
     def test_nonexistent_source_refused_without_materializer_execution(self):
         with mock.patch.object(compose, "materialize_requested_feature_module") as produce, (
             contextlib.redirect_stderr(io.StringIO())
