@@ -52,9 +52,18 @@ def assert_semantics(api) -> dict:
     ruth_words = api.L.d(ruth, otype="word")
     if not ruth_words or not any(api.F.g_word_utf8.v(w) for w in ruth_words):
         raise AssertionError("Ruth verse lost native Hebrew word text")
-    mapped = sum(api.F.bhsa.v(w) is not None for w in words)
-    if not 426_000 <= mapped <= 426_562:
-        raise AssertionError(f"BHSA 2021 reference feature unexpectedly sparse: {mapped}")
+    mapped = 0
+    for word in words:
+        ref = api.F.bhsa.v(word)
+        if ref is None:
+            continue
+        if type(ref) is not int or ref <= 0:
+            raise AssertionError(f"invalid BHSA 2021 word reference {ref!r} at Aleppo {word}")
+        mapped += 1
+    # The pinned edition documents exactly one Aleppo word with no BHSA
+    # counterpart; do not count zero/sentinel references as valid mappings.
+    if mapped != 426_561:
+        raise AssertionError(f"BHSA 2021 reference coverage changed: {mapped}/426562")
     summary = {
         "words": len(words), "verses": len(verses), "missing_codex_verses": missing,
         "extant_codex_verses": extant, "bhsa_reference_words": mapped,
