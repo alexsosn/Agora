@@ -290,6 +290,8 @@ class ContextFabricResolver:
             raise ValueError(f"resource {resource_id!r} is not a corpus")
         if resource.acquisition_strategy == "github-release-archive":
             return (resource.release["tf_version"],)
+        if resource.acquisition_strategy == "github-release-archive":
+            return (resource.release["tf_version"],)
         repo, revision = self._repo(resource)
         roots = self.store.dataset_roots(repo, revision)
         if resource.tf_path is not None:
@@ -301,6 +303,8 @@ class ContextFabricResolver:
         resource = self.catalog.get(resource_id)
         if resource.kind != "corpus":
             raise ValueError(f"resource {resource_id!r} is not a corpus")
+        if resource.acquisition_strategy == "github-release-archive":
+            return resource.release["tf_version"]
         if resource.acquisition_strategy == "github-release-archive":
             return resource.release["tf_version"]
         repo, revision = self._repo(resource)
@@ -387,6 +391,14 @@ class ContextFabricResolver:
         if resource.kind == "feature-module":
             raise ValueError(
                 f"feature module {resource_id!r} must be selected while preparing its parent corpus {resource.parent!r}"
+            )
+        if resource.acquisition_strategy == "github-release-archive":
+            if member_id is not None:
+                raise ValueError("release archive corpus does not have collection members")
+            if self.release_acquirer is None:
+                raise RuntimeError("registered release acquisition is not configured")
+            return self.release_acquirer.prepare(
+                resource, version=version, source_revision=source_revision,
             )
         if resource.acquisition_strategy == "user-local":
             if member_id is not None:
