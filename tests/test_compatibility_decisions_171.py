@@ -78,6 +78,23 @@ class CompatibilityDecisionFirstContracts(unittest.TestCase):
             for os in ("linux", "macos", "windows"):
                 self.assertIn(f"platform-startup/{plugin}-{os}-x86-64", ids)
 
+    def test_known_issues_link_to_plugin_guidance_and_symptom_recovery(self):
+        advisories = self.page.split("## Current upstream limitations", 1)[1].split(
+            "## Reading the matrix safely", 1
+        )[0]
+        issue_links = {
+            "sefaria/search-version-duplicates": "[Sefaria](plugins/sefaria.md)",
+            "context-fabric/search-count-cache-cap": "[Context-Fabric](plugins/context-fabric.md)",
+            "context-fabric/cuc-text-format-discovery": "[Context-Fabric](plugins/context-fabric.md)",
+            "perseus/legacy-cts-malformed-navigation": "[Perseus](plugins/perseus.md)",
+        }
+        for issue, link in issue_links.items():
+            with self.subTest(issue=issue):
+                row = next(line for line in advisories.splitlines() if issue in line)
+                self.assertIn(link, row)
+        self.assertIn("[troubleshooting](installation.md#troubleshooting)", advisories)
+        self.assertIn("[cache guidance](context-fabric-cache.md)", advisories)
+
     def test_evidence_and_known_upstream_caveats_are_preserved(self):
         for marker in ("manifest/context-fabric-claude", "mcp-live/context-fabric-codex",
                        "mcp-live/sefaria-claude", "mcp-live/sefaria-codex",
