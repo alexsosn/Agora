@@ -395,8 +395,9 @@ resources:
           notes: Immutable commit of CUC release v0.2.8, which the `cuc` resource is pinned to. Agora refuses to compose the module onto any other parent revision. The upstream compatibility contract still names the later `ad69400f5446e1c8217af01659c7c10ab00c015b`; both commits carry a byte-identical `tf/0.2.8` tree (`4c2224154b1eac02b0eddabd7bdbbc8692a23451`), and the four commits between them touch only `README.md` and `images/caccht-logo.png`, so a module materialized against either is valid against this pin. Upstream should move its declared contract to the release commit.
     acquisition:
       strategy: local-module
+      materializer: {plugin: cuc-burns, id: cuc-burns-csv}
       lazy: true
-      notes: Not fetched by Agora. Materialize with the upstream `ugarit-context-parsing module --cuc <cuc>/tf/0.2.8` CLI and place the output under `<AGORA_CORPUS_CACHE>/local-modules/cuc-burns/tf/0.2.8`.
+      notes: A reviewed producer is registered at an immutable CTC-TF commit. After explicit third-party-code installation, Agora's internal managed module path can use user-local licensed Burns CSVs with read-only CUC 0.2.8; Context-Fabric snapshots the published local-module files. No Burns source is fetched or redistributed automatically.
     licenses: {data: CC-BY-NC-ND-2.5, redistribution: restricted, notes: Burns source material is NoDerivatives; generated Text-Fabric artifacts are for local use only.}
     verification: {status: community}
-    source_snapshot: {source: alexsosn/CTC-TF:README.md, checked_at: "2026-09-16"}
+    source_snapshot: {source: alexsosn/CTC-TF:agora.materializer.json@f58b162197ad8f113b7cd6fc0088ae5dd39a096d, checked_at: "2026-10-11"}
