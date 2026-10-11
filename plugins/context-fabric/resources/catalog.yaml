@@ -1284,6 +1284,15 @@ resources:
       - https://github.com/alexsosn/ORACC-TF/blob/main/LICENSE_SCOPE.md
       - https://github.com/alexsosn/ORACC-TF/blob/main/docs/reference/citation.md
       - https://github.com/alexsosn/ORACC-TF/blob/main/docs/reference/reproducibility.md
+  load_cost:
+    scope: resource
+    total_cache_mb: 1143.6
+    measurement:
+      checked_at: '2026-10-11'
+      agora_revision: b29d6378ead0923ac40b30f26f70a37cc8b3f39a
+      environment: "GitHub-hosted Ubuntu 24.04; Python 3.13; context-fabric 0.5.7; cfabric-mcp 0.1.7"
+      evidence: "https://github.com/alexsosn/Agora/actions/runs/38144420873"
+    notes: "Published v1.0.0 asset, TF data version 0.4.0. Exact pinned release, cold load and offline repeat produced 1,143,608,653 bytes in the managed snapshot including compiled cache. This runner-specific observation is not peak memory or a hardware requirement."
   verification:
     status: community
     notes:

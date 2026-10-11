@@ -69,6 +69,8 @@ Collection members are not enumerated on this page. Collection indexes are snaps
 - **Copenhagen Ugaritic Corpus** (`cuc`) — measured 2026-09-04: source 3.1 MB; compiled 20 MB; total cache 24 MB; peak RSS 288 MB; first load 30 s; warm load 1.5 s. Environment: macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7. Notes: Historical machine-specific observation; current-machine cost may differ.
 - **TLHdig-TF** (`TLHdig-TF`) — measured 2026-09-04: source 388 MB; compiled 4600 MB; total cache 5100 MB; peak RSS 2100 MB; first load 1740 s. Environment: macOS 24.6.0 x86_64; Python 3.13; cfabric-mcp 0.1.7; context-fabric 0.5.7. Notes: Historical machine-specific observation measured for tf/0.1.0; it does not describe the current tf/0.4.0 artifact. Current-machine cost may differ. Peak RSS came from the related earlier run rather than the final converged compile measurement.
 
+- **Assyrian Royal Inscriptions (RIAO and RINAP)** (`assyrian-royal-inscriptions`) — measured 2026-10-11: total cache 1143.6 MB. Environment: GitHub-hosted Ubuntu 24.04; Python 3.13; context-fabric 0.5.7; cfabric-mcp 0.1.7. Notes: Published v1.0.0 asset, TF data version 0.4.0. Exact pinned release, cold load and offline repeat produced 1,143,608,653 bytes in the managed snapshot including compiled cache. This runner-specific observation is not peak memory or a hardware requirement.
+
 ## Known integration limitations
 
 - **PTHU Greek Literature collection** (`greek_literature`), `context-fabric/duplicate-structure-levels` — Some collection members declare duplicate structure levels and cannot be loaded by the supported Context-Fabric release.
