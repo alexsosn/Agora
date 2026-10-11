@@ -76,7 +76,7 @@ class AcquisitionStrategyValidation252Tests(unittest.TestCase):
     def test_schema_enumeration_matches_runtime_known_values(self):
         acquisition = self.schema["properties"]["resources"]["items"]["properties"]["acquisition"]
         enum = acquisition["properties"]["strategy"]["enum"]
-        self.assertEqual({"repository", "collection", "local-module"}, set(enum))
+        self.assertEqual({"repository", "collection", "local-module", "github-release-archive"}, set(enum))
 
 
 if __name__ == "__main__":
