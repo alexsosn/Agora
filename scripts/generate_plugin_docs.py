@@ -12,6 +12,14 @@ ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "registry" / "plugins.yaml"
 OUTPUT_DIR = ROOT / "wiki" / "guides" / "plugins"
 
+
+TROUBLESHOOTING_EXITS = {
+    "context-fabric": "If a corpus load stalls, see [cold-load recovery](../troubleshooting.md#corpus-acquisition-or-compilation-appears-stuck); for result interpretation, see the [10,000-count cap](../troubleshooting.md#search-count-stops-at-10000) and [CUC text-format discovery](../troubleshooting.md#cuc-text-formats-appear-missing).",
+    "perseus": "If passage retrieval works but legacy navigation fails, see [Perseus navigation recovery](../troubleshooting.md#perseus-passage-works-but-navigation-fails).",
+    "sefaria": "For repeated search references, see [Sefaria duplicate-reference recovery](../troubleshooting.md#sefaria-search-repeats-a-reference).",
+    "sedra": "For failed live word or lexeme lookup, see [remote lookup recovery](../troubleshooting.md#remote-lookup-fails)."
+} 
+
 GUIDANCE: dict[str, dict[str, Any]] = {
     "context-fabric": {
         "access": (
@@ -258,7 +266,7 @@ These fields describe the plugin/software/service boundary. Corpus, edition, ann
 
 ## Troubleshooting
 
-Start from the observed symptom in [installation troubleshooting](../installation.md#troubleshooting). For current client/platform evidence and structured advisories, use [compatibility and known limitations](../compatibility.md#current-upstream-limitations).
+Start from [symptom-based troubleshooting](../troubleshooting.md), with [compatibility and known limitations](../compatibility.md#current-upstream-limitations) for client and upstream boundaries.\n\n{TROUBLESHOOTING_EXITS[plugin_id]}
 
 ## Upstream
 

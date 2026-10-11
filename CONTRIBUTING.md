@@ -59,6 +59,8 @@ Agora tests should prove Agora claims: registry validity, generated metadata, in
 
 A smoke operation is evidence that the integration reaches the upstream service; it is not an invitation to reproduce upstream's semantic test suite. When a test would primarily prove that a third-party algorithm or scholarly operation is correct, that test and its fix belong upstream.
 
+For a local checkout and the Codex plugin development workflow, see the [local development setup](wiki/guides/development-setup.md).
+
 ## Development and review gates
 
 Agora uses TDD for behavior changes and logically independent adversarial review for finalized pull requests. The amount of ceremony and CI must be proportional to the risk and scope of the change.
