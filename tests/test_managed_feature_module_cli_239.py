@@ -74,6 +74,34 @@ class ManagedFeatureModuleCliRedTests(unittest.TestCase):
             self.assertEqual(ex.exception.code, 2)
             produce.assert_not_called()
 
+    def test_uninstalled_producer_has_actionable_cli_error_without_approval(self):
+        from scripts.agora_install_materializer import MaterializerInstallError
+
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "workbooks"
+            source.mkdir()
+            module = SimpleNamespace(
+                kind="feature-module", acquisition_strategy="local-module",
+                materializer={"plugin": "cuc-burns", "id": "cuc-burns-csv"},
+            )
+            catalog = mock.Mock()
+            catalog.get.return_value = module
+            stderr = io.StringIO()
+            with (
+                mock.patch.object(compose, "_bundled_context_fabric_resolver",
+                                  return_value=SimpleNamespace(catalog=catalog)),
+                mock.patch.object(
+                    compose, "materialize_requested_feature_module",
+                    side_effect=MaterializerInstallError("producer not installed")
+                ) as produce,
+                contextlib.redirect_stderr(stderr),
+            ):
+                with self.assertRaises(SystemExit) as ex:
+                    self.call_cli(["--module", "cuc-burns", "--source", str(source)])
+            self.assertEqual(ex.exception.code, 2)
+            self.assertIn("producer not installed", stderr.getvalue())
+            produce.assert_called_once()
+
     def test_unknown_or_unsafe_flags_refused_before_installer_or_converter(self):
         with tempfile.TemporaryDirectory() as td:
             source = Path(td) / "workbooks"
