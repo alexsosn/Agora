@@ -1,0 +1,114 @@
+name: Pseudepigrapha pinned TF release snapshot cache
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pseudepigrapha-release-snapshot.yml'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_snapshots.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_archive.py'
+      - 'tests/test_release_snapshot_cache_251.py'
+      - 'scripts/probe_tf_release_asset.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pseudepigrapha-release-snapshot.yml'
+      - 'plugins/context-fabric/src/agora_context_fabric/release_snapshots.py'
+      - 'tests/test_release_snapshot_cache_251.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pinned-release-snapshot:
+    name: Validate immutable v1.0.0 Pseudepigrapha cache and offline reopen
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact Agora head without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify tested code identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install validation dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run independent cache consistency, race and rollback tests
+        run: python -m unittest tests.test_release_snapshot_cache_251 -v
+
+      - name: Download exact verified release and prove managed snapshot offline lifecycle
+        run: |
+          # Data-only integration test: no corpus catalog registration or third-party code execution.
+          python - <<'PY'
+          import sys
+          import tempfile
+          from pathlib import Path
+          from scripts.agora_materialize import _download_pinned_archive
+          from scripts.probe_tf_release_asset import PINNED_RELEASE_ASSETS
+
+          sys.path.insert(0, str(Path.cwd() / "plugins/context-fabric/src"))
+          from agora_context_fabric.gitstore import GitStore
+          from agora_context_fabric.release_snapshots import ReleaseSnapshots
+
+          # The exact asset SHA256 and byte length come from the published v1.0.0 Release.
+          pinned = PINNED_RELEASE_ASSETS["tf-1.0.zip"]
+          identity = {
+              "resource_id": "pseudepigrapha",
+              "repository": "alexsosn/Pseudepigrapha-TF",
+              "release_tag": "v1.0.0",
+              "version": "1.0",
+              "asset_sha256": pinned["sha256"],
+          }
+          with tempfile.TemporaryDirectory() as root:
+              root = Path(root)
+              asset = root / "tf-1.0.zip"
+              _download_pinned_archive({
+                  "url": "https://github.com/alexsosn/Pseudepigrapha-TF/releases/download/v1.0.0/tf-1.0.zip",
+                  "sha256": pinned["sha256"],
+              }, asset)
+              assert asset.stat().st_size == pinned["size"]
+              cache = root / "cache"
+              store = GitStore(cache, min_free_bytes=0)
+              snapshots = ReleaseSnapshots(store)
+              prepared = snapshots.install(asset, **identity)
+              count = len(list(prepared.path.glob("*.tf")))
+              nbytes = sum(p.stat().st_size for p in prepared.path.glob("*.tf"))
+              assert count == 96, count
+              assert nbytes == 101762166, nbytes
+              assert prepared.source_revision == pinned["sha256"]
+              assert prepared.resource_id == "pseudepigrapha"
+              asset.unlink()
+              reopened = ReleaseSnapshots(GitStore(cache, min_free_bytes=0)).prepare(**identity)
+              assert reopened.path == prepared.path
+              assert reopened.version == "1.0"
+              with store.acquire_cache_lease(prepared.path):
+                  assert store.remove_cache_object(prepared.path)["skipped_in_use"] == 1
+              assert store.remove_cache_object(prepared.path)["removed_entries"] == 1
+              try:
+                  snapshots.prepare(**identity)
+              except FileNotFoundError:
+                  pass
+              else:
+                  raise AssertionError("removed release corpus must not reappear offline")
+              print(
+                  f"PASS pinned public v1.0.0 release snapshot "
+                  f"features={count} tf_bytes={nbytes} "
+                  f"source_revision={pinned['sha256']} "
+                  f"offline=true leased=true evicted=true"
+              )
+          PY
