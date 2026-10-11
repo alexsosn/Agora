@@ -26,6 +26,8 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 SCHEMA_PATH = Path(__file__).resolve().parents[1] / "registry/schema/materializer-plugin.schema.json"
 GIT_TIMEOUT_SECONDS = 120
+# Whole source acquisition budget, shared across all Git subprocesses.
+GIT_MAX_TOTAL_SECONDS = 600
 HTTP_TIMEOUT_SECONDS = 120
 # `urlopen(timeout=...)` bounds each socket operation and resets on every read,
 # so it cannot bound a transfer: a server trickling bytes stays under it
@@ -412,9 +414,21 @@ _GIT_PHASES = frozenset({
 })
 
 
+def _git_remaining_timeout(deadline: float | None) -> float:
+    if deadline is None:
+        return GIT_TIMEOUT_SECONDS
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise AcquisitionError(
+            f"Git source acquisition exceeded cumulative {GIT_MAX_TOTAL_SECONDS}-second deadline"
+        )
+    return min(GIT_TIMEOUT_SECONDS, remaining)
+
+
 def _run_git(
     command: list[str], *, env: dict[str, str], capture: bool = False,
     require_filter_support: bool = False, phase: str | None = None,
+    deadline: float | None = None,
 ) -> str | None:
     # Only this opt-in switch is read from the host environment. We deliberately
     # never forward host GIT_TRACE*, credentials or config into the isolated
@@ -429,29 +443,35 @@ def _run_git(
             pass
     succeeded = False
     try:
+        subprocess_timeout = _git_remaining_timeout(deadline)
         if capture:
             result = subprocess.check_output(
                 command,
                 env=env,
                 text=True,
-                timeout=GIT_TIMEOUT_SECONDS,
+                timeout=subprocess_timeout,
             ).strip()
             succeeded = True
             return result
         if require_filter_support:
             result = subprocess.run(
                 command, check=True, env=env, text=True,
-                capture_output=True, timeout=GIT_TIMEOUT_SECONDS,
+                capture_output=True, timeout=subprocess_timeout,
             )
             if "filtering not recognized by server" in result.stderr.lower():
                 raise AcquisitionError(
                     "Git remote does not support blob filtering; refusing unbounded full fetch"
                 )
         else:
-            subprocess.run(command, check=True, env=env, timeout=GIT_TIMEOUT_SECONDS)
+            subprocess.run(command, check=True, env=env, timeout=subprocess_timeout)
         succeeded = True
         return None
     except subprocess.TimeoutExpired as exc:
+        if deadline is not None and subprocess_timeout < GIT_TIMEOUT_SECONDS:
+            raise AcquisitionError(
+                f"Git source acquisition exceeded cumulative {GIT_MAX_TOTAL_SECONDS}-second "
+                "deadline while executing a Git phase"
+            ) from exc
         raise AcquisitionError(
             f"Git acquisition timed out after {GIT_TIMEOUT_SECONDS} seconds"
         ) from exc
@@ -495,38 +515,39 @@ def acquire_git_source(strategy: dict[str, Any], materializer: dict[str, Any]) -
     home = root / "home"
     home.mkdir()
     env = _git_environment(home)
+    deadline = time.monotonic() + GIT_MAX_TOTAL_SECONDS
     try:
-        _run_git([git, "init", "--quiet", str(repo)], env=env, phase="init")
-        _run_git([git, "-C", str(repo), "remote", "add", "origin", strategy["url"]], env=env, phase="remote")
+        _run_git([git, "init", "--quiet", str(repo)], env=env, deadline=deadline, phase="init")
+        _run_git([git, "-C", str(repo), "remote", "add", "origin", strategy["url"]], env=env, deadline=deadline, phase="remote")
         sparse_patterns = strategy.get("sparse_patterns")
         if sparse_patterns is not None:
             # Pin source identity and avoid downloading non-TT corpus formats.
             # The checkout is deliberately *after* sparse selection: even one
             # early full checkout would hydrate all blobs and defeat the filter.
-            _run_git([git, "-C", str(repo), "config", "remote.origin.promisor", "true"], env=env, phase="config-promisor")
+            _run_git([git, "-C", str(repo), "config", "remote.origin.promisor", "true"], env=env, deadline=deadline, phase="config-promisor")
             _run_git(
                 [git, "-C", str(repo), "config", "remote.origin.partialclonefilter", "blob:none"],
-                env=env, phase="config-filter",
+                env=env, deadline=deadline, phase="config-filter",
             )
             _run_git(
                 [git, "-C", str(repo), "fetch", "--quiet", "--depth", "1",
                  "--filter=blob:none", "origin", strategy["ref"]],
-                env=env, require_filter_support=True, phase="fetch",
+                env=env, deadline=deadline, require_filter_support=True, phase="fetch",
             )
             _run_git(
                 [git, "-C", str(repo), "sparse-checkout", "set", "--no-cone",
                  "--", *sparse_patterns],
-                env=env, phase="sparse-select",
+                env=env, deadline=deadline, phase="sparse-select",
             )
         else:
             # Preserve the historic full-source contract for existing plugins.
             _run_git(
                 [git, "-C", str(repo), "fetch", "--quiet", "--depth", "1",
                  "origin", strategy["ref"]],
-                env=env, phase="fetch",
+                env=env, deadline=deadline, phase="fetch",
             )
-        _run_git([git, "-C", str(repo), "checkout", "--quiet", "--detach", "FETCH_HEAD"], env=env, phase="checkout")
-        revision = _run_git([git, "-C", str(repo), "rev-parse", "HEAD"], env=env, capture=True, phase="resolve-ref")
+        _run_git([git, "-C", str(repo), "checkout", "--quiet", "--detach", "FETCH_HEAD"], env=env, deadline=deadline, phase="checkout")
+        revision = _run_git([git, "-C", str(repo), "rev-parse", "HEAD"], env=env, deadline=deadline, capture=True, phase="resolve-ref")
         assert revision is not None
         if sparse_patterns is not None and revision != strategy["ref"]:
             raise AcquisitionError(
@@ -544,6 +565,9 @@ def acquire_git_source(strategy: dict[str, Any], materializer: dict[str, Any]) -
             if sparse_patterns is not None:
                 raise AcquisitionError(f"Git sparse input contract failed: {exc}") from exc
             raise
+        # Input validation also belongs to the source-acquisition deadline;
+        # stale source roots must not survive an overlong resolution.
+        _git_remaining_timeout(deadline)
         provenance: dict[str, Any] = {
             "type": "git",
             "url": strategy["url"],
