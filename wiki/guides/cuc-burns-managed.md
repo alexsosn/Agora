@@ -37,9 +37,11 @@ Start the Context-Fabric plugin using the same cache and request the CUC module 
 
 ```python
 prepare_corpus(resource_id="cuc", version="0.2.8")
-load_corpus(resource_id="cuc", modules=["cuc-burns"])
+loaded = load_corpus(resource_id="cuc", modules=["cuc-burns"])
+search(logical_name=loaded["logical_name"], template="word burns_headword_1", return_type="count")
+unload_corpus(logical_name=loaded["logical_name"])
 ```
 
-Then inspect the loaded Text-Fabric feature inventory before querying. Burns' modern native module uses lane-numbered features such as `burns_headword_1` and `burns_category_1`; these annotate already-existing CUC word IDs. A local module is snapshotted by content hash when Context-Fabric composes it, without copying or altering the CUC warp.
+The search returns the number of existing CUC words carrying the `burns_headword_1` annotation; the exact count depends on the licensed source input. Unload the logical corpus when finished. Inspect the loaded Text-Fabric feature inventory before constructing other queries. Burns' modern native module uses lane-numbered features such as `burns_headword_1` and `burns_category_1`; these annotate already-existing CUC word IDs. A local module is snapshotted by content hash when Context-Fabric composes it, without copying or altering the CUC warp.
 
 **Licensing and limitations:** Burns source material has the upstream restrictions currently recorded by Agora as **CC-BY-NC-ND-2.5**, with no authorization in this workflow to redistribute original Workbooks, generated CSV or derived Text-Fabric artifacts. This is an explicitly requested, local producer and consumer path; it is **not** automatic materialization on ordinary corpus discovery. Only the reviewed CUC parent release 0.2.8 is supported. Windows lacks the required network-denied sandbox and fails closed.
