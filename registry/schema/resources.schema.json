@@ -277,7 +277,7 @@
             "additionalProperties": false,
             "required": ["strategy"],
             "properties": {
-              "strategy": {"type": "string"},
+              "strategy": {"type": "string", "enum": ["repository", "collection", "local-module"]},
               "lazy": {"type": "boolean"},
               "notes": {"type": "string"},
               "materializer": {
