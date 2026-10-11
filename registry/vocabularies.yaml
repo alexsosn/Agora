@@ -34,6 +34,7 @@ feature_module_statuses:
 
 acquisition_strategies:
   - repository
+  - github-release-archive
   - tf-app
   - collection
   - local-module
