@@ -37,8 +37,8 @@ Start the Context-Fabric plugin using the same cache and request the CUC module 
 
 ```python
 prepare_corpus(resource_id="cuc", version="0.2.8")
-loaded = load_corpus(resource_id="cuc", modules=["cuc-burns"])
-search(logical_name=loaded["logical_name"], template="word burns_headword_1", return_type="count")
+loaded = load_corpus(resource_id="cuc", version="0.2.8", source_mode="offline", modules=["cuc-burns"], features=["burns_headword_1"])
+search(corpus=loaded["logical_name"], template="word burns_headword_1", return_type="count")
 unload_corpus(logical_name=loaded["logical_name"])
 ```
 
