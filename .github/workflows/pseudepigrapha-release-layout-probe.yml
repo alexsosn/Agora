@@ -1,0 +1,58 @@
+name: Pseudepigrapha pinned TF release asset layout
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pseudepigrapha-release-layout-probe.yml'
+      - 'scripts/probe_tf_release_asset.py'
+      - 'scripts/agora_materialize.py'
+      - 'tests/test_pinned_release_layout_probe_251.py'
+      - 'requirements-dev.txt'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pseudepigrapha-release-layout-probe.yml'
+      - 'scripts/probe_tf_release_asset.py'
+      - 'tests/test_pinned_release_layout_probe_251.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pinned-release-asset-layout:
+    name: Verify public Pseudepigrapha v1.0.0 ZIP identity and TF layout
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact Agora commit without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify tested commit
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Configure Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install manifest/archive inspection dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run adversarial synthetic ZIP layout tests
+        run: python -m unittest tests.test_pinned_release_layout_probe_251 -v
+
+      - name: Inspect exact public v1.0.0 published assets without extraction
+        run: |
+          python -m scripts.probe_tf_release_asset --asset tf-1.0.zip
+          python -m scripts.probe_tf_release_asset --asset complete.zip
