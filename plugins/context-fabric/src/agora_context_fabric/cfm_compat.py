@@ -14,7 +14,9 @@ import shutil
 import tempfile
 from pathlib import Path
 
-_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,127}\Z")
+# Text-Fabric/Context-Fabric supports language-qualified feature names such
+# as book@en in sectionFeatures. Keep basenames bounded, relative and safe.
+_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,127}(?:@[A-Za-z][A-Za-z0-9_-]{0,30})?\Z")
 _MAX_META_BYTES = 2 * 1024 * 1024
 _MAX_NODES = 20_000_000
 
