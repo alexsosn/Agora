@@ -111,6 +111,7 @@ class EmptyCFMFeature263Tests(unittest.TestCase):
         self.assertIsNone(StringPool.load(str(features / "prefix_utf8")).get(1))
         self.assertEqual((result.path / "prefix_utf8.tf").read_bytes(), FEATURES["prefix_utf8.tf"])
 
+    @unittest.skipUnless(HAS_CFABRIC, "requires Context-Fabric runtime; exercised in native release consumer CI")
     def test_missing_binary_for_nonempty_source_fails_closed(self):
         self._compiled(nodes=["nonempty"])
         with self.assertRaisesRegex(ValueError, "nonempty|empty|integrity"):
