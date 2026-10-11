@@ -175,7 +175,7 @@ class CiChangeScopeContracts(unittest.TestCase):
         )))
         self.assertEqual("full", classify_pr_checkout(git_runner=Mock(
             return_value=cmd_result(b"", 128)
-        ))
+        )))
 
 
 if __name__ == "__main__":
