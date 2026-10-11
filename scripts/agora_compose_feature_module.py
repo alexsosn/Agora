@@ -693,3 +693,84 @@ def materialize_requested_feature_modules(
                 except Exception as exc:
                     raise BatchMaterializationError(plan.module_id, results) from exc
     return results
+
+
+
+def _cli_parser():
+    """Small user entrypoint over the existing reviewed orchestration gate."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Materialize one explicitly requested, already-approved Agora "
+            "feature module using its immutable canonical producer and parent"
+        )
+    )
+    parser.add_argument("--module", required=True, help="Canonical Context-Fabric module ID")
+    parser.add_argument(
+        "--source", type=Path, required=True,
+        help="User-local licensed source directory (never downloaded by Agora)",
+    )
+    parser.add_argument(
+        "--parent-version", help="Explicit compatible parent Text-Fabric version",
+    )
+    parser.add_argument(
+        "--cache-dir", type=Path,
+        help="Optional Context-Fabric cache root; uses Context-Fabric default otherwise",
+    )
+    parser.add_argument(
+        "--install-root", type=Path,
+        help="Optional root of an existing explicitly approved materializer installation",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Publish a catalog-bound feature module without implicit installation.
+
+    Raw parent paths, arbitrary executable producers, injected resolvers, and
+    code-execution approval are deliberately NOT command-line options.
+    """
+    parser = _cli_parser()
+    args = parser.parse_args(argv)
+    source = args.source.expanduser()
+    if source.is_symlink() or not source.is_dir():
+        parser.error(
+            f"source must be a real directory of already-prepared, licensed data: {source}"
+        )
+    try:
+        resolver = _bundled_context_fabric_resolver(cache_dir=args.cache_dir)
+        module = resolver.catalog.get(args.module)
+        if module.kind != "feature-module":
+            raise ValueError(f"{args.module!r} is not a registered feature module")
+        if module.acquisition_strategy != "local-module":
+            raise ValueError(
+                f"{args.module!r} does not support managed local-module publication"
+            )
+        producer = module.materializer
+        if (
+            not isinstance(producer, dict)
+            or set(producer) != {"plugin", "id"}
+            or not all(isinstance(value, str) and value for value in producer.values())
+        ):
+            raise ValueError(
+                f"{args.module!r} has no reviewed registered producer; "
+                "no third-party code is installed automatically"
+            )
+        result = materialize_requested_feature_module(
+            module_id=args.module,
+            plugin_id=producer["plugin"],
+            materializer_id=producer["id"],
+            source=source,
+            requested_version=args.parent_version,
+            cache_dir=args.cache_dir,
+            install_root=args.install_root,
+        )
+    except (ValueError, KeyError, FileNotFoundError) as exc:
+        parser.error(str(exc))
+    print(result)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
