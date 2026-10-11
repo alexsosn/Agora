@@ -134,7 +134,10 @@ class ContextFabricService:
                 if resource.kind == "feature-module"
                 else None
             ),
-            "acquisition": {"strategy": resource.acquisition_strategy},
+            "acquisition": {
+                "strategy": resource.acquisition_strategy,
+                **({"release": copy.deepcopy(resource.release)} if resource.release else {}),
+            },
             "default_version": default_version,
             "available_modules": available_modules,
             "registered_modules": registered_modules,
@@ -158,6 +161,7 @@ class ContextFabricService:
                 "repository": resource.repository,
                 "configured_ref": resource.ref,
                 "tf_path": resource.tf_path,
+                **({"release": copy.deepcopy(resource.release)} if resource.release else {}),
                 "module": resource.module_path,
                 "dependencies": [dict(value) for value in resource.dependencies],
             },
