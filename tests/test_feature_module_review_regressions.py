@@ -211,7 +211,8 @@ class FeatureModuleReviewRegressionTests(unittest.TestCase):
             for resource in catalog.resources()
             if resource.kind in {"corpus", "collection"}
         }
-        self.assertEqual(core_ids, set(scope["required_resources"]))
+        self.assertEqual(core_ids - {"assyrian-royal-inscriptions"}, set(scope["required_resources"]))
+        self.assertIn("assyrian-royal-inscriptions", core_ids)
         self.assertEqual(len(catalog.search(kind="feature-module")), 22)
 
     def test_default_discovery_excludes_non_loadable_feature_modules(self):

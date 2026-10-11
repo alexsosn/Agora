@@ -94,7 +94,9 @@ class ContextFabricService:
         registered_modules: list[dict[str, Any]] | None = None
         available_modules: list[dict[str, Any]] | None = None
         if resolve_modules and resource.kind == "corpus":
-            if resource.tf_path is not None:
+            if resource.acquisition_strategy == "github-release-archive":
+                default_version = resource.release_archive["version"]
+            elif resource.tf_path is not None:
                 default_version = dataset_version(resource.tf_path)
             registered_modules = [
                 self._module_dict(module, default_version)
@@ -134,7 +136,10 @@ class ContextFabricService:
                 if resource.kind == "feature-module"
                 else None
             ),
-            "acquisition": {"strategy": resource.acquisition_strategy},
+            "acquisition": {
+                "strategy": resource.acquisition_strategy,
+                **({"archive": copy.deepcopy(resource.release_archive)} if resource.release_archive else {}),
+            },
             "default_version": default_version,
             "available_modules": available_modules,
             "registered_modules": registered_modules,
@@ -158,6 +163,7 @@ class ContextFabricService:
                 "repository": resource.repository,
                 "configured_ref": resource.ref,
                 "tf_path": resource.tf_path,
+                **({"archive": copy.deepcopy(resource.release_archive)} if resource.release_archive else {}),
                 "module": resource.module_path,
                 "dependencies": [dict(value) for value in resource.dependencies],
             },

@@ -755,3 +755,55 @@ resources:
       evidence: "https://github.com/alexsosn/Agora/issues/38#issuecomment-5536924435"
     notes: "Historical machine-specific observation measured for tf/0.1.0; it does not describe the current tf/0.4.0 artifact. Current-machine cost may differ. Peak RSS came from the related earlier run rather than the final converged compile measurement."
   source_snapshot: {source: alexsosn/TLHdig-TF, checked_at: '2026-09-01'}
+- id: assyrian-royal-inscriptions
+  name: Assyrian Royal Inscriptions (RIAO and RINAP)
+  plugin: context-fabric
+  provider: context-fabric
+  kind: corpus
+  languages: [akkadian]
+  disciplines: [assyriology, history, semitic-linguistics]
+  description: Pinned released Text-Fabric corpus of Assyrian royal inscriptions from RIAO and RINAP with selected aligned official TEI translations; coverage and alignment gaps are documented upstream.
+  upstream:
+    repository: alexsosn/ORACC-TF
+    ref: 60db4b724a687c0f425e78eae924fce89454e106
+  acquisition:
+    strategy: github-release-archive
+    lazy: true
+    archive:
+      release_tag: v1.0.0
+      asset_name: assyrian-royal-inscriptions-1.0.0.zip
+      sha256: 788f580604e30054fab34c4c3ea60ec3eb4f399412f1da90f778469d03507468
+      compressed_bytes: 41285702
+      version: 0.4.0
+    notes: Strict digest-pinned pure-data TF extraction; no ORACC builder checkout or converter execution; release app/docs are not executed by Agora.
+  licenses:
+    data: Mixed upstream terms (ORACC project-specific CC0/CC BY-SA 3.0 and qualified official TEI translation rights)
+    redistribution: restricted
+    notes: Corpusjson metadata may assert CC0 where edition/site terms assert CC BY-SA 3.0; preserve project-specific attributions and the independently qualified official TEI terms. ORACC-TF software MIT does not relicense textual data.
+    evidence:
+      status: component-specific
+      checked_at: '2026-10-11'
+      sources:
+      - https://github.com/alexsosn/ORACC-TF/blob/v1.0.0/LICENSE_SCOPE.md
+      - https://github.com/alexsosn/ORACC-TF/blob/v1.0.0/docs/reference/citation.md
+      - https://github.com/alexsosn/ORACC-TF/blob/v1.0.0/docs/reference/reproducibility.md
+  load_cost:
+    scope: resource
+    total_cache_mb: 1143.6
+    measurement:
+      checked_at: '2026-10-11'
+      agora_revision: b29d6378ead0923ac40b30f26f70a37cc8b3f39a
+      environment: "GitHub-hosted Ubuntu 24.04; Python 3.13; context-fabric 0.5.7; cfabric-mcp 0.1.7"
+      evidence: "https://github.com/alexsosn/Agora/actions/runs/38144420873"
+    notes: "Published v1.0.0 asset, TF data version 0.4.0. Exact pinned release, cold load and offline repeat produced 1,143,608,653 bytes in the managed snapshot including compiled cache. This runner-specific observation is not peak memory or a hardware requirement."
+  verification:
+    status: community
+    notes:
+    - Pinned ORACC-TF v1.0.0 source publication has independent TF-only load/browser acceptance upstream; Agora-specific integration remains to be verified.
+    - Corpus sign slots include synthetic empty anchors; not every line has official aligned translation, notably rinap5p1.
+    - A qualified document_key is required; bare Q identifiers collide across projects.
+  integration_issues:
+  - https://github.com/alexsosn/Agora/issues/223
+  source_snapshot:
+    source: alexsosn/ORACC-TF/releases/tag/v1.0.0
+    checked_at: '2026-10-11'

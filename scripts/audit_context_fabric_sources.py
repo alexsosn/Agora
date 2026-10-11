@@ -119,6 +119,18 @@ def audit_catalog(catalog: Catalog, store: GitStore) -> dict[str, Any]:
         if resource.parent is not None:
             item["parent"] = resource.parent
             item["compatible_parent_versions"] = list(resource.parent_versions)
+        if resource.acquisition_strategy == "github-release-archive":
+            # Release ZIP resources do not contain TF objects in the builder
+            # Git tree; auditing the builder would download irrelevant Git
+            # metadata and then falsely report a missing TF root. The pinned
+            # public ZIP is checked in its own exact-asset consumer workflow.
+            item["status"] = "skipped"
+            item["acquisition_strategy"] = resource.acquisition_strategy
+            item["asset_sha256"] = resource.release_archive["sha256"]
+            item["asset_bytes"] = resource.release_archive["compressed_bytes"]
+            item["verification_path"] = "published-release-asset-consumer"
+            resources.append(item)
+            continue
         if resource.kind == "feature-module" and resource.acquisition_strategy == "local-module":
             # Agora never fetches user-materialized modules, so there is no
             # upstream artifact to audit; the upstream tooling verifies the

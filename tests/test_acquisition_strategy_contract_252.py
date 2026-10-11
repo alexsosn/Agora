@@ -35,7 +35,7 @@ class AcquisitionStrategyValidation252Tests(unittest.TestCase):
 
     def test_real_corpus_collection_and_burns_local_module_remain_valid(self):
         self.assertEqual([], validate_registry())
-        allowed = {"repository", "collection", "local-module"}
+        allowed = {"repository", "collection", "local-module", "github-release-archive"}
         values = {
             row["acquisition"]["strategy"]
             for doc in (self.resources, self.modules)
