@@ -41,7 +41,7 @@ GUIDANCE: dict[str, dict[str, Any]] = {
         ),
         "cost_note": (
             "Historical load observations live in the resource catalog. First acquisition normally needs "
-            "network access to the registered upstream Git source unless the exact required snapshots are "
+            "network access to the registered upstream source (Git metadata or a checksum-pinned GitHub Release ZIP), unless the exact required snapshots are "
             "already resident for offline use. For an unfamiliar resource, use "
             "`describe_available_corpus` → `prepare_corpus` → `load_corpus`, and inspect the "
             "[cache and cold-load guide](../context-fabric-cache.md) before an expensive load."
@@ -119,6 +119,13 @@ The BHSA parent corpus is listed under **CC BY-NC 4.0** in Agora, while the cant
         ),
     },
 }
+
+
+# The ORACC paragraph is maintained here so the generated researcher page
+# remains in sync with the pinned canonical resource contract.
+GUIDANCE["context-fabric"]["module_note"] = "## Released Assyrian royal inscriptions (ORACC-TF)\n\nThe registered `assyrian-royal-inscriptions` corpus is the pinned RIAO+RINAP dataset from [ORACC-TF v1.0.0](https://github.com/alexsosn/ORACC-TF/releases/tag/v1.0.0). Agora downloads only the published standalone ZIP (41.3 MB), verifies its exact SHA-256 against the registry, validates the native TF data and source manifest, then prepares an evictable managed snapshot. **No clone of the multi-GB builder repository and no converter execution are required.** Use:\n\n```text\ndescribe_available_corpus(resource_id=\"assyrian-royal-inscriptions\")\nprepare_corpus(resource_id=\"assyrian-royal-inscriptions\")\nload_corpus(resource_id=\"assyrian-royal-inscriptions\", features=[\"document_key\", \"line\", \"form\", \"utf8\", \"cf\", \"gw\", \"translation_text\", \"translation_line\", \"synthetic\"])\n```\n\nOnce the exact asset has been prepared, `source_mode=\"offline\"` allows repeat prepare/load without another download, provided the managed cache has not been pruned or altered. A `source_revision` for this acquisition is the **64-hex archive SHA-256** rather than a 40-hex Git commit; `release` metadata in resource discovery separately records the immutable builder/release identity. The bundled ZIP's standalone Text-Fabric **web app and researcher manual** are upstream assets, not installed/executed through Agora's data-only MCP loader.\n\nFor research, select documents using the **qualified** `document_key` (e.g. `riao/ria1:Q001801`), not a bare Q-number. Sign-level `synthetic=1` nodes are empty technical anchors rather than written signs. Official TEI running translations have incomplete coverage, especially for `rinap5p1`; aligned TEI units may themselves contain untranslated editorial placeholders. See the [upstream query guide](https://github.com/alexsosn/ORACC-TF/blob/v1.0.0/docs/reference/query-guide.md) and [limitations](https://github.com/alexsosn/ORACC-TF/blob/v1.0.0/docs/reference/known-issues.md).\n\nRights remain **component-specific**: some ORACC corpusjson metadata state CC0 where the project/edition asserts CC BY-SA 3.0, and the official TEI translations require separate attribution/terms. The converter's MIT licence does not relicense the textual data; consult the [source licence scope](https://github.com/alexsosn/ORACC-TF/blob/v1.0.0/LICENSE_SCOPE.md)." + "\n\n" + GUIDANCE["context-fabric"]["module_note"]
+
+
 
 
 def _load() -> list[dict[str, Any]]:
