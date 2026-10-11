@@ -34,7 +34,7 @@ Install `perseus@agora` through a supported Agora host. Follow the [short instal
 
 > Discover Homer, resolve an Iliad edition in the service that exposes it, retrieve Iliad 1.1, and report the exact discovered URN and service path.
 
-This is a bounded starting request, not a full tutorial. The first-success tutorial workstream can expand it without changing this page's capability contract.
+Follow the [first-success walkthrough](../first-success/perseus.md) for a short post-installation workflow, expected success signal, and interpretation limits.
 
 ## Typical research tasks
 

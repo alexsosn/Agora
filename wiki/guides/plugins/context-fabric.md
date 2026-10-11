@@ -36,7 +36,7 @@ Install `context-fabric@agora` through a supported Agora host. Follow the [short
 
 > Using BHSA, inspect the available word features, then find a small set of occurrences of the lexeme MLK and report the exact features used.
 
-This is a bounded starting request, not a full tutorial. The first-success tutorial workstream can expand it without changing this page's capability contract.
+Follow the [first-success walkthrough](../first-success/context-fabric.md) for a short post-installation workflow, expected success signal, and interpretation limits.
 
 ## Typical research tasks
 

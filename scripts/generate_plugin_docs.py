@@ -232,7 +232,7 @@ Install `{plugin_id}@agora` through a supported Agora host. Follow the [short in
 
 > {guidance['first_success']}
 
-This is a bounded starting request, not a full tutorial. The first-success tutorial workstream can expand it without changing this page's capability contract.
+Follow the [first-success walkthrough](../first-success/{plugin_id}.md) for a short post-installation workflow, expected success signal, and interpretation limits.
 
 ## Typical research tasks
 
