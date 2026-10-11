@@ -277,7 +277,21 @@
             "additionalProperties": false,
             "required": ["strategy"],
             "properties": {
-              "strategy": {"type": "string", "enum": ["repository", "collection", "local-module"]},
+              "strategy": {"type": "string", "enum": ["repository", "collection", "local-module", "github-release-archive"]},
+              "release": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["tag", "asset", "sha256", "bytes", "dataset", "release_id", "tf_version"],
+                "properties": {
+                  "tag": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+                  "asset": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\\.zip$"},
+                  "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                  "bytes": {"type": "integer", "minimum": 1, "maximum": 536870912},
+                  "dataset": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+                  "release_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+                  "tf_version": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"}
+                }
+              },
               "lazy": {"type": "boolean"},
               "notes": {"type": "string"},
               "materializer": {
@@ -396,6 +410,21 @@
           }
         },
         "allOf": [
+          {
+            "if": {"properties": {"acquisition": {"properties": {"strategy": {"const": "github-release-archive"}}}}},
+            "then": {
+              "properties": {
+                "kind": {"const": "corpus"},
+                "upstream": {
+                  "required": ["ref"],
+                  "properties": {"ref": {"type": "string", "pattern": "^[0-9a-f]{40}$"}},
+                  "not": {"required": ["tf_path"]}
+                },
+                "acquisition": {"required": ["release"]}
+              }
+            },
+            "else": {"properties": {"acquisition": {"not": {"required": ["release"]}}}}
+          },
           {
             "if": {"properties": {"kind": {"const": "collection"}}},
             "then": {"required": ["collection"]},
