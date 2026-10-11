@@ -42,6 +42,8 @@ This is a bounded starting request, not a full tutorial. The first-success tutor
 
 Before constructing a corpus query, inspect the selected schema and annotation. Agent-side workflow guidance lives in the [generic Context-Fabric research skill](../../../plugins/context-fabric/skills/context-fabric-research/SKILL.md); resource-specific BHSA, Ugaritic, Hittite, and Greek-collection skills remain alongside it.
 
+See the [human scholarly guidance](../scholarly-guidance.md) for direct links to source-specific research-method sections maintained with the agent skills.
+
 Canonical capabilities:
 
 - **Corpus discovery** (`corpus-discovery`)

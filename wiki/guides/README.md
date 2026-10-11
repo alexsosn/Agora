@@ -7,6 +7,7 @@ Use this page to choose the shortest path for a research task. You can start her
 | **Get started** | [Install the plugin you need](installation.md) |
 | **Browse plugins** | [Choose a plugin by research task](../../README.md#choosing-a-plugin) |
 | **Browse resources** | [Browse the resource catalog](resources.md) |
+| **Scholarly methods** | [Scholarly guidance](scholarly-guidance.md) |
 | **Research tutorials / recipes** | [Start from the current example prompts](../../README.md#example-prompts) |
 | **Compatibility** | [Check client, platform, and known limitations](compatibility.md) |
 | **Troubleshooting** | [Start from the symptom you see](#troubleshooting) |
@@ -52,6 +53,8 @@ Use the [generated scholarly resource catalog](resources.md) to browse the curre
 Installing Context-Fabric does not download every corpus. Collection members are discovered after installation rather than copied wholesale into the static catalog. For an unfamiliar or potentially large corpus, use the [safe first-load workflow](context-fabric-cache.md#recommended-first-load-workflow) before loading it.
 
 Perseus, Sefaria, and SEDRA primarily expose remote scholarly services rather than the same local corpus-selection model, so resource selection differs by plugin.
+
+For corpus-specific interpretation and reproducibility, use the [scholarly guidance](scholarly-guidance.md) index. It links to maintained skill sections rather than copying them.
 
 ## Research tutorials / recipes
 

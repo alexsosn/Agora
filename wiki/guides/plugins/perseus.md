@@ -40,6 +40,8 @@ This is a bounded starting request, not a full tutorial. The first-success tutor
 
 For agent-side source and routing guidance, see the [Perseus research skill](../../../plugins/perseus/skills/perseus-research/SKILL.md).
 
+See the [human scholarly guidance](../scholarly-guidance.md) for direct links to source-specific research-method sections maintained with the agent skills.
+
 Canonical capabilities:
 
 - **Corpus discovery** (`corpus-discovery`)

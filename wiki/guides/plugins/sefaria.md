@@ -41,6 +41,8 @@ This is a bounded starting request, not a full tutorial. The first-success tutor
 
 For agent-side reference, search, and linked-text guidance, see the [Sefaria research skill](../../../plugins/sefaria/skills/sefaria-research/SKILL.md).
 
+See the [human scholarly guidance](../scholarly-guidance.md) for direct links to source-specific research-method sections maintained with the agent skills.
+
 Canonical capabilities:
 
 - **Passage retrieval** (`passage-retrieval`)
