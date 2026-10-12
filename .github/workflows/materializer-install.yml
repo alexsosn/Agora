@@ -18,6 +18,8 @@ on:
       - 'tests/test_materializer_workflow.py'
       - 'tests/test_copticscriptorium_materializer_registry.py'
       - 'tests/test_registry.py'
+      - 'tests/test_catss_canonical_registered_221.py'
+      - 'tests/test_catss_context_fabric_handoff_221.py'
   pull_request:
     paths:
       - '.github/workflows/materializer-install.yml'
@@ -34,6 +36,8 @@ on:
       - 'tests/test_materializer_workflow.py'
       - 'tests/test_copticscriptorium_materializer_registry.py'
       - 'tests/test_registry.py'
+      - 'tests/test_catss_canonical_registered_221.py'
+      - 'tests/test_catss_context_fabric_handoff_221.py'
 
 permissions:
   contents: read
@@ -434,3 +438,293 @@ jobs:
           asyncio.run(main())
           PY
 
+
+  catss-tf:
+    name: Fetch, install, and run canonical CATSS under required sandbox
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact CATSS registration head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Verify exact tested head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Agora registry dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Validate canonical registry and #221 binding
+        run: |
+          python scripts/validate_registry.py
+          python -m unittest tests.test_catss_canonical_registered_221 -v
+          python -m unittest tests.test_catss_context_fabric_handoff_221 -v
+
+      - name: Resolve reviewed immutable CATSS-TF producer
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref=$(python -c "from scripts.agora_install_materializer import load_registry, select_plugin; print(select_plugin(load_registry(), 'catss-tf')['ref'])")
+          echo "CATSS_TF_COMMIT=$ref" >> "$GITHUB_ENV"
+
+      - name: Discover registered canonical CATSS materializer
+        run: python scripts/agora_install_materializer.py list | grep -F 'catss-tf'
+
+      - name: Passively fetch pinned CATSS producer without executing its Python
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/agora_install_materializer.py fetch catss-tf --root "$RUNNER_TEMP/materializers"
+          source_root="$RUNNER_TEMP/materializers/catss-tf/$CATSS_TF_COMMIT/source"
+          test -f "$source_root/agora.materializer.json"
+          test -f "$RUNNER_TEMP/materializers/catss-tf/$CATSS_TF_COMMIT/agora-source.json"
+          test ! -d "$RUNNER_TEMP/materializers/catss-tf/$CATSS_TF_COMMIT/environments"
+
+      - name: Explicitly approve and install CATSS-TF Python producer
+        run: |
+          python scripts/agora_install_materializer.py install catss-tf \
+            --approve-code-execution \
+            --root "$RUNNER_TEMP/materializers"
+
+      - name: Verify managed receipt and upstream strict manifest identity
+        shell: bash
+        env:
+          MATERIALIZER_ROOT: ${{ runner.temp }}/materializers
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from scripts.agora_install_materializer import installation_path, load_registry, select_plugin
+          from scripts.agora_materialize import load_manifest
+
+          root = Path(os.environ['MATERIALIZER_ROOT'])
+          plugin = select_plugin(load_registry(), 'catss-tf')
+          target = installation_path(plugin, root)
+          runtime = target / 'runtime'
+          receipt = json.loads((target / 'agora-installation.json').read_text(encoding='utf-8'))
+          manifest = load_manifest(runtime / 'agora.materializer.json')
+          assert receipt['schema_version'] == 3
+          assert receipt['plugin']['commit'] == os.environ['CATSS_TF_COMMIT']
+          assert receipt['environment']['install_trust'] == 'explicit-code-execution'
+          for field in ('tree_sha256', 'execution_tree_sha256'):
+              assert len(receipt['environment'][field]) == 64
+          assert len(receipt['execution_identity_sha256']) == 64
+          assert len(receipt['source']['tree_sha256']) == 64
+          distributions = {row['name'].lower(): row['version'] for row in receipt['environment']['distributions']}
+          assert distributions['catss-tf'] == '0.1.0'
+          assert manifest['plugin']['id'] == 'catss-tf'
+          assert manifest['plugin']['repository'] == 'alexsosn/CATSS-TF'
+          assert [m['id'] for m in manifest['materializers']] == ['catss-canonical']
+          m = manifest['materializers'][0]
+          assert m['acquisition'][0]['type'] == 'user-local'
+          assert m['execution']['network'] == 'deny'
+          assert m['execution']['args'] == ['{source}', '--output', '{output}']
+          assert m['output']['format'] == 'text-fabric'
+          assert 'parent_input' not in m
+          assert 'composition' not in m['output']
+          PY
+
+      - name: Enable required bubblewrap security sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap
+          if [[ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --unshare-all --ro-bind / / /bin/true
+
+      - name: Prepare synthetic licensed-independent local CATSS fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/catss-source"
+          cat > "$RUNNER_TEMP/catss-source/01.Genesis.par" <<'EOF'
+          Gen 1:1
+          )B	QEOS
+          --+	LOGOS
+          EOF
+          test ! -e "$RUNNER_TEMP/catss-output"
+
+      - name: Run installed CATSS producer only by registered IDs in required sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/agora_materialize_registered.py \
+            --plugin catss-tf \
+            --materializer catss-canonical \
+            --source "$RUNNER_TEMP/catss-source" \
+            --output "$RUNNER_TEMP/catss-output" \
+            --install-root "$RUNNER_TEMP/materializers" \
+            --sandbox required
+
+      - name: Verify Agora host provenance and standalone CATSS Text-Fabric readback
+        shell: bash
+        run: |
+          python -m pip install "text-fabric>=13.1,<14"
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from tf.fabric import Fabric
+
+          root = Path(os.environ['RUNNER_TEMP']) / 'catss-output'
+          source = Path(os.environ['RUNNER_TEMP']) / 'catss-source' / '01.Genesis.par'
+          assert source.read_bytes() == b'Gen 1:1\n)B\tQEOS\n--+\tLOGOS\n'
+          provenance = json.loads((root / 'agora-materialization.json').read_text(encoding='utf-8'))
+          assert provenance['plugin']['id'] == 'catss-tf'
+          assert provenance['materializer'] == 'catss-canonical'
+          assert provenance['source']['type'] == 'user-local'
+          assert len(provenance['source']['tree_sha256']) == 64
+          assert provenance['sandbox'] == 'bubblewrap'
+          assert (root / 'otype.tf').is_file()
+          assert (root / 'oslots.tf').is_file()
+          assert (root / 'otext.tf').is_file()
+          assert (root / 'catss_alignment_id.tf').is_file()
+          assert (root / 'catss-sources.tsv').is_file()
+          assert (root / 'catss-source-lines.tsv').is_file()
+          assert not (root / '.catss-agora-native-artifact').exists()
+          assert not (root / '01.Genesis.par').exists()
+
+          api = Fabric(locations=[str(root)], modules=[''], silent='deep').loadAll(silent='deep')
+          assert api is not None
+          assert api.F.otype.slotType == 'alignment'
+          assert api.F.otype.maxSlot == 2
+          assert api.F.catss_lxx_plus.v(2) == 1
+          assert all(str(api.F.catss_alignment_id.v(slot)).startswith('catss:01.Genesis.par:') for slot in (1, 2))
+          assert tuple(api.F.otype.s('reference')) == ()
+          print('CATSS_AGORA_STANDALONE_OK: 2 alignment slots; verified required sandbox, source receipt and TF load')
+          PY
+
+      - name: Recheck managed runtime identity after execution without reinstalling
+        run: |
+          python scripts/agora_install_materializer.py install catss-tf \
+            --approve-code-execution \
+            --root "$RUNNER_TEMP/materializers"
+
+
+      - name: Set up Python 3.13 for CATSS Context-Fabric consumer
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Context-Fabric consumer runtime
+        run: python -m pip install -e ./plugins/context-fabric
+
+      - name: Prove standalone CATSS Text-Fabric works through offline Context-Fabric MCP
+        shell: bash
+        env:
+          CATSS_TF: ${{ runner.temp }}/catss-output
+          AGORA_CORPUS_MIN_FREE_GB: '0'
+        run: |
+          python - <<'PY'
+          import asyncio
+          import hashlib
+          import json
+          import os
+          import sys
+          from datetime import timedelta
+          from pathlib import Path
+
+          from mcp import ClientSession, StdioServerParameters
+          from mcp.client.stdio import stdio_client
+
+          ROOT = Path.cwd()
+          SOURCE = Path(os.environ["CATSS_TF"])
+          CACHE = Path(os.environ["RUNNER_TEMP"]) / "catss-consumer-cache"
+
+          async def main():
+              assert SOURCE.is_dir()
+              original = {
+                  name: hashlib.sha256((SOURCE / name).read_bytes()).hexdigest()
+                  for name in ("otype.tf", "oslots.tf", "otext.tf", "catss_alignment_id.tf")
+              }
+              env = dict(
+                  os.environ,
+                  PYTHONPATH=str(ROOT / "plugins/context-fabric/src"),
+                  AGORA_CORPUS_MIN_FREE_GB="0",
+              )
+              params = StdioServerParameters(
+                  command=sys.executable,
+                  args=[
+                      "-m", "agora_context_fabric.server",
+                      "--plugin-root", str(ROOT / "plugins/context-fabric"),
+                      "--cache-dir", str(CACHE),
+                  ],
+                  env=env,
+              )
+              async with stdio_client(params) as (reader, writer):
+                  async with ClientSession(reader, writer) as session:
+                      await session.initialize()
+
+                      async def call(tool_name, **arguments):
+                          response = await session.call_tool(
+                              tool_name, arguments,
+                              read_timeout_seconds=timedelta(seconds=120),
+                          )
+                          if response.isError:
+                              raise RuntimeError(f"{tool_name}: {response.content}")
+                          if response.structuredContent is not None:
+                              data = response.structuredContent
+                              return data["result"] if isinstance(data, dict) and set(data) == {"result"} else data
+                          return json.loads(response.content[0].text)
+
+                      installed = await call(
+                          "install_local_corpus",
+                          source=str(SOURCE),
+                          name="CATSS canonical synthetic standalone",
+                      )
+                      resource_id = installed["id"]
+                      available = await call(
+                          "list_available_corpora",
+                          query="CATSS canonical synthetic standalone",
+                      )
+                      if not any(item.get("id") == resource_id for item in available):
+                          raise AssertionError("registered CATSS output was not discoverable")
+
+                      prepared = await call(
+                          "prepare_corpus", resource_id=resource_id,
+                          source_mode="offline",
+                      )
+                      if prepared.get("source_revision") != installed.get("source_revision"):
+                          raise AssertionError("offline preparation changed imported CATSS identity")
+                      loaded = await call(
+                          "load_corpus", resource_id=resource_id,
+                          source_mode="offline",
+                          features=["catss_alignment_id", "catss_lxx_plus"],
+                      )
+                      logical_name = loaded["logical_name"]
+                      overview = await call("describe_corpus", corpus=logical_name)
+                      matches = await call(
+                          "search", corpus=logical_name,
+                          template="alignment", return_type="count",
+                      )
+                      if not overview or not isinstance(matches, dict) or matches.get("total_count") != 2:
+                          raise AssertionError(f"CATSS expected 2 alignment matches, got: {matches!r}")
+
+                      await call("unload_corpus", logical_name=logical_name)
+                      removed = await call("remove_cached_corpus", resource_id=resource_id)
+                      if not removed.get("complete"):
+                          raise AssertionError("CATSS Context-Fabric cache could not be removed")
+
+              for name, digest in original.items():
+                  if hashlib.sha256((SOURCE / name).read_bytes()).hexdigest() != digest:
+                      raise AssertionError(f"Context-Fabric consumer modified native source {name}")
+              print("CATSS_CF_CONSUMER_OK: imported, discovered, offline loaded, queried, unloaded and removed")
+
+          asyncio.run(main())
+          PY
