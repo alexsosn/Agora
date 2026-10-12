@@ -2,14 +2,6 @@ name: CAL-MCP bounded Agora integration smoke
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/cal-mcp-smoke.yml"
-      - "plugins/cal/.codex-plugin/mcp.json"
-      - "plugins/cal/runtime-constraints.txt"
-      - "scripts/smoke_mcp_plugin.py"
-      - "registry/plugins.yaml"
-      - "registry/verification-checks.yaml"
 
 permissions:
   contents: read
