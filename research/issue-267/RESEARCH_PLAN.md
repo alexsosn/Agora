@@ -31,3 +31,7 @@ Research evidence proves source identity and design compatibility, **not** that 
 ## Real-source CI observation (2026-10-12)
 
 At exact-head Actions run 38242611873, the initial smoke failed because it assumed the immutable GitStore *snapshot* contained only `*.tf` files. The actual `_gitstore._export_snapshot` archives all files under `FeatureAdditions` (including the non-TF `test`). `ContextFabricResolver._link_features` correctly composes only `*.tf` files, rejecting warp override. The RED regression is committed before the GREEN fix: verify the final **overlay** excludes `test`, do not falsely demand the source snapshot drop unrelated files. The 14 feature-name oracle and exact source pin remain intact.
+
+## Licensing provenance correction (2026-10-12)
+
+The additions in canonical `FeatureAdditions/` were uploaded by Oliver Glanz (Git commit history for `codykingham/tischendorf_tf`). His independently published original [14-file morphology feature source](https://github.com/oliverglanz/Tischendorf-Morphology-tf-) identifies **MIT License, Copyright 2019 Oliver Glanz** at commit `8ef539e91bbe88e0d2eba554950fd28db53d3e5e`. The canonical parent source's public-domain LICENSE applies to the underlying Tischendorf edition; it does not suffice to reclassify Glanz's later additions as public domain. Mark the **module** `licenses.data=MIT`, preserve original author licence notice, and retain the parent's public-domain licence without changing acquisition, source pin, or TF data bytes.

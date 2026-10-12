@@ -425,13 +425,14 @@ resources:
       lazy: true
       notes: Snapshot reviewed FeatureAdditions source on explicit opt-in; only *.tf feature files enter the composed overlay, never unrelated files. Fail closed if the parent revision differs.
     licenses:
-      data: public-domain
+      data: MIT
       redistribution: permitted
-      notes: The canonical Tischendorf text and analysis are public domain. Cite Constantin von Tischendorf, Ulrik Sandborg-Petersen, G. Clint Yale, Maurice A. Robinson, converter Cody Kingham and feature annotator Oliver Glanz; these optional files do not modify the base corpus.
+      notes: Oliver Glanz's feature additions were originally published under the MIT license (Copyright 2019 Oliver Glanz); preserve that notice and attribution for redistribution. The underlying Tischendorf text and analysis are public domain; editors Ulrik Sandborg-Petersen, G. Clint Yale and Maurice A. Robinson and Text-Fabric converter Cody Kingham remain credited. These optional annotations do not modify the base corpus.
       evidence:
         status: resolved
         checked_at: '2026-10-12'
         sources:
+        - https://github.com/oliverglanz/Tischendorf-Morphology-tf-/blob/8ef539e91bbe88e0d2eba554950fd28db53d3e5e/LICENSE
         - https://github.com/codykingham/tischendorf_tf/blob/ca96bd44f38fd716d4a1faa6d451f3716f0dce46/LICENSE
         - https://github.com/codykingham/tischendorf_tf/blob/ca96bd44f38fd716d4a1faa6d451f3716f0dce46/README.md
         - https://github.com/codykingham/tischendorf_tf/blob/ca96bd44f38fd716d4a1faa6d451f3716f0dce46/FeatureAdditions/case.tf
