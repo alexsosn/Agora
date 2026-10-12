@@ -7,6 +7,7 @@ No converter is installed or executed; source acquisition is Git-data only.
 from __future__ import annotations
 
 import json
+from numbers import Integral
 import sys
 import tempfile
 from pathlib import Path
@@ -50,6 +51,11 @@ def inspect_source(repo_path: Path, revision: str, store: GitStore) -> None:
                       "parent_max_node": 152077}, sort_keys=True), flush=True)
 
 
+def valid_feature_node_id(node: object) -> bool:
+    """Accept native Python and NumPy integer IDs, not bool or out-of-range."""
+    return isinstance(node, Integral) and not isinstance(node, bool) and 1 <= int(node) <= 152_077
+
+
 def inspect_api(api, *, module: bool) -> dict:
     words = api.F.otype.s("word")
     assert len(words) == 137_711, f"parent slot identity changed: {len(words)}"
@@ -68,7 +74,7 @@ def inspect_api(api, *, module: bool) -> dict:
             # decoded values and bounds; no unsupported low-level parser.
             observed = 0
             for node, value in getattr(api.F, name).items():
-                if type(node) is not int or not 1 <= node <= 152_077:
+                if not valid_feature_node_id(node):
                     raise AssertionError(f"{name}: feature node outside pinned parent warp: {node!r}")
                 if value is None:
                     raise AssertionError(f"{name}: null decoded value at node {node}")
