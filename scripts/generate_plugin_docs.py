@@ -17,7 +17,7 @@ TROUBLESHOOTING_EXITS = {
     "context-fabric": "If a corpus load stalls, see [cold-load recovery](../troubleshooting.md#corpus-acquisition-or-compilation-appears-stuck); for result interpretation, see the [10,000-count cap](../troubleshooting.md#search-count-stops-at-10000) and [CUC text-format discovery](../troubleshooting.md#cuc-text-formats-appear-missing).",
     "perseus": "If passage retrieval works but legacy navigation fails, see [Perseus navigation recovery](../troubleshooting.md#perseus-passage-works-but-navigation-fails).",
     "sefaria": "For repeated search references, see [Sefaria duplicate-reference recovery](../troubleshooting.md#sefaria-search-repeats-a-reference).",
-    "sedra": "For failed live word or lexeme lookup, see [remote lookup recovery](../troubleshooting.md#remote-lookup-fails)."
+    "sedra": "For failed live word or lexeme lookup, see [remote lookup recovery](../troubleshooting.md#remote-lookup-fails).",
     "cal": "For HTTP 429, upstream outages, or CAL token/lexicon errors, see [remote lookup recovery](../troubleshooting.md#remote-lookup-fails); do not retry aggressively.",
 } 
 
