@@ -52,7 +52,7 @@ Canonical capabilities:
 
 ## Important limitations
 
-The `community` client verification describes proposed integration evidence, not a fully verified Agora install or guaranteed remote availability. CAL's textual and bibliographic data are upstream-dependent and are not relicensed by MIT. A single found lexeme never establishes exhaustive corpus coverage.
+The generated Codex stdio path is verified by one observed CAL found/provenance lookup, while Claude integration remains community and aggregate plugin status is community. Neither guarantees remote CAL availability. CAL data/terms are upstream-dependent and not relicensed by MIT. One found lexeme does not establish exhaustive corpus coverage.
 
 Registered plugin-level advisories:
 
