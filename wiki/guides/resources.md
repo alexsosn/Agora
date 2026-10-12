@@ -104,6 +104,8 @@ These are selectable feature modules attached to a parent corpus. They are not s
 | <!-- feature-module:banks-sim --> **Consider Phlebas similarity features** (`banks-sim`)<br>Text-Fabric documentation/demo similarity module for the Consider Phlebas corpus. | `banks` | Demo | `0.2` | English | `unknown` · unknown | Experimental | [annotation/banks](https://github.com/annotation/banks) |
 | <!-- feature-module:cuc-burns --> **CUC Burns cultic-vocabulary contexts (CTC)** (`cuc-burns`)<br>Duncan Burns (2003) Contents, Texts and Contexts cultic-vocabulary annotations (headword, interpretation status, GP/PH archive role, findspot) aligned to existing CUC nodes. | `cuc` | Community | `0.2.8` | Ugaritic | `CC-BY-NC-ND-2.5` · restricted | Community | [alexsosn/CTC-TF](https://github.com/alexsosn/CTC-TF) |
 
+| <!-- feature-module:tischendorf-morphology-additions --> **Tischendorf morphological feature additions** (`tischendorf-morphology-additions`)<br>Fourteen optional Greek New Testament morphology, lexeme and frequency Text-Fabric features aligned to the canonical Tischendorf 2.8 word and lexeme nodes. | `tischendorf_tf` | Optional | `2.8` | Greek | `public-domain` · permitted · resolved | Community | [codykingham/tischendorf_tf](https://github.com/codykingham/tischendorf_tf) |
+
 For acquisition/compile limits and module-overlay cost behavior, see [Context-Fabric cache and cold-load safety](context-fabric-cache.md).
 
 For client/platform support and the meaning of integration evidence, see [Compatibility and verification](compatibility.md).
