@@ -68,6 +68,27 @@ class TischendorfMorphology267Tests(unittest.TestCase):
             {"repository": "codykingham/tischendorf_tf", "ref": PIN, "role": "parent-base"},
         ))
 
+    def test_parent_base_mismatch_is_rejected_even_with_same_tf_version(self):
+        from types import SimpleNamespace
+        from agora_context_fabric.resolver import ContextFabricResolver
+
+        module = self.catalog.get(ID)
+        for wrong_revision in (None, "0" * 40, "f" * 40):
+            with self.subTest(revision=wrong_revision):
+                prepared = SimpleNamespace(
+                    resource_id="tischendorf_tf",
+                    source_revision=wrong_revision,
+                    version="2.8",
+                )
+                with self.assertRaisesRegex(ValueError, "requires parent"):
+                    ContextFabricResolver._check_parent_base(module, prepared)
+        prepared = SimpleNamespace(
+            resource_id="tischendorf_tf",
+            source_revision=PIN,
+            version="2.8",
+        )
+        self.assertIsNone(ContextFabricResolver._check_parent_base(module, prepared))
+
     def test_rights_and_provenance_preserve_canonical_source_credits(self):
         row = self.rows[0]
         self.assertEqual(row["licenses"]["data"], "public-domain")
