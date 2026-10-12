@@ -60,6 +60,20 @@ checks:
       type: unittest
       target: tests.test_generation.MarketplaceGenerationTests.test_cal_codex_mcp_runs_pinned_upstream_release
 
+  - id: mcp-live/cal-codex
+    kind: live
+    plugin: cal
+    provider: cal
+    client: codex
+    transport: stdio
+    evidence_level: verified
+    executor:
+      type: github-actions
+      workflow: .github/workflows/cal-mcp-smoke.yml
+      job: live-cal
+      matrix: {plugin: cal}
+      artifact: mcp-smoke-cal
+
   - id: mcp-live/context-fabric-codex
     kind: live
     plugin: context-fabric
