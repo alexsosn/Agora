@@ -832,6 +832,16 @@ async def _exercise_session(
                 raise RuntimeError(
                     f"CAL representative lexicon lookup was not found: {value.get('status')!r}"
                 )
+            entry = value.get("entry")
+            lemma = entry.get("lemma") if isinstance(entry, Mapping) else None
+            requested_lemma_key = case.tool_call[1]["lemma_key"]
+            if not isinstance(lemma, Mapping) or lemma.get("lemma_key") != requested_lemma_key:
+                raise RuntimeError("CAL found result lacks the specifically requested lemma entry")
+            headwords = lemma.get("headwords")
+            if not isinstance(headwords, list) or not headwords or not all(
+                isinstance(word, str) and word.strip() for word in headwords
+            ):
+                raise RuntimeError("CAL found result lacks nonempty lexical headwords")
             provenance = value.get("provenance")
             if not isinstance(provenance, Mapping) or provenance.get("source") != "CAL":
                 raise RuntimeError("CAL representative lookup lacks upstream CAL provenance")
