@@ -190,8 +190,17 @@ class MCPSmokeHarnessTests(unittest.TestCase):
             "source_url": "https://cal.huc.edu/cal_entry_web.php?lemma=br",
             "retrieved_at": "2026-10-12T12:00:00+00:00",
         }
-        asyncio.run(exercise({"status": "found", "provenance": valid_provenance}))
+        valid_entry = {"lemma": {"lemma_key": "br N", "headwords": ["br"]}}
+        asyncio.run(exercise({
+            "status": "found", "entry": valid_entry, "provenance": valid_provenance,
+        }))
         for bad in (
+            {"status": "found", "provenance": valid_provenance},
+            {"status": "found", "entry": None, "provenance": valid_provenance},
+            {"status": "found", "entry": {}, "provenance": valid_provenance},
+            {"status": "found", "entry": {"lemma": {"lemma_key": "wrong N", "headwords": ["wrong"]}}, "provenance": valid_provenance},
+            {"status": "found", "entry": {"lemma": {"lemma_key": "br N", "headwords": []}}, "provenance": valid_provenance},
+            {"status": "found", "entry": {"lemma": {"lemma_key": "br N", "headwords": [""]}}, "provenance": valid_provenance},
             {"status": "not_found", "provenance": valid_provenance},
             {"status": "found", "provenance": {}},
             {"status": "found", "provenance": {"source": "CAL"}},
