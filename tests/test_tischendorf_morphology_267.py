@@ -91,14 +91,15 @@ class TischendorfMorphology267Tests(unittest.TestCase):
 
     def test_rights_and_provenance_preserve_canonical_source_credits(self):
         row = self.rows[0]
-        self.assertEqual(row["licenses"]["data"], "public-domain")
+        self.assertEqual(row["licenses"]["data"], "MIT")
         self.assertEqual(row["licenses"]["redistribution"], "permitted")
         self.assertEqual(row["verification"]["status"], "community")
         rights = " ".join([row["description"], row["licenses"]["notes"]]).lower()
-        for phrase in ("tischendorf", "kingham", "glanz", "public domain"):
+        for phrase in ("tischendorf", "kingham", "glanz", "public domain", "mit"):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, rights)
-        self.assertIn("/blob/" + PIN + "/LICENSE", row["licenses"]["evidence"]["sources"][0])
+        self.assertIn("/blob/8ef539e91bbe88e0d2eba554950fd28db53d3e5e/LICENSE", row["licenses"]["evidence"]["sources"][0])
+        self.assertIn("/blob/" + PIN + "/LICENSE", row["licenses"]["evidence"]["sources"][1])
         schema = json.loads((ROOT / "registry/schema/resources.schema.json").read_text())
         self.assertEqual([], list(Draft202012Validator(schema).iter_errors({
             "schema_version": 1, "resources": [row]
