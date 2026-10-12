@@ -1,0 +1,8 @@
+# Plan — Agora #283 registered CATSS user-facing local corpus handoff
+
+1. Confirm current catalog local import API, actual Coptic MCP handoff, CATSS 2-alignment slot features, registered sandbox behavior and licensing. Commit research/plan before tests.
+2. **RED:** commit a workflow-contract test asserting *within CATSS job* a Context-Fabric installation, discover/prepare/load/search/unload/remove lifecycle and alignment-query semantics. On test-only head before any workflow change the assertion must fail. Execute focused RED in a disposable PR / CI workflow and close it unmerged.
+3. **Implementation:** extend only the existing `catss-tf` job, after successful registered producer and native TF verification, with separate Context-Fabric Python setup/install + fresh MCP server/cache and explicit local import of `$RUNNER_TEMP/catss-output` (or canonical .tf-only path if required). Use `alignment` query, load `catss_alignment_id` and `catss_lxx_plus`, assert exactly 2 matches, and complete clean removal.
+4. **GREEN:** registry workflow tests, repo Foundation and exact-head registered materializer installer/sandbox CI must pass on the same implementation head. Inspect real MCP stdout/logs (not just static test assertions). Fix any failure with focused regression first.
+5. **Independent adversarial review** evaluates source provenance, sandbox boundary, source/working-dir cleanup, metadata leakage, non-word slot type correctness and real CI logs before guarded squash merge.
+6. Close #283 on verified success only. Keep #221 / upstream CATSS #16 open for trusted parent-dependent BHSA/LXX modules and their distinct feature-composition acceptance criteria.
