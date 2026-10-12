@@ -19,6 +19,7 @@ on:
       - 'tests/test_copticscriptorium_materializer_registry.py'
       - 'tests/test_registry.py'
       - 'tests/test_catss_canonical_registered_221.py'
+      - 'tests/test_catss_context_fabric_handoff_283.py'
   pull_request:
     paths:
       - '.github/workflows/materializer-install.yml'
@@ -36,6 +37,7 @@ on:
       - 'tests/test_copticscriptorium_materializer_registry.py'
       - 'tests/test_registry.py'
       - 'tests/test_catss_canonical_registered_221.py'
+      - 'tests/test_catss_context_fabric_handoff_283.py'
 
 permissions:
   contents: read
@@ -612,3 +614,133 @@ jobs:
           python scripts/agora_install_materializer.py install catss-tf \
             --approve-code-execution \
             --root "$RUNNER_TEMP/materializers"
+
+      - name: Set up Python 3.13 for CATSS Context-Fabric consumer
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Context-Fabric runtime for CATSS handoff
+        run: python -m pip install -e ./plugins/context-fabric
+
+      - name: CATSS materializer → Context-Fabric handoff
+        shell: bash
+        env:
+          CATSS_TF: ${{ runner.temp }}/catss-output
+          AGORA_CORPUS_MIN_FREE_GB: '0'
+        run: |
+          python - <<'PY'
+          # CATSS materializer → Context-Fabric handoff: alignment slots, NOT words.
+          import asyncio
+          import json
+          import os
+          import sys
+          from datetime import timedelta
+          from pathlib import Path
+
+          from mcp import ClientSession, StdioServerParameters
+          from mcp.client.stdio import stdio_client
+
+          ROOT = Path.cwd()
+          SOURCE = Path(os.environ["CATSS_TF"])
+          CACHE = Path(os.environ["RUNNER_TEMP"]) / "catss-consumer-cache"
+
+          async def main():
+              env = dict(
+                  os.environ,
+                  PYTHONPATH=str(ROOT / "plugins/context-fabric/src"),
+                  AGORA_CORPUS_MIN_FREE_GB="0",
+              )
+              params = StdioServerParameters(
+                  command=sys.executable,
+                  args=[
+                      "-m",
+                      "agora_context_fabric.server",
+                      "--plugin-root",
+                      str(ROOT / "plugins/context-fabric"),
+                      "--cache-dir",
+                      str(CACHE),
+                  ],
+                  env=env,
+              )
+              async with stdio_client(params) as (reader, writer):
+                  async with ClientSession(reader, writer) as session:
+                      await session.initialize()
+
+                      async def call(tool_name, **arguments):
+                          result = await session.call_tool(
+                              tool_name,
+                              arguments,
+                              read_timeout_seconds=timedelta(seconds=120),
+                          )
+                          if result.isError:
+                              raise RuntimeError(f"{tool_name}: {result.content}")
+                          if result.structuredContent is not None:
+                              structured = result.structuredContent
+                              if isinstance(structured, dict) and set(structured) == {"result"}:
+                                  return structured["result"]
+                              return structured
+                          return json.loads(result.content[0].text)
+
+                      installed = await call(
+                          "install_local_corpus",
+                          source=str(SOURCE),
+                          name="Registered canonical CATSS alignment corpus",
+                      )
+                      resource_id = installed["id"]
+                      assert resource_id.startswith("local-")
+
+                      discovered = await call(
+                          "list_available_corpora",
+                          query="Registered canonical CATSS alignment corpus",
+                      )
+                      if not any(item.get("id") == resource_id for item in discovered):
+                          raise RuntimeError("registered CATSS output not discoverable after local import")
+
+                      prepared = await call(
+                          "prepare_corpus",
+                          resource_id=resource_id,
+                          source_mode="offline",
+                      )
+                      if prepared["source_revision"] != installed["source_revision"]:
+                          raise RuntimeError("CATSS local import source revision changed")
+
+                      loaded = await call(
+                          "load_corpus",
+                          resource_id=resource_id,
+                          source_mode="offline",
+                          features=["catss_alignment_id", "catss_lxx_plus"],
+                      )
+                      logical_name = loaded["logical_name"]
+                      overview = await call("describe_corpus", corpus=logical_name)
+                      search = await call(
+                          "search",
+                          corpus=logical_name,
+                          template="alignment",
+                          return_type="count",
+                      )
+                      if not overview or search is None:
+                          raise RuntimeError("CATSS alignment-slot query returned no response")
+
+                      await call("unload_corpus", logical_name=logical_name)
+                      removed = await call("remove_cached_corpus", resource_id=resource_id)
+                      if not removed.get("complete"):
+                          raise RuntimeError("CATSS local corpus import could not be removed")
+
+                      # Source producer output still belongs to the producer, not the consumer cache.
+                      for required in ("otype.tf", "oslots.tf", "otext.tf", "catss_alignment_id.tf"):
+                          if not (SOURCE / required).is_file():
+                              raise RuntimeError(f"CATSS source altered by consumer lifecycle: {required}")
+
+                      print(json.dumps({
+                          "status": "CATSS_CONTEXT_FABRIC_HANDOFF_OK",
+                          "resource_id": resource_id,
+                          "source_revision": prepared["source_revision"],
+                          "alignment_query": search,
+                          "loaded": True,
+                          "queried": True,
+                          "removed": True,
+                      }, sort_keys=True))
+
+          asyncio.run(main())
+          PY
