@@ -628,7 +628,7 @@ jobs:
       - name: Prove standalone CATSS Text-Fabric works through offline Context-Fabric MCP
         shell: bash
         env:
-          CATSS_TF: \${{ runner.temp }}/catss-output
+          CATSS_TF: ${{ runner.temp }}/catss-output
           AGORA_CORPUS_MIN_FREE_GB: '0'
         run: |
           python - <<'PY'
