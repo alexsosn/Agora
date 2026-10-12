@@ -211,15 +211,15 @@ resources:
   disciplines: [biblical-studies, classics]
   period: 100-400 CE
   description: Tischendorf 8th Edition Greek New Testament.
-  upstream: {repository: codykingham/tischendorf_tf}
-  acquisition: {strategy: repository, lazy: true}
+  upstream: {repository: codykingham/tischendorf_tf, ref: ca96bd44f38fd716d4a1faa6d451f3716f0dce46, tf_path: tf/2.8}
+  acquisition: {strategy: repository, lazy: true, notes: Pin the exact canonical 2.8 Text-Fabric parent revision required by the optional Tischendorf morphology module; unreviewed upstream commits need explicit promotion.}
   licenses:
     data: public-domain
     redistribution: permitted
     notes: Upstream states that the text and analysis are public domain and may be copied freely.
-    evidence: {status: resolved, checked_at: '2026-09-06', sources: [https://github.com/codykingham/tischendorf_tf/blob/master/LICENSE]}
+    evidence: {status: resolved, checked_at: '2026-10-12', sources: [https://github.com/codykingham/tischendorf_tf/blob/ca96bd44f38fd716d4a1faa6d451f3716f0dce46/LICENSE]}
   verification: {status: community}
-  source_snapshot: {source: 'Context-Fabric/context-fabric:CorporaTable.tsx', checked_at: '2026-08-29'}
+  source_snapshot: {source: 'codykingham/tischendorf_tf@ca96bd44f38fd716d4a1faa6d451f3716f0dce46:tf/2.8', checked_at: '2026-10-12'}
 - id: bible
   name: PTHU Greek Bible collection
   plugin: context-fabric
