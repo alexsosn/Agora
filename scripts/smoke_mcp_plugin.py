@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Mapping
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -834,6 +835,30 @@ async def _exercise_session(
             provenance = value.get("provenance")
             if not isinstance(provenance, Mapping) or provenance.get("source") != "CAL":
                 raise RuntimeError("CAL representative lookup lacks upstream CAL provenance")
+            source_url = provenance.get("source_url")
+            if not isinstance(source_url, str) or not source_url.strip():
+                raise RuntimeError("CAL representative lookup has no source_url")
+            try:
+                parsed_url = urlsplit(source_url)
+                cal_origin = (
+                    parsed_url.scheme == "https"
+                    and parsed_url.hostname == "cal.huc.edu"
+                    and parsed_url.username is None
+                    and parsed_url.password is None
+                )
+            except ValueError:
+                cal_origin = False
+            if not cal_origin:
+                raise RuntimeError("CAL representative lookup has invalid CAL source_url")
+            retrieved_at = provenance.get("retrieved_at")
+            if not isinstance(retrieved_at, str) or not retrieved_at.strip():
+                raise RuntimeError("CAL representative lookup has no retrieved_at")
+            try:
+                retrieved_dt = datetime.fromisoformat(retrieved_at.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise RuntimeError("CAL representative lookup has invalid retrieved_at") from exc
+            if retrieved_dt.tzinfo is None or retrieved_dt.utcoffset() is None:
+                raise RuntimeError("CAL representative lookup retrieved_at lacks timezone")
     except Exception as exc:
         raise SmokePhaseError("call_tool", exc) from exc
 
