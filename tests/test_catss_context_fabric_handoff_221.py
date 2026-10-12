@@ -47,6 +47,14 @@ class CatssContextFabricConsumerContractTests(unittest.TestCase):
         self.assertIn('"catss_lxx_plus"', job)
         self.assertIn("source=str(SOURCE)", job)
 
+    def test_mcp_tool_wrapper_does_not_collide_with_corpus_name_argument(self):
+        # Actual CI 38245375665 passed name="..." to a call(name, **arguments)
+        # wrapper. Python rejected it before install_local_corpus was invoked.
+        # The helper's positional tool identifier must never be named "name".
+        job = catss_job()
+        self.assertIn("async def call(tool_name, **arguments):", job)
+        self.assertIn("session.call_tool(\n                              tool_name, arguments,", job)
+
     def test_registered_producer_security_contract_retained(self):
         job = catss_job()
         self.assertIn("github.event.pull_request.head.sha || github.sha", job)
