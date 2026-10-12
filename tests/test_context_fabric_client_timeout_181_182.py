@@ -97,6 +97,16 @@ def _wait_until_dead(pid: int, timeout: float = 5.0) -> bool:
     return not _process_alive(pid)
 
 
+@unittest.skipUnless(os.name == "posix", "procfs disappearance race is POSIX-only")
+class ProcessLivenessRaceTests(unittest.TestCase):
+    def test_process_disappearing_between_pid_and_procfs_probes_is_dead(self):
+        with (
+            patch.object(os, "kill", return_value=None),
+            patch.object(Path, "exists", side_effect=ProcessLookupError(3, "No such process")),
+        ):
+            self.assertFalse(_process_alive(987654))
+
+
 @unittest.skipUnless(os.name == "posix", "helper-tree liveness probing is POSIX-only")
 class _HelperTreeCase(unittest.TestCase):
     def setUp(self) -> None:
