@@ -79,7 +79,7 @@ plugins:
         - Registered execution is sandboxed and network-denied; consumer discovery/load of produced local artifacts is a separate integration boundary.
 
   - id: catss-tf
-    name: CATSS canonical Hebrew-Greek alignment Text-Fabric
+    name: CATSS Hebrew-Greek alignment Text-Fabric
     description: Materialize a standalone canonical CATSS alignment-slot Text-Fabric corpus from a researcher-supplied licensed local parallel .par directory; parent-dependent BHSA/LXX feature modules are not yet registered.
     repository: alexsosn/CATSS-TF
     ref: 3ee63c4c054960b816b14496815815153e5e543d
