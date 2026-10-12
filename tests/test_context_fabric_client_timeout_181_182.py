@@ -66,12 +66,13 @@ def _process_alive(pid: int) -> bool:
         # Windows reports an invalid/exited PID as a generic OSError.
         return False
     stat = Path(f"/proc/{pid}/stat")
-    if stat.exists():
-        try:
+    try:
+        if stat.exists():
             state = stat.read_text().rsplit(")", 1)[1].split()[0]
-        except (OSError, IndexError):
-            return False
-        return state not in {"Z", "X"}
+            return state not in {"Z", "X"}
+    except (OSError, IndexError):
+        # The process can exit after os.kill(pid, 0) but before /proc is probed.
+        return False
     return True
 
 
