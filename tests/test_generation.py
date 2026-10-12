@@ -14,7 +14,7 @@ from scripts.generate_marketplaces import (
     render_outputs,
 )
 
-PLUGIN_IDS = ("context-fabric", "perseus", "sefaria", "sedra")
+PLUGIN_IDS = ("context-fabric", "perseus", "sefaria", "sedra", "cal")
 
 
 class MarketplaceGenerationTests(unittest.TestCase):
@@ -41,7 +41,7 @@ class MarketplaceGenerationTests(unittest.TestCase):
         self.assertEqual(check_outputs(), [])
 
     def test_marketplaces_follow_release_plugin_order(self):
-        with (ROOT / "registry/v0.1.yaml").open("r", encoding="utf-8") as fh:
+        with (ROOT / "registry/v1.1.yaml").open("r", encoding="utf-8") as fh:
             scope = yaml.safe_load(fh)
         expected = scope["required_plugins"]
 
@@ -250,6 +250,41 @@ class MarketplaceGenerationTests(unittest.TestCase):
         self.assertEqual(
             server["args"],
             ["run", "--locked", "--project", ".", "agora-sedra-mcp"],
+        )
+
+    def test_cal_claude_mcp_runs_pinned_upstream_release(self):
+        with (ROOT / "plugins/cal/.claude-plugin/mcp.json").open(
+            "r", encoding="utf-8"
+        ) as fh:
+            server = json.load(fh)["cal"]
+        self.assertEqual(server["command"], "uvx")
+        self.assertEqual(
+            server["args"],
+            [
+                "--constraint",
+                "${CLAUDE_PLUGIN_ROOT}/runtime-constraints.txt",
+                "--from",
+                "cal-mcp==0.1.0",
+                "cal-mcp",
+            ],
+        )
+
+    def test_cal_codex_mcp_runs_pinned_upstream_release(self):
+        with (ROOT / "plugins/cal/.codex-plugin/mcp.json").open(
+            "r", encoding="utf-8"
+        ) as fh:
+            server = json.load(fh)["mcpServers"]["cal"]
+        self.assertEqual(server["command"], "uvx")
+        self.assertEqual(server["cwd"], ".")
+        self.assertEqual(
+            server["args"],
+            [
+                "--constraint",
+                "runtime-constraints.txt",
+                "--from",
+                "cal-mcp==0.1.0",
+                "cal-mcp",
+            ],
         )
 
     def test_context_fabric_project_declares_runtime_entrypoint_and_dependencies(self):

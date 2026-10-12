@@ -46,6 +46,16 @@
       },
       "homepage": "https://github.com/alexsosn/Agora",
       "category": "Education & Research"
+    },
+    {
+      "name": "cal",
+      "source": "./plugins/cal",
+      "description": "Read-only CAL lexical, textual, concordance, Syriac, Targum, and bibliography tools via the published CAL-MCP server.",
+      "author": {
+        "name": "Agora contributors"
+      },
+      "homepage": "https://github.com/alexsosn/Agora",
+      "category": "Education & Research"
     }
   ]
 }

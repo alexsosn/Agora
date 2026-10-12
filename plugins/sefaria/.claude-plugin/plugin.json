@@ -1,6 +1,6 @@
 {
   "name": "sefaria",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Search and retrieve Jewish texts and linked resources through the official Sefaria Texts MCP.",
   "author": {
     "name": "Agora contributors",

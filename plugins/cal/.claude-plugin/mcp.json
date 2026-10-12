@@ -1,0 +1,12 @@
+{
+  "cal": {
+    "command": "uvx",
+    "args": [
+      "--constraint",
+      "${CLAUDE_PLUGIN_ROOT}/runtime-constraints.txt",
+      "--from",
+      "cal-mcp==0.1.0",
+      "cal-mcp"
+    ]
+  }
+}
