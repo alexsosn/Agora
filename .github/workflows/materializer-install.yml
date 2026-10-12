@@ -713,8 +713,8 @@ jobs:
                           "search", corpus=logical_name,
                           template="alignment", return_type="count",
                       )
-                      if not overview or matches is None:
-                          raise AssertionError("CATSS alignment corpus was not queryable through Context-Fabric")
+                      if not overview or not isinstance(matches, dict) or matches.get("total_count") != 2:
+                          raise AssertionError(f"CATSS expected 2 alignment matches, got: {matches!r}")
 
                       await call("unload_corpus", logical_name=logical_name)
                       removed = await call("remove_cached_corpus", resource_id=resource_id)
