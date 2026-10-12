@@ -27,6 +27,10 @@ jobs:
       fail-fast: true
       matrix:
         plugin: [cal]
+    env:
+      # Upstream CAL-MCP's reviewed smoke mode forces max_retries=0 and counts real starts.
+      CAL_MCP_LIVE_SMOKE_MAX_ATTEMPTS: "25"
+      CAL_MCP_LIVE_SMOKE_REPORT_PATH: ${{ runner.temp }}/cal-attempts.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -45,6 +49,19 @@ jobs:
               --check-id mcp-live/cal-codex \
               --timeout 180 \
             | tee mcp-smoke-cal.json
+      - name: Fail closed unless precisely one actual upstream CAL transport start was recorded
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          path = Path(os.environ["CAL_MCP_LIVE_SMOKE_REPORT_PATH"])
+          counts = json.loads(path.read_text(encoding="utf-8"))
+          if counts != {"actual_cal_transport_attempts": 1, "max_cal_transport_attempts": 25}:
+              raise SystemExit(f"unexpected upstream attempt budget result: {counts!r}")
+          print("Verified exactly one real CAL transport start (no upstream retries)")
+          PY
       - name: Preserve provenance-limited client launch report
         if: always()
         uses: actions/upload-artifact@v4
