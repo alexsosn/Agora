@@ -149,6 +149,16 @@ class TischendorfMorphology267Tests(unittest.TestCase):
             with self.subTest(token=token):
                 self.assertIn(token, smoke)
 
+    def test_source_snapshot_may_hold_non_tf_files_but_overlay_is_tf_only(self):
+        # #267 live run 38242611873 proved GitStore archives the entire source
+        # directory; resolver._link_features correctly exposes only *.tf.
+        smoke = (ROOT / "scripts/smoke_tischendorf_morphology_267.py").read_text()
+        self.assertNotIn('assert not (module_path / "test").exists()', smoke)
+        self.assertIn('assert not (composed / "test").exists()', smoke)
+        registry = yaml.safe_load((ROOT / "registry/feature-modules.yaml").read_text())
+        module = next(r for r in registry["resources"] if r["id"] == ID)
+        self.assertIn("overlay", module["acquisition"]["notes"].lower())
+
     def test_no_warp_or_parent_filename_collisions_and_catalog_is_fresh(self):
         self.assertEqual(14, len(NAMES))
         self.assertFalse(NAMES & PARENT_FEATURES)
