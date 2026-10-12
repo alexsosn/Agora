@@ -18,7 +18,6 @@ from agora_context_fabric.catalog import Catalog
 from agora_context_fabric.gitstore import GitStore
 from agora_context_fabric.resolver import ContextFabricResolver
 from agora_context_fabric.service_source_modes import ContextFabricService
-from cfabric.io.loader import Data
 from cfabric_mcp import corpus_manager
 
 PARENT = "tischendorf_tf"
@@ -41,13 +40,12 @@ def inspect_source(repo_path: Path, revision: str, store: GitStore) -> None:
     assert {p.name for p in module_path.glob("*.tf")} == FEATURES
     assert not (module_path / "test").exists(), "non-feature upstream artifact leaked"
     for filename in sorted(FEATURES):
-        data = Data(str(module_path / filename))
-        assert data.load(silent="deep"), f"cannot parse native TF feature {filename}"
-        assert not data.isEdge and not data.isConfig, filename
-        assert data.data, f"unexpected empty morphology feature {filename}"
-        node_ids = tuple(data.data)
-        if min(node_ids) < 1 or max(node_ids) > 152_077:
-            raise AssertionError(f"feature {filename} exceeds pinned parent node range")
+        # Metadata is checked from the immutable source bytes. TF's public
+        # loaded feature API below validates actual parsed node/value data;
+        # the module alone intentionally has no otype/oslots warp features.
+        source = (module_path / filename).read_text(encoding="utf-8")
+        if not source.startswith("@node\\n") or "@valueType=" not in source:
+            raise AssertionError(f"invalid native TF node feature header {filename}")
     print(json.dumps({"tf_feature_files": len(FEATURES), "sha": revision,
                       "parent_max_node": 152077}, sort_keys=True), flush=True)
 
@@ -66,6 +64,17 @@ def inspect_api(api, *, module: bool) -> dict:
                      "lex_abc", "lex_og", "freq_lex_og", "originterrdiff",
                      "prntyp", "nountype"):
             assert hasattr(api.F, name), f"requested module feature {name} not loaded"
+            # Text-Fabric's loaded node-feature items are the authoritative
+            # decoded values and bounds; no unsupported low-level parser.
+            observed = 0
+            for node, value in getattr(api.F, name).items():
+                if type(node) is not int or not 1 <= node <= 152_077:
+                    raise AssertionError(f"{name}: feature node outside pinned parent warp: {node!r}")
+                if value is None:
+                    raise AssertionError(f"{name}: null decoded value at node {node}")
+                observed += 1
+            if not observed:
+                raise AssertionError(f"{name}: no actual parsed values in upstream feature")
     else:
         assert not hasattr(api.F, "case"), "parent-only load unexpectedly includes additions"
     return {"words": len(words), "first_original": original}
