@@ -83,6 +83,22 @@ class TischendorfMorphology267Tests(unittest.TestCase):
             "schema_version": 1, "resources": [row]
         })))
 
+    def test_actual_pinned_upstream_consumer_gate_is_present(self):
+        workflow = (ROOT / ".github/workflows/tischendorf-morphology.yml").read_text()
+        smoke = (ROOT / "scripts/smoke_tischendorf_morphology_267.py").read_text()
+        for token in (
+            "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+            "persist-credentials: false",
+            "test_tischendorf_morphology_267.py",
+            "smoke_tischendorf_morphology_267.py",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, workflow)
+        for token in ("FeatureAdditions", PIN, "module", "offline", "137711",
+                      "freq_lex_og", "lex_og", "otype.tf", "oslots.tf"):
+            with self.subTest(token=token):
+                self.assertIn(token, smoke)
+
     def test_no_warp_or_parent_filename_collisions_and_catalog_is_fresh(self):
         self.assertEqual(14, len(NAMES))
         self.assertFalse(NAMES & PARENT_FEATURES)
