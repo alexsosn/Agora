@@ -70,6 +70,10 @@ def _process_alive(pid: int) -> bool:
         if stat.exists():
             state = stat.read_text().rsplit(")", 1)[1].split()[0]
             return state not in {"Z", "X"}
+    except PermissionError:
+        # A restricted procfs does not prove the helper exited. Fail closed:
+        # let the cancellation wait assert termination rather than pass early.
+        return True
     except (OSError, IndexError):
         # The process can exit after os.kill(pid, 0) but before /proc is probed.
         return False
