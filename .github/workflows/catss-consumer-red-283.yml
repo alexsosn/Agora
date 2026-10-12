@@ -1,0 +1,18 @@
+name: CATSS Context-Fabric handoff test-only RED (never merge)
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  expected-red:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install PyYAML
+      - name: Run CATSS handoff contract against producer-only old workflow
+        run: python -m unittest tests.test_catss_context_fabric_handoff_283 -v
