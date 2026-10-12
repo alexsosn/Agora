@@ -19,6 +19,7 @@ on:
       - 'tests/test_copticscriptorium_materializer_registry.py'
       - 'tests/test_registry.py'
       - 'tests/test_catss_canonical_registered_221.py'
+      - 'tests/test_catss_context_fabric_handoff_221.py'
   pull_request:
     paths:
       - '.github/workflows/materializer-install.yml'
@@ -36,6 +37,7 @@ on:
       - 'tests/test_copticscriptorium_materializer_registry.py'
       - 'tests/test_registry.py'
       - 'tests/test_catss_canonical_registered_221.py'
+      - 'tests/test_catss_context_fabric_handoff_221.py'
 
 permissions:
   contents: read
@@ -466,6 +468,7 @@ jobs:
         run: |
           python scripts/validate_registry.py
           python -m unittest tests.test_catss_canonical_registered_221 -v
+          python -m unittest tests.test_catss_context_fabric_handoff_221 -v
 
       - name: Resolve reviewed immutable CATSS-TF producer
         shell: bash
@@ -612,3 +615,116 @@ jobs:
           python scripts/agora_install_materializer.py install catss-tf \
             --approve-code-execution \
             --root "$RUNNER_TEMP/materializers"
+
+
+      - name: Set up Python 3.13 for CATSS Context-Fabric consumer
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Context-Fabric consumer runtime
+        run: python -m pip install -e ./plugins/context-fabric
+
+      - name: Prove standalone CATSS Text-Fabric works through offline Context-Fabric MCP
+        shell: bash
+        env:
+          CATSS_TF: \${{ runner.temp }}/catss-output
+          AGORA_CORPUS_MIN_FREE_GB: '0'
+        run: |
+          python - <<'PY'
+          import asyncio
+          import hashlib
+          import json
+          import os
+          import sys
+          from datetime import timedelta
+          from pathlib import Path
+
+          from mcp import ClientSession, StdioServerParameters
+          from mcp.client.stdio import stdio_client
+
+          ROOT = Path.cwd()
+          SOURCE = Path(os.environ["CATSS_TF"])
+          CACHE = Path(os.environ["RUNNER_TEMP"]) / "catss-consumer-cache"
+
+          async def main():
+              assert SOURCE.is_dir()
+              original = {
+                  name: hashlib.sha256((SOURCE / name).read_bytes()).hexdigest()
+                  for name in ("otype.tf", "oslots.tf", "otext.tf", "catss_alignment_id.tf")
+              }
+              env = dict(
+                  os.environ,
+                  PYTHONPATH=str(ROOT / "plugins/context-fabric/src"),
+                  AGORA_CORPUS_MIN_FREE_GB="0",
+              )
+              params = StdioServerParameters(
+                  command=sys.executable,
+                  args=[
+                      "-m", "agora_context_fabric.server",
+                      "--plugin-root", str(ROOT / "plugins/context-fabric"),
+                      "--cache-dir", str(CACHE),
+                  ],
+                  env=env,
+              )
+              async with stdio_client(params) as (reader, writer):
+                  async with ClientSession(reader, writer) as session:
+                      await session.initialize()
+
+                      async def call(name, **arguments):
+                          response = await session.call_tool(
+                              name, arguments,
+                              read_timeout_seconds=timedelta(seconds=120),
+                          )
+                          if response.isError:
+                              raise RuntimeError(f"{name}: {response.content}")
+                          if response.structuredContent is not None:
+                              data = response.structuredContent
+                              return data["result"] if isinstance(data, dict) and set(data) == {"result"} else data
+                          return json.loads(response.content[0].text)
+
+                      installed = await call(
+                          "install_local_corpus",
+                          source=str(SOURCE),
+                          name="CATSS canonical synthetic standalone",
+                      )
+                      resource_id = installed["id"]
+                      available = await call(
+                          "list_available_corpora",
+                          query="CATSS canonical synthetic standalone",
+                      )
+                      if not any(item.get("id") == resource_id for item in available):
+                          raise AssertionError("registered CATSS output was not discoverable")
+
+                      prepared = await call(
+                          "prepare_corpus", resource_id=resource_id,
+                          source_mode="offline",
+                      )
+                      if prepared.get("source_revision") != installed.get("source_revision"):
+                          raise AssertionError("offline preparation changed imported CATSS identity")
+                      loaded = await call(
+                          "load_corpus", resource_id=resource_id,
+                          source_mode="offline",
+                          features=["catss_alignment_id", "catss_lxx_plus"],
+                      )
+                      logical_name = loaded["logical_name"]
+                      overview = await call("describe_corpus", corpus=logical_name)
+                      matches = await call(
+                          "search", corpus=logical_name,
+                          template="alignment", return_type="count",
+                      )
+                      if not overview or matches is None:
+                          raise AssertionError("CATSS alignment corpus was not queryable through Context-Fabric")
+
+                      await call("unload_corpus", logical_name=logical_name)
+                      removed = await call("remove_cached_corpus", resource_id=resource_id)
+                      if not removed.get("complete"):
+                          raise AssertionError("CATSS Context-Fabric cache could not be removed")
+
+              for name, digest in original.items():
+                  if hashlib.sha256((SOURCE / name).read_bytes()).hexdigest() != digest:
+                      raise AssertionError(f"Context-Fabric consumer modified native source {name}")
+              print("CATSS_CF_CONSUMER_OK: imported, discovered, offline loaded, queried, unloaded and removed")
+
+          asyncio.run(main())
+          PY
