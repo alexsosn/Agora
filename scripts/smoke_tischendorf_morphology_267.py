@@ -44,7 +44,7 @@ def inspect_source(repo_path: Path, revision: str, store: GitStore) -> None:
         # loaded feature API below validates actual parsed node/value data;
         # the module alone intentionally has no otype/oslots warp features.
         source = (module_path / filename).read_text(encoding="utf-8")
-        if not source.startswith("@node\\n") or "@valueType=" not in source:
+        if not source.startswith("@node\n") or "@valueType=" not in source:
             raise AssertionError(f"invalid native TF node feature header {filename}")
     print(json.dumps({"tf_feature_files": len(FEATURES), "sha": revision,
                       "parent_max_node": 152077}, sort_keys=True), flush=True)
