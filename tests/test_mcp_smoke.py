@@ -16,7 +16,7 @@ class MCPSmokeHarnessTests(unittest.TestCase):
     def test_smoke_cases_cover_all_v01_plugins(self):
         self.assertEqual(
             set(SMOKE_CASES),
-            {"context-fabric", "perseus", "sefaria", "sedra"},
+            {"context-fabric", "perseus", "sefaria", "sedra", "cal"},
         )
         self.assertEqual(
             SMOKE_CASES["context-fabric"].expected_tools,
@@ -45,6 +45,15 @@ class MCPSmokeHarnessTests(unittest.TestCase):
         self.assertEqual(
             SMOKE_CASES["sedra"].expected_tools,
             {"lookup_word", "get_lexeme"},
+        )
+        self.assertEqual(
+            SMOKE_CASES["cal"].expected_tools,
+            {
+                "cal_lexicon_lookup",
+                "cal_text_page",
+                "cal_token_analysis",
+                "cal_bibliography_lemma",
+            },
         )
 
     def test_loader_uses_exact_generated_codex_stdio_commands(self):
@@ -125,6 +134,19 @@ class MCPSmokeHarnessTests(unittest.TestCase):
             SMOKE_CASES["sedra"].tool_call,
             ("lookup_word", {"query": "ܐܒܪܐ"}),
         )
+        self.assertEqual(
+            SMOKE_CASES["cal"].tool_call,
+            ("cal_lexicon_lookup", {"query": "br", "lemma_key": "br N"}),
+        )
+
+    def test_cal_loader_runs_exact_generated_pinned_upstream_stdio(self):
+        launch = load_plugin_launch("cal")
+        self.assertEqual(launch.command, "uvx")
+        self.assertEqual(
+            launch.args,
+            ("--constraint", "runtime-constraints.txt", "--from", "cal-mcp==0.1.0", "cal-mcp"),
+        )
+        self.assertEqual(launch.cwd, ROOT / "plugins/cal")
 
     def test_loader_rejects_non_stdio_or_mismatched_configs(self):
         with self.assertRaises(KeyError):
