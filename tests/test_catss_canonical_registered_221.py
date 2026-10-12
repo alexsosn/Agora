@@ -21,6 +21,7 @@ class CatssCanonicalRegistrationTests(unittest.TestCase):
     def test_immutable_pinned_standalone_producer_and_rights(self):
         plugin = select_plugin(load_registry(), "catss-tf")
         self.assertEqual(plugin["repository"], "alexsosn/CATSS-TF")
+        self.assertEqual(plugin["name"], "CATSS Hebrew-Greek alignment Text-Fabric")
         self.assertEqual(plugin["ref"], CATSS_SHA)
         self.assertEqual(plugin["version"], "0.1.0")
         self.assertEqual(plugin["manifest"], "agora.materializer.json")
