@@ -34,7 +34,7 @@ class CatalogTests(unittest.TestCase):
             scope = yaml.safe_load(fh)
         self.assertTrue(set(scope["required_resources"]).issubset(catalog.ids()))
         modules = catalog.search(kind="feature-module")
-        self.assertEqual(len(modules), 22)
+        self.assertEqual(len(modules), 23)
         self.assertEqual(catalog.get("bhsa-cantillation-trees").parent, "bhsa")
         self.assertEqual(catalog.get("bhsa-cantillation-trees").parent_versions, ("2021",))
 
@@ -564,7 +564,7 @@ class ServiceTests(unittest.TestCase):
         )
 
         modules = service.list_resources(kind="feature-module")
-        self.assertEqual(len(modules), 22)
+        self.assertEqual(len(modules), 23)
 
         dead = service.list_resources(query="dead sea", kind="corpus")
         self.assertEqual([item["id"] for item in dead], ["dss"])

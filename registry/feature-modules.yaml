@@ -402,3 +402,44 @@ resources:
     licenses: {data: CC-BY-NC-ND-2.5, redistribution: restricted, notes: Burns source material is NoDerivatives; generated Text-Fabric artifacts are for local use only.}
     verification: {status: community}
     source_snapshot: {source: alexsosn/CTC-TF:agora.materializer.json@f58b162197ad8f113b7cd6fc0088ae5dd39a096d, checked_at: "2026-10-11"}
+  - id: tischendorf-morphology-additions
+    name: Tischendorf morphological feature additions
+    plugin: context-fabric
+    provider: context-fabric
+    kind: feature-module
+    parent: tischendorf_tf
+    compatibility: {parent_versions: ["2.8"]}
+    module: {status: optional}
+    languages: [greek]
+    disciplines: [biblical-studies, classics]
+    description: Fourteen optional Greek New Testament morphology, lexeme and frequency Text-Fabric features aligned to the canonical Tischendorf 2.8 word and lexeme nodes.
+    upstream:
+      repository: codykingham/tischendorf_tf
+      ref: ca96bd44f38fd716d4a1faa6d451f3716f0dce46
+      module: codykingham/tischendorf_tf/FeatureAdditions
+      tf_path: FeatureAdditions
+      dependencies:
+        - {repository: codykingham/tischendorf_tf, ref: ca96bd44f38fd716d4a1faa6d451f3716f0dce46, role: parent-base}
+    acquisition:
+      strategy: repository
+      lazy: true
+      notes: Download only the reviewed canonical FeatureAdditions *.tf files on explicit opt-in; fail closed if the parent corpus is from another revision.
+    licenses:
+      data: public-domain
+      redistribution: permitted
+      notes: The canonical Tischendorf text and analysis are public domain. Cite Constantin von Tischendorf, Ulrik Sandborg-Petersen, G. Clint Yale, Maurice A. Robinson, converter Cody Kingham and feature annotator Oliver Glanz; these optional files do not modify the base corpus.
+      evidence:
+        status: resolved
+        checked_at: '2026-10-12'
+        sources:
+        - https://github.com/codykingham/tischendorf_tf/blob/ca96bd44f38fd716d4a1faa6d451f3716f0dce46/LICENSE
+        - https://github.com/codykingham/tischendorf_tf/blob/ca96bd44f38fd716d4a1faa6d451f3716f0dce46/README.md
+        - https://github.com/codykingham/tischendorf_tf/blob/ca96bd44f38fd716d4a1faa6d451f3716f0dce46/FeatureAdditions/case.tf
+    verification:
+      status: community
+      notes:
+      - The upstream FeatureAdditions directory contains 14 non-warp .tf files and one ignored non-TF file. Real source node-ID/combined load verification is required before promotion.
+      - Upstream lex_og.tf and lex_abc.tf misleadingly label lexical data as case information in their @description headers; use the actual features/values rather than trusting that prose.
+    integration_issues:
+    - https://github.com/alexsosn/Agora/issues/267
+    source_snapshot: {source: codykingham/tischendorf_tf@ca96bd44f38fd716d4a1faa6d451f3716f0dce46:FeatureAdditions, checked_at: '2026-10-12'}
