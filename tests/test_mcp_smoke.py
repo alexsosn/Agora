@@ -194,25 +194,33 @@ class MCPSmokeHarnessTests(unittest.TestCase):
         asyncio.run(exercise({
             "status": "found", "entry": valid_entry, "provenance": valid_provenance,
         }))
-        for bad in (
-            {"status": "found", "provenance": valid_provenance},
-            {"status": "found", "entry": None, "provenance": valid_provenance},
-            {"status": "found", "entry": {}, "provenance": valid_provenance},
-            {"status": "found", "entry": {"lemma": {"lemma_key": "wrong N", "headwords": ["wrong"]}}, "provenance": valid_provenance},
-            {"status": "found", "entry": {"lemma": {"lemma_key": "br N", "headwords": []}}, "provenance": valid_provenance},
-            {"status": "found", "entry": {"lemma": {"lemma_key": "br N", "headwords": [""]}}, "provenance": valid_provenance},
-            {"status": "not_found", "provenance": valid_provenance},
-            {"status": "found", "provenance": {}},
-            {"status": "found", "provenance": {"source": "CAL"}},
-            {"status": "found", "provenance": {**valid_provenance, "source_url": ""}},
-            {"status": "found", "provenance": {**valid_provenance, "source_url": "http://cal.huc.edu/"}},
-            {"status": "found", "provenance": {**valid_provenance, "source_url": "https://cal.huc.edu.evil.example/"}},
-            {"status": "found", "provenance": {**valid_provenance, "retrieved_at": ""}},
-            {"status": "found", "provenance": {**valid_provenance, "retrieved_at": "not-a-timestamp"}},
-            {"status": "found", "provenance": {**valid_provenance, "retrieved_at": "2026-10-12T12:00:00"}},
+        for bad, expected_error in (
+            ({"status": "found", "provenance": valid_provenance}, "requested lemma entry"),
+            ({"status": "found", "entry": None, "provenance": valid_provenance}, "requested lemma entry"),
+            ({"status": "found", "entry": {}, "provenance": valid_provenance}, "requested lemma entry"),
+            ({"status": "found", "entry": {"lemma": {"lemma_key": "wrong N", "headwords": ["wrong"]}}, "provenance": valid_provenance}, "requested lemma entry"),
+            ({"status": "found", "entry": {"lemma": {"lemma_key": "br N", "headwords": []}}, "provenance": valid_provenance}, "nonempty lexical headwords"),
+            ({"status": "found", "entry": {"lemma": {"lemma_key": "br N", "headwords": [""]}}, "provenance": valid_provenance}, "nonempty lexical headwords"),
+            ({"status": "not_found", "entry": valid_entry, "provenance": valid_provenance}, "was not found"),
         ):
-            with self.subTest(bad=bad), self.assertRaises(SmokePhaseError):
+            with self.subTest(bad=bad), self.assertRaisesRegex(SmokePhaseError, expected_error):
                 asyncio.run(exercise(bad))
+        for bad_provenance, expected_error in (
+            ({}, "upstream CAL provenance"),
+            ({"source": "CAL"}, "source_url"),
+            ({**valid_provenance, "source_url": ""}, "source_url"),
+            ({**valid_provenance, "source_url": "http://cal.huc.edu/"}, "invalid CAL source_url"),
+            ({**valid_provenance, "source_url": "https://cal.huc.edu.evil.example/"}, "invalid CAL source_url"),
+            ({**valid_provenance, "retrieved_at": ""}, "retrieved_at"),
+            ({**valid_provenance, "retrieved_at": "not-a-timestamp"}, "invalid retrieved_at"),
+            ({**valid_provenance, "retrieved_at": "2026-10-12T12:00:00"}, "lacks timezone"),
+        ):
+            with self.subTest(provenance=bad_provenance), self.assertRaisesRegex(
+                SmokePhaseError, expected_error
+            ):
+                asyncio.run(exercise({
+                    "status": "found", "entry": valid_entry, "provenance": bad_provenance,
+                }))
 
     def test_loader_rejects_non_stdio_or_mismatched_configs(self):
         with self.assertRaises(KeyError):
