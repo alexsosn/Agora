@@ -27,3 +27,7 @@ Upstream links:
 - https://github.com/codykingham/tischendorf_tf/blob/ca96bd44f38fd716d4a1faa6d451f3716f0dce46/LICENSE
 
 Research evidence proves source identity and design compatibility, **not** that a live compound Context-Fabric load has passed.
+
+## Real-source CI observation (2026-10-12)
+
+At exact-head Actions run 38242611873, the initial smoke failed because it assumed the immutable GitStore *snapshot* contained only `*.tf` files. The actual `_gitstore._export_snapshot` archives all files under `FeatureAdditions` (including the non-TF `test`). `ContextFabricResolver._link_features` correctly composes only `*.tf` files, rejecting warp override. The RED regression is committed before the GREEN fix: verify the final **overlay** excludes `test`, do not falsely demand the source snapshot drop unrelated files. The 14 feature-name oracle and exact source pin remain intact.

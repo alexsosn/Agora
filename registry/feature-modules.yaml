@@ -423,7 +423,7 @@ resources:
     acquisition:
       strategy: repository
       lazy: true
-      notes: Download only the reviewed canonical FeatureAdditions *.tf files on explicit opt-in; fail closed if the parent corpus is from another revision.
+      notes: Snapshot reviewed FeatureAdditions source on explicit opt-in; only *.tf feature files enter the composed overlay, never unrelated files. Fail closed if the parent revision differs.
     licenses:
       data: public-domain
       redistribution: permitted

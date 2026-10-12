@@ -39,7 +39,8 @@ def inspect_source(repo_path: Path, revision: str, store: GitStore) -> None:
     assert not {"otype.tf", "oslots.tf", "otext.tf"} & selected
     module_path = store.materialize_feature_module(repo_path, SOURCE_DIR, revision)
     assert {p.name for p in module_path.glob("*.tf")} == FEATURES
-    assert not (module_path / "test").exists(), "non-feature upstream artifact leaked"
+    # The GitStore snapshots the whole upstream directory. The separate
+    # composed view must exclude non-TF files; the resolver enforces this.
     for filename in sorted(FEATURES):
         # Metadata is checked from the immutable source bytes. TF's public
         # loaded feature API below validates actual parsed node/value data;
@@ -118,6 +119,7 @@ def main() -> None:
             with_module = inspect_api(corpus_manager.get_api(second["logical_name"]), module=True)
             assert alone == with_module, "optional features changed parent text/sections"
             composed = Path(second["path"])
+            assert not (composed / "test").exists(), "non-TF upstream artifact reached TF overlay"
             for filename, expected in parent_warp.items():
                 assert (composed / filename).read_bytes() == expected, filename
         finally:
