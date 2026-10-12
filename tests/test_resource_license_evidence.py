@@ -97,12 +97,18 @@ class ResourceLicenseEvidenceTests(unittest.TestCase):
         errors = self.validate_resource_mutation("bible", mutate)
         self.assert_error_contains(errors, "licenses", "'evidence' is a required property")
 
-    def test_feature_module_without_license_evidence_remains_valid(self):
+    def test_feature_modules_with_and_without_license_evidence_remain_valid(self):
         feature_modules = yaml.safe_load(
             (ROOT / "registry" / "feature-modules.yaml").read_text(encoding="utf-8")
         )["resources"]
-        self.assertTrue(feature_modules)
-        self.assertTrue(all("evidence" not in item["licenses"] for item in feature_modules))
+        without = [item for item in feature_modules if "evidence" not in item["licenses"]]
+        with_evidence = [item for item in feature_modules if "evidence" in item["licenses"]]
+        self.assertTrue(without, "old modules can omit evidence")
+        self.assertEqual(
+            [item["id"] for item in with_evidence],
+            ["tischendorf-morphology-additions"],
+            "the new module must retain its reviewed source license evidence",
+        )
         errors = validate_registry()
         self.assertFalse(
             any("feature-module" in error and "evidence" in error for error in errors),
