@@ -95,6 +95,15 @@ SMOKE_CASES: dict[str, SmokeCase] = {
         expected_tools={"lookup_word", "get_lexeme"},
         tool_call=("lookup_word", {"query": "ܐܒܪܐ"}),
     ),
+    "cal": SmokeCase(
+        expected_tools={
+            "cal_lexicon_lookup",
+            "cal_text_page",
+            "cal_token_analysis",
+            "cal_bibliography_lemma",
+        },
+        tool_call=("cal_lexicon_lookup", {"query": "br", "lemma_key": "br N"}),
+    ),
 }
 
 
