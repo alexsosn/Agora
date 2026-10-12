@@ -65,6 +65,13 @@ class CalPluginRegistrationTests(unittest.TestCase):
         self.assertIn("one CAL", guidance)
         self.assertIn("upstream-dependent", guidance)
 
+        workflow = (ROOT / ".github/workflows/cal-mcp-smoke.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('CAL_MCP_LIVE_SMOKE_MAX_ATTEMPTS: "25"', workflow)
+        self.assertIn('"actual_cal_transport_attempts": 2', workflow)
+        self.assertIn("mcp-live/cal-codex", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
