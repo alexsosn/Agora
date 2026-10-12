@@ -41,7 +41,7 @@ class MarketplaceGenerationTests(unittest.TestCase):
         self.assertEqual(check_outputs(), [])
 
     def test_marketplaces_follow_release_plugin_order(self):
-        with (ROOT / "registry/v0.1.yaml").open("r", encoding="utf-8") as fh:
+        with (ROOT / "registry/v1.1.yaml").open("r", encoding="utf-8") as fh:
             scope = yaml.safe_load(fh)
         expected = scope["required_plugins"]
 
