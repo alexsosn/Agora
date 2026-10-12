@@ -823,6 +823,17 @@ async def _exercise_session(
             raise RuntimeError(f"{plugin_id} live tool {tool_name!r} returned an MCP error: {result}")
         if not _tool_has_payload(result):
             raise RuntimeError(f"{plugin_id} live tool {tool_name!r} returned no payload")
+        if plugin_id == "cal":
+            value = _json_object_from_tool_result(
+                result, plugin_id=plugin_id, tool_name=tool_name
+            )
+            if value.get("status") != "found":
+                raise RuntimeError(
+                    f"CAL representative lexicon lookup was not found: {value.get('status')!r}"
+                )
+            provenance = value.get("provenance")
+            if not isinstance(provenance, Mapping) or provenance.get("source") != "CAL":
+                raise RuntimeError("CAL representative lookup lacks upstream CAL provenance")
     except Exception as exc:
         raise SmokePhaseError("call_tool", exc) from exc
 
