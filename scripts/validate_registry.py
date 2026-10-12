@@ -212,6 +212,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
     )
     vocab = load_yaml(registry / "vocabularies.yaml")
     scope_doc = load_yaml(registry / "v0.1.yaml")
+    candidate_scope_doc = load_yaml(registry / "v1.1.yaml")
 
     errors += schema_errors(marketplace_doc, schema / "marketplace.schema.json", "marketplace.yaml")
     errors += schema_errors(plugins_doc, schema / "plugins.schema.json", "plugins.yaml")
@@ -229,6 +230,7 @@ def validate_registry(root: Path = ROOT) -> list[str]:
             "feature-modules.yaml",
         )
     errors += schema_errors(scope_doc, schema / "release-scope.schema.json", "v0.1.yaml")
+    errors += schema_errors(candidate_scope_doc, schema / "release-scope.schema.json", "v1.1.yaml")
 
     plugins = plugins_doc.get("plugins", [])
     providers = providers_doc.get("providers", [])
@@ -509,6 +511,17 @@ def validate_registry(root: Path = ROOT) -> list[str]:
         resource = resource_by_id.get(resource_id)
         if resource is not None and resource["plugin"] != "context-fabric":
             errors.append(f"v0.1.yaml: required resource {resource_id!r} is not owned by context-fabric")
+
+    candidate_plugins = set(candidate_scope_doc["required_plugins"])
+    candidate_resources = set(candidate_scope_doc["required_resources"])
+    if candidate_scope_doc["release"] != "v1.1":
+        errors.append("v1.1.yaml: prospective release must be v1.1")
+    if candidate_plugins != required_plugins | {"cal"}:
+        errors.append("v1.1.yaml: must retain released plugins and add only cal")
+    if candidate_resources != required_resources:
+        errors.append("v1.1.yaml: must preserve the frozen Context-Fabric resource scope")
+    if candidate_plugins - set(plugin_by_id):
+        errors.append("v1.1.yaml: includes unregistered required plugins")
 
     errors += validate_candidate_research(root, vocab)
     errors += validate_runtime_environments(root)
