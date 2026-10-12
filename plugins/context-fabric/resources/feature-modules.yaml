@@ -171,6 +171,7 @@ resources:
     description: Cantillation-derived tree representations and structural features aligned to BHSA 2021.
     upstream:
       repository: alexsosn/BHSA-cantillation-trees
+      ref: 445413fa5267b5c1c637d523f07f8a4cf0b3dded
       module: alexsosn/BHSA-cantillation-trees/tf
       tf_path: tf/2021
       dependencies:
@@ -180,7 +181,7 @@ resources:
     acquisition: {strategy: repository, lazy: true}
     licenses: {data: upstream-dependent, redistribution: unknown}
     verification: {status: community}
-    source_snapshot: {source: alexsosn/BHSA-cantillation-trees:sources.json, checked_at: "2026-09-03"}
+    source_snapshot: {source: alexsosn/BHSA-cantillation-trees:sources.json@445413fa5267b5c1c637d523f07f8a4cf0b3dded, checked_at: "2026-10-12"}
 
   - id: n1904-bolcomplement
     name: N1904 BOL complement
