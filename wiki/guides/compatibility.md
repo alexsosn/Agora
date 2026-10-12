@@ -2,7 +2,7 @@
 
 ## Can I use this plugin?
 
-The canonical Agora registry currently records **verified generated MCP integration paths** for these Claude Code and Codex configurations. Each path has passed a bounded representative operation through the generated configuration and transport. The verification harness **does not launch the Claude Code or Codex application executable**; a supported path still depends on the actual client, installed dependencies, and access to its provider or corpus.
+The canonical Agora registry records **client-specific generated MCP integration evidence** for these Claude Code and Codex configurations. A path is called verified only after a bounded representative operation succeeds through its generated configuration and transport; community status is not equivalent to that observation. The verification harness **does not launch the Claude Code or Codex application executable**; a supported path still depends on the actual client, installed dependencies, and access to its provider or corpus.
 
 | Plugin | Claude Code | Codex | Check before relying on the result |
 |---|---|---|---|
@@ -10,6 +10,7 @@ The canonical Agora registry currently records **verified generated MCP integrat
 | Perseus | Verified path (stdio) | Verified path (stdio) | Passage retrieval and Scaife discovery work through a different path than unreliable legacy CTS metadata/navigation. |
 | Sefaria | Verified path (direct SSE) | Verified path (stdio via SSE proxy) | Duplicate version-indexed search references must not be counted as independent occurrences. |
 | SEDRA | Verified path (stdio) | Verified path (stdio) | A successful integration check is not a guarantee of remote service availability or a unique Syriac analysis. |
+| CAL-MCP | **Community** (generated stdio; no observed Claude live operation) | **Verified** (generated stdio, one `found` lexicon lookup) | One Codex smoke ([run 38234918961](https://github.com/alexsosn/Agora/actions/runs/38234918961)) demonstrates reachability and provenance, not guaranteed remote availability or a measured transport-start count. |
 
 **ChatGPT web / managed workspaces.** Imported MCP plugins can be labeled **Desktop only**. A Desktop-only plugin **cannot run in ChatGPT web**. Marketplace availability and supported surfaces also depend on the user's **plan** and **workspace** settings and rollout. The Codex generated-path checks above do not establish a ChatGPT web execution path. See the [installation guide](installation.md#chatgpt--managed-codex-workspace-import).
 
@@ -37,10 +38,11 @@ A check with `kind: live` means GitHub Actions observed runtime behavior. It doe
 | Perseus | stdio | stdio | Claude `manifest/perseus-claude` + `mcp-live/perseus-claude`; Codex `mcp-live/perseus-codex` |
 | Sefaria | **direct SSE** | **stdio-via-SSE-proxy** | Claude `manifest/sefaria-claude` + `mcp-live/sefaria-claude`; Codex `mcp-live/sefaria-codex` |
 | SEDRA | stdio | stdio | Claude `manifest/sedra-claude` + `mcp-live/sedra-claude`; Codex `mcp-live/sedra-codex` |
+| CAL-MCP | stdio | stdio | Claude `manifest/cal-claude` (deterministic only); Codex `manifest/cal-codex` + `mcp-live/cal-codex` (one verified lookup). |
 
 The Claude Sefaria check connects to the generated direct SSE endpoint. It does not silently substitute the Codex `stdio-via-sse-proxy` bridge. Conversely, the Codex check exercises its generated proxy path.
 
-The four Claude representative-operation checks were registered conservatively at `community` and promoted to `verified` only after the new generated paths succeeded in live workflow observations. Because all supported Claude and Codex client paths are now verified, the canonical aggregate plugin status is also `verified`: Agora defines the aggregate as the weakest supported client status. This still does not promote provider health, resource/member integration status, or scholarly data quality.
+The original four Claude representative-operation checks were registered conservatively at `community` and promoted to `verified` after their generated paths succeeded in live workflow observations. CAL is a **post-1.0 fifth plugin**: its Codex generated path passed a bounded live lexicon lookup with CAL provenance, whereas the Claude generated path has deterministic manifest checks only. Thus CAL's aggregate plugin verification stays `community`: Agora defines aggregate status as the weakest supported client status. Provider health is tracked separately and a single live observation cannot guarantee future remote CAL uptime or scholarly data quality.
 
 ## Agora-owned local runtime platform startup
 
