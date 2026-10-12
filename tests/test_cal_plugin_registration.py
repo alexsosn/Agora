@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 import unittest
-from pathlib import Path
-
 import yaml
 
 from scripts.generate_marketplaces import ROOT, check_outputs, render_outputs
@@ -29,9 +27,9 @@ class CalPluginRegistrationTests(unittest.TestCase):
 
     def test_cal_registry_identity_and_low_risk_evidence(self) -> None:
         plugins = _yaml("plugins.yaml")["plugins"]
-        plugin, = [item for item in plugins if item["id"] == "cal"]
+        plugin = next(item for item in plugins if item["id"] == "cal")
         providers = _yaml("providers.yaml")["providers"]
-        provider, = [item for item in providers if item["id"] == "cal"]
+        provider = next(item for item in providers if item["id"] == "cal")
         self.assertEqual(plugin["upstream"]["repository"], "alexsosn/CAL-MCP")
         self.assertEqual(plugin["runtime"]["mode"], "local")
         self.assertEqual(plugin["data_mode"], "remote")
