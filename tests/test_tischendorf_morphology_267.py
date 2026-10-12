@@ -109,7 +109,7 @@ class TischendorfMorphology267Tests(unittest.TestCase):
         # Context-Fabric StringPool/IntFeatureArray.items() yield NumPy integer
         # indices on compiled mmap backends, not necessarily built-in int.
         from enum import IntEnum
-        from scripts.smoke_tischendorf_morphology_267 import valid_feature_node_id
+        from scripts.tischendorf_morphology_checks_267 import valid_feature_node_id
 
         class NonBuiltinInteger(IntEnum):
             FIRST = 1
