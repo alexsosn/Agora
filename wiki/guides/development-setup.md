@@ -24,3 +24,23 @@ After reinstalling or updating a local plugin, start a new Codex thread when nec
 
 For user-wide local plugin development, Codex also supports the default personal marketplace at `~/.agents/plugins/marketplace.json`; a marketplace entry's `source.path` is resolved relative to that marketplace root. Agora does not overwrite or manage a user's personal marketplace file automatically.
 
+
+## Validating documentation changes
+
+A pull request that changes only approved researcher documentation and the
+explicitly reviewed documentation generators or contract tests uses Agora's
+bounded documentation checks. Those checks still validate generated guides,
+registry consistency, Python syntax, links, and first-contact instructions.
+
+Changes to plugin implementations, MCP manifests, release acquisition, corpus
+registries, cache or installer logic, dependencies, CI workflows, or unknown
+files always require the full validation matrix, even when documentation is
+changed in the same pull request. The complete runtime suite also runs after
+changes merge to `main`. CI's change-scope report describes the selected
+gate; it is not permission to skip required checks manually.
+
+The Ubuntu, macOS, and Windows cache/installation matrix jobs retain their
+usual check identities on a documentation-only pull request. They run an
+explanatory step while skipping runtime setup, dependency installation, and
+cross-OS regression tests. The ordinary full-scope matrix is still required
+for all runtime or mixed changes.
