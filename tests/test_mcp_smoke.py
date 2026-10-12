@@ -185,10 +185,22 @@ class MCPSmokeHarnessTests(unittest.TestCase):
             )
             self.assertEqual(session.calls, 1)
 
-        asyncio.run(exercise({"status": "found", "provenance": {"source": "CAL"}}))
+        valid_provenance = {
+            "source": "CAL",
+            "source_url": "https://cal.huc.edu/cal_entry_web.php?lemma=br",
+            "retrieved_at": "2026-10-12T12:00:00+00:00",
+        }
+        asyncio.run(exercise({"status": "found", "provenance": valid_provenance}))
         for bad in (
-            {"status": "not_found", "provenance": {"source": "CAL"}},
+            {"status": "not_found", "provenance": valid_provenance},
             {"status": "found", "provenance": {}},
+            {"status": "found", "provenance": {"source": "CAL"}},
+            {"status": "found", "provenance": {**valid_provenance, "source_url": ""}},
+            {"status": "found", "provenance": {**valid_provenance, "source_url": "http://cal.huc.edu/"}},
+            {"status": "found", "provenance": {**valid_provenance, "source_url": "https://cal.huc.edu.evil.example/"}},
+            {"status": "found", "provenance": {**valid_provenance, "retrieved_at": ""}},
+            {"status": "found", "provenance": {**valid_provenance, "retrieved_at": "not-a-timestamp"}},
+            {"status": "found", "provenance": {**valid_provenance, "retrieved_at": "2026-10-12T12:00:00"}},
         ):
             with self.subTest(bad=bad), self.assertRaises(SmokePhaseError):
                 asyncio.run(exercise(bad))
