@@ -136,6 +136,9 @@ class TischendorfMorphology267Tests(unittest.TestCase):
         parent = self.catalog.get("tischendorf_tf")
         self.assertEqual(parent.acquisition_strategy, "repository")
         self.assertEqual(parent.repository, "codykingham/tischendorf_tf")
+        # #267 parent-base validation demands immutable parent identity too.
+        self.assertEqual(parent.ref, PIN)
+        self.assertEqual(parent.tf_path, "tf/2.8")
         self.assertIsNone(parent.release_archive)
 
 
