@@ -77,3 +77,31 @@ plugins:
         - Passive fetch validates the immutable upstream source and materializer manifest without executing plugin Python.
         - Explicit installation executes third-party Python packaging/build code and records the resolved runtime, distribution closure, source hash, and managed environment hash.
         - Registered execution is sandboxed and network-denied; consumer discovery/load of produced local artifacts is a separate integration boundary.
+
+  - id: catss-tf
+    name: CATSS canonical Hebrew-Greek alignment Text-Fabric
+    description: Materialize a standalone canonical CATSS alignment-slot Text-Fabric corpus from a researcher-supplied licensed local parallel .par directory; parent-dependent BHSA/LXX feature modules are not yet registered.
+    repository: alexsosn/CATSS-TF
+    ref: 3ee63c4c054960b816b14496815815153e5e543d
+    version: 0.1.0
+    release_tracking:
+      mode: disabled
+    manifest: agora.materializer.json
+    package:
+      type: python-project
+      path: .
+      install_trust: explicit-code-execution
+    materializers:
+      - catss-canonical
+    disciplines: [biblical-studies, digital-philology]
+    licenses:
+      software: MIT
+      data: upstream-dependent
+    verification:
+      status: community
+      notes:
+        - Reviewed immutable upstream CATSS-TF PR 119 merge at 3ee63c4; source/runtime pin and registered Agora sandbox smoke are separate evidence gates.
+        - User must supply licensed local CATSS parallel .par source. Neither Agora nor the producer automatically downloads or redistributes restricted corpus data.
+        - Network denied and strict source-validation defaults; third-party Python code installation requires explicit approval.
+        - Only the standalone canonical alignment-slot corpus is supported here; BHSA 2021 and LXX 1935 parent-bound feature modules still require reviewed trusted read-only parent binding.
+        - This immutable commit includes the adapter but is not asserted to match any already-published CATSS-TF version tag or release archive.
