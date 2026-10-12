@@ -36,10 +36,13 @@ class CalPluginRegistrationTests(unittest.TestCase):
         self.assertEqual(plugin["licenses"]["software"], "MIT")
         self.assertEqual(plugin["licenses"]["data"], "upstream-dependent")
         self.assertEqual(provider["plugin"], "cal")
-        self.assertEqual(provider["health"]["status"], "unknown")
+        self.assertEqual(provider["health"]["status"], "observed-operational")
         self.assertEqual(plugin["verification"]["status"], "community")
         for client in ("claude", "codex"):
-            self.assertEqual(plugin["verification"]["clients"][client]["status"], "community")
+            self.assertEqual(
+                plugin["verification"]["clients"][client]["status"],
+                "verified" if client == "codex" else "community",
+            )
             self.assertEqual(plugin["verification"]["clients"][client]["transport"], "stdio")
             launch = plugin["runtime"]["launch"][client]
             self.assertEqual(launch["command"], "uvx")
