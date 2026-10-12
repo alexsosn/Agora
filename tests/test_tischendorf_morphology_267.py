@@ -115,7 +115,7 @@ class TischendorfMorphology267Tests(unittest.TestCase):
         ):
             with self.subTest(token=token):
                 self.assertIn(token, workflow)
-        for token in ("FeatureAdditions", PIN, "module", "offline", "137711",
+        for token in ("FeatureAdditions", PIN, "module", "offline", "137_711",
                       "freq_lex_og", "lex_og", "otype.tf", "oslots.tf"):
             with self.subTest(token=token):
                 self.assertIn(token, smoke)
