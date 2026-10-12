@@ -40,6 +40,26 @@ checks:
       type: unittest
       target: tests.test_generation.MarketplaceGenerationTests.test_sedra_claude_mcp_runs_bundled_adapter
 
+  - id: manifest/cal-claude
+    kind: deterministic
+    plugin: cal
+    client: claude
+    transport: stdio
+    evidence_level: community
+    executor:
+      type: unittest
+      target: tests.test_generation.MarketplaceGenerationTests.test_cal_claude_mcp_runs_pinned_upstream_release
+
+  - id: manifest/cal-codex
+    kind: deterministic
+    plugin: cal
+    client: codex
+    transport: stdio
+    evidence_level: community
+    executor:
+      type: unittest
+      target: tests.test_generation.MarketplaceGenerationTests.test_cal_codex_mcp_runs_pinned_upstream_release
+
   - id: mcp-live/context-fabric-codex
     kind: live
     plugin: context-fabric
