@@ -1,0 +1,63 @@
+name: Tischendorf pinned morphology module consumer
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tischendorf-morphology.yml'
+      - 'registry/feature-modules.yaml'
+      - 'plugins/context-fabric/resources/feature-modules.yaml'
+      - 'plugins/context-fabric/src/agora_context_fabric/resolver.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/gitstore/**'
+      - 'scripts/smoke_tischendorf_morphology_267.py'
+      - 'tests/test_tischendorf_morphology_267.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tischendorf-morphology.yml'
+      - 'scripts/smoke_tischendorf_morphology_267.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  morph:
+    name: Verify 14 morphology features align to pinned Tischendorf 2.8
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact PR head without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify checkout commit
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install validation dependencies
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e plugins/context-fabric
+          python -m pip install "text-fabric==13.1.0"
+
+      - name: Check module registry, licenses, parent identity and generated docs
+        run: |
+          python -m unittest discover -s tests -p 'test_tischendorf_morphology_267.py' -v
+          python scripts/validate_registry.py
+          python scripts/generate_context_fabric_catalog.py --check
+          python scripts/generate_resource_catalog_docs.py --check
+
+      - name: Verify real pinned module source and parent-only versus opt-in offline load
+        run: python scripts/smoke_tischendorf_morphology_267.py
