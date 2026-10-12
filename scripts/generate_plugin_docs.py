@@ -18,6 +18,7 @@ TROUBLESHOOTING_EXITS = {
     "perseus": "If passage retrieval works but legacy navigation fails, see [Perseus navigation recovery](../troubleshooting.md#perseus-passage-works-but-navigation-fails).",
     "sefaria": "For repeated search references, see [Sefaria duplicate-reference recovery](../troubleshooting.md#sefaria-search-repeats-a-reference).",
     "sedra": "For failed live word or lexeme lookup, see [remote lookup recovery](../troubleshooting.md#remote-lookup-fails)."
+    "cal": "For HTTP 429, upstream outages, or CAL token/lexicon errors, see [remote lookup recovery](../troubleshooting.md#remote-lookup-fails); do not retry aggressively.",
 } 
 
 GUIDANCE: dict[str, dict[str, Any]] = {
@@ -116,6 +117,35 @@ The BHSA parent corpus is listed under **CC BY-NC 4.0** in Agora, while the cant
         "limitations": (
             "Word-form results and lexeme records answer different questions. Preserve multiple returned "
             "analyses when the service is ambiguous instead of silently selecting one."
+        ),
+    },
+    "cal": {
+        "access": (
+            "CAL-MCP is a local Python stdio MCP server installed from the published "
+            "`cal-mcp==0.1.0` package. It queries remote Comprehensive Aramaic Lexicon (CAL) "
+            "pages on demand; Agora never downloads or mirrors the CAL text database."
+        ),
+        "first_success": (
+            "Use `cal_lexicon_lookup` with query `br` and lemma_key `br N`. Report the "
+            "returned `found` status, exact entry and CAL provenance, or distinguish a "
+            "genuine CAL upstream error. Do not expand this into a vocabulary crawl."
+        ),
+        "tasks": (
+            "Use the published [CAL-MCP integration guide]"
+            "(https://github.com/alexsosn/CAL-MCP/blob/v0.1.0/docs/integrations/standalone-mcp.md) "
+            "and the [Agora CAL research handoff](../../../plugins/cal/README.md). "
+            "Keep lexical ambiguity, citation, editorial status and remote service provenance visible."
+        ),
+        "cost_note": (
+            "A successful lexicon lookup normally makes two real CAL requests: one browse GET "
+            "and one entry GET. The upstream client enforces request pacing, rolling caps and "
+            "a cooldown after CAL 429. Do not use multi-page sweeps or unchecked retries."
+        ),
+        "limitations": (
+            "The `community` client verification describes proposed integration evidence, not "
+            "a fully verified Agora install or guaranteed remote availability. CAL's textual "
+            "and bibliographic data are upstream-dependent and are not relicensed by MIT. "
+            "A single found lexeme never establishes exhaustive corpus coverage."
         ),
     },
 }
