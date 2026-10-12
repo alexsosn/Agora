@@ -439,6 +439,7 @@ resources:
       status: community
       notes:
       - The upstream FeatureAdditions directory contains 14 non-warp .tf files and one ignored non-TF file. Real source node-ID/combined load verification is required before promotion.
+      - Upstream lex_og.tf and lex_abc.tf misleadingly label lexical data as case information in their @description headers; use the actual features/values rather than trusting that prose.
     integration_issues:
     - https://github.com/alexsosn/Agora/issues/267
     source_snapshot: {source: codykingham/tischendorf_tf@ca96bd44f38fd716d4a1faa6d451f3716f0dce46:FeatureAdditions, checked_at: '2026-10-12'}
