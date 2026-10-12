@@ -14,7 +14,7 @@ from scripts.generate_marketplaces import (
     render_outputs,
 )
 
-PLUGIN_IDS = ("context-fabric", "perseus", "sefaria", "sedra")
+PLUGIN_IDS = ("context-fabric", "perseus", "sefaria", "sedra", "cal")
 
 
 class MarketplaceGenerationTests(unittest.TestCase):
