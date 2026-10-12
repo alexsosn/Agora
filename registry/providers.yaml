@@ -77,6 +77,10 @@ providers:
       repository: alexsosn/CAL-MCP
       homepage: https://cal.huc.edu/
     health:
-      status: unknown
+      status: observed-operational
+      evidence:
+        - check_id: mcp-live/cal-codex
       notes:
-        - An upstream installed-wheel CAL live smoke succeeded for cal-mcp 0.1.0; an Agora client-path operation has not yet been independently verified.
+        - Agora Actions run 38234918961 initialized the exact generated CAL Codex stdio path, discovered 36 tools, and returned a found lexicon entry with CAL provenance.
+        - This supports one client-path observation only, not default CAL batch throughput, permanent upstream availability, or independently measured exact transport-start count.
+        - Claude client verification is separate and remains community.
