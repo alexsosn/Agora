@@ -7,10 +7,11 @@ No converter is installed or executed; source acquisition is Git-data only.
 from __future__ import annotations
 
 import json
-from numbers import Integral
 import sys
 import tempfile
 from pathlib import Path
+
+from tischendorf_morphology_checks_267 import valid_feature_node_id
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "plugins/context-fabric/src"))
@@ -50,11 +51,6 @@ def inspect_source(repo_path: Path, revision: str, store: GitStore) -> None:
             raise AssertionError(f"invalid native TF node feature header {filename}")
     print(json.dumps({"tf_feature_files": len(FEATURES), "sha": revision,
                       "parent_max_node": 152077}, sort_keys=True), flush=True)
-
-
-def valid_feature_node_id(node: object) -> bool:
-    """Accept native Python and NumPy integer IDs, not bool or out-of-range."""
-    return isinstance(node, Integral) and not isinstance(node, bool) and 1 <= int(node) <= 152_077
 
 
 def inspect_api(api, *, module: bool) -> dict:
