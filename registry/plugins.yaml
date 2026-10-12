@@ -315,6 +315,13 @@ plugins:
             runtime: python>=3.11 + uvx
             resolution: [cal-mcp==0.1.0]
             environment: {kind: uv-constraints, path: plugins/cal/runtime-constraints.txt, sha256: 830cb05e4e7664b405dddef8ae0634fbc68b0f05e499432ed2c75a5691edbd7a}
+        - check_id: mcp-live/cal-codex
+          inputs:
+            source: {repository: alexsosn/Agora, revision: self}
+            runtime: python==3.13 + uvx
+            resolution: [cal-mcp==0.1.0, 'mcp>=2,<3 (smoke harness)', 'PyYAML>=6,<7 (smoke harness)']
+            environment: {kind: uv-constraints, path: plugins/cal/runtime-constraints.txt, sha256: 830cb05e4e7664b405dddef8ae0634fbc68b0f05e499432ed2c75a5691edbd7a}
+            harness_environment: {kind: uv-lock, path: verification/mcp-smoke/uv.lock, sha256: 02ee919d9bd8ff909f090463c563a425ab614ea77dc410eeddbd23bb7a330838}
     notes:
     - Published upstream 0.1.0 wheel/sdist and 36-tool stdio release validation are not proof of Agora-generated Claude/Codex launch paths.
     - Until downstream installed-plugin launch + bounded one-CAL-read verification succeeds, client evidence stays community.
