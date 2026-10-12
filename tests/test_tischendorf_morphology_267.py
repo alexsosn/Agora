@@ -104,6 +104,19 @@ class TischendorfMorphology267Tests(unittest.TestCase):
             "schema_version": 1, "resources": [row]
         })))
 
+    def test_numpy_mmap_node_ids_are_valid_but_out_of_bounds_rejected(self):
+        # Context-Fabric StringPool/IntFeatureArray.items() yield NumPy integer
+        # indices on compiled mmap backends, not necessarily built-in int.
+        import numpy as np
+        from scripts.smoke_tischendorf_morphology_267 import valid_feature_node_id
+
+        for node in (1, np.int64(1), 152_077, np.int64(152_077)):
+            with self.subTest(valid=node):
+                self.assertTrue(valid_feature_node_id(node))
+        for node in (0, np.int64(0), 152_078, np.int64(152_078), True, "1"):
+            with self.subTest(invalid=node):
+                self.assertFalse(valid_feature_node_id(node))
+
     def test_actual_pinned_upstream_consumer_gate_is_present(self):
         workflow = (ROOT / ".github/workflows/tischendorf-morphology.yml").read_text()
         smoke = (ROOT / "scripts/smoke_tischendorf_morphology_267.py").read_text()
