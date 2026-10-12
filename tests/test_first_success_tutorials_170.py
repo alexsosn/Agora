@@ -9,7 +9,7 @@ from scripts import generate_plugin_docs
 ROOT = Path(__file__).resolve().parents[1]
 GUIDE = ROOT / "wiki/guides/README.md"
 TUTORIALS = ROOT / "wiki/guides/first-success"
-PLUGINS = ("context-fabric", "perseus", "sefaria", "sedra")
+PLUGINS = ("context-fabric", "perseus", "sefaria", "sedra", "cal")
 REQUIRED = {
     "context-fabric": (
         "describe_available_corpus", "prepare_corpus", "load_corpus",
@@ -27,11 +27,12 @@ REQUIRED = {
         "lookup_word", "get_lexeme", "ܡܠܟܐ",
         "word-form", "lexeme", "ambig",
     ),
+    "cal": ("cal_lexicon_lookup", "br N", "found", "provenance", "429"),
 }
 
 
 class FirstSuccessTutorialContracts(unittest.TestCase):
-    def test_four_bounded_guides_have_findable_entrypoints_and_generators_agree(self):
+    def test_five_bounded_guides_have_findable_entrypoints_and_generators_agree(self):
         landing = GUIDE.read_text(encoding="utf-8")
         self.assertEqual({f"{p}.md" for p in PLUGINS},
                          {p.name for p in TUTORIALS.glob("*.md")})
