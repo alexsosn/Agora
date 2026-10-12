@@ -252,6 +252,41 @@ class MarketplaceGenerationTests(unittest.TestCase):
             ["run", "--locked", "--project", ".", "agora-sedra-mcp"],
         )
 
+    def test_cal_claude_mcp_runs_pinned_upstream_release(self):
+        with (ROOT / "plugins/cal/.claude-plugin/mcp.json").open(
+            "r", encoding="utf-8"
+        ) as fh:
+            server = json.load(fh)["cal"]
+        self.assertEqual(server["command"], "uvx")
+        self.assertEqual(
+            server["args"],
+            [
+                "--constraint",
+                "${CLAUDE_PLUGIN_ROOT}/runtime-constraints.txt",
+                "--from",
+                "cal-mcp==0.1.0",
+                "cal-mcp",
+            ],
+        )
+
+    def test_cal_codex_mcp_runs_pinned_upstream_release(self):
+        with (ROOT / "plugins/cal/.codex-plugin/mcp.json").open(
+            "r", encoding="utf-8"
+        ) as fh:
+            server = json.load(fh)["mcpServers"]["cal"]
+        self.assertEqual(server["command"], "uvx")
+        self.assertEqual(server["cwd"], ".")
+        self.assertEqual(
+            server["args"],
+            [
+                "--constraint",
+                "runtime-constraints.txt",
+                "--from",
+                "cal-mcp==0.1.0",
+                "cal-mcp",
+            ],
+        )
+
     def test_context_fabric_project_declares_runtime_entrypoint_and_dependencies(self):
         with (ROOT / "plugins/context-fabric/pyproject.toml").open("rb") as fh:
             project = tomllib.load(fh)["project"]
