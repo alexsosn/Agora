@@ -100,6 +100,21 @@ def _wait_until_dead(pid: int, timeout: float = 5.0) -> bool:
 
 @unittest.skipUnless(os.name == "posix", "procfs disappearance race is POSIX-only")
 class ProcessLivenessRaceTests(unittest.TestCase):
+    def test_procfs_permission_denial_does_not_prove_process_exit(self):
+        with (
+            patch.object(os, "kill", return_value=None),
+            patch.object(Path, "exists", side_effect=PermissionError(13, "Permission denied")),
+        ):
+            self.assertTrue(_process_alive(987654))
+
+    def test_procfs_read_permission_denial_does_not_prove_process_exit(self):
+        with (
+            patch.object(os, "kill", return_value=None),
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "read_text", side_effect=PermissionError(13, "Permission denied")),
+        ):
+            self.assertTrue(_process_alive(987654))
+
     def test_process_disappearing_between_pid_and_procfs_probes_is_dead(self):
         with (
             patch.object(os, "kill", return_value=None),
