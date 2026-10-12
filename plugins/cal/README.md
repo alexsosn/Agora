@@ -14,6 +14,6 @@ For one CAL provider reachability smoke, call the published tool with one fixed 
 {"tool": "cal_lexicon_lookup", "arguments": {"query": "br", "lemma_key": "br N"}}
 ```
 
-A response with `found` and CAL provenance establishes only that this installed integration could reach CAL once; it does not assess every lexeme or other research tool. HTTP 429 and upstream/network faults are not reasons to crawl, retry aggressively or blame generated manifests. Normal CAL-MCP pacing, attempt limits and cooldown apply; do not claim safe batch throughput or run the complete upstream smoke matrix.
+A successful `found` result uses **two** bounded CAL transport starts (one lexicon browse plus one selected-entry GET) in upstream 0.1.0. The dedicated opt-in downstream job forces upstream `max_retries=0` and checks the real start count. A response with `found` and CAL provenance establishes only that this installed integration could reach CAL for one explicit lookup; it does not assess every lexeme or other research tool. HTTP 429 and upstream/network faults are not reasons to crawl, retry aggressively or blame generated manifests. Normal CAL-MCP pacing, attempt limits and cooldown apply; do not claim safe batch throughput or run the complete upstream smoke matrix.
 
 Client-specific verification is initially marked **community** until a genuine installed generated-client smoke is recorded. Do not advertise unsupported ChatGPT web/mobile hosting.
