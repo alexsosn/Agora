@@ -30,7 +30,7 @@ jobs:
     env:
       # Upstream CAL-MCP's reviewed smoke mode forces max_retries=0 and counts real starts.
       CAL_MCP_LIVE_SMOKE_MAX_ATTEMPTS: "25"
-      CAL_MCP_LIVE_SMOKE_REPORT_PATH: ${{ runner.temp }}/cal-attempts.json
+      CAL_MCP_LIVE_SMOKE_REPORT_PATH: ${{ github.workspace }}/cal-attempts.json
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
