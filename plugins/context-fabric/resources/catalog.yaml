@@ -1256,7 +1256,7 @@ resources:
   provider: context-fabric
   kind: corpus
   languages: [hebrew]
-  disciplines: [biblical-studies, semitic-linguistics, textual-criticism]
+  disciplines: [biblical-studies, semitic-linguistics]
   description: Native word-aligned Text-Fabric 1.0 Hebrew Bible edition based on the Aleppo Codex; lost manuscript portions are supplied from related Tiberian witnesses and identified by the verse-level aleppo_extant feature.
   upstream: {repository: MartijnNaaijer/aleppo, ref: db38ddc918fd5d6e47a118f24545bd925975a597, tf_path: tf/1.0}
   acquisition:
