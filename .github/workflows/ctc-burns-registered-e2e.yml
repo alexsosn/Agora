@@ -38,11 +38,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: alexsosn/CTC-TF
-          ref: f58b162197ad8f113b7cd6fc0088ae5dd39a096d
+          ref: ed6c7059803ff1adee057f5bd94d3ca661aac187
           path: ctc-source
           persist-credentials: false
       - name: Verify pinned upstream producer revision
-        run: test "$(git -C ctc-source rev-parse HEAD)" = f58b162197ad8f113b7cd6fc0088ae5dd39a096d
+        run: test "$(git -C ctc-source rev-parse HEAD)" = ed6c7059803ff1adee057f5bd94d3ca661aac187
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
