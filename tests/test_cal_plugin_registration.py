@@ -59,6 +59,20 @@ class CalPluginRegistrationTests(unittest.TestCase):
             self.assertEqual(target["args"][-3:], ["--from", "cal-mcp==0.1.0", "cal-mcp"])
         self.assertEqual(check_outputs(), [])
 
+    def test_cal_user_docs_distinguish_client_specific_live_evidence(self) -> None:
+        compatibility = (ROOT / "wiki/guides/compatibility.md").read_text(
+            encoding="utf-8"
+        )
+        installation = (ROOT / "wiki/guides/installation.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("| CAL-MCP |", compatibility)
+        self.assertIn("**Community**", compatibility)
+        self.assertIn("**Verified**", compatibility)
+        self.assertIn("mcp-live/cal-codex", compatibility)
+        self.assertIn("cal@agora", installation)
+        self.assertIn("cal-mcp==0.1.0", installation)
+
     def test_upstream_one_call_smoke_contract_is_only_one_cal_lookup(self) -> None:
         guidance = (ROOT / "plugins" / "cal" / "README.md").read_text(encoding="utf-8")
         self.assertIn("cal-mcp==0.1.0", guidance)
