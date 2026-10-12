@@ -1,0 +1,54 @@
+name: CAL-MCP bounded Agora integration smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/cal-mcp-smoke.yml"
+      - "plugins/cal/.codex-plugin/mcp.json"
+      - "plugins/cal/runtime-constraints.txt"
+      - "scripts/smoke_mcp_plugin.py"
+      - "registry/plugins.yaml"
+      - "registry/verification-checks.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agora-cal-mcp-one-read
+  cancel-in-progress: false
+
+jobs:
+  live-cal:
+    name: One installed CAL lexicon lookup (Codex stdio)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: true
+      matrix:
+        plugin: [cal]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.10"
+      - name: Verify generated CAL entry point and run one published read
+        shell: bash
+        run: |
+          set -o pipefail
+          uv run --project verification/mcp-smoke --locked \
+            python scripts/smoke_mcp_plugin.py cal \
+              --client codex \
+              --check-id mcp-live/cal-codex \
+              --timeout 180 \
+            | tee mcp-smoke-cal.json
+      - name: Preserve provenance-limited client launch report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-smoke-cal
+          path: mcp-smoke-cal.json
+          if-no-files-found: warn
