@@ -214,7 +214,7 @@ class FeatureModuleReviewRegressionTests(unittest.TestCase):
         self.assertEqual(core_ids - {"assyrian-royal-inscriptions", "pseudepigrapha"}, set(scope["required_resources"]))
         self.assertIn("assyrian-royal-inscriptions", core_ids)
         self.assertIn("pseudepigrapha", core_ids)
-        self.assertEqual(len(catalog.search(kind="feature-module")), 22)
+        self.assertEqual(len(catalog.search(kind="feature-module")), 23)
 
     def test_default_discovery_excludes_non_loadable_feature_modules(self):
         with tempfile.TemporaryDirectory() as tmp:
