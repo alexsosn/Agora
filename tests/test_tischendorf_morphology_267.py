@@ -1,0 +1,186 @@
+"""#267 RED: opt-in pinned Tischendorf 2.8 morphology feature module.
+
+Fixture filenames are derived from the actual canonical Git tree
+codykingham/tischendorf_tf@ca96bd44f38fd716d4a1faa6d451f3716f0dce46.
+No upstream network access in deterministic unit tests.
+"""
+from __future__ import annotations
+
+import json
+import sys
+import unittest
+from pathlib import Path
+
+import yaml
+from jsonschema import Draft202012Validator
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "plugins/context-fabric/src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from agora_context_fabric.catalog import Catalog
+from agora_context_fabric.gitstore import GitStore
+from scripts.generate_context_fabric_catalog import build_feature_modules_document
+
+ID = "tischendorf-morphology-additions"
+PIN = "ca96bd44f38fd716d4a1faa6d451f3716f0dce46"
+NAMES = frozenset((
+    "case.tf", "freq_lex_og.tf", "gn.tf", "lex_abc.tf",
+    "lex_og.tf", "mood.tf", "nountype.tf", "nu.tf",
+    "originterrdiff.tf", "prntyp.tf", "ps.tf", "sp.tf",
+    "voice.tf", "vt.tf",
+))
+PARENT_FEATURES = frozenset((
+    "anlex_lem.tf", "book.tf", "book_code.tf", "chapter.tf",
+    "freq_lex.tf", "gloss.tf", "ketiv.tf", "morph.tf",
+    "oslots.tf", "otext.tf", "otype.tf", "para.tf", "qere.tf",
+    "str_lem.tf", "strongs.tf", "verse.tf", "vrsnum.tf",
+))
+
+
+class TischendorfMorphology267Tests(unittest.TestCase):
+    def setUp(self):
+        modules = yaml.safe_load((ROOT / "registry/feature-modules.yaml").read_text())
+        self.rows = [row for row in modules["resources"] if row["id"] == ID]
+        self.catalog = Catalog.from_registry(ROOT)
+        self.bundled = Catalog.from_plugin_root(ROOT / "plugins/context-fabric")
+
+    def test_opt_in_with_exact_parent_source_and_direct_directory(self):
+        self.assertEqual(1, len(self.rows))
+        row = self.rows[0]
+        feature = self.catalog.get(ID)
+        self.assertEqual(feature, self.bundled.get(ID))
+        self.assertEqual(feature.parent, "tischendorf_tf")
+        self.assertEqual(feature.parent_versions, ("2.8",))
+        self.assertEqual(feature.kind, "feature-module")
+        self.assertEqual(feature.module_status, "optional")
+        self.assertEqual(feature.repository, "codykingham/tischendorf_tf")
+        self.assertEqual(feature.ref, PIN)
+        self.assertEqual(feature.tf_path, "FeatureAdditions")
+        self.assertEqual(feature.module_path, "codykingham/tischendorf_tf/FeatureAdditions")
+        self.assertEqual(feature.acquisition_strategy, "repository")
+        self.assertTrue(row["acquisition"]["lazy"])
+        self.assertEqual(self.catalog.get("tischendorf_tf").kind, "corpus")
+        self.assertIn(ID, [item.id for item in self.catalog.modules_for("tischendorf_tf")])
+        self.assertNotIn(ID, self.catalog.ids()[:37])
+        self.assertEqual(feature.dependencies, (
+            {"repository": "codykingham/tischendorf_tf", "ref": PIN, "role": "parent-base"},
+        ))
+
+    def test_parent_base_mismatch_is_rejected_even_with_same_tf_version(self):
+        from types import SimpleNamespace
+        from agora_context_fabric.resolver import ContextFabricResolver
+
+        module = self.catalog.get(ID)
+        for wrong_revision in (None, "0" * 40, "f" * 40):
+            with self.subTest(revision=wrong_revision):
+                prepared = SimpleNamespace(
+                    resource_id="tischendorf_tf",
+                    source_revision=wrong_revision,
+                    version="2.8",
+                )
+                with self.assertRaisesRegex(ValueError, "requires parent"):
+                    ContextFabricResolver._check_parent_base(module, prepared)
+        prepared = SimpleNamespace(
+            resource_id="tischendorf_tf",
+            source_revision=PIN,
+            version="2.8",
+        )
+        self.assertIsNone(ContextFabricResolver._check_parent_base(module, prepared))
+
+    def test_rights_and_provenance_preserve_canonical_source_credits(self):
+        row = self.rows[0]
+        self.assertEqual(row["licenses"]["data"], "MIT")
+        self.assertEqual(row["licenses"]["redistribution"], "permitted")
+        self.assertEqual(row["verification"]["status"], "community")
+        rights = " ".join([row["description"], row["licenses"]["notes"]]).lower()
+        for phrase in ("tischendorf", "kingham", "glanz", "public domain", "mit"):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, rights)
+        self.assertIn("/blob/8ef539e91bbe88e0d2eba554950fd28db53d3e5e/LICENSE", row["licenses"]["evidence"]["sources"][0])
+        self.assertIn("/blob/" + PIN + "/LICENSE", row["licenses"]["evidence"]["sources"][1])
+        schema = json.loads((ROOT / "registry/schema/resources.schema.json").read_text())
+        self.assertEqual([], list(Draft202012Validator(schema).iter_errors({
+            "schema_version": 1, "resources": [row]
+        })))
+
+    def test_numpy_mmap_node_ids_are_valid_but_out_of_bounds_rejected(self):
+        # Context-Fabric StringPool/IntFeatureArray.items() yield NumPy integer
+        # indices on compiled mmap backends, not necessarily built-in int.
+        from enum import IntEnum
+        from scripts.tischendorf_morphology_checks_267 import valid_feature_node_id
+
+        class NonBuiltinInteger(IntEnum):
+            FIRST = 1
+            LAST = 152_077
+
+        for node in (1, 152_077, NonBuiltinInteger.FIRST, NonBuiltinInteger.LAST):
+            with self.subTest(valid=node):
+                self.assertTrue(valid_feature_node_id(node))
+        for node in (0, 152_078, True, "1"):
+            with self.subTest(invalid=node):
+                self.assertFalse(valid_feature_node_id(node))
+        try:
+            import numpy as np
+        except ImportError:
+            # Foundation uses minimal deps, but the live Context-Fabric loader
+            # brings NumPy and executes mmap-backed feature checks.
+            return
+        for node in (np.int64(1), np.int64(152_077)):
+            with self.subTest(np_valid=node):
+                self.assertTrue(valid_feature_node_id(node))
+        for node in (np.int64(0), np.int64(152_078)):
+            with self.subTest(np_invalid=node):
+                self.assertFalse(valid_feature_node_id(node))
+
+    def test_actual_pinned_upstream_consumer_gate_is_present(self):
+        workflow = (ROOT / ".github/workflows/tischendorf-morphology.yml").read_text()
+        smoke = (ROOT / "scripts/smoke_tischendorf_morphology_267.py").read_text()
+        for token in (
+            "ref: ${{ github.event.pull_request.head.sha || github.sha }}",
+            "persist-credentials: false",
+            "test_tischendorf_morphology_267.py",
+            "smoke_tischendorf_morphology_267.py",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, workflow)
+        for token in ("FeatureAdditions", PIN, "module", "offline", "137_711",
+                      "freq_lex_og", "lex_og", "otype.tf", "oslots.tf"):
+            with self.subTest(token=token):
+                self.assertIn(token, smoke)
+
+    def test_source_snapshot_may_hold_non_tf_files_but_overlay_is_tf_only(self):
+        # #267 live run 38242611873 proved GitStore archives the entire source
+        # directory; resolver._link_features correctly exposes only *.tf.
+        smoke = (ROOT / "scripts/smoke_tischendorf_morphology_267.py").read_text()
+        self.assertNotIn('assert not (module_path / "test").exists()', smoke)
+        self.assertIn('assert not (composed / "test").exists()', smoke)
+        registry = yaml.safe_load((ROOT / "registry/feature-modules.yaml").read_text())
+        module = next(r for r in registry["resources"] if r["id"] == ID)
+        self.assertIn("overlay", module["acquisition"]["notes"].lower())
+
+    def test_no_warp_or_parent_filename_collisions_and_catalog_is_fresh(self):
+        self.assertEqual(14, len(NAMES))
+        self.assertFalse(NAMES & PARENT_FEATURES)
+        self.assertFalse(NAMES & GitStore.FORBIDDEN_FEATURE_MODULE_FILES)
+        expected = build_feature_modules_document(ROOT)
+        actual = yaml.safe_load((
+            ROOT / "plugins/context-fabric/resources/feature-modules.yaml"
+        ).read_text())
+        self.assertEqual(expected, actual)
+        self.assertEqual(1, sum(r["id"] == ID for r in actual["resources"]))
+        guide = (ROOT / "wiki/guides/resources.md").read_text()
+        self.assertEqual(1, guide.count("<!-- feature-module:" + ID + " -->"))
+        # Same parent is available with no opt-in: its corpus contract is unchanged.
+        parent = self.catalog.get("tischendorf_tf")
+        self.assertEqual(parent.acquisition_strategy, "repository")
+        self.assertEqual(parent.repository, "codykingham/tischendorf_tf")
+        # #267 parent-base validation demands immutable parent identity too.
+        self.assertEqual(parent.ref, PIN)
+        self.assertEqual(parent.tf_path, "tf/2.8")
+        self.assertIsNone(parent.release_archive)
+
+
+if __name__ == "__main__":
+    unittest.main()
