@@ -1,0 +1,64 @@
+name: Aleppo pinned native TF corpus consumer
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/aleppo-native-corpus.yml'
+      - 'registry/resources.yaml'
+      - 'plugins/context-fabric/resources/catalog.yaml'
+      - 'plugins/context-fabric/src/agora_context_fabric/catalog.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/resolver.py'
+      - 'plugins/context-fabric/src/agora_context_fabric/service_source_modes.py'
+      - 'scripts/smoke_aleppo_native_203.py'
+      - 'tests/test_aleppo_registration_203.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/aleppo-native-corpus.yml'
+      - 'scripts/smoke_aleppo_native_203.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  native-aleppo:
+    name: Load pinned Aleppo 1.0, validate extant verses and offline reload
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact Agora head without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Attest tested code identity
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install validation and Context-Fabric dependencies
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e plugins/context-fabric
+          python -m pip install "text-fabric==13.1.0"
+
+      - name: Verify catalog and native corpus contract
+        run: |
+          python -m unittest discover -s tests -p 'test_aleppo_registration_203.py' -v
+          python scripts/validate_registry.py
+          python scripts/generate_context_fabric_catalog.py --check
+          python scripts/generate_resource_catalog_docs.py --check
+
+      - name: Load exact upstream Aleppo TF 1.0 and prove cold/offline semantic parity
+        run: python scripts/smoke_aleppo_native_203.py

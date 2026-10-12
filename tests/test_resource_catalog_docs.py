@@ -40,7 +40,7 @@ class ResourceCatalogDocumentationTests(unittest.TestCase):
 
         # Snapshot the current catalog size while making the source of truth the
         # canonical registry, so a post-1.0 addition cannot disappear silently.
-        self.assertEqual(39, len(resource_ids))
+        self.assertEqual(40, len(resource_ids))
         rendered_ids = re.findall(r"<!-- resource:([A-Za-z0-9_.-]+) -->", catalog)
         self.assertEqual(resource_ids, rendered_ids)
 
