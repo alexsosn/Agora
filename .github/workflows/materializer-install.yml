@@ -671,13 +671,13 @@ jobs:
                   async with ClientSession(reader, writer) as session:
                       await session.initialize()
 
-                      async def call(name, **arguments):
+                      async def call(tool_name, **arguments):
                           response = await session.call_tool(
-                              name, arguments,
+                              tool_name, arguments,
                               read_timeout_seconds=timedelta(seconds=120),
                           )
                           if response.isError:
-                              raise RuntimeError(f"{name}: {response.content}")
+                              raise RuntimeError(f"{tool_name}: {response.content}")
                           if response.structuredContent is not None:
                               data = response.structuredContent
                               return data["result"] if isinstance(data, dict) and set(data) == {"result"} else data
