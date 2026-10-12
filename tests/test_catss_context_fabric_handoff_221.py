@@ -39,6 +39,7 @@ class CatssContextFabricConsumerContractTests(unittest.TestCase):
         self.assertIn('"describe_corpus"', job)
         self.assertIn('"search"', job)
         self.assertIn('template="alignment"', job)
+        self.assertIn('matches.get("total_count") != 2', job)
         self.assertIn('"unload_corpus"', job)
         self.assertIn('"remove_cached_corpus"', job)
         self.assertIn('source_mode="offline"', job)
