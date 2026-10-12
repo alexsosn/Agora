@@ -69,7 +69,8 @@ class CalPluginRegistrationTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn('CAL_MCP_LIVE_SMOKE_MAX_ATTEMPTS: "25"', workflow)
-        self.assertIn('"actual_cal_transport_attempts": 2', workflow)
+        self.assertNotIn("CAL_MCP_LIVE_SMOKE_REPORT_PATH", workflow)
+        self.assertIn("mcp-smoke-cal.json", workflow)
         self.assertIn("mcp-live/cal-codex", workflow)
 
 
