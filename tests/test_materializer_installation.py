@@ -34,7 +34,7 @@ from scripts.agora_install_materializer import (
 from scripts.agora_materialize import materialize
 
 ROOT = Path(__file__).resolve().parents[1]
-PSEUDEPIGRAPHA_TF_COMMIT = "7c4b757bb543a110ae9a252d1281835859136852"
+PSEUDEPIGRAPHA_TF_COMMIT = "39bd9fb895d1201e9cd9260170512fd8c399a3ac"
 
 
 def _registry() -> dict:
@@ -200,7 +200,7 @@ class MaterializerRegistryTests(unittest.TestCase):
         plugin = select_plugin(load_registry(), "pseudepigrapha-tf")
         self.assertEqual(plugin["repository"], "alexsosn/Pseudepigrapha-TF")
         self.assertEqual(plugin["ref"], PSEUDEPIGRAPHA_TF_COMMIT)
-        self.assertEqual(plugin["version"], "1.0.0")
+        self.assertEqual(plugin["version"], "1.1.0")
         self.assertEqual(plugin["manifest"], "agora.materializer.json")
         self.assertEqual(plugin["materializers"], ["ocp-text-fabric"])
         self.assertEqual(plugin["package"]["install_trust"], "explicit-code-execution")
