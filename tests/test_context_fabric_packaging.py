@@ -29,8 +29,8 @@ class ContextFabricPackagingTests(unittest.TestCase):
             if resource.kind in {"corpus", "collection"}
         ]
         self.assertEqual(core_ids[:37], scope["required_resources"])
-        self.assertEqual(len(core_ids), 39)
-        self.assertEqual(core_ids[-2:], ["assyrian-royal-inscriptions", "pseudepigrapha"])
+        self.assertEqual(len(core_ids), 40)
+        self.assertEqual(core_ids[-3:], ["aleppo", "assyrian-royal-inscriptions", "pseudepigrapha"])
         self.assertEqual(len(catalog.search(kind="feature-module")), 22)
 
     def test_bundled_catalog_is_a_lossless_projection_of_registry(self):
