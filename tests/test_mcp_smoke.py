@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import unittest
+from types import SimpleNamespace
 from datetime import datetime, timezone
 
 from scripts.smoke_mcp_plugin import (
     ROOT,
     SMOKE_CASES,
+    SmokePhaseError,
+    _exercise_session,
     build_error_report,
     build_trace_metadata,
     load_plugin_launch,
@@ -147,6 +151,47 @@ class MCPSmokeHarnessTests(unittest.TestCase):
             ("--constraint", "runtime-constraints.txt", "--from", "cal-mcp==0.1.0", "cal-mcp"),
         )
         self.assertEqual(launch.cwd, ROOT / "plugins/cal")
+
+    def test_cal_live_check_requires_found_status_and_provenance(self):
+        class FakeSession:
+            def __init__(self, value):
+                self.value = value
+                self.calls = 0
+
+            async def initialize(self):
+                return SimpleNamespace()
+
+            async def list_tools(self):
+                return SimpleNamespace(
+                    tools=[SimpleNamespace(name=name) for name in SMOKE_CASES["cal"].expected_tools]
+                )
+
+            async def call_tool(self, name, *, arguments):
+                self.calls += 1
+                self_name, self_args = SMOKE_CASES["cal"].tool_call
+                assert name == self_name
+                assert arguments == self_args
+                return SimpleNamespace(
+                    is_error=False,
+                    structured_content=self.value,
+                    content=[],
+                )
+
+        async def exercise(value):
+            session = FakeSession(value)
+            await _exercise_session(
+                session, "cal", SMOKE_CASES["cal"],
+                startup_only=False, root=ROOT,
+            )
+            self.assertEqual(session.calls, 1)
+
+        asyncio.run(exercise({"status": "found", "provenance": {"source": "CAL"}}))
+        for bad in (
+            {"status": "not_found", "provenance": {"source": "CAL"}},
+            {"status": "found", "provenance": {}},
+        ):
+            with self.subTest(bad=bad), self.assertRaises(SmokePhaseError):
+                asyncio.run(exercise(bad))
 
     def test_loader_rejects_non_stdio_or_mismatched_configs(self):
         with self.assertRaises(KeyError):
