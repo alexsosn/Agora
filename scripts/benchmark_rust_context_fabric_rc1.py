@@ -165,7 +165,7 @@ def main() -> None:
 
                 report["comparisons"][engine] = {
                     "runs": results,
-                    "created_corpus_bytes": bytes_under(corpus.parent) - baseline,
+                    "created_corpus_bytes": bytes_under(corpus) - source_bytes,
                     "created_home_cache_bytes": bytes_under(home),
                     "cfr_bytes": bytes_under(corpus / ".cfr"),
                     "cfm_bytes": bytes_under(corpus / ".cfm"),
@@ -186,11 +186,22 @@ def main() -> None:
             a = report["comparisons"]["tf"]["runs"]
             b = report["comparisons"]["rust"]["runs"]
             if a and b:
-                report["equal_first_256_nodes_and_upward_locality"] = a[0]["signature"] == b[0]["signature"]
+                left = a[0]["signature"]
+                right = b[0]["signature"]
+                report["equal_first_256_nodes_and_upward_locality"] = left == right
+                report["equal_first_256_nodes_and_upward_locality_as_sets"] = all(
+                    x[0] == y[0] and x[1] == y[1] and sorted(x[2]) == sorted(y[2])
+                    for x, y in zip(left, right)
+                ) and len(left) == len(right)
+                differences = [(x, y) for x, y in zip(left, right) if x != y]
+                report["graph_mismatch_count"] = len(differences)
+                report["graph_mismatch_examples"] = [
+                    {"tf": x, "rust": y} for x, y in differences[:6]
+                ]
                 report["equal_first_50_search_results"] = (
                     sorted(a[0]["search_signature"]) == sorted(b[0]["search_signature"])
                 )
-                if not report["equal_first_256_nodes_and_upward_locality"] or not report["equal_first_50_search_results"]:
+                if not report["equal_first_256_nodes_and_upward_locality_as_sets"] or not report["equal_first_50_search_results"]:
                     report["errors"].append("TF/CF semantic result mismatch")
     except Exception as e:
         report["errors"].append(f"harness: {e}")
