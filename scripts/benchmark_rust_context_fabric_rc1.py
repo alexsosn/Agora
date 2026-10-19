@@ -101,7 +101,7 @@ def worker(engine: str, corpus: Path, output: Path) -> None:
     nodes = range(1, 257)
     t = time.perf_counter()
     signatures = [
-        [n, F.otype.v(n), list(L.u(n))[:8]] for n in nodes
+        [n, F.otype.v(n), list(L.u(n))] for n in nodes
     ]
     traversal_s = time.perf_counter() - t
     lookup_samples = []
