@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import resource
 import shutil
 import statistics
@@ -32,25 +33,48 @@ METRICS = (
 )
 
 
-def known_legacy_warm_cache_failure(engine: str, iteration: int, stderr: str) -> bool:
-    """Only classify the exact #263 empty-feature cache failure as known.
+def _empty_string_tf_feature(path: Path) -> bool:
+    """Verify an empty source feature without parsing or repairing CF caches."""
+    if not path.is_file() or path.is_symlink():
+        return False
+    in_data = False
+    is_string = False
+    try:
+        with path.open(encoding="utf-8") as stream:
+            for raw in stream:
+                stripped = raw.strip()
+                if not in_data:
+                    if not stripped:
+                        in_data = True
+                    elif not stripped.startswith("@"):
+                        return False
+                    elif stripped == "@valueType=str":
+                        is_string = True
+                elif stripped:
+                    return False
+    except (OSError, UnicodeError):
+        return False
+    return in_data and is_string
 
-    A missing file in any other feature, format, or engine is an unexpected
-    failure and remains a blocking regression. Never repair upstream data.
+
+def known_legacy_warm_cache_failure(
+    engine: str, iteration: int, stderr: str, corpus: Path
+) -> bool:
+    """Suppress only #263: a missing compiled string pool for an empty TF feature.
+
+    The failed cache path must be inside the *current* corpus and its native
+    source feature must contain no data lines. A similarly shaped failure for
+    a nonempty/unknown feature remains an error. Never fix upstream caches here.
     """
-    return (
-        engine == "legacy"
-        and iteration > 0
-        and "FileNotFoundError" in stderr
-        and "No such file or directory" in stderr
-        and any(
-            suffix in stderr
-            for suffix in (
-                "/.cfm/1/features/ellipsis_text_strings.npy",
-                "/.cfm/1/features/prefix_utf8_strings.npy",
-            )
-        )
-    )
+    if (engine != "legacy" or iteration == 0
+            or "FileNotFoundError" not in stderr
+            or "No such file or directory" not in stderr):
+        return False
+    path_prefix = re.escape(str(corpus.resolve())) + r"/\.cfm/1/features/"
+    match = re.search(path_prefix + r"([A-Za-z][A-Za-z0-9_]*)_strings\.npy", stderr)
+    if match is None:
+        return False
+    return _empty_string_tf_feature(corpus / f"{match.group(1)}.tf")
 
 
 def summarize_attempts(attempts: list[dict]) -> dict:
@@ -218,7 +242,7 @@ def main() -> None:
                         )
                         if proc.returncode:
                             detail = proc.stderr[-3000:]
-                            if known_legacy_warm_cache_failure(engine, iteration, detail):
+                            if known_legacy_warm_cache_failure(engine, iteration, detail, corpus):
                                 item = {
                                     "iteration": iteration, "status": "known_upstream_failure",
                                     "issue": "https://github.com/alexsosn/Agora/issues/263",
