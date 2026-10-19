@@ -6,6 +6,7 @@ not assert third-party corpus engine semantics.
 import unittest
 import importlib.util
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 
 SOURCE = Path(__file__).resolve().parents[1] / "scripts" / "benchmark_rust_context_fabric_rc1.py"
@@ -21,28 +22,29 @@ MISSING_EMPTY_STRINGS = (
 
 
 class BenchmarkHarnessTests(unittest.TestCase):
-    def test_known_legacy_warm_cache_error_is_only_recognized_for_pinned_empty_feature(self):
-        assert benchmark.known_legacy_warm_cache_failure(
-            "legacy", 1, MISSING_EMPTY_STRINGS
-        )
-        assert benchmark.known_legacy_warm_cache_failure(
-            "legacy", 2, MISSING_EMPTY_STRINGS
-        )
-        assert not benchmark.known_legacy_warm_cache_failure(
-            "legacy", 0, MISSING_EMPTY_STRINGS
-        )
-        assert not benchmark.known_legacy_warm_cache_failure(
-            "rust", 1, MISSING_EMPTY_STRINGS
-        )
-        assert not benchmark.known_legacy_warm_cache_failure(
-            "legacy", 1,
-            MISSING_EMPTY_STRINGS.replace("ellipsis_text", "real_word")
-        )
-        assert not benchmark.known_legacy_warm_cache_failure(
-            "legacy", 1,
-            MISSING_EMPTY_STRINGS.replace("FileNotFoundError", "PermissionError")
-        )
-    
+    def test_classify_only_missing_cache_of_actually_empty_tf_feature(self):
+        with TemporaryDirectory() as temp:
+            corpus = Path(temp)
+            (corpus / "resource_name.tf").write_text("@node\n@valueType=str\n\n")
+            missing = (
+                f"FileNotFoundError: [Errno 2] No such file or directory: "
+                f"'{corpus}/.cfm/1/features/resource_name_strings.npy'"
+            )
+            assert benchmark.known_legacy_warm_cache_failure("legacy", 1, missing, corpus)
+            assert not benchmark.known_legacy_warm_cache_failure("rust", 1, missing, corpus)
+            assert not benchmark.known_legacy_warm_cache_failure("legacy", 0, missing, corpus)
+            assert not benchmark.known_legacy_warm_cache_failure(
+                "legacy", 1, missing.replace("FileNotFoundError", "PermissionError"), corpus
+            )
+            (corpus / "resource_name.tf").write_text("@node\n@valueType=str\n\n1\tvalue\n")
+            assert not benchmark.known_legacy_warm_cache_failure("legacy", 1, missing, corpus)
+            (corpus / "resource_name.tf").unlink()
+            assert not benchmark.known_legacy_warm_cache_failure("legacy", 1, missing, corpus)
+            (corpus / "other.tf").write_text("@node\n@valueType=str\n\n")
+            assert not benchmark.known_legacy_warm_cache_failure(
+                "legacy", 1, missing.replace("resource_name", "../other"), corpus
+            )
+
     def test_per_engine_attempts_preserve_gaps_without_inventing_warm_numbers(self):
         attempts = [
             {"iteration": 0, "status": "ok", "metrics": {
