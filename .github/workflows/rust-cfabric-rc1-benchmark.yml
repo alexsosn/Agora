@@ -13,7 +13,7 @@ permissions:
 jobs:
   native-corpus-benchmark:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,8 +23,12 @@ jobs:
           python-version: '3.13'
       - name: Install pinned comparison engines
         run: python -m pip install text-fabric==13.1.0 context-fabric==0.6.0rc1
-      - name: Run independent-process cold/warm benchmark on checksum-pinned registered Agora corpus
-        run: python scripts/benchmark_rust_context_fabric_rc1.py
+      - name: Install separate Agora-baseline Context-Fabric 0.5.8 environment
+        run: |
+          python -m venv "$RUNNER_TEMP/legacy-cfabric"
+          "$RUNNER_TEMP/legacy-cfabric/bin/python" -m pip install context-fabric==0.5.8
+      - name: Run three-engine cold/warm benchmark on checksum-pinned Agora corpus
+        run: python scripts/benchmark_rust_context_fabric_rc1.py --legacy-python "$RUNNER_TEMP/legacy-cfabric/bin/python"
       - name: Upload complete benchmark evidence even on mismatch
         if: always()
         uses: actions/upload-artifact@v4

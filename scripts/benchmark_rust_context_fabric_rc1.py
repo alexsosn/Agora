@@ -32,10 +32,12 @@ def bytes_under(root: Path) -> int:
 
 
 def worker(engine: str, corpus: Path, output: Path) -> None:
-    from tf.fabric import Fabric as TFFabric
     if engine == "tf":
-        Fabric = TFFabric
+        from tf.fabric import Fabric
         package = "text-fabric"
+    elif engine == "legacy":
+        from cfabric.core import Fabric
+        package = "context-fabric"
     else:
         from cfabric import Fabric
         package = "context-fabric"
@@ -91,13 +93,16 @@ def worker(engine: str, corpus: Path, output: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--worker", choices=["tf", "rust"])
+    parser.add_argument("--worker", choices=["tf", "legacy", "rust"])
     parser.add_argument("--corpus", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--legacy-python", type=Path)
     args = parser.parse_args()
     if args.worker:
         worker(args.worker, args.corpus, args.output)
         return
+    if not args.legacy_python:
+        parser.error("--legacy-python is required for the actual Agora baseline")
 
     report = {
         "dataset": "Pseudepigrapha-TF v1.0.0 / tf-1.0.zip (registered Agora corpus)",
@@ -137,7 +142,7 @@ def main() -> None:
             report["source_tree_bytes"] = source_bytes
             report["archive_bytes"] = downloaded.stat().st_size
 
-            for engine in ("tf", "rust"):
+            for engine in ("tf", "legacy", "rust"):
                 corpus = work / engine / "corpus"
                 corpus.parent.mkdir()
                 shutil.copytree(source, corpus)
@@ -148,7 +153,8 @@ def main() -> None:
                 baseline = bytes_under(corpus.parent)
                 for iteration in range(3):
                     metric_file = work / f"{engine}-{iteration}.json"
-                    cmd = [sys.executable, __file__, "--worker", engine,
+                    python = args.legacy_python if engine == "legacy" else Path(sys.executable)
+                    cmd = [str(python), __file__, "--worker", engine,
                            "--corpus", str(corpus), "--output", str(metric_file)]
                     try:
                         proc = subprocess.run(
@@ -185,6 +191,7 @@ def main() -> None:
                         }
             a = report["comparisons"]["tf"]["runs"]
             b = report["comparisons"]["rust"]["runs"]
+            c = report["comparisons"]["legacy"]["runs"]
             if a and b:
                 left = a[0]["signature"]
                 right = b[0]["signature"]
@@ -202,7 +209,15 @@ def main() -> None:
                     sorted(a[0]["search_signature"]) == sorted(b[0]["search_signature"])
                 )
                 if not report["equal_first_256_nodes_and_upward_locality_as_sets"] or not report["equal_first_50_search_results"]:
-                    report["errors"].append("TF/CF semantic result mismatch")
+                    report["errors"].append("TF/Rust CF semantic result mismatch")
+            if a and c:
+                report["legacy_vs_tf_equal_first_256_as_sets"] = all(
+                    x[0] == y[0] and x[1] == y[1] and sorted(x[2]) == sorted(y[2])
+                    for x, y in zip(a[0]["signature"], c[0]["signature"])
+                )
+                report["legacy_vs_tf_equal_first_50_search_results"] = (
+                    sorted(a[0]["search_signature"]) == sorted(c[0]["search_signature"])
+                )
     except Exception as e:
         report["errors"].append(f"harness: {e}")
     finally:
