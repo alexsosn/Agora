@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import resource
 import shutil
 import statistics
@@ -25,6 +26,53 @@ from pathlib import Path
 
 ASSET = "https://github.com/alexsosn/Pseudepigrapha-TF/releases/download/v1.0.0/tf-1.0.zip"
 EXPECTED_SHA256 = "d2dfad7e643699617a9493b9f5d724868f8027dd5f2e88bd558451e3e7819b7a"
+METRICS = (
+    "load_seconds", "peak_rss_mib",
+    "lookup_10000_median_seconds", "search_50_median_seconds"
+)
+
+
+def known_legacy_warm_cache_failure(engine: str, iteration: int, stderr: str) -> bool:
+    """Only classify the exact #263 empty-feature cache failure as known.
+
+    A missing file in any other feature, format, or engine is an unexpected
+    failure and remains a blocking regression. Never repair upstream data.
+    """
+    return (
+        engine == "legacy"
+        and iteration > 0
+        and "FileNotFoundError" in stderr
+        and "No such file or directory" in stderr
+        and any(
+            suffix in stderr
+            for suffix in (
+                "/.cfm/1/features/ellipsis_text_strings.npy",
+                "/.cfm/1/features/prefix_utf8_strings.npy",
+            )
+        )
+    )
+
+
+def summarize_attempts(attempts: list[dict]) -> dict:
+    """Keep success sample counts visible; missing warm runs are not zero."""
+    cold = next(
+        (a["metrics"] for a in attempts if a["iteration"] == 0 and a["status"] == "ok"),
+        None,
+    )
+    warm = [
+        a["metrics"] for a in attempts
+        if a["iteration"] > 0 and a["status"] == "ok"
+    ]
+    return {
+        "cold": {k: cold[k] for k in METRICS} if cold else None,
+        "cold_n": int(cold is not None),
+        "warm_median": {
+            k: round(statistics.median(item[k] for item in warm), 6)
+            for k in METRICS
+        } if warm else None,
+        "warm_n": len(warm),
+        "known_failures": sum(a["status"] == "known_upstream_failure" for a in attempts),
+    }
 
 
 def bytes_under(root: Path) -> int:
@@ -110,6 +158,14 @@ def main() -> None:
         "asset_sha256": EXPECTED_SHA256,
         "comparisons": {},
         "errors": [],
+        "known_upstream_failures": [],
+        "environment": {
+            "python": sys.version.split()[0],
+            "system": platform.platform(),
+            "machine": platform.machine(),
+            "method": "isolated subprocesses: 1 cold + 2 warm, per-process peak ru_maxrss",
+            "warning": "Process RSS is not aggregate Agora server + worker RSS",
+        },
     }
     report_file = Path("rust-cfabric-rc1-benchmark.json")
     try:
@@ -150,7 +206,7 @@ def main() -> None:
                 home.mkdir()
                 env = dict(os.environ, HOME=str(home), CFABRIC_CACHE=str(home / "cfabric-cache"))
                 results = []
-                baseline = bytes_under(corpus.parent)
+                attempts = []
                 for iteration in range(3):
                     metric_file = work / f"{engine}-{iteration}.json"
                     python = args.legacy_python if engine == "legacy" else Path(sys.executable)
@@ -161,34 +217,47 @@ def main() -> None:
                             cmd, text=True, capture_output=True, env=env, timeout=600
                         )
                         if proc.returncode:
-                            raise RuntimeError(
-                                f"exit={proc.returncode}; stdout={proc.stdout[-1800:]}; stderr={proc.stderr[-3000:]}"
-                            )
-                        results.append(json.loads(metric_file.read_text(encoding="utf-8")))
-                    except Exception as e:
-                        report["errors"].append(f"{engine}[{iteration}]: {e}")
-                        break
+                            detail = proc.stderr[-3000:]
+                            if known_legacy_warm_cache_failure(engine, iteration, detail):
+                                item = {
+                                    "iteration": iteration, "status": "known_upstream_failure",
+                                    "issue": "https://github.com/alexsosn/Agora/issues/263",
+                                    "stderr_tail": detail,
+                                }
+                                report["known_upstream_failures"].append(
+                                    {"engine": engine, "iteration": iteration, "issue": item["issue"]}
+                                )
+                            else:
+                                item = {"iteration": iteration, "status": "failed",
+                                        "exit_code": proc.returncode, "stderr_tail": detail}
+                                report["errors"].append(
+                                    f"{engine}[{iteration}]: exit={proc.returncode}; {detail}"
+                                )
+                            attempts.append(item)
+                            continue
+                        sample = json.loads(metric_file.read_text(encoding="utf-8"))
+                        results.append(sample)
+                        attempts.append({"iteration": iteration, "status": "ok", "metrics": sample})
+                    except Exception as exc:
+                        attempts.append({"iteration": iteration, "status": "failed",
+                                         "exception": repr(exc)})
+                        report["errors"].append(f"{engine}[{iteration}]: {exc}")
 
-                report["comparisons"][engine] = {
-                    "runs": results,
-                    "created_corpus_bytes": bytes_under(corpus) - source_bytes,
-                    "created_home_cache_bytes": bytes_under(home),
+                sizes = {
                     "cfr_bytes": bytes_under(corpus / ".cfr"),
                     "cfm_bytes": bytes_under(corpus / ".cfm"),
+                    "created_home_cache_bytes": bytes_under(home),
                 }
-                if results:
-                    report["comparisons"][engine]["cold"] = {
-                        k: results[0][k] for k in (
-                            "load_seconds", "peak_rss_mib", "lookup_10000_median_seconds",
-                            "search_50_median_seconds"
-                        )
-                    }
-                    if len(results) > 1:
-                        report["comparisons"][engine]["warm_median"] = {
-                            key: round(statistics.median(r[key] for r in results[1:]), 6)
-                            for key in ("load_seconds", "peak_rss_mib", "lookup_10000_median_seconds",
-                                        "search_50_median_seconds")
-                        }
+                sizes["created_corpus_bytes"] = bytes_under(corpus) - source_bytes
+                sizes["other_created_corpus_bytes"] = (
+                    sizes["created_corpus_bytes"] - sizes["cfr_bytes"] - sizes["cfm_bytes"]
+                )
+                report["comparisons"][engine] = {
+                    "runs": results,
+                    "attempts": attempts,
+                    **sizes,
+                    **summarize_attempts(attempts),
+                }
             a = report["comparisons"]["tf"]["runs"]
             b = report["comparisons"]["rust"]["runs"]
             c = report["comparisons"]["legacy"]["runs"]
@@ -218,6 +287,8 @@ def main() -> None:
                 report["legacy_vs_tf_equal_first_50_search_results"] = (
                     sorted(a[0]["search_signature"]) == sorted(c[0]["search_signature"])
                 )
+                if not report["legacy_vs_tf_equal_first_256_as_sets"] or not report["legacy_vs_tf_equal_first_50_search_results"]:
+                    report["errors"].append("TF/legacy CF semantic result mismatch")
     except Exception as e:
         report["errors"].append(f"harness: {e}")
     finally:
@@ -227,7 +298,7 @@ def main() -> None:
             "dataset": report["dataset"],
             "source_tf_bytes": report.get("source_tf_bytes"),
             "results": {
-                k: {kk: vv for kk, vv in v.items() if kk != "runs"}
+                k: {kk: vv for kk, vv in v.items() if kk not in {"runs", "attempts"}}
                 for k, v in report["comparisons"].items()
             },
             "semantic_equal": (
@@ -235,6 +306,7 @@ def main() -> None:
                 report.get("equal_first_50_search_results")
             ),
             "errors": report["errors"],
+            "known_upstream_failures": report["known_upstream_failures"],
         }, indent=2))
     if report["errors"]:
         sys.exit(1)
