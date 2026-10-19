@@ -1,0 +1,88 @@
+name: Research - Rust Context-Fabric 0.6.0rc1 on Agora corpus
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/rust-cfabric-rc1-benchmark.yml'
+      - 'scripts/benchmark_rust_context_fabric_rc1.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-corpus-benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install pinned comparison engines
+        run: python -m pip install text-fabric==13.1.0 context-fabric==0.6.0rc1
+      - name: Run independent-process cold/warm benchmark on checksum-pinned registered Agora corpus
+        run: python scripts/benchmark_rust_context_fabric_rc1.py
+      - name: Upload complete benchmark evidence even on mismatch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-cfabric-rc1-real-corpus-evidence
+          path: rust-cfabric-rc1-benchmark.json
+          if-no-files-found: warn
+
+  agora-runtime-compatibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install unchanged Agora plugin dependencies
+        run: python -m pip install -e plugins/context-fabric
+      - name: Check pinned Agora baseline startup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+          from importlib.metadata import version
+          from agora_context_fabric.server import build_runtime
+          with TemporaryDirectory() as cache:
+              build_runtime(Path(cache), plugin_root=Path("plugins/context-fabric"))
+          print("Baseline OK: cfabric", version("context-fabric"), "cfabric-mcp", version("cfabric-mcp"))
+          PY
+      - name: Force install Rust pre-release without changing Agora source or pins
+        run: python -m pip install --no-deps --force-reinstall context-fabric==0.6.0rc1
+      - name: Probe actual Agora startup contract against Rust release
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from tempfile import TemporaryDirectory
+          from importlib.metadata import version
+          import json
+          result = {"engine_version": version("context-fabric"),
+                    "cfabric_mcp_version": version("cfabric-mcp")}
+          try:
+              from agora_context_fabric.server import build_runtime
+              with TemporaryDirectory() as cache:
+                  build_runtime(Path(cache), plugin_root=Path("plugins/context-fabric"))
+              result["startup"] = "ok"
+          except Exception as exc:
+              result["startup"] = "failed"
+              result["exception"] = type(exc).__name__
+              result["message"] = str(exc)
+          Path("agora-rust-rc1-compatibility.json").write_text(json.dumps(result, indent=2))
+          print(json.dumps(result, indent=2))
+          PY
+      - name: Upload compatibility result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agora-rust-rc1-compatibility
+          path: agora-rust-rc1-compatibility.json
+          if-no-files-found: warn
