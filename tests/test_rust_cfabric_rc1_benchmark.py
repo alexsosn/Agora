@@ -43,7 +43,7 @@ class BenchmarkHarnessTests(unittest.TestCase):
             MISSING_EMPTY_STRINGS.replace("FileNotFoundError", "PermissionError")
         )
     
-        def test_per_engine_attempts_preserve_gaps_without_inventing_warm_numbers(self):
+    def test_per_engine_attempts_preserve_gaps_without_inventing_warm_numbers(self):
         attempts = [
             {"iteration": 0, "status": "ok", "metrics": {
                 "load_seconds": 10.0,
@@ -65,7 +65,7 @@ class BenchmarkHarnessTests(unittest.TestCase):
         assert out["warm_n"] == 1
         assert out["known_failures"] == 1
     
-        def test_warm_cache_missing_does_not_get_fabricated_statistics(self):
+    def test_warm_cache_missing_does_not_get_fabricated_statistics(self):
         out = benchmark.summarize_attempts([
             {"iteration": 0, "status": "ok", "metrics": {
                 "load_seconds": 10.0, "peak_rss_mib": 100.0,
