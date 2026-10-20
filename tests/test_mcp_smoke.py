@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import unittest
+from types import SimpleNamespace
 from datetime import datetime, timezone
 
 from scripts.smoke_mcp_plugin import (
     ROOT,
     SMOKE_CASES,
+    SmokePhaseError,
+    _exercise_session,
     build_error_report,
     build_trace_metadata,
     load_plugin_launch,
@@ -16,7 +20,7 @@ class MCPSmokeHarnessTests(unittest.TestCase):
     def test_smoke_cases_cover_all_v01_plugins(self):
         self.assertEqual(
             set(SMOKE_CASES),
-            {"context-fabric", "perseus", "sefaria", "sedra"},
+            {"context-fabric", "perseus", "sefaria", "sedra", "cal"},
         )
         self.assertEqual(
             SMOKE_CASES["context-fabric"].expected_tools,
@@ -45,6 +49,15 @@ class MCPSmokeHarnessTests(unittest.TestCase):
         self.assertEqual(
             SMOKE_CASES["sedra"].expected_tools,
             {"lookup_word", "get_lexeme"},
+        )
+        self.assertEqual(
+            SMOKE_CASES["cal"].expected_tools,
+            {
+                "cal_lexicon_lookup",
+                "cal_text_page",
+                "cal_token_analysis",
+                "cal_bibliography_lemma",
+            },
         )
 
     def test_loader_uses_exact_generated_codex_stdio_commands(self):
@@ -125,6 +138,89 @@ class MCPSmokeHarnessTests(unittest.TestCase):
             SMOKE_CASES["sedra"].tool_call,
             ("lookup_word", {"query": "ܐܒܪܐ"}),
         )
+        self.assertEqual(
+            SMOKE_CASES["cal"].tool_call,
+            ("cal_lexicon_lookup", {"query": "br", "lemma_key": "br N"}),
+        )
+
+    def test_cal_loader_runs_exact_generated_pinned_upstream_stdio(self):
+        launch = load_plugin_launch("cal")
+        self.assertEqual(launch.command, "uvx")
+        self.assertEqual(
+            launch.args,
+            ("--constraint", "runtime-constraints.txt", "--from", "cal-mcp==0.1.0", "cal-mcp"),
+        )
+        self.assertEqual(launch.cwd, ROOT / "plugins/cal")
+
+    def test_cal_live_check_requires_found_status_and_provenance(self):
+        class FakeSession:
+            def __init__(self, value):
+                self.value = value
+                self.calls = 0
+
+            async def initialize(self):
+                return SimpleNamespace()
+
+            async def list_tools(self):
+                return SimpleNamespace(
+                    tools=[SimpleNamespace(name=name) for name in SMOKE_CASES["cal"].expected_tools]
+                )
+
+            async def call_tool(self, name, *, arguments):
+                self.calls += 1
+                self_name, self_args = SMOKE_CASES["cal"].tool_call
+                assert name == self_name
+                assert arguments == self_args
+                return SimpleNamespace(
+                    is_error=False,
+                    structured_content=self.value,
+                    content=[],
+                )
+
+        async def exercise(value):
+            session = FakeSession(value)
+            await _exercise_session(
+                session, "cal", SMOKE_CASES["cal"],
+                startup_only=False, root=ROOT,
+            )
+            self.assertEqual(session.calls, 1)
+
+        valid_provenance = {
+            "source": "CAL",
+            "source_url": "https://cal.huc.edu/cal_entry_web.php?lemma=br",
+            "retrieved_at": "2026-10-12T12:00:00+00:00",
+        }
+        valid_entry = {"lemma": {"lemma_key": "br N", "headwords": ["br"]}}
+        asyncio.run(exercise({
+            "status": "found", "entry": valid_entry, "provenance": valid_provenance,
+        }))
+        for bad, expected_error in (
+            ({"status": "found", "provenance": valid_provenance}, "requested lemma entry"),
+            ({"status": "found", "entry": None, "provenance": valid_provenance}, "requested lemma entry"),
+            ({"status": "found", "entry": {}, "provenance": valid_provenance}, "requested lemma entry"),
+            ({"status": "found", "entry": {"lemma": {"lemma_key": "wrong N", "headwords": ["wrong"]}}, "provenance": valid_provenance}, "requested lemma entry"),
+            ({"status": "found", "entry": {"lemma": {"lemma_key": "br N", "headwords": []}}, "provenance": valid_provenance}, "nonempty lexical headwords"),
+            ({"status": "found", "entry": {"lemma": {"lemma_key": "br N", "headwords": [""]}}, "provenance": valid_provenance}, "nonempty lexical headwords"),
+            ({"status": "not_found", "entry": valid_entry, "provenance": valid_provenance}, "was not found"),
+        ):
+            with self.subTest(bad=bad), self.assertRaisesRegex(SmokePhaseError, expected_error):
+                asyncio.run(exercise(bad))
+        for bad_provenance, expected_error in (
+            ({}, "upstream CAL provenance"),
+            ({"source": "CAL"}, "source_url"),
+            ({**valid_provenance, "source_url": ""}, "source_url"),
+            ({**valid_provenance, "source_url": "http://cal.huc.edu/"}, "invalid CAL source_url"),
+            ({**valid_provenance, "source_url": "https://cal.huc.edu.evil.example/"}, "invalid CAL source_url"),
+            ({**valid_provenance, "retrieved_at": ""}, "retrieved_at"),
+            ({**valid_provenance, "retrieved_at": "not-a-timestamp"}, "invalid retrieved_at"),
+            ({**valid_provenance, "retrieved_at": "2026-10-12T12:00:00"}, "lacks timezone"),
+        ):
+            with self.subTest(provenance=bad_provenance), self.assertRaisesRegex(
+                SmokePhaseError, expected_error
+            ):
+                asyncio.run(exercise({
+                    "status": "found", "entry": valid_entry, "provenance": bad_provenance,
+                }))
 
     def test_loader_rejects_non_stdio_or_mismatched_configs(self):
         with self.assertRaises(KeyError):

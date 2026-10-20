@@ -5,7 +5,7 @@ Agora currently targets **Claude Code** and **ChatGPT/Codex**. The repository co
 - `.claude-plugin/marketplace.json`
 - `.agents/plugins/marketplace.json`
 
-The marketplace ID is `agora`. The four current plugins are `context-fabric`, `perseus`, `sefaria`, and `sedra`.
+The marketplace ID is `agora`. The prospective v1.1 scope offers five plugins: `context-fabric`, `perseus`, `sefaria`, `sedra` and `cal`. The published v1.0 scope had four.
 
 Client behavior changes quickly, so this document records the currently supported flows rather than inventing a common installer that neither platform provides.
 
@@ -26,6 +26,7 @@ Then install whichever Agora plugins you need:
 /plugin install perseus@agora
 /plugin install sefaria@agora
 /plugin install sedra@agora
+/plugin install cal@agora
 ```
 
 Run:
@@ -44,6 +45,7 @@ claude plugin install context-fabric@agora
 claude plugin install perseus@agora
 claude plugin install sefaria@agora
 claude plugin install sedra@agora
+claude plugin install cal@agora
 ```
 
 To inspect the installed marketplace/plugin state, use `/plugin` in Claude Code. Agora skills are discovered automatically from each plugin root's `skills/<name>/SKILL.md` directories and appear under the plugin namespace.
@@ -85,7 +87,7 @@ Install `uv` using Astral's supported installation method for your operating sys
 
 ### Python
 
-The Context-Fabric plugin currently requires Python 3.13. The SEDRA adapter requires Python 3.11 or later. `uv` can manage project Python environments, but a compatible interpreter must be obtainable on the machine.
+The Context-Fabric plugin currently requires Python 3.13. The SEDRA adapter and published `cal-mcp==0.1.0` require Python 3.11 or later. `uv` can manage project Python environments, but a compatible interpreter must be obtainable on the machine.
 
 ### Network access
 
@@ -100,9 +102,10 @@ Context-Fabric corpus data remains external to Agora and is acquired lazily only
 
 ## What to install for a task
 
-You do not need all four plugins for every project.
+You do not need all five plugins for every project.
 
 - Install **Context-Fabric** for local structured querying of registered Text-Fabric corpora and collection members.
+- Install **CAL** to use the published CAL-MCP local stdio server for remote CAL lexical, text and bibliography research. For a bounded first use, see the [CAL lexicon walkthrough](first-success/cal.md); a successful generated Codex path is observed, while the Claude client path remains community.
 - Install **Perseus** for live Classics discovery, passage retrieval, and Scaife-backed search.
 - Install **Sefaria** for Jewish texts, translations, links/commentaries, dictionaries, topics, and manuscript resources exposed by the official Sefaria MCP.
 - Install **SEDRA** for Syriac word-form and lexeme lookup against SEDRA IV.
