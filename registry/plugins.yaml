@@ -268,3 +268,55 @@ plugins:
     - Deterministic tests cover Syriac URL encoding, JSON/error handling, tool delegation, packaging, and generated launch metadata.
     - Generated client paths use the same bounded real Syriac word lookup contract through the generic MCP harness.
     - Startup-only platform checks validate packaging/path/subprocess behavior without querying the SEDRA service.
+
+- id: nabu
+  name: Nabu
+  description: Search, read, align, and cite a locally built Nabu library of ancient-text corpora through its read-only MCP server.
+  disciplines: [assyriology, biblical-studies, classics, digital-philology, historical-linguistics]
+  upstream:
+    repository: arvicco/nabu
+    homepage: https://arvicco.github.io/nabu
+  runtime:
+    mode: local
+    type: ruby
+    notes: Nabu is a local-first Ruby 3.3+ application; the user clones arvicco/nabu, runs bundle install, and builds their own library (bin/nabu quickstart, then enable/sync per source) before launching. Both launch paths resolve the checkout through a NABU_HOME environment variable the user must set; Agora vendors no runtime and no corpus data, and nothing is hosted. The server is read-only by construction (SQLITE_OPEN_READONLY, no write tools) and serves only what the user's own library holds.
+    launch:
+      claude:
+        command: bundle
+        args: [exec, '${NABU_HOME}/bin/nabu', mcp]
+        env: {BUNDLE_GEMFILE: '${NABU_HOME}/Gemfile'}
+      codex:
+        type: stdio
+        command: bundle
+        args: [exec, '${NABU_HOME}/bin/nabu', mcp]
+        env: {BUNDLE_GEMFILE: '${NABU_HOME}/Gemfile'}
+  data_mode: local
+  capabilities: [full-text-search, passage-retrieval, reference-resolution, dictionary-lookup, lexeme-lookup, linked-text-navigation]
+  licenses: {software: MIT, data: resource-specific}
+  verification:
+    status: experimental
+    clients:
+      claude:
+        status: experimental
+        transport: stdio
+        checks:
+        - check_id: manifest/nabu-claude
+          inputs:
+            source: {repository: alexsosn/Agora, revision: self}
+            runtime: ruby>=3.3 + bundler, against a user-local arvicco/nabu checkout
+            resolution: [user-local arvicco/nabu checkout resolved at launch via NABU_HOME, gems resolved by Bundler from the checkout's own Gemfile.lock]
+            environment: {kind: user-local}
+      codex:
+        status: experimental
+        transport: stdio
+        checks:
+        - check_id: manifest/nabu-codex
+          inputs:
+            source: {repository: alexsosn/Agora, revision: self}
+            runtime: ruby>=3.3 + bundler, against a user-local arvicco/nabu checkout
+            resolution: [user-local arvicco/nabu checkout resolved at launch via NABU_HOME, gems resolved by Bundler from the checkout's own Gemfile.lock]
+            environment: {kind: user-local}
+    notes:
+    - Experimental on both clients; deterministic checks cover only the generated launch metadata. No Agora live smoke has exercised a Nabu server, because every Nabu instance is a user-built local library and Agora resolves no environment for it.
+    - Launch requires the NABU_HOME environment variable to point at the user's Nabu checkout; environment-variable expansion in generated client configurations has not been exercised by Agora on either client.
+    - Tool results depend entirely on which sources the user has enabled and synced; an unsynced library answers honestly with empty coverage.
