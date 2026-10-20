@@ -18,7 +18,7 @@ if str(CF_SRC) not in sys.path:
 
 from agora_context_fabric.catalog import Catalog
 
-UPSTREAM_COMMIT = "f58b162197ad8f113b7cd6fc0088ae5dd39a096d"
+UPSTREAM_COMMIT = "ed6c7059803ff1adee057f5bd94d3ca661aac187"
 CUC_COMMIT = "0408967b1808c1f22c69e299d302b1e7b5e26354"
 
 
@@ -42,7 +42,7 @@ class CtcBurnsCanonicalProducerRegistrationRedTests(unittest.TestCase):
             "type": "python-project", "path": ".",
             "install_trust": "explicit-code-execution",
         })
-        self.assertEqual(p["release_tracking"], {"mode": "disabled"})
+        self.assertEqual(p["release_tracking"], {"mode": "github-releases", "channel": "stable", "tag_prefix": "v"})
         self.assertEqual(p["licenses"]["software"], "MIT")
 
     def test_local_feature_module_is_bound_to_only_pinned_cuc_burns_producer(self):
