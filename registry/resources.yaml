@@ -882,3 +882,36 @@ resources:
   integration_issues:
   - https://github.com/alexsosn/Agora/issues/203
   source_snapshot: {source: MartijnNaaijer/aleppo@db38ddc918fd5d6e47a118f24545bd925975a597, checked_at: '2026-10-12'}
+
+- id: nabu-library
+  name: Nabu library (locally built)
+  plugin: nabu
+  provider: nabu
+  kind: corpus
+  # The controlled vocabulary subset the library verifiably covers; upstream's
+  # site reports 222 language codes in total (2026-10-19), far beyond this list.
+  languages: [akkadian, aramaic, arabic, dutch, english, french, greek, hebrew, hittite, latin, pali, proto-cuneiform, syriac, ugaritic]
+  disciplines: [assyriology, biblical-studies, classics, digital-philology, historical-linguistics]
+  period: late 4th millennium BCE - 19th century CE
+  description: The user's own locally built Nabu catalog of ancient-text corpora — upstream's reference install reports 2,436,904 documents / 114,182,100 passages across 216 live sources as of 2026-10-19; each user's library holds whatever subset of sources that user has synced.
+  upstream: {repository: arvicco/nabu}
+  acquisition:
+    strategy: repository
+    lazy: true
+    notes: The user clones arvicco/nabu and builds the library themselves (bundle install, then bin/nabu quickstart or enable/sync per source); corpus data is fetched per enabled source by Nabu's own pipeline. Agora materializes nothing.
+  licenses:
+    data: component-specific
+    redistribution: restricted
+    notes: Every ingested text keeps its upstream license, recorded per document as a license class (open / attribution / nc) that every MCP result carries. Upstream reports roughly 94% of documents as public-domain or attribution-class; non-commercial shelves are never redistributed by the tooling, and some sources are held under personal research grants. Per-source terms are maintained in upstream's source inventory.
+    evidence:
+      status: component-specific
+      checked_at: '2026-10-20'
+      sources:
+        - https://github.com/arvicco/nabu/blob/main/docs/02-sources.md
+        - https://arvicco.github.io/nabu/sources/
+        - https://arvicco.github.io/nabu/
+  verification:
+    status: experimental
+    notes:
+      - No Agora check has loaded or inspected a Nabu library; contents are user-built and vary per install, so loadability and representative-content evidence would not transfer between installs.
+  source_snapshot: {source: 'arvicco/nabu:README.md + https://arvicco.github.io/nabu/', checked_at: '2026-10-20'}

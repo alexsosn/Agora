@@ -1,0 +1,13 @@
+{
+  "nabu": {
+    "command": "bundle",
+    "args": [
+      "exec",
+      "${NABU_HOME}/bin/nabu",
+      "mcp"
+    ],
+    "env": {
+      "BUNDLE_GEMFILE": "${NABU_HOME}/Gemfile"
+    }
+  }
+}

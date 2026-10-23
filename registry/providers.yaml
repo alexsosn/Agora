@@ -65,3 +65,18 @@ providers:
         - check_id: mcp-live/sedra-codex
       notes:
         - A live Agora smoke has observed the provider path completing a real SEDRA lookup; resource and data quality remain separate dimensions.
+
+  - id: nabu
+    name: Nabu local library
+    plugin: nabu
+    description: Read-only local Nabu runtime over the ancient-text library the user has built and synced on their own machine.
+    access:
+      runtime_mode: local
+      data_mode: local
+    upstream:
+      repository: arvicco/nabu
+      homepage: https://arvicco.github.io/nabu
+    health:
+      status: unknown
+      notes:
+        - Nabu runs entirely on the user's machine against a library the user builds; there is no hosted endpoint, and no Agora live check has observed a Nabu runtime, so Agora makes no operational claim.

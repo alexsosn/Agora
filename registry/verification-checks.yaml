@@ -297,3 +297,23 @@ checks:
       job: representative-loads
       matrix: {case: greek-known-bad, check_id: member-canary/greek-argonautica}
       artifact: context-fabric-load-greek-known-bad
+
+  - id: manifest/nabu-claude
+    kind: deterministic
+    plugin: nabu
+    client: claude
+    transport: stdio
+    evidence_level: community
+    executor:
+      type: unittest
+      target: tests.test_generation_nabu.NabuManifestTests.test_nabu_claude_mcp_launches_user_checkout
+
+  - id: manifest/nabu-codex
+    kind: deterministic
+    plugin: nabu
+    client: codex
+    transport: stdio
+    evidence_level: community
+    executor:
+      type: unittest
+      target: tests.test_generation_nabu.NabuManifestTests.test_nabu_codex_mcp_launches_user_checkout
