@@ -343,6 +343,16 @@ def _bind_environment_identity(
     kind = bound.get("kind")
     if kind == "hosted":
         return bound
+    if kind == "user-local":
+        # Fail closed, deliberately: a user-local environment exists only on
+        # an operator's own machine and carries no repository identity, so
+        # this harness has nothing it can bind or verify. A live smoke for
+        # such a plugin runs on the operator's machine with its own script
+        # (scripts/smoke_nabu_user_local.py is the model), never here.
+        raise ValueError(
+            f"{label}: user-local environments cannot be bound by this harness — "
+            "they resolve only on the operator's own machine"
+        )
     if kind not in FILE_BACKED_ENVIRONMENT_KINDS:
         raise ValueError(f"{label}: unsupported dependency environment kind {kind!r}")
     relative = bound.get("path")
