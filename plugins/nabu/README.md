@@ -62,13 +62,31 @@ The server speaks MCP revision 2025-11-25 over stdio (newline-delimited
 JSON-RPC 2.0); stdout carries only protocol messages, diagnostics go to
 stderr.
 
+## Verifying the launch
+
+Before pointing a client at the server, prove the generated launch on your
+machine with the bounded startup smoke:
+
+```bash
+NABU_HOME=/path/to/your/nabu python3 scripts/smoke_nabu_user_local.py
+```
+
+It expands `${NABU_HOME}` exactly as the generated `mcp.json` states, starts
+the server from a foreign working directory through Bundler, performs MCP
+initialize → tools/list → one read-only `nabu_status` call under hard
+timeouts, and exits 0 with a transcript. Without `NABU_HOME` it refuses
+immediately and says why. Until that smoke passes on your machine, treat the
+installation as unverified — Agora's own CI never launches a Nabu server,
+because the runtime exists only where a user has built a library.
+
 ## Tools
 
-Thirteen read-only tools (the server's complete registry):
+Fourteen read-only tools (the server's complete registry):
 
 | Tool | What it does |
 |---|---|
 | `nabu_search` | Full-text search (lemma, proximity, fuzzy-fragment, date/place/kind filters) |
+| `nabu_clarify` | The reference normalizer: a partial or misspelled work/passage reference resolved to URNs |
 | `nabu_show` | A passage, document, or citation range by URN, with license and provenance |
 | `nabu_concord` | KWIC concordance |
 | `nabu_align` | One citation across every registered witness of an aligned work |
