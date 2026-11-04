@@ -1,6 +1,6 @@
 {
   "name": "sedra",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Syriac lexical and morphological lookup against Beth Mardutho's Syriac Electronic Data Research Archive.",
   "author": {
     "name": "Agora contributors",

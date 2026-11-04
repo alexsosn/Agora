@@ -32,6 +32,7 @@ EXITS = {
     "perseus": ("perseus-passage-works-but-navigation-fails",),
     "sefaria": ("sefaria-search-repeats-a-reference",),
     "sedra": ("remote-lookup-fails",),
+    "cal": ("remote-lookup-fails",),
 }
 ISSUES = {
     "sefaria/search-version-duplicates": "sefaria-search-repeats-a-reference",

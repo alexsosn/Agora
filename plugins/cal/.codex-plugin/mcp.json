@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "cal": {
+      "type": "stdio",
+      "cwd": ".",
+      "command": "uvx",
+      "args": [
+        "--constraint",
+        "runtime-constraints.txt",
+        "--from",
+        "cal-mcp==0.1.0",
+        "cal-mcp"
+      ]
+    }
+  }
+}

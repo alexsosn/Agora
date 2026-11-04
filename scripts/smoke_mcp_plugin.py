@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Mapping
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -94,6 +95,15 @@ SMOKE_CASES: dict[str, SmokeCase] = {
     "sedra": SmokeCase(
         expected_tools={"lookup_word", "get_lexeme"},
         tool_call=("lookup_word", {"query": "ܐܒܪܐ"}),
+    ),
+    "cal": SmokeCase(
+        expected_tools={
+            "cal_lexicon_lookup",
+            "cal_text_page",
+            "cal_token_analysis",
+            "cal_bibliography_lemma",
+        },
+        tool_call=("cal_lexicon_lookup", {"query": "br", "lemma_key": "br N"}),
     ),
 }
 
@@ -814,6 +824,51 @@ async def _exercise_session(
             raise RuntimeError(f"{plugin_id} live tool {tool_name!r} returned an MCP error: {result}")
         if not _tool_has_payload(result):
             raise RuntimeError(f"{plugin_id} live tool {tool_name!r} returned no payload")
+        if plugin_id == "cal":
+            value = _json_object_from_tool_result(
+                result, plugin_id=plugin_id, tool_name=tool_name
+            )
+            if value.get("status") != "found":
+                raise RuntimeError(
+                    f"CAL representative lexicon lookup was not found: {value.get('status')!r}"
+                )
+            entry = value.get("entry")
+            lemma = entry.get("lemma") if isinstance(entry, Mapping) else None
+            requested_lemma_key = case.tool_call[1]["lemma_key"]
+            if not isinstance(lemma, Mapping) or lemma.get("lemma_key") != requested_lemma_key:
+                raise RuntimeError("CAL found result lacks the specifically requested lemma entry")
+            headwords = lemma.get("headwords")
+            if not isinstance(headwords, list) or not headwords or not all(
+                isinstance(word, str) and word.strip() for word in headwords
+            ):
+                raise RuntimeError("CAL found result lacks nonempty lexical headwords")
+            provenance = value.get("provenance")
+            if not isinstance(provenance, Mapping) or provenance.get("source") != "CAL":
+                raise RuntimeError("CAL representative lookup lacks upstream CAL provenance")
+            source_url = provenance.get("source_url")
+            if not isinstance(source_url, str) or not source_url.strip():
+                raise RuntimeError("CAL representative lookup has no source_url")
+            try:
+                parsed_url = urlsplit(source_url)
+                cal_origin = (
+                    parsed_url.scheme == "https"
+                    and parsed_url.hostname == "cal.huc.edu"
+                    and parsed_url.username is None
+                    and parsed_url.password is None
+                )
+            except ValueError:
+                cal_origin = False
+            if not cal_origin:
+                raise RuntimeError("CAL representative lookup has invalid CAL source_url")
+            retrieved_at = provenance.get("retrieved_at")
+            if not isinstance(retrieved_at, str) or not retrieved_at.strip():
+                raise RuntimeError("CAL representative lookup has no retrieved_at")
+            try:
+                retrieved_dt = datetime.fromisoformat(retrieved_at.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise RuntimeError("CAL representative lookup has invalid retrieved_at") from exc
+            if retrieved_dt.tzinfo is None or retrieved_dt.utcoffset() is None:
+                raise RuntimeError("CAL representative lookup retrieved_at lacks timezone")
     except Exception as exc:
         raise SmokePhaseError("call_tool", exc) from exc
 

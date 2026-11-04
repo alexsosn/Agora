@@ -20,6 +20,7 @@ RUNTIME_SNAPSHOTS = (
     "plugins/perseus/runtime-constraints.txt",
     "plugins/sefaria/runtime-constraints.txt",
     "plugins/sedra/uv.lock",
+    "plugins/cal/runtime-constraints.txt",
     "verification/mcp-smoke/uv.lock",
 )
 
