@@ -244,5 +244,161 @@ class RuntimeDependencyEnvironmentContractTests(unittest.TestCase):
         self.assertIn("python scripts/check_runtime_environment_freshness.py", workflow)
 
 
+class UserLocalEnvironmentContractTests(unittest.TestCase):
+    """Contracts for `kind: user-local` — an environment that exists only on
+    the user's machine (an unmanaged checkout the user builds themselves) and
+    is resolved at launch through a user-supplied `${VAR}`.
+
+    Semantics under test: no repository identity (declaring path/sha256 is an
+    error), no borrowing of the repo-managed Python launchers (uv/uvx), no
+    hosted URL, and the launch must actually reference at least one
+    user-supplied variable — a client-provided root such as
+    `CLAUDE_PLUGIN_ROOT` does not count, because the client resolves that to
+    a directory Agora ships, which would smuggle repository identity back in.
+    """
+
+    @staticmethod
+    def _validator():
+        return importlib.import_module("scripts.validate_runtime_environments")
+
+    @staticmethod
+    def _document(
+        *,
+        environment: dict,
+        command: str = "bundle",
+        args: list | None = None,
+        env: dict | None = None,
+        url: str | None = None,
+    ) -> dict:
+        launch: dict = {"command": command}
+        launch["args"] = (
+            ["exec", "${NABU_HOME}/bin/nabu", "mcp"] if args is None else args
+        )
+        if env is not None:
+            launch["env"] = env
+        if url is not None:
+            launch["url"] = url
+        return {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "demo",
+                    "runtime": {
+                        "mode": "local",
+                        "launch": {"claude": launch, "codex": dict(launch)},
+                    },
+                    "verification": {
+                        "clients": {
+                            "claude": {
+                                "checks": [
+                                    {
+                                        "check_id": "manifest/demo-claude",
+                                        "inputs": {"environment": environment},
+                                    }
+                                ]
+                            },
+                            "codex": {"checks": []},
+                        }
+                    },
+                }
+            ],
+        }
+
+    def _errors(self, document: dict) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "registry").mkdir()
+            (root / "registry/plugins.yaml").write_text(
+                yaml.safe_dump(document, sort_keys=False), encoding="utf-8"
+            )
+            return self._validator().validate_runtime_environments(root)
+
+    def test_user_local_launch_through_a_user_variable_validates(self):
+        document = self._document(
+            environment={"kind": "user-local"},
+            env={"BUNDLE_GEMFILE": "${NABU_HOME}/Gemfile"},
+        )
+        self.assertEqual(self._errors(document), [])
+
+    def test_user_local_must_not_declare_repository_identity(self):
+        for extra in ({"path": "plugins/demo/uv.lock"}, {"sha256": "0" * 64}):
+            with self.subTest(extra=extra):
+                document = self._document(environment={"kind": "user-local", **extra})
+                errors = self._errors(document)
+                self.assertTrue(
+                    any("user-local" in error and "path or sha256" in error for error in errors),
+                    errors,
+                )
+
+    def test_user_local_must_not_borrow_repo_managed_python_launchers(self):
+        for command in ("uv", "uvx"):
+            with self.subTest(command=command):
+                document = self._document(
+                    environment={"kind": "user-local"}, command=command
+                )
+                errors = self._errors(document)
+                self.assertTrue(
+                    any("user-local" in error and command in error for error in errors),
+                    errors,
+                )
+
+    def test_user_local_must_not_be_hosted(self):
+        document = self._document(
+            environment={"kind": "user-local"}, url="https://example.org/mcp"
+        )
+        errors = self._errors(document)
+        self.assertTrue(
+            any("user-local" in error and "url" in error.casefold() for error in errors),
+            errors,
+        )
+
+    def test_user_local_launch_requires_a_user_supplied_variable(self):
+        document = self._document(
+            environment={"kind": "user-local"},
+            args=["exec", "bin/nabu", "mcp"],
+        )
+        errors = self._errors(document)
+        self.assertTrue(
+            any("user-supplied" in error for error in errors),
+            errors,
+        )
+
+    def test_client_provided_roots_do_not_count_as_user_supplied(self):
+        document = self._document(
+            environment={"kind": "user-local"},
+            args=["exec", "${CLAUDE_PLUGIN_ROOT}/bin/nabu", "mcp"],
+        )
+        errors = self._errors(document)
+        self.assertTrue(
+            any("user-supplied" in error for error in errors),
+            errors,
+        )
+
+    def test_nabu_registry_checks_declare_user_local_without_identity(self):
+        registry = yaml.safe_load(
+            (ROOT / "registry/plugins.yaml").read_text(encoding="utf-8")
+        )
+        nabu = next(item for item in registry["plugins"] if item["id"] == "nabu")
+        for client in ("claude", "codex"):
+            with self.subTest(client=client):
+                checks = nabu["verification"]["clients"][client]["checks"]
+                self.assertGreaterEqual(len(checks), 1)
+                for reference in checks:
+                    environment = reference["inputs"]["environment"]
+                    self.assertEqual(environment["kind"], "user-local")
+                    self.assertNotIn("path", environment)
+                    self.assertNotIn("sha256", environment)
+
+    def test_live_harness_refuses_user_local_environments_fail_closed(self):
+        harness = importlib.import_module("scripts.smoke_mcp_plugin")
+        with self.assertRaises(ValueError) as caught:
+            harness._bind_environment_identity(
+                {"kind": "user-local"}, label="plugin[demo].environment", root=ROOT
+            )
+        message = str(caught.exception)
+        self.assertIn("user-local", message)
+        self.assertIn("operator", message)
+
+
 if __name__ == "__main__":
     unittest.main()
