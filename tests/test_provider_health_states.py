@@ -24,6 +24,7 @@ class ProviderHealthStateTests(unittest.TestCase):
         for relative_path in (
             "plugins/context-fabric/uv.lock",
             "plugins/sedra/uv.lock",
+            "plugins/cal/runtime-constraints.txt",
             "plugins/perseus/runtime-constraints.txt",
             "plugins/sefaria/runtime-constraints.txt",
             "verification/mcp-smoke/uv.lock",

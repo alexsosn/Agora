@@ -1347,16 +1347,16 @@ resources:
   description: Published source-version-aware corpus derived from Online Critical Pseudepigrapha TEI, with manuscript apparatus, version-specific citations, scholarly metadata and explicitly separate machine-generated translations.
   upstream:
     repository: alexsosn/Pseudepigrapha-TF
-    ref: 7c4b757bb543a110ae9a252d1281835859136852
+    ref: 39bd9fb895d1201e9cd9260170512fd8c399a3ac
   acquisition:
     strategy: github-release-archive
     lazy: true
     archive:
-      release_tag: v1.0.0
-      asset_name: tf-1.0.zip
-      sha256: d2dfad7e643699617a9493b9f5d724868f8027dd5f2e88bd558451e3e7819b7a
-      compressed_bytes: 9632449
-      version: '1.0'
+      release_tag: v1.1.0
+      asset_name: tf-1.1.zip
+      sha256: 88f23ac9106c6ea8b35f89b19d760cf5d4ee544a3f8d8262d6ed7e2092e447e9
+      compressed_bytes: 9632817
+      version: '1.1'
     notes: SHA256-pinned flat native TF ZIP; only data features are installed. Do not execute Pseudepigrapha-TF converter, clone OCP, or mistake the separately registered pseudepigrapha-tf materializer for this corpus.
   licenses:
     data: CC-BY-4.0
@@ -1364,19 +1364,20 @@ resources:
     notes: OCP source TEI editions/texts are CC BY 4.0 with general and edition-specific editor attribution. Preserve upstream per-work citation/copyright/provenance. OCP web application is GPL-3.0 and Pseudepigrapha-TF converter is MIT; neither replaces text rights. Generated English/French translations are provenance-marked machine output, not historical witnesses.
     evidence:
       status: resolved
-      checked_at: '2026-10-11'
+      checked_at: '2026-10-12'
       sources:
-      - https://github.com/alexsosn/Pseudepigrapha-TF/blob/v1.0.0/DATA_LICENSE.md
+      - https://github.com/alexsosn/Pseudepigrapha-TF/blob/v1.1.0/DATA_LICENSE.md
       - https://github.com/OnlineCriticalPseudepigrapha/Online-Critical-Pseudepigrapha/blob/c939dcbacad78c5d18d2c4282cad23c47e19ac07/LICENSE.CC-BY-4.0
-      - https://github.com/alexsosn/Pseudepigrapha-TF/blob/v1.0.0/README.md
+      - https://github.com/alexsosn/Pseudepigrapha-TF/blob/v1.1.0/README.md
   verification:
     status: community
     notes:
-    - Release v1.0.0 native TF 1.0 source features have been confirmed by generic resolver; registered Context-Fabric scholarly consumer acceptance requires exact published-asset CI.
-    - Source-version identity is essential (for example 1En__Ethiopic); OCP nested sections may use folded TF chapter labels and suffixes for duplicate addresses.
+    - Release v1.1.0 native TF 1.1 archive identity is SHA256-pinned; Agora requires the native published-asset E2E and offline reload before integration promotion.
+    - Source-version identity and source_ref are essential (for example 1En__Ethiopic); OCP nested sections may use folded TF chapter labels and suffixes for duplicate addresses.
     - Source-declared generated translations are never classified as historical manuscript witnesses. Explicit omission and unattested witness states are distinct.
   integration_issues:
   - https://github.com/alexsosn/Agora/issues/226
+  - https://github.com/alexsosn/Agora/issues/278
   source_snapshot:
-    source: alexsosn/Pseudepigrapha-TF/releases/tag/v1.0.0
-    checked_at: '2026-10-11'
+    source: alexsosn/Pseudepigrapha-TF/releases/tag/v1.1.0
+    checked_at: '2026-10-12'

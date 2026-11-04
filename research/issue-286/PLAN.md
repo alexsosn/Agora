@@ -1,0 +1,7 @@
+# #286 Plan — upgrade approved Burns producer to upstream stable v0.3.0
+
+1. Research actual upstream release/tag and old-vs-release immutable manifest, inspect Agora release tracking policy and source registry, workflow, synthetic and live tests. No bytes or lexemes from licensed Burn Workbooks belong in git.
+2. Preserve **RED** `tests/test_ctc_burns_released_286.py` on a separate commit. It requires the canonical plugin pin `ed6c7059803ff1adee057f5bd94d3ca661aac187`, passive stable release tracking, unchanged plugin/materializer identity, explicit-code-execution + user-local legal input, and exact CI workflow source/ref consistency. The old registry and workflow MUST fail the test.
+3. GREEN only the `cuc-burns` registry entry, existing `tests/test_ctc_burns_registered_237.py` old-pin assertion, `tests/test_ctc_burns_registered_smoke_237.py`, and the reusable `ctc-burns-registered-e2e.yml` immutable checkout/identity check; keep CUC pinned parent revision unaffected.
+4. Run Agora registry validation, existing Python tests and exact-head real 45-Workbook Bubblewrap materialization + Text-Fabric/Context-Fabric/cfabric-mcp E2E user smoke. No release assets, corpus bytes, network fallback, automatic install or silent pin mutation.
+5. Perform logically-independent adversarial review of actual effective diff, tests, real-source logs and release evidence. Resolve findings on independent RED/GREEN subloops; merge only after all applicable exact-head CI and user-facing smoke pass, with expected SHA protection. Link CTC-TF release #16 and Agora #135.

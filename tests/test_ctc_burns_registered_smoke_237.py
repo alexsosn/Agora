@@ -15,7 +15,7 @@ class RegisteredCucBurnsFullAcceptanceContracts(unittest.TestCase):
     def test_real_workbooks_and_registered_producer_with_explicit_approval(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         for marker in (
-            "f58b162197ad8f113b7cd6fc0088ae5dd39a096d",
+            "ed6c7059803ff1adee057f5bd94d3ca661aac187",
             "scripts/parse_workbooks_to_csv.py",
             "agora_install_materializer.py fetch cuc-burns",
             "agora_install_materializer.py install cuc-burns",

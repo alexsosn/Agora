@@ -24,11 +24,11 @@ from agora_context_fabric.service import ContextFabricService
 
 ID = "pseudepigrapha"
 PIN = {
-    "release_tag": "v1.0.0",
-    "asset_name": "tf-1.0.zip",
-    "sha256": "d2dfad7e643699617a9493b9f5d724868f8027dd5f2e88bd558451e3e7819b7a",
-    "compressed_bytes": 9632449,
-    "version": "1.0",
+    "release_tag": "v1.1.0",
+    "asset_name": "tf-1.1.zip",
+    "sha256": "88f23ac9106c6ea8b35f89b19d760cf5d4ee544a3f8d8262d6ed7e2092e447e9",
+    "compressed_bytes": 9632817,
+    "version": "1.1",
 }
 
 
@@ -47,7 +47,7 @@ class PseudepigraphaRegistration226Tests(unittest.TestCase):
         self.assertEqual(res.release_archive, PIN)
         self.assertEqual(res.acquisition_strategy, "github-release-archive")
         self.assertEqual(res.repository, "alexsosn/Pseudepigrapha-TF")
-        self.assertEqual(res.ref, "7c4b757bb543a110ae9a252d1281835859136852")
+        self.assertEqual(res.ref, "39bd9fb895d1201e9cd9260170512fd8c399a3ac")
         self.assertNotIn("tf_path", self.row["upstream"])
         self.assertNotIn("release", self.row["acquisition"])
         self.assertEqual(self.row["licenses"]["data"], "CC-BY-4.0")
@@ -83,10 +83,10 @@ class PseudepigraphaRegistration226Tests(unittest.TestCase):
             resolver = ContextFabricResolver(self.catalog, store)
             service = ContextFabricService(self.catalog, resolver, object())
             with patch.object(store, "ensure_metadata", side_effect=AssertionError("must not clone OCP/converter")):
-                self.assertEqual(resolver.corpus_versions(ID), ("1.0",))
-                self.assertEqual(resolver.default_corpus_version(ID), "1.0")
+                self.assertEqual(resolver.corpus_versions(ID), ("1.1",))
+                self.assertEqual(resolver.default_corpus_version(ID), "1.1")
                 description = service.describe_resource(ID)
-                self.assertEqual(description["default_version"], "1.0")
+                self.assertEqual(description["default_version"], "1.1")
                 self.assertEqual(description["acquisition"]["archive"], PIN)
                 with store.source_policy("offline"), patch(
                     "agora_context_fabric.release_download.download_pinned_release",

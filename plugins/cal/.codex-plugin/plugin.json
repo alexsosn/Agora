@@ -1,0 +1,31 @@
+{
+  "name": "cal",
+  "version": "1.1.0",
+  "description": "Read-only CAL lexical, textual, concordance, Syriac, Targum, and bibliography tools via the published CAL-MCP server.",
+  "author": {
+    "name": "Agora contributors",
+    "url": "https://github.com/alexsosn/Agora"
+  },
+  "homepage": "https://github.com/alexsosn/Agora",
+  "repository": "https://github.com/alexsosn/Agora",
+  "license": "MIT",
+  "keywords": [
+    "biblical-studies",
+    "dictionary-lookup",
+    "digital-philology",
+    "lexeme-lookup",
+    "passage-retrieval",
+    "semitic-linguistics",
+    "structured-search",
+    "syriac-studies"
+  ],
+  "mcpServers": "./.codex-plugin/mcp.json",
+  "interface": {
+    "displayName": "Comprehensive Aramaic Lexicon MCP",
+    "shortDescription": "Read-only CAL lexical, textual, concordance, Syriac, Targum, and bibliography tools via the published CAL-MCP server.",
+    "longDescription": "Read-only CAL lexical, textual, concordance, Syriac, Targum, and bibliography tools via the published CAL-MCP server.",
+    "developerName": "Agora contributors",
+    "category": "Education & Research",
+    "websiteURL": "https://github.com/alexsosn/Agora"
+  }
+}

@@ -14,6 +14,7 @@ on:
       - 'plugins/context-fabric/src/agora_context_fabric/service_source_modes.py'
       - 'scripts/smoke_pseudepigrapha_release_226.py'
       - 'tests/test_pseudepigrapha_registration_226.py'
+      - 'tests/test_pseudepigrapha_corpus_278.py'
       - 'tests/test_cfm_empty_feature_263.py'
       - 'plugins/context-fabric/src/agora_context_fabric/cfm_compat.py'
   push:
@@ -62,7 +63,10 @@ jobs:
       - name: Validate corpus registry, immutable pin and no-network cold policy
         run: |
           python -m unittest discover -s tests -p 'test_pseudepigrapha_registration_226.py' -v
+          python -m unittest discover -s tests -p 'test_pseudepigrapha_corpus_278.py' -v
+          python scripts/validate_registry.py
+          python scripts/generate_context_fabric_catalog.py --check
           python -m unittest discover -s tests -p 'test_cfm_empty_feature_263.py' -v
 
-      - name: Fetch real SHA256-pinned v1.0.0 native corpus and test source apparatus translation and offline reload
+      - name: Fetch real SHA256-pinned v1.1.0 native corpus and test source apparatus translation and offline reload
         run: python scripts/smoke_pseudepigrapha_release_226.py

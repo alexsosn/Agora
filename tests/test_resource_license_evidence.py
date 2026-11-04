@@ -23,10 +23,12 @@ class ResourceLicenseEvidenceTests(unittest.TestCase):
         "tests/test_generation.py",
         ".github/workflows/external-mcp-smoke.yml",
         ".github/workflows/context-fabric-load-smoke.yml",
+        ".github/workflows/cal-mcp-smoke.yml",
         "plugins/context-fabric/uv.lock",
         "plugins/perseus/runtime-constraints.txt",
         "plugins/sefaria/runtime-constraints.txt",
         "plugins/sedra/uv.lock",
+        "plugins/cal/runtime-constraints.txt",
         "verification/mcp-smoke/uv.lock",
     )
 

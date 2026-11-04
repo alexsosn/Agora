@@ -28,6 +28,7 @@ class VerificationEvidenceTests(unittest.TestCase):
             "plugins/perseus/runtime-constraints.txt",
             "plugins/sefaria/runtime-constraints.txt",
             "plugins/sedra/uv.lock",
+            "plugins/cal/runtime-constraints.txt",
             "verification/mcp-smoke/uv.lock",
         ):
             source = ROOT / relative_path
@@ -172,7 +173,10 @@ class VerificationEvidenceTests(unittest.TestCase):
         plugins = self.load_yaml(ROOT, "registry/plugins.yaml")["plugins"]
         for plugin in plugins:
             live = plugin["verification"]["clients"]["codex"]["checks"]
-            inputs = live[0]["inputs"]
+            live_check = next(
+                check for check in live if check["check_id"] == f"mcp-live/{plugin['id']}-codex"
+            )
+            inputs = live_check["inputs"]
             resolution = inputs["resolution"]
             self.assertIn("mcp>=2,<3 (smoke harness)", resolution, plugin["id"])
             self.assertIn("PyYAML>=6,<7 (smoke harness)", resolution, plugin["id"])

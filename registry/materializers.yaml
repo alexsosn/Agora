@@ -4,10 +4,12 @@ plugins:
     name: Burns contextual feature module for reviewed CUC
     description: Produce a user-local Burns cultic-vocabulary Text-Fabric feature module over existing reviewed CUC 0.2.8 word nodes without duplicating the parent warp.
     repository: alexsosn/CTC-TF
-    ref: f58b162197ad8f113b7cd6fc0088ae5dd39a096d
+    ref: ed6c7059803ff1adee057f5bd94d3ca661aac187
     version: 0.3.0
     release_tracking:
-      mode: disabled
+      mode: github-releases
+      channel: stable
+      tag_prefix: v
     manifest: agora.materializer.json
     package:
       type: python-project

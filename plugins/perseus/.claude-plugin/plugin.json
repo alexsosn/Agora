@@ -1,6 +1,6 @@
 {
   "name": "perseus",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Access Perseus and Scaife text discovery, CTS passages, and search through tonyjurg/Perseus-mcp.",
   "author": {
     "name": "Agora contributors",

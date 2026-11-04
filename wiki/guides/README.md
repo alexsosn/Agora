@@ -20,7 +20,8 @@ Agora marketplace
 ├─ Context-Fabric plugin → scholarly resources/corpora (for example BHSA)
 ├─ Perseus plugin → Perseus/Scaife service
 ├─ Sefaria plugin → Sefaria service
-└─ SEDRA plugin → SEDRA IV service
+├─ SEDRA plugin → SEDRA IV service
+└─ CAL plugin → remote CAL service via local CAL-MCP
 ```
 
 - **Marketplace** — the place from which you discover and install Agora plugins.
@@ -28,22 +29,23 @@ Agora marketplace
 - **Resource/corpus** — a scholarly dataset selected through a plugin when that plugin offers multiple datasets.
 - **Skill** — research guidance used by the agent to apply existing plugin/resource capabilities and conventions correctly.
 
-For BHSA, **install Context-Fabric**. BHSA is a corpus/resource, **not a plugin**. Perseus, Sefaria, and SEDRA usually work by installing their plugin and using the corresponding remote service directly.
+For BHSA, **install Context-Fabric**. BHSA is a corpus/resource, **not a plugin**. Perseus, Sefaria, SEDRA, and CAL usually work by installing their plugin and using the corresponding remote service directly; CAL launches a local published stdio adapter.
 
 ## Get started
 
 If you already know which plugin you need, follow the [installation guide](installation.md). It covers Claude Code, managed ChatGPT/Codex workspace import, local Codex testing, prerequisites, updates, and removal.
 
-If you are not sure which plugin fits the question, use [Choose a plugin](../../README.md#choosing-a-plugin) first. After installation, the current [example prompts](../../README.md#example-prompts) give small starting requests for Context-Fabric, Perseus, Sefaria, and SEDRA.
+If you are not sure which plugin fits the question, use [Choose a plugin](../../README.md#choosing-a-plugin) first. After installation, the current [example prompts](../../README.md#example-prompts) give small starting requests for Context-Fabric, Perseus, Sefaria, SEDRA, and CAL.
 
 ## Browse plugins
 
-The current [plugin chooser](../../README.md#choosing-a-plugin) maps common research tasks to the four plugin families without requiring internal marketplace terminology. For a pre-install decision, open the matching detail page:
+The current [plugin chooser](../../README.md#choosing-a-plugin) maps common research tasks to the five plugin families without requiring internal marketplace terminology. For a pre-install decision, open the matching detail page:
 
 - [Context-Fabric](plugins/context-fabric.md)
 - [Perseus](plugins/perseus.md)
 - [Sefaria](plugins/sefaria.md)
 - [SEDRA](plugins/sedra.md)
+- [CAL](plugins/cal.md)
 
 Each page uses the same structure for capabilities, local/remote behavior, installation, first success, limitations, costs, licensing, troubleshooting, and upstream links.
 
@@ -53,7 +55,7 @@ Use the [generated scholarly resource catalog](resources.md) to browse the curre
 
 Installing Context-Fabric does not download every corpus. Collection members are discovered after installation rather than copied wholesale into the static catalog. For an unfamiliar or potentially large corpus, use the [safe first-load workflow](context-fabric-cache.md#recommended-first-load-workflow) before loading it.
 
-Perseus, Sefaria, and SEDRA primarily expose remote scholarly services rather than the same local corpus-selection model, so resource selection differs by plugin.
+Perseus, Sefaria, SEDRA and CAL primarily expose remote scholarly services rather than the same local corpus-selection model, so resource selection differs by plugin.
 
 For corpus-specific interpretation and reproducibility, use the [scholarly guidance](scholarly-guidance.md) index. It links to maintained skill sections rather than copying them.
 
@@ -65,6 +67,7 @@ Start after installation with a bounded walkthrough:
 - [Perseus / Iliad](first-success/perseus.md)
 - [Sefaria / Genesis](first-success/sefaria.md)
 - [SEDRA / Syriac lexicon](first-success/sedra.md)
+- [CAL / Aramaic lexicon](first-success/cal.md)
 
 
 The current [example prompts](../../README.md#example-prompts) are starting points, not full step-by-step tutorials. They show the intended level of research request while preserving source-specific caveats such as schema inspection and ambiguity handling.

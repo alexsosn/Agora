@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Published Pseudepigrapha-TF v1.0.0 -> named Agora resource -> offline reopen.
+"""Published Pseudepigrapha-TF v1.1.0 -> named Agora resource -> offline reopen.
 
 This uses only reviewed, immutable release bytes. No OCP clone or converter.
 """
@@ -21,7 +21,7 @@ from agora_context_fabric.service_source_modes import ContextFabricService
 from cfabric_mcp import corpus_manager
 
 RESOURCE = "pseudepigrapha"
-ASSET_SHA = "d2dfad7e643699617a9493b9f5d724868f8027dd5f2e88bd558451e3e7819b7a"
+ASSET_SHA = "88f23ac9106c6ea8b35f89b19d760cf5d4ee544a3f8d8262d6ed7e2092e447e9"
 SECTION = ("1En__Ethiopic", "1", "2")
 FEATURES = [
     "source_ref", "version_id", "version_kind", "ocp_book", "language",
@@ -73,7 +73,7 @@ def main():
     catalog = Catalog.from_plugin_root(ROOT / "plugins/context-fabric")
     resource = catalog.get(RESOURCE)
     assert resource.release_archive["sha256"] == ASSET_SHA
-    assert resource.ref == "7c4b757bb543a110ae9a252d1281835859136852"
+    assert resource.ref == "39bd9fb895d1201e9cd9260170512fd8c399a3ac"
     with tempfile.TemporaryDirectory(prefix="agora-pseudepigrapha-release-") as tmp:
         store = GitStore(Path(tmp) / "cache", min_free_bytes=0)
         service = ContextFabricService(
@@ -82,7 +82,7 @@ def main():
         listed = service.list_resources(query=RESOURCE)
         assert len(listed) == 1 and listed[0]["id"] == RESOURCE
         described = service.describe_resource(RESOURCE)
-        assert described["default_version"] == "1.0"
+        assert described["default_version"] == "1.1"
         assert described["acquisition"]["archive"]["sha256"] == ASSET_SHA
         prepared = service.prepare(RESOURCE, source_mode="require-fresh")
         assert prepared["source_revision"] == ASSET_SHA

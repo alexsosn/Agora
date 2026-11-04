@@ -167,7 +167,7 @@ def render_outputs(root: Path = ROOT) -> dict[Path, str]:
 
     marketplace = load_yaml(registry / "marketplace.yaml")
     plugins_doc = load_yaml(registry / "plugins.yaml")
-    scope = load_yaml(registry / "v0.1.yaml")
+    scope = load_yaml(registry / "v1.1.yaml")
 
     plugin_by_id = {plugin["id"]: plugin for plugin in plugins_doc["plugins"]}
     plugins = [plugin_by_id[plugin_id] for plugin_id in scope["required_plugins"]]
