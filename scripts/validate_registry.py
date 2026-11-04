@@ -29,6 +29,32 @@ except ModuleNotFoundError:
 ROOT = Path(__file__).resolve().parents[1]
 VERIFICATION_RANK = {"experimental": 0, "community": 1, "verified": 2}
 
+# The frozen first release: exactly these plugins, in this order, with its 37
+# Context-Fabric resources. Later scopes may only extend it.
+FROZEN_SCOPE = "v0.1.yaml"
+_SCOPE_NAME = re.compile(r"\Av(\d+(?:\.\d+)*)\.yaml\Z")
+
+
+def _scope_version(path: Path) -> tuple[int, ...]:
+    match = _SCOPE_NAME.match(path.name)
+    if match is None:
+        raise ValueError(f"not a release-scope file name: {path.name!r}")
+    return tuple(int(part) for part in match.group(1).split("."))
+
+
+def release_scope_paths(registry: Path) -> list[Path]:
+    """Every registry/v*.yaml release scope, oldest version first."""
+    paths = [path for path in registry.glob("v*.yaml") if _SCOPE_NAME.match(path.name)]
+    return sorted(paths, key=_scope_version)
+
+
+def latest_release_scope(registry: Path) -> Path:
+    """The highest-versioned release scope — the one generation targets."""
+    paths = release_scope_paths(registry)
+    if not paths:
+        raise ValueError(f"no release-scope file (v*.yaml) under {registry}")
+    return paths[-1]
+
 
 def load_yaml(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as fh:
@@ -211,8 +237,9 @@ def validate_registry(root: Path = ROOT) -> list[str]:
         else {"schema_version": resources_doc["schema_version"], "resources": []}
     )
     vocab = load_yaml(registry / "vocabularies.yaml")
-    scope_doc = load_yaml(registry / "v0.1.yaml")
-    candidate_scope_doc = load_yaml(registry / "v1.1.yaml")
+    scope_paths = release_scope_paths(registry)
+    scope_docs = {path.name: load_yaml(path) for path in scope_paths}
+    scope_doc = scope_docs[FROZEN_SCOPE]
 
     errors += schema_errors(marketplace_doc, schema / "marketplace.schema.json", "marketplace.yaml")
     errors += schema_errors(plugins_doc, schema / "plugins.schema.json", "plugins.yaml")
@@ -229,8 +256,8 @@ def validate_registry(root: Path = ROOT) -> list[str]:
             schema / "resources.schema.json",
             "feature-modules.yaml",
         )
-    errors += schema_errors(scope_doc, schema / "release-scope.schema.json", "v0.1.yaml")
-    errors += schema_errors(candidate_scope_doc, schema / "release-scope.schema.json", "v1.1.yaml")
+    for name, doc in scope_docs.items():
+        errors += schema_errors(doc, schema / "release-scope.schema.json", name)
 
     plugins = plugins_doc.get("plugins", [])
     providers = providers_doc.get("providers", [])
@@ -493,35 +520,53 @@ def validate_registry(root: Path = ROOT) -> list[str]:
         elif resource["acquisition"]["strategy"] == "collection":
             errors.append(f"{prefix}: non-collection resource cannot use acquisition.strategy='collection'")
 
+    # Every scope's membership must exist; the frozen v0.1 additionally keeps
+    # its exact shape, and a later (prospective) scope may only EXTEND the
+    # frozen plugin list — nothing is removed from a shipped release.
+    for name, doc in scope_docs.items():
+        scope_plugins = set(doc.get("required_plugins", []))
+        scope_resources = set(doc.get("required_resources", []))
+        missing_plugins = sorted(scope_plugins - set(plugin_by_id))
+        missing_resources = sorted(scope_resources - set(resource_by_id))
+        if missing_plugins:
+            errors.append(f"{name}: missing required plugin records: {', '.join(missing_plugins)}")
+        if missing_resources:
+            errors.append(f"{name}: missing required resource records: {', '.join(missing_resources)}")
+        for resource_id in scope_resources:
+            resource = resource_by_id.get(resource_id)
+            if resource is not None and resource["plugin"] != "context-fabric":
+                errors.append(f"{name}: required resource {resource_id!r} is not owned by context-fabric")
+
     required_plugins = set(scope_doc["required_plugins"])
     required_resources = set(scope_doc["required_resources"])
-    missing_plugins = sorted(required_plugins - set(plugin_by_id))
-    missing_resources = sorted(required_resources - set(resource_by_id))
-    if missing_plugins:
-        errors.append(f"v0.1.yaml: missing required plugin records: {', '.join(missing_plugins)}")
-    if missing_resources:
-        errors.append(f"v0.1.yaml: missing required resource records: {', '.join(missing_resources)}")
-
     if len(required_plugins) != 4:
         errors.append(f"v0.1.yaml: expected 4 required plugins, found {len(required_plugins)}")
     if len(required_resources) != 37:
         errors.append(f"v0.1.yaml: expected 37 required Context-Fabric resources, found {len(required_resources)}")
 
-    for resource_id in required_resources:
-        resource = resource_by_id.get(resource_id)
-        if resource is not None and resource["plugin"] != "context-fabric":
-            errors.append(f"v0.1.yaml: required resource {resource_id!r} is not owned by context-fabric")
+    frozen_order = scope_doc["required_plugins"]
+    for name, doc in scope_docs.items():
+        if name == FROZEN_SCOPE:
+            continue
+        later_plugins = doc.get("required_plugins", [])
+        if later_plugins[: len(frozen_order)] != frozen_order:
+            errors.append(
+                f"{name}: a prospective scope must keep the frozen {FROZEN_SCOPE} plugins "
+                f"first and in order ({', '.join(frozen_order)}); prospective plugins append"
+            )
+        missing_frozen = sorted(set(scope_doc["required_resources"]) - set(doc.get("required_resources", [])))
+        if missing_frozen:
+            errors.append(
+                f"{name}: a prospective scope must keep every frozen resource; missing: "
+                f"{', '.join(missing_frozen)}"
+            )
 
-    candidate_plugins = set(candidate_scope_doc["required_plugins"])
-    candidate_resources = set(candidate_scope_doc["required_resources"])
-    if candidate_scope_doc["release"] != "v1.1":
-        errors.append("v1.1.yaml: prospective release must be v1.1")
-    if candidate_plugins != required_plugins | {"cal"}:
-        errors.append("v1.1.yaml: must retain released plugins and add only cal")
-    if candidate_resources != required_resources:
-        errors.append("v1.1.yaml: must preserve the frozen Context-Fabric resource scope")
-    if candidate_plugins - set(plugin_by_id):
-        errors.append("v1.1.yaml: includes unregistered required plugins")
+    # The CAL registration's one-candidate checks ("add only cal") are
+    # subsumed by the generic prospective-scope rules above, which keep every
+    # frozen plugin and resource while letting further prospective plugins
+    # (cal, nabu, …) append to the same scope instead of each hardcoding the
+    # other out. The release-name and membership checks they carried live on
+    # in the generic loop.
 
     errors += validate_candidate_research(root, vocab)
     errors += validate_runtime_environments(root)

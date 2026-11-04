@@ -21,6 +21,7 @@ from agora_context_fabric.service import ContextFabricService
 class ResourceLicenseEvidenceTests(unittest.TestCase):
     VALIDATION_DEPENDENCIES = (
         "tests/test_generation.py",
+        "tests/test_generation_nabu.py",
         ".github/workflows/external-mcp-smoke.yml",
         ".github/workflows/context-fabric-load-smoke.yml",
         ".github/workflows/cal-mcp-smoke.yml",

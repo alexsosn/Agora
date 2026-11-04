@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import sys
 from pathlib import Path
 from typing import Any, Mapping
@@ -10,6 +11,13 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 FILE_BACKED_KINDS = {"uv-lock", "uv-constraints"}
+
+# Variables the CLIENT resolves to a directory Agora ships. They do not count
+# as user-supplied: a user-local launch bound only to one of these would
+# smuggle repository identity back into an environment whose point is that it
+# exists solely on the user's machine.
+CLIENT_PROVIDED_VARIABLES = {"CLAUDE_PLUGIN_ROOT"}
+_PLACEHOLDER = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
 def _load_yaml(path: Path) -> Any:
@@ -40,6 +48,15 @@ def _validate_environment(
     if kind == "hosted":
         if "path" in environment or "sha256" in environment:
             errors.append(f"{label}: hosted environment must not declare path or sha256")
+        return
+    if kind == "user-local":
+        # The environment exists only on the user's machine (an unmanaged
+        # checkout the user builds), so there is nothing in this repository
+        # to identify: declaring path or sha256 would claim an identity
+        # Agora cannot hold. The launch-side contract lives in
+        # _validate_launch_binding.
+        if "path" in environment or "sha256" in environment:
+            errors.append(f"{label}: user-local environment must not declare path or sha256")
         return
     if kind not in FILE_BACKED_KINDS:
         errors.append(f"{label}: unsupported dependency environment kind {kind!r}")
@@ -92,6 +109,32 @@ def _validate_launch_binding(
     if kind == "hosted":
         if "url" not in launch:
             errors.append(f"{label}: hosted dependency environment requires URL launch")
+        return
+    if kind == "user-local":
+        if "url" in launch:
+            errors.append(f"{label}: user-local environment cannot launch a hosted URL")
+            return
+        if command in {"uv", "uvx"}:
+            errors.append(
+                f"{label}: user-local environment must not launch with {command!r} — "
+                "the repo-managed Python launchers imply a repository-held dependency "
+                "snapshot this environment does not have"
+            )
+            return
+        values = [str(value) for value in args]
+        values.append(str(command or ""))
+        values.extend(str(value) for value in (launch.get("env") or {}).values())
+        placeholders = {
+            name
+            for value in values
+            for name in _PLACEHOLDER.findall(value)
+        } - CLIENT_PROVIDED_VARIABLES
+        if not placeholders:
+            errors.append(
+                f"{label}: user-local launch must resolve the user's checkout through "
+                "at least one user-supplied ${VAR} placeholder in its command, args or "
+                "env (client-provided roots such as CLAUDE_PLUGIN_ROOT do not count)"
+            )
         return
     if kind == "uv-lock":
         if command != "uv" or "run" not in args or "--locked" not in args:

@@ -19,7 +19,8 @@ TROUBLESHOOTING_EXITS = {
     "sefaria": "For repeated search references, see [Sefaria duplicate-reference recovery](../troubleshooting.md#sefaria-search-repeats-a-reference).",
     "sedra": "For failed live word or lexeme lookup, see [remote lookup recovery](../troubleshooting.md#remote-lookup-fails).",
     "cal": "For HTTP 429, upstream outages, or CAL token/lexicon errors, see [remote lookup recovery](../troubleshooting.md#remote-lookup-fails); do not retry aggressively.",
-} 
+    "nabu": "If the server fails to start, run the bounded startup smoke (`NABU_HOME=/path/to/nabu python3 scripts/smoke_nabu_user_local.py`) — it names the failing step. Empty results usually mean the user's library has not synced that source (`bin/nabu status` in the checkout shows coverage).",
+}
 
 GUIDANCE: dict[str, dict[str, Any]] = {
     "context-fabric": {
@@ -146,6 +147,39 @@ The BHSA parent corpus is listed under **CC BY-NC 4.0** in Agora, while the cant
             "lookup, while Claude integration remains community and aggregate plugin status "
             "is community. Neither guarantees remote CAL availability. CAL data/terms are "
             "upstream-dependent and not relicensed by MIT. One found lexeme does not establish exhaustive corpus coverage."
+        ),
+    },
+    "nabu": {
+        "access": (
+            "Nabu is a user-local Ruby runtime: the user clones "
+            "[arvicco/nabu](https://github.com/arvicco/nabu), builds their own library "
+            "(`bin/nabu quickstart`, then enable/sync per source), and sets `NABU_HOME` "
+            "so the generated launch finds the checkout. Agora vendors no runtime and no "
+            "corpus data; the read-only MCP server serves only what that user's library holds."
+        ),
+        "first_success": (
+            "Call `nabu_status` and report which sources the library actually holds, then "
+            "run one `nabu_search` for a term in a held source and cite one result's URN "
+            "and license class. An empty catalog is a correct answer for an unbuilt library, "
+            "not an error."
+        ),
+        "tasks": (
+            "Use the [plugin README](../../../plugins/nabu/README.md) for the tool table and "
+            "upstream's own [MCP documentation](https://github.com/arvicco/nabu/blob/main/docs/mcp.md). "
+            "Every result carries its per-document license class (open / attribution / nc) — "
+            "keep it attached when quoting."
+        ),
+        "cost_note": (
+            "All queries are local reads against the user's SQLite catalog; nothing calls out "
+            "to the network. The expensive step is the user's own library build, which happens "
+            "outside Agora entirely."
+        ),
+        "limitations": (
+            "Verification is experimental on both clients: the deterministic checks cover the "
+            "generated launch metadata, and the bounded startup smoke "
+            "(`scripts/smoke_nabu_user_local.py`) runs only on the operator's machine, because "
+            "a user-local environment exists nowhere else. Coverage varies per install — "
+            "`nabu_status` is the ground truth, never the upstream site's headline figures."
         ),
     },
 }

@@ -1,4 +1,8 @@
 schema_version: 1
+# The prospective post-1.0 scope: the frozen v0.1 plugins first and in order,
+# prospective plugins appended. Marketplace generation targets the
+# highest-versioned scope (scripts/generate_marketplaces.py); v0.1 stays
+# frozen and validated untouched beside this file.
 release: v1.1
 required_plugins:
   - context-fabric
@@ -6,6 +10,7 @@ required_plugins:
   - sefaria
   - sedra
   - cal
+  - nabu
 required_resources:
   - bhsa
   - dss

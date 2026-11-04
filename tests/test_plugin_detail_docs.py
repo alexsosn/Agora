@@ -38,10 +38,10 @@ def _registry() -> list[dict]:
 
 
 class PluginDetailDocumentationTests(unittest.TestCase):
-    def test_generator_and_all_five_pages_exist_and_are_fresh(self):
+    def test_generator_and_all_six_pages_exist_and_are_fresh(self):
         plugins = _registry()
         self.assertEqual(
-            ["context-fabric", "perseus", "sefaria", "sedra", "cal"],
+            ["context-fabric", "perseus", "sefaria", "sedra", "cal", "nabu"],
             [plugin["id"] for plugin in plugins],
         )
         self.assertTrue(GENERATOR.is_file(), "Missing plugin-page generator")

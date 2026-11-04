@@ -33,6 +33,7 @@ class ProviderHealthContractTests(unittest.TestCase):
         shutil.copytree(ROOT / ".github/workflows", workflows)
         (root / "tests").mkdir()
         shutil.copy2(ROOT / "tests/test_generation.py", root / "tests/test_generation.py")
+        shutil.copy2(ROOT / "tests/test_generation_nabu.py", root / "tests/test_generation_nabu.py")
         return root
 
     def mutate_provider(self, root: Path, provider_id: str, mutate) -> None:
@@ -77,9 +78,16 @@ class ProviderHealthContractTests(unittest.TestCase):
         }
         for provider in providers:
             with self.subTest(provider=provider["id"]):
-                self.assertEqual(provider["health"]["status"], "observed-operational")
+                status = provider["health"]["status"]
+                if status == "unknown":
+                    # A user-local provider (nabu) has no Agora-observable
+                    # surface: unknown is the honest state and must carry no
+                    # operational evidence.
+                    self.assertEqual(provider["health"].get("evidence") or [], [])
+                else:
+                    self.assertEqual(status, "observed-operational")
                 self.assertNotEqual(
-                    provider["health"]["status"],
+                    status,
                     plugins[provider["plugin"]]["verification"]["status"],
                 )
 

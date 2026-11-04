@@ -13,8 +13,13 @@ from scripts.generate_marketplaces import (
     release_to_semver,
     render_outputs,
 )
+from scripts.validate_registry import latest_release_scope
 
-PLUGIN_IDS = ("context-fabric", "perseus", "sefaria", "sedra", "cal")
+# The plugin set generation targets: the newest release scope's, so these
+# tests follow prospective scopes instead of hardcoding the frozen four.
+with latest_release_scope(ROOT / "registry").open("r", encoding="utf-8") as _fh:
+    _SCOPE = yaml.safe_load(_fh)
+PLUGIN_IDS = tuple(_SCOPE["required_plugins"])
 
 
 class MarketplaceGenerationTests(unittest.TestCase):
@@ -41,9 +46,7 @@ class MarketplaceGenerationTests(unittest.TestCase):
         self.assertEqual(check_outputs(), [])
 
     def test_marketplaces_follow_release_plugin_order(self):
-        with (ROOT / "registry/v1.1.yaml").open("r", encoding="utf-8") as fh:
-            scope = yaml.safe_load(fh)
-        expected = scope["required_plugins"]
+        expected = list(PLUGIN_IDS)
 
         with (ROOT / ".claude-plugin/marketplace.json").open("r", encoding="utf-8") as fh:
             claude = json.load(fh)

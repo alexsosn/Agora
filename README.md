@@ -8,13 +8,14 @@
 
 It lets Claude Code and ChatGPT/Codex use research tools for Biblical Studies, Classics, Syriac, Ugaritic, Hittite, and related fields without requiring every resource to use the same backend or corpus format.
 
-The prospective Agora v1.1 marketplace includes five plugin families (the published v1.0 scope contained four):
+The prospective Agora v1.1 marketplace includes six plugin families (the published v1.0 scope contained four):
 
 - **[Context-Fabric](wiki/guides/plugins/context-fabric.md)** — structured local querying of registered Text-Fabric corpora, including BHSA, Ugaritic and Hittite corpora, and large Greek collections.
 - **[Perseus](wiki/guides/plugins/perseus.md)** — live Perseus/Scaife text discovery, passage retrieval, and full-text search.
 - **[Sefaria](wiki/guides/plugins/sefaria.md)** — Jewish texts, translations, links and commentaries, dictionaries, topics, and manuscript resources through the official Sefaria MCP.
 - **[SEDRA](wiki/guides/plugins/sedra.md)** — Syriac word-form and lexeme lookup against SEDRA IV.
 - **[CAL](wiki/guides/plugins/cal.md)** — lexicon, texts and bibliography through the locally installed CAL-MCP and remote Comprehensive Aramaic Lexicon.
+- **[Nabu](wiki/guides/plugins/nabu.md)** — read-only search, retrieval, alignment and citation over a Nabu library of ancient-text corpora the user builds on their own machine.
 
 Agora plugins can also include **scholarly skills**: source-specific guidance that tells the agent how to interpret corpus features, avoid common mistakes, and produce more reproducible research queries.
 
@@ -53,6 +54,7 @@ Inside Claude Code:
 /plugin install sefaria@agora
 /plugin install sedra@agora
 /plugin install cal@agora
+/plugin install nabu@agora   # needs a user-built Nabu library and NABU_HOME
 /reload-plugins
 ```
 
@@ -79,7 +81,7 @@ codex plugin marketplace add /absolute/path/to/Agora
 codex plugin add context-fabric@agora
 ```
 
-Replace `context-fabric` with `perseus`, `sefaria`, `sedra`, or `cal` as needed.
+Replace `context-fabric` with `perseus`, `sefaria`, `sedra`, `cal`, or `nabu` as needed.
 
 Most local launch paths use [`uv`](https://docs.astral.sh/uv/). Context-Fabric currently requires Python 3.13; the SEDRA adapter and CAL-MCP require Python 3.11 or later.
 
@@ -118,6 +120,7 @@ For corpus research, Agora's bundled skills encourage the agent to inspect the s
 | Jewish texts, translations, commentaries, dictionaries | **[Sefaria](wiki/guides/plugins/sefaria.md)** |
 | Syriac word and lexeme lookup | **[SEDRA](wiki/guides/plugins/sedra.md)** |
 | CAL Aramaic lexical forms, passages and bibliography | **[CAL](wiki/guides/plugins/cal.md)** |
+| Full-text search and citation over your own locally built ancient-text library | **[Nabu](wiki/guides/plugins/nabu.md)** |
 
 Agora is designed to add more scholarly tools and services without forcing them into Text-Fabric or any other single data model.
 

@@ -84,3 +84,17 @@ providers:
         - Agora Actions run 38234918961 initialized the exact generated CAL Codex stdio path, discovered 36 tools, and returned a found lexicon entry with CAL provenance.
         - This supports one client-path observation only, not default CAL batch throughput, permanent upstream availability, or independently measured exact transport-start count.
         - Claude client verification is separate and remains community.
+  - id: nabu
+    name: Nabu local library
+    plugin: nabu
+    description: Read-only local Nabu runtime over the ancient-text library the user has built and synced on their own machine.
+    access:
+      runtime_mode: local
+      data_mode: local
+    upstream:
+      repository: arvicco/nabu
+      homepage: https://arvicco.github.io/nabu
+    health:
+      status: unknown
+      notes:
+        - Nabu runs entirely on the user's machine against a library the user builds; there is no hosted endpoint, and no Agora live check has observed a Nabu runtime, so Agora makes no operational claim.

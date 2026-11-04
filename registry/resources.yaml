@@ -883,3 +883,4 @@ resources:
   integration_issues:
   - https://github.com/alexsosn/Agora/issues/203
   source_snapshot: {source: MartijnNaaijer/aleppo@db38ddc918fd5d6e47a118f24545bd925975a597, checked_at: '2026-10-12'}
+

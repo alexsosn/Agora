@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.validate_registry import validate_registry
+from scripts.validate_registry import latest_release_scope, validate_registry
 
 PLUGIN_CATEGORY = "Education & Research"
 CODEX_INSTALLATION = "AVAILABLE"
@@ -167,7 +167,9 @@ def render_outputs(root: Path = ROOT) -> dict[Path, str]:
 
     marketplace = load_yaml(registry / "marketplace.yaml")
     plugins_doc = load_yaml(registry / "plugins.yaml")
-    scope = load_yaml(registry / "v1.1.yaml")
+    # Generation targets the newest release scope; earlier scopes (the frozen
+    # v0.1 among them) stay validated but no longer drive the marketplaces.
+    scope = load_yaml(latest_release_scope(registry))
 
     plugin_by_id = {plugin["id"]: plugin for plugin in plugins_doc["plugins"]}
     plugins = [plugin_by_id[plugin_id] for plugin_id in scope["required_plugins"]]

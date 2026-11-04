@@ -78,6 +78,9 @@ class ResourceMemberVerificationPromotionRed2Tests(unittest.TestCase):
         shutil.copytree(ROOT / ".github" / "workflows", root / ".github" / "workflows")
         (root / "tests").mkdir()
         shutil.copy2(ROOT / "tests" / "test_generation.py", root / "tests" / "test_generation.py")
+        shutil.copy2(
+            ROOT / "tests" / "test_generation_nabu.py", root / "tests" / "test_generation_nabu.py"
+        )
         for relative in RUNTIME_SNAPSHOTS:
             source = ROOT / relative
             destination = root / relative
