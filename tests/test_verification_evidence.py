@@ -23,6 +23,7 @@ class VerificationEvidenceTests(unittest.TestCase):
         shutil.copytree(ROOT / ".github/workflows", workflows)
         (root / "tests").mkdir()
         shutil.copy2(ROOT / "tests/test_generation.py", root / "tests/test_generation.py")
+        shutil.copy2(ROOT / "tests/test_generation_nabu.py", root / "tests/test_generation_nabu.py")
         for relative_path in (
             "plugins/context-fabric/uv.lock",
             "plugins/perseus/runtime-constraints.txt",
@@ -173,6 +174,15 @@ class VerificationEvidenceTests(unittest.TestCase):
         plugins = self.load_yaml(ROOT, "registry/plugins.yaml")["plugins"]
         for plugin in plugins:
             live = plugin["verification"]["clients"]["codex"]["checks"]
+            if all(
+                (check.get("inputs", {}).get("environment") or {}).get("kind") == "user-local"
+                for check in live
+            ):
+                # A user-local runtime (nabu) has no Agora-run live smoke by
+                # design: the harness refuses environments that resolve only
+                # on the operator's machine, so there is no mcp-live check to
+                # bind to the locked harness here.
+                continue
             live_check = next(
                 check for check in live if check["check_id"] == f"mcp-live/{plugin['id']}-codex"
             )

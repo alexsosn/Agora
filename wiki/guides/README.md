@@ -46,6 +46,7 @@ The current [plugin chooser](../../README.md#choosing-a-plugin) maps common rese
 - [Sefaria](plugins/sefaria.md)
 - [SEDRA](plugins/sedra.md)
 - [CAL](plugins/cal.md)
+- [Nabu](plugins/nabu.md)
 
 Each page uses the same structure for capabilities, local/remote behavior, installation, first success, limitations, costs, licensing, troubleshooting, and upstream links.
 
@@ -68,6 +69,7 @@ Start after installation with a bounded walkthrough:
 - [Sefaria / Genesis](first-success/sefaria.md)
 - [SEDRA / Syriac lexicon](first-success/sedra.md)
 - [CAL / Aramaic lexicon](first-success/cal.md)
+- [Nabu / your own library](first-success/nabu.md)
 
 
 The current [example prompts](../../README.md#example-prompts) are starting points, not full step-by-step tutorials. They show the intended level of research request while preserving source-specific caveats such as schema inspection and ambiguity handling.

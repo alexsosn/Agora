@@ -21,6 +21,7 @@ class ProviderHealthStateTests(unittest.TestCase):
         shutil.copytree(ROOT / ".github/workflows", workflows)
         (root / "tests").mkdir()
         shutil.copy2(ROOT / "tests/test_generation.py", root / "tests/test_generation.py")
+        shutil.copy2(ROOT / "tests/test_generation_nabu.py", root / "tests/test_generation_nabu.py")
         for relative_path in (
             "plugins/context-fabric/uv.lock",
             "plugins/sedra/uv.lock",
