@@ -1,6 +1,6 @@
 {
   "name": "nabu",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Search, read, align, and cite a locally built Nabu library of ancient-text corpora through its read-only MCP server.",
   "author": {
     "name": "Agora contributors",

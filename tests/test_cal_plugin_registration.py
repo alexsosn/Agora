@@ -19,8 +19,12 @@ class CalPluginRegistrationTests(unittest.TestCase):
         new = _yaml("v1.1.yaml")
         self.assertEqual(old["required_plugins"], ["context-fabric", "perseus", "sefaria", "sedra"])
         self.assertEqual(new["release"], "v1.1")
+        # The prospective scope is shared: the frozen four stay first and in
+        # order, cal keeps its place as the first prospective plugin, and
+        # later prospective plugins (nabu, …) append after it without
+        # displacing cal's inclusion.
         self.assertEqual(
-            new["required_plugins"],
+            new["required_plugins"][:5],
             ["context-fabric", "perseus", "sefaria", "sedra", "cal"],
         )
         self.assertEqual(new["required_resources"], old["required_resources"])
