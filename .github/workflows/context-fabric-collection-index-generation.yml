@@ -18,6 +18,7 @@ jobs:
   scope:
     name: Fail-closed collection index impact
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       regenerate: ${{ steps.select.outputs.regenerate }}
     steps:
@@ -33,6 +34,8 @@ jobs:
           python-version: "3.13"
 
       - name: Install YAML parser
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
         run: python -m pip install 'PyYAML>=6.0,<7'
 
       - name: Select fail-closed regeneration scope
