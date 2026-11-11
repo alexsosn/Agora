@@ -15,8 +15,55 @@ permissions:
   contents: read
 
 jobs:
-  generate:
+  scope:
+    name: Fail-closed collection index impact
     runs-on: ubuntu-latest
+    outputs:
+      regenerate: ${{ steps.select.outputs.regenerate }}
+    steps:
+      - name: Check out complete PR merge parents
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install YAML parser
+        run: python -m pip install 'PyYAML>=6.0,<7'
+
+      - name: Select fail-closed regeneration scope
+        id: select
+        shell: bash
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          scope=full
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            # CI selection must execute the trusted base version, not PR code.
+            # On the bootstrap PR this file is absent from main: run full.
+            if git show HEAD^1:scripts/ci_collection_index_scope.py > "$RUNNER_TEMP/ci_collection_index_scope.py" 2>/dev/null; then
+              candidate="$(python "$RUNNER_TEMP/ci_collection_index_scope.py" 2>/dev/null)" || candidate=full
+              if [[ "$candidate" == "skip" ]]; then
+                scope=skip
+              fi
+            fi
+          fi
+          if [[ "$scope" == "skip" ]]; then
+            echo "regenerate=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "regenerate=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Collection index regeneration scope: $scope"
+
+  generate:
+    needs: scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -26,10 +73,16 @@ jobs:
           - greek_literature
           - translatin-manif
     steps:
+      - name: Document safe corpus-only skip
+        if: needs.scope.outputs.regenerate == 'false'
+        run: echo "No collection descriptors or indexer inputs changed; preserving matrix check context."
+
       - name: Check out repository
+        if: needs.scope.outputs.regenerate == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Python
+        if: needs.scope.outputs.regenerate == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -37,9 +90,11 @@ jobs:
           cache-dependency-path: requirements-dev.txt
 
       - name: Install generation dependencies
+        if: needs.scope.outputs.regenerate == 'true'
         run: python -m pip install -r requirements-dev.txt
 
       - name: Generate commit-bound collection index
+        if: needs.scope.outputs.regenerate == 'true'
         run: >-
           python scripts/generate_context_fabric_collection_indexes.py
           --resource "${{ matrix.resource }}"
@@ -47,6 +102,7 @@ jobs:
           --cache-dir "$RUNNER_TEMP/agora-context-fabric-index-cache"
 
       - name: Upload generated index
+        if: needs.scope.outputs.regenerate == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: context-fabric-collection-index-${{ matrix.resource }}
@@ -55,6 +111,7 @@ jobs:
           retention-days: 7
 
       - name: Verify canonical collection index is fresh
+        if: needs.scope.outputs.regenerate == 'true'
         run: >-
           python scripts/generate_context_fabric_collection_indexes.py
           --resource "${{ matrix.resource }}"
