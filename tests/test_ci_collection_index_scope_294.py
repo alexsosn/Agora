@@ -120,6 +120,8 @@ class CollectionIndexCiScope294(unittest.TestCase):
             self.assertIn(f"- {resource}", workflow)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("timeout-minutes:", workflow)
+        self.assertIn("continue-on-error: true", workflow)
+        self.assertIn("if: github.event_name == 'pull_request'", workflow)
         self.assertRegex(workflow, r"(?m)^  generate:\n")
         self.assertRegex(workflow, r"(?m)^    needs: scope\n")
         self.assertNotRegex(workflow, r"(?m)^  generate:.*\n(?:.*\n)*?    if:")
