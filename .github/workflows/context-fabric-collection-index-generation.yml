@@ -14,6 +14,11 @@ on:
 permissions:
   contents: read
 
+# Superseded PR heads cancel each other; dispatches retain independent run identities.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   scope:
     name: Fail-closed collection index impact
