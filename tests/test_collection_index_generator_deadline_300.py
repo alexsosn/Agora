@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
-import math
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -134,6 +134,36 @@ class GeneratorAcquisitionDeadline300(unittest.TestCase):
                             cache_dir=Path(tmp) / "cache", max_acquire_minutes=bad,
                         )
                     store.assert_not_called()
+
+    @unittest.skipUnless(shutil.which("git"), "requires a local Git binary")
+    def test_real_local_commit_bound_git_acquisition_and_fresh_cache_reuse(self):
+        # No remote dependency: exercise actual Git clone/fetch, selected
+        # revision identity and repeat acquisition using the supervised store.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source"
+            source.mkdir()
+            def git(*args):
+                return subprocess.run(
+                    ["git", "-C", str(source), *args], check=True,
+                    text=True, capture_output=True,
+                ).stdout.strip()
+            git("init", "-q", "-b", "main")
+            git("config", "user.name", "CI Fixture")
+            git("config", "user.email", "ci@example.invalid")
+            (source / "README.md").write_text("pinned fixture\\n", encoding="utf-8")
+            git("add", "README.md")
+            git("commit", "-qm", "pin")
+            revision = git("rev-parse", "HEAD")
+            store = generator.GitStore(root / "cache")
+            for _ in range(2):
+                with operation_scope(OperationControl(acquisition_timeout_seconds=20.0)):
+                    cached = store.ensure_metadata(
+                        str(source), cache_key="pinned-local", ref=revision,
+                    )
+                    self.assertEqual(store.selected_revision(cached), revision)
+                self.assertIsNone(current_operation())
+            self.assertTrue((cached / ".git").is_dir())
 
     def test_supervised_transport_enforces_deadline_and_kills_owned_process(self):
         process = _HangingGit()
