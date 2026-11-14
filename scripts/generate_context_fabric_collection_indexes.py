@@ -22,7 +22,8 @@ from agora_context_fabric.collection_index import (
     CollectionIndexManager,
     dump_collection_index,
 )
-from agora_context_fabric.gitstore import GitStore
+from agora_context_fabric.gitstore_long_ops import GitStore
+from agora_context_fabric.operation import OperationControl, operation_scope
 
 
 COLLECTION_IDS = (
@@ -33,6 +34,9 @@ COLLECTION_IDS = (
 )
 _IMMUTABLE_REVISION_RE = re.compile(r"(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\Z")
 _VERIFICATION_STATUSES = frozenset({"experimental", "community", "verified"})
+# Allow observed >22-minute pinned Greek metadata fetches, but stop a stalled
+# transport before the index workflow's 25-minute job-level failsafe.
+DEFAULT_GENERATOR_MAX_ACQUIRE_MINUTES = 24.0
 
 
 def load_yaml(path: Path):
@@ -151,7 +155,13 @@ def generate_documents(
     *,
     resource_ids: Iterable[str] = COLLECTION_IDS,
     cache_dir: Path,
+    max_acquire_minutes: float = DEFAULT_GENERATOR_MAX_ACQUIRE_MINUTES,
 ) -> dict[str, str]:
+    # Validate before touching the cache or opening a source connection. Do not
+    # inherit the user-facing runtime's 15-minute acquisition default here.
+    budget_seconds = OperationControl(
+        acquisition_timeout_seconds=max_acquire_minutes * 60.0
+    ).acquisition_timeout_seconds
     root = Path(root)
     catalog = Catalog.from_registry(root)
     store = GitStore(Path(cache_dir))
@@ -159,11 +169,20 @@ def generate_documents(
     for resource_id in resource_ids:
         resource = catalog.get(resource_id)
         revision = configured_revision(resource)
-        index = generate_resource_index(
-            resource,
-            source_revision=revision,
-            store=store,
-        )
+        # New budget per pinned resource: the CLI can generate several indexes
+        # sequentially, but a slow earlier source must not consume the next
+        # resource's budget. Existing long-ops GitStore kills Git helpers on
+        # cancellation/deadline; no second subprocess watchdog is needed.
+        operation = OperationControl(acquisition_timeout_seconds=budget_seconds)
+        operation.stage(f"collection-index/{resource_id}/acquiring")
+        print(f"Acquiring pinned collection {resource_id} ({revision})", file=sys.stderr, flush=True)
+        with operation_scope(operation):
+            index = generate_resource_index(
+                resource,
+                source_revision=revision,
+                store=store,
+            )
+        print(f"Acquired pinned collection {resource_id}", file=sys.stderr, flush=True)
         canonical_document = None
         if resource.member_index_path is not None and resource.member_index_path.is_file():
             canonical_document = load_yaml(resource.member_index_path)
@@ -206,6 +225,12 @@ def main() -> int:
         action="store_true",
         help="Regenerate at the configured revisions and fail if canonical index content differs.",
     )
+    parser.add_argument(
+        "--max-acquire-minutes",
+        type=float,
+        default=DEFAULT_GENERATOR_MAX_ACQUIRE_MINUTES,
+        help="Per-resource Git metadata acquisition deadline (default: 24 minutes).",
+    )
     args = parser.parse_args()
 
     resource_ids = tuple(args.resources or COLLECTION_IDS)
@@ -223,6 +248,7 @@ def main() -> int:
             ROOT,
             resource_ids=resource_ids,
             cache_dir=cache_dir,
+            max_acquire_minutes=args.max_acquire_minutes,
         )
         errors: list[str] = []
         for resource_id in resource_ids:
