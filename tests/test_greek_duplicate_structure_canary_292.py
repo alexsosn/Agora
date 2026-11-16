@@ -68,7 +68,9 @@ class GreekDuplicateStructureCanaryTests(unittest.TestCase):
         (self.dataset / "otext.tf").write_text(
             "@config\n"
             "@sectionTypes=book,card,card\n"
-            "@structureTypes=_book,book,card,card,_sentence,_phrase\n",
+            "@sectionFeatures=book,card,card\n"
+            "@structureTypes=_book,book,card,card,_sentence,_phrase\n"
+            "@structureFeatures=_book,book,card,card,_sentence,_phrase\n",
             encoding="utf-8",
         )
 
