@@ -62,10 +62,14 @@ class PrConcurrencyRedTests(unittest.TestCase):
                 )
 
     def test_live_external_mutation_and_release_automation_are_unmodified(self):
+        # #297 supersedes #201's initial exclusion of the read-only
+        # collection-index generator. It only downloads source metadata,
+        # checks a local index, and uploads CI artifacts; its PR-scoped
+        # concurrency contract is separately guarded by #297 tests.
+        # Actual external service mutation and release jobs remain excluded.
         for filename in (
             "materializer-release-updates.yml",
             "external-mcp-smoke.yml",
-            "context-fabric-collection-index-generation.yml",
         ):
             with self.subTest(filename=filename):
                 path = ROOT / ".github" / "workflows" / filename
