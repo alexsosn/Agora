@@ -27,8 +27,6 @@ class LoadCase:
     features: tuple[str, ...]
     member_path_contains: str | None = None
     expected_known_issue: str | None = None
-    expected_upstream_error_type: str | None = None
-    expected_upstream_error_text: str | None = None
     modules: tuple[str, ...] = ()
     version: str | None = None
     expected_parent_revision: str | None = None
@@ -55,8 +53,6 @@ LOAD_CASES = {
         (),
         "canonical-greekLit/tlg0001/tlg001/perseus-grc2/1/tf/1.0",
         "context-fabric/duplicate-structure-levels",
-        "ValueError",
-        "not enough values to unpack",
     ),
     # Regression smoke for the feature-module overlay path. It is not bound to
     # a registry verification check (checks describe resources and collection
@@ -102,6 +98,12 @@ SEMANTIC_EXPECTATIONS = {
     "greek-iliad": (
         SemanticExpectation("orig", 1, "μῆνιν"),
         SemanticExpectation("main", 1, "μῆνιν"),
+    ),
+    # Pinned Argonautica source: lexically readable in CF 0.5.8 even though
+    # repeated card levels still break the declared structure hierarchy.
+    "greek-known-bad": (
+        SemanticExpectation("main", 1, "ἀρχόμενος"),
+        SemanticExpectation("main", 2, "σέο"),
     ),
     # BHSA 2021 + ETCBC/phono: the module's phonetic transcription must align
     # with the parent's first two slots (B / R>CJT of Genesis 1:1).
@@ -231,41 +233,93 @@ def validate_case_check_binding(
     return check
 
 
-def probe_expected_upstream_failure(
+def probe_duplicate_structure_canary(
     case_name: str,
     dataset: Path,
     *,
-    expected_error_type: str,
-    expected_error_text: str,
     fabric_factory: Callable[..., Any] | None = None,
 ) -> dict[str, Any]:
-    """Reproduce one bounded upstream failure so a future fix retires the marker."""
+    """Prove the pinned member still has an unusable *declared* card hierarchy.
+
+    Successful loadAll is not a reason to lift the Agora blocking issue:
+    Argonautica declares two card levels, but none of its 94 card nodes is
+    contained by another card. Check real source metadata, lexical values and
+    engine-visible node containment without modifying source files or indexes.
+    """
+    config_path = dataset / "otext.tf"
+    config_lines = config_path.read_text(encoding="utf-8").splitlines()
+    expected_metadata = {
+        "sectionTypes": "book,card,card",
+        "sectionFeatures": "book,card,card",
+        "structureTypes": "_book,book,card,card,_sentence,_phrase",
+        "structureFeatures": "_book,book,card,card,_sentence,_phrase",
+    }
+    for key, expected in expected_metadata.items():
+        declarations = [
+            line[len(key) + 2 :]
+            for line in config_lines
+            if line.startswith(f"@{key}=")
+        ]
+        if declarations != [expected]:
+            raise RuntimeError(
+                f"{case_name}: source metadata {key} expected {expected!r}, "
+                f"got {declarations!r}; re-audit this pinned canary"
+            )
+
     if fabric_factory is None:
         from cfabric import Fabric
 
         fabric_factory = Fabric
-
-    try:
-        fabric = fabric_factory(locations=str(dataset), silent="deep")
-        fabric.loadAll(silent="deep")
-    except Exception as exc:
-        error_type = type(exc).__name__
-        error_text = str(exc)
-        if error_type != expected_error_type or expected_error_text not in error_text:
-            raise RuntimeError(
-                f"{case_name}: unexpected upstream failure while probing known issue: "
-                f"{error_type}: {error_text}"
-            ) from exc
-        return {
-            "status": "expected-upstream-failure",
-            "error_type": error_type,
-            "error_text": error_text,
-        }
-
-    raise RuntimeError(
-        f"{case_name}: known issue may be fixed upstream; direct Context-Fabric load "
-        "succeeded. Re-audit the affected set and retire or update the known issue."
+    fabric = fabric_factory(locations=str(dataset), silent="deep")
+    api = fabric.loadAll(silent="deep")
+    if api is None or api is False:
+        raise RuntimeError(f"{case_name}: direct Context-Fabric load returned no API")
+    semantic_checks = check_semantic_expectations(
+        case_name, api, SEMANTIC_EXPECTATIONS[case_name]
     )
+
+    expected_ranges = {
+        "word": (1, 38904),
+        "book": (47102, 47105),
+        "card": (47106, 47199),
+    }
+    nodes_by_type: dict[str, Any] = {}
+    for node_type, (start, stop) in expected_ranges.items():
+        nodes = api.F.otype.s(node_type)
+        expected_count = stop - start + 1
+        if len(nodes) != expected_count:
+            raise RuntimeError(
+                f"{case_name}: {node_type} node count expected {expected_count}, "
+                f"got {len(nodes)}"
+            )
+        # F.otype.s returns canonical order (by corpus rank), not numeric IDs.
+        # Validate the source-pinned contiguous numeric range regardless of order.
+        if min(nodes) != start or max(nodes) != stop:
+            raise RuntimeError(
+                f"{case_name}: {node_type} node range expected {start}-{stop}, "
+                f"got {min(nodes)}-{max(nodes)}"
+            )
+        nodes_by_type[node_type] = nodes
+
+    # Text-Fabric L.u(card, otype="card") reports actual containment rather
+    # than inferring it from duplicate text metadata. 94 missing inner-card
+    # parents reproduce CF 0.5.8's original section warning.
+    uncontained_cards = sum(
+        not api.L.u(card, otype="card") for card in nodes_by_type["card"]
+    )
+    if uncontained_cards != 94:
+        raise RuntimeError(
+            f"{case_name}: uncontained card nodes expected 94, "
+            f"got {uncontained_cards}; re-audit structural semantics"
+        )
+    return {
+        "status": "duplicate-structure-observed",
+        "word_count": len(nodes_by_type["word"]),
+        "book_count": len(nodes_by_type["book"]),
+        "card_count": len(nodes_by_type["card"]),
+        "uncontained_card_nodes": uncontained_cards,
+        "semantic_checks": semantic_checks,
+    }
 
 
 def summarize_loaded_corpus(
@@ -500,10 +554,6 @@ def run_case(
                 f"{case_name}: member {member.id!r} is not marked with expected known issue "
                 f"{case.expected_known_issue!r}"
             )
-        if not case.expected_upstream_error_type or not case.expected_upstream_error_text:
-            raise RuntimeError(
-                f"{case_name}: expected-known-failure case has no upstream retirement signature"
-            )
         try:
             service.prepare(
                 case.resource_id,
@@ -528,7 +578,7 @@ def run_case(
             )
 
         # The normal Agora path above must reject before acquisition. For the one
-        # retirement canary only, bypass that guard deliberately, acquire the exact
+        # structure canary only, bypass that guard deliberately, acquire the exact
         # pinned dataset, and run Context-Fabric on a disposable copy. This observes
         # upstream behavior without patching it or letting loader caches mutate the
         # shared revision-addressed Agora snapshot.
@@ -548,16 +598,13 @@ def run_case(
         with tempfile.TemporaryDirectory(prefix="agora-known-failure-probe-") as tmp:
             probe_dataset = Path(tmp) / "dataset"
             shutil.copytree(dataset, probe_dataset)
-            upstream_probe = probe_expected_upstream_failure(
-                case_name,
-                probe_dataset,
-                expected_error_type=case.expected_upstream_error_type,
-                expected_error_text=case.expected_upstream_error_text,
+            upstream_probe = probe_duplicate_structure_canary(
+                case_name, probe_dataset
             )
 
         report = {
             "case": case_name,
-            "status": "expected-known-failure",
+            "status": "expected-known-structure-anomaly",
             "resource_id": case.resource_id,
             "member_id": member.id,
             "relative_path": member.relative_path,

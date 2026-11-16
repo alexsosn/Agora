@@ -64,69 +64,17 @@ class ContextFabricLoadSmokeTests(unittest.TestCase):
             "context-fabric/duplicate-structure-levels",
         )
 
-    def test_expected_known_failure_carries_upstream_retirement_canary(self):
-        known_bad = LOAD_CASES["greek-known-bad"]
+    def test_known_bad_semantic_canary_pins_actual_greek_source_words(self):
         self.assertEqual(
-            getattr(known_bad, "expected_upstream_error_type", None),
-            "ValueError",
+            [(item.feature, item.node, item.expected)
+             for item in SEMANTIC_EXPECTATIONS["greek-known-bad"]],
+            [("main", 1, "ἀρχόμενος"), ("main", 2, "σέο")],
         )
-        self.assertIn(
-            "not enough values to unpack",
-            getattr(known_bad, "expected_upstream_error_text", ""),
-        )
-
-    def test_upstream_retirement_probe_accepts_only_the_reproduced_failure(self):
-        probe = getattr(smoke, "probe_expected_upstream_failure", None)
-        self.assertTrue(callable(probe), "smoke must probe the upstream failure directly")
-
-        class BrokenFabric:
-            def __init__(self, *, locations, silent):
-                self.locations = locations
-                self.silent = silent
-
-            def loadAll(self, *, silent):
-                raise ValueError("not enough values to unpack (expected 6, got 2)")
-
-        result = probe(
-            "greek-known-bad",
-            Path("/tmp/dataset"),
-            expected_error_type="ValueError",
-            expected_error_text="not enough values to unpack",
-            fabric_factory=BrokenFabric,
-        )
-        self.assertEqual(result["status"], "expected-upstream-failure")
-        self.assertEqual(result["error_type"], "ValueError")
-
-        class FixedFabric(BrokenFabric):
-            def loadAll(self, *, silent):
-                return {"loaded": True}
-
-        with self.assertRaisesRegex(RuntimeError, "known issue may be fixed upstream"):
-            probe(
-                "greek-known-bad",
-                Path("/tmp/dataset"),
-                expected_error_type="ValueError",
-                expected_error_text="not enough values to unpack",
-                fabric_factory=FixedFabric,
-            )
-
-        class DifferentFailureFabric(BrokenFabric):
-            def loadAll(self, *, silent):
-                raise RuntimeError("different upstream failure")
-
-        with self.assertRaisesRegex(RuntimeError, "unexpected upstream failure"):
-            probe(
-                "greek-known-bad",
-                Path("/tmp/dataset"),
-                expected_error_type="ValueError",
-                expected_error_text="not enough values to unpack",
-                fabric_factory=DifferentFailureFabric,
-            )
 
     def test_each_real_load_case_has_narrow_semantic_expectations(self):
         self.assertEqual(
             set(SEMANTIC_EXPECTATIONS),
-            set(LOAD_CASES) - {"greek-known-bad"},
+            set(LOAD_CASES),
         )
         self.assertEqual(
             [(item.feature, item.node) for item in SEMANTIC_EXPECTATIONS["bhsa"]],
