@@ -96,6 +96,18 @@ class GreekDuplicateStructureCanaryTests(unittest.TestCase):
             [("main", 1, "ἀρχόμενος"), ("main", 2, "σέο")],
         )
 
+    def test_canonical_node_order_is_not_assumed_numeric(self):
+        # F.otype.s returns canonical order, not guaranteed numeric order.
+        # Both orientations identify the same pinned source node range.
+        api = _api()
+        raw_otype = api.F.otype
+        class ReversedOtype:
+            def s(self, otype):
+                return tuple(reversed(raw_otype.s(otype)))
+        api.F.otype = ReversedOtype()
+        observed = self.probe(api)
+        self.assertEqual(observed["card_count"], 94)
+
     def test_changed_word_or_node_count_is_not_accepted(self):
         with self.assertRaisesRegex(RuntimeError, "expected.*wrong"):
             self.probe(_api(first="wrong"))
