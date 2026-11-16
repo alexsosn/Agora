@@ -292,10 +292,12 @@ def probe_duplicate_structure_canary(
                 f"{case_name}: {node_type} node count expected {expected_count}, "
                 f"got {len(nodes)}"
             )
-        if nodes[0] != start or nodes[-1] != stop:
+        # F.otype.s returns canonical order (by corpus rank), not numeric IDs.
+        # Validate the source-pinned contiguous numeric range regardless of order.
+        if min(nodes) != start or max(nodes) != stop:
             raise RuntimeError(
                 f"{case_name}: {node_type} node range expected {start}-{stop}, "
-                f"got {nodes[0]}-{nodes[-1]}"
+                f"got {min(nodes)}-{max(nodes)}"
             )
         nodes_by_type[node_type] = nodes
 
