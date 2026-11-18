@@ -123,7 +123,7 @@ plugins:
       install_trust: explicit-code-execution
     materializers:
       - iip-epidoc-text-fabric
-    disciplines: [epigraphy, judaica, semitic-linguistics, digital-philology]
+    disciplines: [history, judaica, semitic-linguistics, digital-philology]
     licenses:
       software: MIT
       data: CC-BY-NC-4.0
