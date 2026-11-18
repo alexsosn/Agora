@@ -25,7 +25,11 @@ class CopticV631RegisteredSourceMigrationTests(unittest.TestCase):
         self.assertRegex(plugin["ref"], r"^[0-9a-f]{40}$")
         self.assertNotEqual(plugin["ref"], PREVIOUS_REGISTERED_PRODUCER)
         existing_contract = (ROOT / "tests/test_coptic_single_source_pin_235.py").read_text(encoding="utf-8")
-        match = re.search(r'^IMMUTABLE_COPTIC_TT_SOURCE = "([a-f0-9]{40})"
+        match = re.search(r'^IMMUTABLE_COPTIC_TT_SOURCE = "([a-f0-9]{40})"$',
+                          existing_contract, re.MULTILINE)
+        self.assertIsNotNone(match, "missing existing independently pinned source check")
+        self.assertEqual(match.group(1), OFFICIAL_COPTIC_V631)
+        self.assertNotEqual(match.group(1), PREVIOUS_SOURCE)
         self.assertEqual(plugin["package"]["install_trust"], "explicit-code-execution")
 
     def test_real_registered_full_acceptance_is_source_locked_and_lifecycle_complete(self):
