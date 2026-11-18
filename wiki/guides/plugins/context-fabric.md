@@ -93,7 +93,7 @@ The BHSA parent corpus is listed under **CC BY-NC 4.0** in Agora, while the cant
 
 A plugin-level verification result does not promote every corpus or annotation layer. Use the resource catalog and compatibility evidence for the specific resource/path.
 
-For the PTHU Greek collection, some members are intentionally blocked by `context-fabric/duplicate-structure-levels` even when their words are directly readable in the engine. See [safe recovery for a blocked Greek member](../troubleshooting.md#greek-collection-member-is-blocked-by-duplicate-structure-levels), including when passage retrieval through Perseus may be suitable. Do not interpret the collection-level status as proof of each member's structural reliability.
+For the PTHU Greek collection, members marked `context-fabric/duplicate-structure-levels` are intentionally blocked. A direct Context-Fabric 0.5.8 probe read the opening words of **Argonautica**, but also confirmed that its duplicated `card` hierarchy is unresolved; this does not establish load or navigation behavior for the other flagged works. See [safe recovery for a blocked Greek member](../troubleshooting.md#greek-collection-member-is-blocked-by-duplicate-structure-levels), including when passage retrieval through Perseus may be suitable. Do not interpret the collection-level status as proof of each member's structural reliability.
 
 Registered plugin-level advisories:
 
