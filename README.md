@@ -105,6 +105,10 @@ Using Sefaria, retrieve Genesis 1:1 in Hebrew and English and show the linked cl
 Look up this Syriac word in SEDRA, distinguish the returned word-form data from lexeme data, and preserve ambiguous analyses rather than choosing one silently: ܡܠܟܐ
 ```
 
+```text
+Using CAL, make one bounded cal_lexicon_lookup(query="br", lemma_key="br N") call. Report the entry and exact source provenance, preserve ambiguity and do not retry upstream rate limits. See the first-success guide: wiki/guides/first-success/cal.md.
+```
+
 For corpus research, Agora's bundled skills encourage the agent to inspect the selected resource's schema, annotation conventions, and limitations before interpreting results.
 
 ## Choosing a plugin
