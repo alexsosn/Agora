@@ -112,7 +112,7 @@ You do not need all five plugins for every project.
 - Install **Sefaria** for Jewish texts, translations, links/commentaries, dictionaries, topics, and manuscript resources exposed by the official Sefaria MCP.
 - Install **SEDRA** for Syriac word-form and lexeme lookup against SEDRA IV.
 
-Installing Context-Fabric does not download all 37 registered resources. Corpus acquisition is lazy.
+Installing Context-Fabric does not download everything in the [resource catalog](resources.md). Corpus acquisition is lazy.
 
 ## Context-Fabric first load and cache
 
