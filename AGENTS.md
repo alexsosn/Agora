@@ -1,12 +1,21 @@
 # Agora agent instructions
 
+## Product outcome gate — read before selecting work
+
+At the start of **every autonomous development episode**, read [PRODUCT_GOALS.md](PRODUCT_GOALS.md) and [the autonomous development policy](docs/agentic-development-policy.md). The most important remaining researcher journey controls work selection; a GitHub issue label, test count, or attractive infrastructure task does not override that goal.
+
+Before implementation, state the researcher outcome, observed evidence, simplest reuse-first solution, and public-interface acceptance check. Prefer finishing active PRs, user-facing functionality and actual releases. Do not build adapters, workflow-specific infrastructure, certification protocols or speculative hardening without demonstrating a concrete blocker or realistic risk. Two cycles without measurable user progress require reassessment, not automatic backlog expansion. Maintain proportional research/plan/TDD/test gates and logically independent, real-code/data-grounded adversarial review for each PR finalized.
+
+These priorities do **not** waive security, source integrity, third-party rights, branch protection or required release checks. The repository's existing review and plugin-ownership rules below remain in force.
+
+
 Agora is a **thin plugin marketplace**. Before implementing or reviewing plugin-related work, read [`wiki/architecture/ref-plugin-boundary.md`](wiki/architecture/ref-plugin-boundary.md).
 
 For any pull-request review, read [`CONTRIBUTING.md`](CONTRIBUTING.md) and use [`.agents/skills/agora-pr-review/SKILL.md`](.agents/skills/agora-pr-review/SKILL.md) as the default review entry point.
 
-## Agora 1.0 release mode
+## Conditional Agora 1.0 release mode (historical)
 
-Until [#148](https://github.com/alexsosn/Agora/issues/148) is complete, the 1.0 release tracker controls work selection.
+The rules in this section govern work selection **only if** the [1.0 tracker #148](https://github.com/alexsosn/Agora/issues/148) is actively open. That tracker is currently closed. Do not select already-completed 1.0 work or override current product goals solely because these historical rules remain in the file. Verify actual published release state independently of issue closure.
 
 1. Pick an actionable 1.0 item before post-release architecture, automation, optimization, or catalog expansion.
 2. If a release item is blocked, choose another actionable release item. A blocked ticket is not permission to start speculative platform work.
