@@ -68,6 +68,8 @@ class GreekBlockedMemberRecoveryDocsTests(unittest.TestCase):
             "not equivalent",
             "edition",
             "schema",
+            "perseus@agora",
+            "Argonautica",
         ):
             self.assertIn(expected.lower(), section.lower())
 
