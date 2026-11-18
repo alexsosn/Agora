@@ -22,6 +22,7 @@ SAFE_EXACT = frozenset(
         # No general scripts/ or tests/ pattern is permitted.
         "scripts/generate_plugin_docs.py",
         "scripts/generate_resource_catalog_docs.py",
+        "tests/test_plugin_detail_docs.py",
         "tests/test_human_scholarly_guidance_169.py",
         "tests/test_release_front_door.py",
         "tests/test_symptom_recovery_docs_172.py",
