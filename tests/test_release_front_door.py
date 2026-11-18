@@ -27,6 +27,13 @@ class ReleaseFrontDoorTests(unittest.TestCase):
         self.assertIn("Desktop only", self.readme)
         self.assertIn("ChatGPT", self.readme)
 
+    def test_cal_first_contact_prerequisites_and_prompt_are_visible(self):
+        self.assertIn("CAL uses `uvx`", self.install)
+        self.assertIn("live Comprehensive Aramaic Lexicon (CAL)", self.install)
+        self.assertIn("cal_lexicon_lookup", self.readme)
+        self.assertIn("br N", self.readme)
+        self.assertIn("first-success/cal.md", self.readme)
+
     def test_installation_documents_host_owned_removal_without_marketplace_deletion(self):
         self.assertIn("claude plugin uninstall", self.install)
         self.assertIn("codex plugin remove", self.install)
