@@ -34,6 +34,6 @@ Do not introduce a generic database adapter, another MCP server, source-specific
 
 ## Autonomous-development decision rules
 
-Before choosing an issue, read this file, `AGENTS.md`, and `wiki/agentic-development-policy.md`. Choose work by actual researcher outcomes, not issue count, ease of writing tests, or theoretical hardening. Prefer completing active PRs and honest releases. Require a specific user blocker and minimal reuse-first fix for internal infrastructure work. Keep research, planning, tests and logically independent adversarial review proportional to actual risk.
+Before choosing an issue, read this file, `AGENTS.md`, and `docs/agentic-development-policy.md`. Choose work by actual researcher outcomes, not issue count, ease of writing tests, or theoretical hardening. Prefer completing active PRs and honest releases. Require a specific user blocker and minimal reuse-first fix for internal infrastructure work. Keep research, planning, tests and logically independent adversarial review proportional to actual risk.
 
 If two successive cycles do not advance a researcher journey or remove a reproduced blocker, challenge the approach and stop expanding the backlog. A useful, honestly scoped release is a successful stopping point.
