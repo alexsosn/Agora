@@ -19,6 +19,7 @@ BROWN_SHA = "0b7dc8358ccdfd0c9391f049da4839fbd91c26e5"
 class IipTfRegisteredMaterializerTests(unittest.TestCase):
     def test_registry_links_immutable_release_producer_with_correct_rights(self) -> None:
         entry = select_plugin(load_registry(), "iip-tf")
+        self.assertEqual(entry["name"], "IIP-TF")
         self.assertEqual(entry["repository"], "alexsosn/IIP-TF")
         self.assertEqual(entry["ref"], IIP_SHA)
         self.assertEqual(entry["version"], "0.1.0.dev0")
