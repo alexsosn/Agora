@@ -42,6 +42,31 @@ class CiChangeScopeContracts(unittest.TestCase):
             ),
         )
 
+    def test_shared_user_docs_contracts_remain_on_the_docs_gate(self):
+        root = Path(__file__).resolve().parents[1]
+        greek = root / "tests/test_symptom_recovery_docs_172.py"
+        plugin = root / "tests/test_plugin_detail_docs.py"
+        self.assertEqual(
+            "docs",
+            classify_changed_paths([
+                "scripts/generate_plugin_docs.py",
+                "tests/test_plugin_detail_docs.py",
+                "tests/test_symptom_recovery_docs_172.py",
+                "wiki/guides/plugins/context-fabric.md",
+                "wiki/guides/troubleshooting.md",
+                "research/issue-304/RESEARCH_PLAN.md",
+            ]),
+        )
+        self.assertFalse((root / "tests/test_greek_blocked_recovery_docs_292.py").exists())
+        self.assertFalse((root / "tests/test_pseudepigrapha_researcher_guide_304.py").exists())
+        self.assertIn("test_recovery_tracks_a_real_blocking_member_issue", greek.read_text())
+        self.assertIn("test_recovery_does_not_misrepresent_unsupported_structure_as_fixed", greek.read_text())
+        self.assertIn("test_registered_archive_version_and_source_links_are_current", plugin.read_text())
+        self.assertIn("test_verification_and_local_corpus_boundary_are_not_overstated", plugin.read_text())
+        workflow = (root / ".github/workflows/foundation.yml").read_text()
+        for pattern in ("test_symptom_recovery_docs_172.py", "test_plugin_detail_docs.py"):
+            self.assertIn(pattern, workflow)
+
     def test_any_runtime_or_metadata_change_overrides_doc_fast_path(self):
         critical = (
             "scripts/agora_materialize.py",
