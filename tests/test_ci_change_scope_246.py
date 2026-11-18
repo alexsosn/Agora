@@ -105,6 +105,7 @@ class CiChangeScopeContracts(unittest.TestCase):
         allowed = (
             "scripts/generate_plugin_docs.py",
             "scripts/generate_resource_catalog_docs.py",
+            "tests/test_plugin_detail_docs.py",
             "tests/test_compatibility_decisions_171.py",
             "tests/test_human_scholarly_guidance_169.py",
             "tests/test_symptom_recovery_docs_172.py",
@@ -117,7 +118,6 @@ class CiChangeScopeContracts(unittest.TestCase):
                 self.assertEqual("docs", classify_changed_paths([path]))
                 self.assertEqual("docs", classify_changed_paths(["README.md", path]))
         for path in (
-            "tests/test_plugin_detail_docs.py",
             "tests/test_resource_catalog_docs.py",
             "tests/test_user_docs_landing.py",
             "tests/test_user_docs_mental_model.py",
@@ -153,7 +153,7 @@ class CiChangeScopeContracts(unittest.TestCase):
     def test_docs_only_sources_are_explicit_and_nonexecutable(self):
         self.assertEqual("docs", classify_changed_paths(["README.md"]))
         self.assertEqual("docs", classify_changed_paths(["wiki/guides/README.md"]))
-        self.assertEqual("full", classify_changed_paths(["tests/test_plugin_detail_docs.py"]))
+        self.assertEqual("docs", classify_changed_paths(["tests/test_plugin_detail_docs.py"]))
         self.assertEqual("full", classify_changed_paths(["scripts/check_runtime_environment_freshness.py"]))
         self.assertEqual("full", classify_changed_paths(["tests/test_doc_runtime_escape.py"]))
 
