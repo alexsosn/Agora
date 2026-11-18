@@ -2,7 +2,7 @@
 
 ## Start after installation
 
-Install the candidate **CAL** plugin through Agora's Claude/Codex marketplace. It starts the pinned `cal-mcp==0.1.0` package locally over stdio and reaches remote [CAL](https://cal.huc.edu/) only when a CAL-backed tool is used. Check that the client lists `cal_lexicon_lookup` among the 36 released tools. Merely listing tools does not contact CAL.
+Install the **CAL** plugin through Agora's Claude/Codex marketplace. It starts the pinned `cal-mcp==0.1.0` package locally over stdio and reaches remote [CAL](https://cal.huc.edu/) only when a CAL-backed tool is used. Check that the client lists `cal_lexicon_lookup` among the 36 released tools. Merely listing tools does not contact CAL.
 
 ## Try this
 
@@ -19,7 +19,7 @@ The installed generated-client stdio transport initializes, advertises the expec
 
 ## Interpretation limits
 
-The software is MIT; CAL's underlying lexical, text and bibliography data and service terms are **upstream-dependent**. A lexicon entry is a dictionary resource, not itself the attestation in a particular manuscript. The provider is remote; CAL-MCP applies pacing, rolling request caps and cooldown after upstream 429. The prospective Agora client status remains **community** until its corresponding launch and smoke evidence is checked.
+The software is MIT; CAL's underlying lexical, text and bibliography data and service terms are **upstream-dependent**. A lexicon entry is a dictionary resource, not itself the attestation in a particular manuscript. The provider is remote; CAL-MCP applies pacing, rolling request caps and cooldown after upstream 429. The generated **Codex** stdio path completed a bounded, provenance-bearing `br N` lookup in [live check 38234918961](https://github.com/alexsosn/Agora/actions/runs/38234918961), so the Codex integration path is **verified** in the canonical registry. The generated **Claude** path has not passed an equivalent live check and remains **community**, as does the aggregate CAL plugin status. These generated-path checks do not execute the actual-client application or certify CAL's scholarly coverage.
 
 ## Next steps
 
