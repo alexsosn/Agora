@@ -3,11 +3,15 @@ from __future__ import annotations
 
 import re
 import unittest
+
+import yaml
 from pathlib import Path
 
 from scripts import generate_plugin_docs
 
 ROOT = Path(__file__).resolve().parents[1]
+GREEK_ISSUE = "context-fabric/duplicate-structure-levels"
+GREEK_SECTION = "## Greek collection member is blocked by duplicate structure levels"
 RECOVERY = ROOT / "wiki/guides/troubleshooting.md"
 INSTALL = ROOT / "wiki/guides/installation.md"
 DEV = ROOT / "wiki/guides/development-setup.md"
@@ -99,6 +103,68 @@ class SymptomRecoveryDocsTests(unittest.TestCase):
                            if line.startswith("|") and issue in line)
                 self.assertIn("troubleshooting.md#" + fragment, row)
         self.assertIn("https://help.openai.com/en/articles/20001504", INSTALL.read_text())
+
+
+    def test_recovery_tracks_a_real_blocking_member_issue(self):
+        resources = yaml.safe_load(
+            (ROOT / "registry/resources.yaml").read_text(encoding="utf-8")
+        )["resources"]
+        greek = next(row for row in resources if row["id"] == "greek_literature")
+        issues = greek["verification"]["known_issues"]
+        known = next(row for row in issues if row["id"] == GREEK_ISSUE)
+        self.assertEqual((known["impact"], known["severity"]), ("member", "blocking"))
+
+        collection = yaml.safe_load(
+            (ROOT / "registry/collections/greek_literature.yaml").read_text(
+                encoding="utf-8"
+            )
+        )
+        flagged = [
+            member for member in collection["members"]
+            if GREEK_ISSUE in {
+                item["issue_id"]
+                for item in member.get("verification", {}).get("known_issues", [])
+            }
+        ]
+        self.assertGreater(len(flagged), 0)
+
+    def test_researcher_can_reach_safe_recovery_from_plugin_page(self):
+        trouble = (ROOT / "wiki/guides/troubleshooting.md").read_text(
+            encoding="utf-8"
+        )
+        plugin = (ROOT / "wiki/guides/plugins/context-fabric.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(GREEK_SECTION, trouble)
+        self.assertIn(
+            "[Greek collection member is blocked by duplicate structure levels]"
+            "(#greek-collection-member-is-blocked-by-duplicate-structure-levels)",
+            trouble,
+        )
+        self.assertIn(
+            "../troubleshooting.md#greek-collection-member-is-blocked-by-duplicate-structure-levels",
+            plugin,
+        )
+
+    def test_recovery_does_not_misrepresent_unsupported_structure_as_fixed(self):
+        trouble = (ROOT / "wiki/guides/troubleshooting.md").read_text(
+            encoding="utf-8"
+        )
+        section = trouble.split(GREEK_SECTION, 1)[1].split("\n## ", 1)[0]
+        for expected in (
+            GREEK_ISSUE,
+            "KnownMemberIssueError",
+            "do not bypass",
+            "Perseus",
+            "Scaife",
+            "passage retrieval",
+            "not equivalent",
+            "edition",
+            "schema",
+            "perseus@agora",
+            "Argonautica",
+        ):
+            self.assertIn(expected.lower(), section.lower())
 
 
 if __name__ == "__main__":
