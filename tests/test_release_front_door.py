@@ -27,6 +27,18 @@ class ReleaseFrontDoorTests(unittest.TestCase):
         self.assertIn("Desktop only", self.readme)
         self.assertIn("ChatGPT", self.readme)
 
+    def test_front_door_defers_mutable_resource_counts_to_generated_catalog(self):
+        from pathlib import Path
+        import yaml
+
+        resources = yaml.safe_load((ROOT / "registry/resources.yaml").read_text(encoding="utf-8"))["resources"]
+        self.assertEqual(40, len(resources))
+        self.assertEqual(36, sum(row["kind"] == "corpus" for row in resources))
+        self.assertEqual(4, sum(row["kind"] == "collection" for row in resources))
+        for doc in (self.readme, self.install):
+            self.assertNotRegex(doc, r"\\b(?:37|39|40) registered (?:upstream )?resources\\b")
+            self.assertIn("resources.md", doc)
+
     def test_cal_first_contact_prerequisites_and_prompt_are_visible(self):
         self.assertIn("CAL uses `uvx`", self.install)
         self.assertIn("live Comprehensive Aramaic Lexicon (CAL)", self.install)
