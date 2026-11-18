@@ -109,7 +109,7 @@ plugins:
         - This immutable commit includes the adapter but is not asserted to match any already-published CATSS-TF version tag or release archive.
 
   - id: iip-tf
-    name: Inscriptions of Israel/Palestine Text-Fabric (IIP-TF)
+    name: IIP-TF
     description: Produce an original-EpiDoc-linked native Text-Fabric corpus from the authenticated Brown IIP source, including taxonomy, person register and Zotero bibliography authorities.
     repository: alexsosn/IIP-TF
     ref: 31c5052c0bb5d3cd2fb8418616ffdaf519582d24
