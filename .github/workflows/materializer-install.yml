@@ -728,3 +728,163 @@ jobs:
 
           asyncio.run(main())
           PY
+
+
+  iip-tf:
+    name: Fetch, explicitly install and sandbox materialize pinned IIP-TF
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    steps:
+      - name: Checkout exact registered IIP-TF PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact tested Agora head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install host registry dependencies and validate canonical entry
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python scripts/validate_registry.py
+          python -m unittest tests.test_iip_tf_registered_187 -v
+
+      - name: Capture exact registered converter commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref=$(python -c "from scripts.agora_install_materializer import load_registry, select_plugin; print(select_plugin(load_registry(), 'iip-tf')['ref'])")
+          test "$ref" = "31c5052c0bb5d3cd2fb8418616ffdaf519582d24"
+          echo "IIP_TF_COMMIT=$ref" >> "$GITHUB_ENV"
+
+      - name: Discover registered IIP-TF from real Agora CLI
+        run: python scripts/agora_install_materializer.py list | grep -F 'iip-tf'
+
+      - name: Passive acquisition without running third-party packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/agora_install_materializer.py fetch iip-tf --root "$RUNNER_TEMP/materializers"
+          source_root="$RUNNER_TEMP/materializers/iip-tf/$IIP_TF_COMMIT/source"
+          test -f "$source_root/agora.materializer.json"
+          test -f "$RUNNER_TEMP/materializers/iip-tf/$IIP_TF_COMMIT/agora-source.json"
+          test ! -d "$RUNNER_TEMP/materializers/iip-tf/$IIP_TF_COMMIT/environments"
+
+      - name: Explicitly approve and install immutable third-party Python producer
+        run: |
+          python scripts/agora_install_materializer.py install iip-tf \
+            --approve-code-execution \
+            --root "$RUNNER_TEMP/materializers"
+
+      - name: Check managed receipt and real current-host manifest binding
+        shell: bash
+        env:
+          MATERIALIZER_ROOT: ${{ runner.temp }}/materializers
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from scripts.agora_install_materializer import installation_path, load_registry, select_plugin
+          from scripts.agora_materialize import load_manifest
+
+          plugin = select_plugin(load_registry(), 'iip-tf')
+          target = installation_path(plugin, Path(os.environ['MATERIALIZER_ROOT']))
+          receipt = json.loads((target / 'agora-installation.json').read_text())
+          manifest = load_manifest(target / 'runtime' / 'agora.materializer.json')
+          assert receipt['schema_version'] == 3
+          assert receipt['plugin']['commit'] == plugin['ref']
+          assert receipt['environment']['install_trust'] == 'explicit-code-execution'
+          assert len(receipt['execution_identity_sha256']) == 64
+          assert manifest['plugin']['id'] == 'iip-tf'
+          assert manifest['plugin']['version'] == plugin['version']
+          assert [m['id'] for m in manifest['materializers']] == ['iip-epidoc-text-fabric']
+          m = manifest['materializers'][0]
+          assert m['acquisition'][0]['ref'] == '0b7dc8358ccdfd0c9391f049da4839fbd91c26e5'
+          assert m['acquisition'][0]['subpath'] == '.'
+          assert m['execution']['network'] == 'deny'
+          assert set(m['input']['required_globs']) == {
+              'epidoc-files/*.xml', 'include_taxonomies.xml',
+              'data-keep/persons.xml', 'data-keep/iip-zotero-export.xml',
+          }
+          assert set(m['output']['required_paths']) >= {
+              'tf/otype.tf', 'tf/oslots.tf', 'tf/otext.tf',
+              'app/app.py', 'app/config.yaml', 'app/static/display.css',
+              'conversion-summary.json',
+          }
+          PY
+
+      - name: Prepare required isolated bubblewrap sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y bubblewrap
+          if [[ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --unshare-all --ro-bind / / /bin/true
+
+      - name: Acquire immutable Brown Git source and run registered converter offline in sandbox
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/agora_materialize_registered.py \
+            --plugin iip-tf \
+            --materializer iip-epidoc-text-fabric \
+            --output "$RUNNER_TEMP/iip-output" \
+            --install-root "$RUNNER_TEMP/materializers" \
+            --sandbox required
+
+      - name: Load actual native TF output and verify source, licence and host receipt
+        shell: bash
+        env:
+          MATERIALIZER_ROOT: ${{ runner.temp }}/materializers
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+          from scripts.agora_install_materializer import installation_path, load_registry, select_plugin
+
+          root = Path(os.environ['RUNNER_TEMP']) / 'iip-output'
+          plugin = select_plugin(load_registry(), 'iip-tf')
+          runtime = installation_path(plugin, Path(os.environ['MATERIALIZER_ROOT'])) / 'runtime'
+          sys.path.insert(0, str(runtime))
+          from tf.fabric import Fabric
+
+          provenance = json.loads((root / 'agora-materialization.json').read_text())
+          summary = json.loads((root / 'conversion-summary.json').read_text())
+          assert provenance['plugin']['id'] == 'iip-tf'
+          assert provenance['materializer'] == 'iip-epidoc-text-fabric'
+          assert provenance['source']['type'] == 'git'
+          assert provenance['source']['resolved_commit'] == '0b7dc8358ccdfd0c9391f049da4839fbd91c26e5'
+          assert provenance['sandbox'] == 'bubblewrap'
+          assert summary['status'] == 'success'
+          assert summary['source_revision_verified'] is True
+          assert summary['source_revision'] == '0b7dc8358ccdfd0c9391f049da4839fbd91c26e5'
+          assert summary['data_license'] == 'CC BY-NC 4.0'
+          for relative in ('tf/otype.tf', 'tf/oslots.tf', 'tf/otext.tf',
+                           'app/app.py', 'app/config.yaml', 'app/static/display.css'):
+              assert (root / relative).is_file(), relative
+          api = Fabric(locations=str(root / 'tf'), silent='deep').load(
+              'inscription_id source_file', silent='deep',
+          )
+          assert api
+          assert len(api.F.otype.s('inscription')) == 5535
+          assert len(api.F.inscription_id.meta['sourceCommit']) == 40
+          print('IIP-TF Agora registered sandbox smoke: 5535 native records;')
+          print('authenticated Brown Git acquisition; installed producer and licence; TF output load')
+          PY
