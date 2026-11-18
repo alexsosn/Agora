@@ -34,7 +34,7 @@ With the current plugins you can, for example:
 - ask the agent to inspect corpus schema and annotation before constructing a query instead of guessing feature names;
 - keep corpus-specific research guidance alongside the tools that use it.
 
-The current Context-Fabric catalog contains **39 registered upstream resources**. Corpora are acquired lazily, so installing the plugin does not download all of them.
+The [resource catalog](wiki/guides/resources.md) is generated from Agora's canonical registry and lists currently registered corpora and collections. Corpus data are acquired lazily, so installing Context-Fabric does not download the whole catalog.
 
 Context-Fabric also accepts [user-supplied native TF corpora and feature modules](wiki/guides/context-fabric-local-import.md) through `install_local_corpus`, without adding them to the canonical catalog.
 
