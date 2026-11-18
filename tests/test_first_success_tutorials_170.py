@@ -69,6 +69,8 @@ class FirstSuccessTutorialContracts(unittest.TestCase):
         self.assertIn("community", body.lower())
         self.assertIn("actual-client", body)
         self.assertNotIn("prospective Agora client status remains", body)
+        self.assertIn("normally", body.lower())
+        self.assertNotIn("uses two actual upstream GET requests", body)
 
     def test_bhsa_first_query_is_schema_first_and_reports_count_unit(self):
         body = (TUTORIALS / "context-fabric.md").read_text(encoding="utf-8")
