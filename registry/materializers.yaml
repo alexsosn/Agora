@@ -107,3 +107,30 @@ plugins:
         - Network denied and strict source-validation defaults; third-party Python code installation requires explicit approval.
         - Only the standalone canonical alignment-slot corpus is supported here; BHSA 2021 and LXX 1935 parent-bound feature modules still require reviewed trusted read-only parent binding.
         - This immutable commit includes the adapter but is not asserted to match any already-published CATSS-TF version tag or release archive.
+
+  - id: iip-tf
+    name: Inscriptions of Israel/Palestine Text-Fabric (IIP-TF)
+    description: Produce an original-EpiDoc-linked native Text-Fabric corpus from the authenticated Brown IIP source, including taxonomy, person register and Zotero bibliography authorities.
+    repository: alexsosn/IIP-TF
+    ref: 31c5052c0bb5d3cd2fb8418616ffdaf519582d24
+    version: 0.1.0.dev0
+    release_tracking:
+      mode: disabled
+    manifest: agora.materializer.json
+    package:
+      type: python-project
+      path: .
+      install_trust: explicit-code-execution
+    materializers:
+      - iip-epidoc-text-fabric
+    disciplines: [epigraphy, judaica, semitic-linguistics, digital-philology]
+    licenses:
+      software: MIT
+      data: CC-BY-NC-4.0
+    verification:
+      status: community
+      notes:
+        - Immutable IIP-TF producer ref is exactly the verified corpus-data-0.1.0rc2 prerelease converter commit; 5,535 Brown EpiDoc inscriptions and original-source browser links passed upstream native and anonymous download acceptance.
+        - Explicit third-party Python code-execution approval is required for Agora installation. The host acquires full Brown source at 0b7dc8358ccdfd0c9391f049da4839fbd91c26e5, including taxonomy, person and Zotero bibliography files, before network-denied sandbox materialization.
+        - Source/generated IIP corpus data are CC BY-NC 4.0 and require Brown and edition attribution. The software version is 0.1.0.dev0, not final IIP-TF 0.1.0; corpus-data prerelease assets are separate from this Python producer.
+        - A complete materialization produces TF/app and provenance locally. Context-Fabric catalog/resource registration and independent client-facing load are separate Agora issue 187 acceptance gates.
