@@ -56,6 +56,7 @@ class IipTfRegisteredMaterializerTests(unittest.TestCase):
         self.assertIn(BROWN_SHA, job)
         self.assertIn("agora-materialization.json", job)
         self.assertIn("conversion-summary.json", job)
+        self.assertIn("python -m pip install 'text-fabric>=13.1,<14'", job)
         self.assertIn("from tf.fabric import Fabric", job)
         self.assertIn("api.F.otype.s('inscription')", job)
         self.assertIn("source_revision_verified", job)
