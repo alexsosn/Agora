@@ -7,8 +7,8 @@ from pathlib import Path
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
+PSEUDEPIGRAPHA_HEADING = "## Published Online Critical Pseudepigrapha (Pseudepigrapha-TF)"
 PLUGIN_REGISTRY = ROOT / "registry" / "plugins.yaml"
 PLUGIN_DIR = ROOT / "wiki" / "guides" / "plugins"
 GENERATOR = ROOT / "scripts" / "generate_plugin_docs.py"
@@ -30,6 +30,17 @@ REQUIRED_HEADINGS = (
     "## Troubleshooting",
     "## Upstream",
 )
+
+
+def _pseudepigrapha_guide() -> tuple[dict, str]:
+    """Scope the corpus-specific assertion to its own tests, not every plugin check."""
+    resources = yaml.safe_load(
+        (ROOT / "registry/resources.yaml").read_text(encoding="utf-8")
+    )["resources"]
+    resource = next(row for row in resources if row["id"] == "pseudepigrapha")
+    guide = (PLUGIN_DIR / "context-fabric.md").read_text(encoding="utf-8")
+    section = guide.split(PSEUDEPIGRAPHA_HEADING, 1)[1].split("\n## ", 1)[0]
+    return resource, section
 
 
 def _registry() -> list[dict]:
@@ -127,6 +138,39 @@ class PluginDetailDocumentationTests(unittest.TestCase):
             self.assertIn(root_link, readme)
             self.assertIn(landing_link, guide)
 
+
+    def test_registered_archive_version_and_source_links_are_current(self):
+        resource, section = _pseudepigrapha_guide()
+        archive = resource["acquisition"]["archive"]
+        release = archive["release_tag"]
+        repository = resource["upstream"]["repository"]
+        self.assertEqual(archive["version"], "1.1")
+        self.assertEqual(resource["verification"]["status"], "community")
+        self.assertIn(f"**{archive['version']}**", section)
+        self.assertIn(f"[Pseudepigrapha-TF {release}]", section)
+        self.assertIn(
+            f"https://github.com/{repository}/releases/tag/{release}",
+            section,
+        )
+        self.assertIn(f"`{archive['asset_name']}`", section)
+        self.assertIn(f"{repository}/blob/{release}/DATA_LICENSE.md", section)
+        self.assertIn(
+            f"{repository}/blob/{release}/docs/features/0_home.md",
+            section,
+        )
+        for outdated in ("v1.0.0", "tf-1.0.zip", "**1.0**"):
+            self.assertNotIn(outdated, section)
+
+    def test_verification_and_local_corpus_boundary_are_not_overstated(self):
+        _, section = _pseudepigrapha_guide()
+        self.assertIn("**community**", section)
+        self.assertIn("Agora", section)
+        self.assertIn("end-to-end", section)
+        self.assertIn("38258712121", section)
+        self.assertIn("actual-client", section)
+        self.assertIn("offline", section)
+        self.assertIn("`pseudepigrapha-tf` materializer", section)
+        self.assertIn("not historical manuscript witnesses", section)
 
 if __name__ == "__main__":
     unittest.main()

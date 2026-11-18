@@ -42,6 +42,31 @@ class CiChangeScopeContracts(unittest.TestCase):
             ),
         )
 
+    def test_shared_user_docs_contracts_remain_on_the_docs_gate(self):
+        root = Path(__file__).resolve().parents[1]
+        greek = root / "tests/test_symptom_recovery_docs_172.py"
+        plugin = root / "tests/test_plugin_detail_docs.py"
+        self.assertEqual(
+            "docs",
+            classify_changed_paths([
+                "scripts/generate_plugin_docs.py",
+                "tests/test_plugin_detail_docs.py",
+                "tests/test_symptom_recovery_docs_172.py",
+                "wiki/guides/plugins/context-fabric.md",
+                "wiki/guides/troubleshooting.md",
+                "research/issue-304/RESEARCH_PLAN.md",
+            ]),
+        )
+        self.assertFalse((root / "tests/test_greek_blocked_recovery_docs_292.py").exists())
+        self.assertFalse((root / "tests/test_pseudepigrapha_researcher_guide_304.py").exists())
+        self.assertIn("test_recovery_tracks_a_real_blocking_member_issue", greek.read_text())
+        self.assertIn("test_recovery_does_not_misrepresent_unsupported_structure_as_fixed", greek.read_text())
+        self.assertIn("test_registered_archive_version_and_source_links_are_current", plugin.read_text())
+        self.assertIn("test_verification_and_local_corpus_boundary_are_not_overstated", plugin.read_text())
+        workflow = (root / ".github/workflows/foundation.yml").read_text()
+        for pattern in ("test_symptom_recovery_docs_172.py", "test_plugin_detail_docs.py"):
+            self.assertIn(pattern, workflow)
+
     def test_any_runtime_or_metadata_change_overrides_doc_fast_path(self):
         critical = (
             "scripts/agora_materialize.py",
@@ -80,6 +105,7 @@ class CiChangeScopeContracts(unittest.TestCase):
         allowed = (
             "scripts/generate_plugin_docs.py",
             "scripts/generate_resource_catalog_docs.py",
+            "tests/test_plugin_detail_docs.py",
             "tests/test_compatibility_decisions_171.py",
             "tests/test_human_scholarly_guidance_169.py",
             "tests/test_symptom_recovery_docs_172.py",
@@ -92,7 +118,6 @@ class CiChangeScopeContracts(unittest.TestCase):
                 self.assertEqual("docs", classify_changed_paths([path]))
                 self.assertEqual("docs", classify_changed_paths(["README.md", path]))
         for path in (
-            "tests/test_plugin_detail_docs.py",
             "tests/test_resource_catalog_docs.py",
             "tests/test_user_docs_landing.py",
             "tests/test_user_docs_mental_model.py",
@@ -128,7 +153,7 @@ class CiChangeScopeContracts(unittest.TestCase):
     def test_docs_only_sources_are_explicit_and_nonexecutable(self):
         self.assertEqual("docs", classify_changed_paths(["README.md"]))
         self.assertEqual("docs", classify_changed_paths(["wiki/guides/README.md"]))
-        self.assertEqual("full", classify_changed_paths(["tests/test_plugin_detail_docs.py"]))
+        self.assertEqual("docs", classify_changed_paths(["tests/test_plugin_detail_docs.py"]))
         self.assertEqual("full", classify_changed_paths(["scripts/check_runtime_environment_freshness.py"]))
         self.assertEqual("full", classify_changed_paths(["tests/test_doc_runtime_escape.py"]))
 
