@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/coptic-registered-full-source.yml"
 ACCEPTANCE = ROOT / "tests/live_issue214_full_coptic.py"
-UPSTREAM_COMMIT = "3ac067f1709a0012daf39ea8da2fac79980176a5"
+UPSTREAM_COMMIT = "6fb51458e7156dd5387c2b2dca207aac1692e4d0"
 
 
 class RegisteredCopticFullSourceAcceptanceContract(unittest.TestCase):

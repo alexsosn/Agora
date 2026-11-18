@@ -25,7 +25,7 @@ ACTIVE = (
 # This is a distinct, independently pinned corpus DATA source, not the plugin
 # release SHA; do not accidentally weaken its identity check while removing
 # redundant CopticScriptorium-TF package-release constants.
-IMMUTABLE_COPTIC_TT_SOURCE = "3ac067f1709a0012daf39ea8da2fac79980176a5"
+IMMUTABLE_COPTIC_TT_SOURCE = "6fb51458e7156dd5387c2b2dca207aac1692e4d0"
 
 
 def extraneous_release_sha_literals(source: str) -> set[str]:
@@ -88,7 +88,7 @@ class SingleSourceCopticReleasePinRed235(unittest.TestCase):
         self.assertIn('re.fullmatch(r"[0-9a-f]{40}", plugin["ref"])', workflow)
         self.assertIn('source["requested_ref"] == UPSTREAM_COMMIT', verifier)
         self.assertIn('source["resolved_commit"] == UPSTREAM_COMMIT', verifier)
-        self.assertIn('"3ac067f1709a0012daf39ea8da2fac79980176a5"', verifier)
+        self.assertIn('"6fb51458e7156dd5387c2b2dca207aac1692e4d0"', verifier)
         self.assertIn('len(receipt["execution_identity_sha256"]) == 64', verifier)
 
     def test_exact_installer_commit_and_receipt_guards_are_still_present(self):
