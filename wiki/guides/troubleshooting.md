@@ -12,6 +12,7 @@ Choose the behavior you observe. Each section separates the likely cause from a 
 - [Corpus cache uses unexpected disk space](#corpus-cache-uses-unexpected-disk-space)
 - [Search count stops at 10,000](#search-count-stops-at-10000)
 - [CUC text formats appear missing](#cuc-text-formats-appear-missing)
+- [Greek collection member is blocked by duplicate structure levels](#greek-collection-member-is-blocked-by-duplicate-structure-levels)
 - [Perseus passage works but navigation fails](#perseus-passage-works-but-navigation-fails)
 - [Sefaria search repeats a reference](#sefaria-search-repeats-a-reference)
 - [Plugin works in one client but not another](#plugin-works-in-one-client-but-not-another)
@@ -79,6 +80,16 @@ Choose the behavior you observe. Each section separates the likely cause from a 
 **Safe next action:** Inspect CUC sign and usign features directly; a negative generic-format result is not evidence that the Latin or Ugaritic representations are absent. Avoid fabricating a format registry.
 
 **Details:** [Known CUC discovery limitation](compatibility.md#current-upstream-limitations) and [Context-Fabric research method](plugins/context-fabric.md#typical-research-tasks).
+
+## Greek collection member is blocked by duplicate structure levels
+
+**Likely cause:** The selected member of `greek_literature` has the source-derived `context-fabric/duplicate-structure-levels` known issue with member-scoped blocking severity. Agora intentionally raises `KnownMemberIssueError` before acquiring the corpus. A direct engine load might still display Greek words but cannot establish reliable structured navigation: the pinned Argonautica source repeats `card` in its hierarchy, and all 94 card nodes lack the declared containing card level.
+
+**Safe next action:** Inspect the selected collection member's verification/known-issue details. For structured Text-Fabric research, choose a different, unblocked member only when its **edition** and **schema** suit the question, then inspect that member's features and load evidence. **Do not bypass** the guard, delete caches, or remove the known-issue flag to force the rejected member to load.
+
+If the task is *passage retrieval* or text search rather than structured Text-Fabric analysis, install `perseus@agora` through a [supported host](installation.md) if needed, then use the [Perseus plugin](plugins/perseus.md) to discover the work and available **edition** in Perseus/**Scaife** before requesting a passage. This route is **not equivalent** to local Text-Fabric morphology, structure, or feature queries. Do not assume that the exact edition is hosted or that legacy CTS navigation works.
+
+**Details:** [Greek member structural audit and remaining blocker](https://github.com/alexsosn/Agora/issues/292), [Context-Fabric](plugins/context-fabric.md#important-limitations), and [Perseus limitations](plugins/perseus.md#important-limitations).
 
 ## Perseus passage works but navigation fails
 
