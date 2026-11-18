@@ -50,6 +50,8 @@ class PseudepigraphaResearcherGuide304Tests(unittest.TestCase):
         self.assertIn("**community**", self.section)
         self.assertIn("Agora", self.section)
         self.assertIn("end-to-end", self.section)
+        self.assertIn("38258712121", self.section)
+        self.assertIn("actual-client", self.section)
         self.assertIn("offline", self.section)
         self.assertIn("`pseudepigrapha-tf` materializer", self.section)
         self.assertIn("not historical manuscript witnesses", self.section)
