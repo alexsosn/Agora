@@ -9,7 +9,7 @@ Install the **CAL** plugin through Agora's Claude/Codex marketplace. It starts t
 Ask the agent: “Use CAL to look up `br`, select `br N`, and report the original lexicon entry and provenance without guessing any inflected-text senses.”
 
 1. Make one explicit MCP call: `cal_lexicon_lookup(query="br", lemma_key="br N")`.
-2. A successful `found` lookup uses two actual upstream GET requests: a bounded browse and a selected lexical entry. Record CAL provenance (source URL and retrieval time) and preserve any supplied ambiguity.
+2. On a fresh uncached lookup, a successful `found` result normally takes two upstream GET requests: a bounded browse and a selected lexical entry. A warm process-local cache can avoid repeated requests. Record CAL provenance (source URL and retrieval time) and preserve any supplied ambiguity.
 3. If the tool reports no match, truncation, an upstream/network failure or HTTP 429, keep that outcome explicit. Do not automatically crawl other lemmas or retry a 429.
 4. Report only the supported CAL citation/entry details; avoid guessing period, language, corpus frequency or attested contexts from a single dictionary entry.
 
