@@ -87,7 +87,7 @@ Choose the behavior you observe. Each section separates the likely cause from a 
 
 **Safe next action:** Inspect the selected collection member's verification/known-issue details. For structured Text-Fabric research, choose a different, unblocked member only when its **edition** and **schema** suit the question, then inspect that member's features and load evidence. **Do not bypass** the guard, delete caches, or remove the known-issue flag to force the rejected member to load.
 
-If the task is *passage retrieval* or text search rather than structured Text-Fabric analysis, use the existing [Perseus plugin](plugins/perseus.md) and discover the work and available **edition** in Perseus/**Scaife** before requesting a passage. This route is **not equivalent** to local Text-Fabric morphology, structure, or feature queries. Do not assume that the exact edition is hosted or that legacy CTS navigation works.
+If the task is *passage retrieval* or text search rather than structured Text-Fabric analysis, install `perseus@agora` through a [supported host](installation.md) if needed, then use the [Perseus plugin](plugins/perseus.md) to discover the work and available **edition** in Perseus/**Scaife** before requesting a passage. This route is **not equivalent** to local Text-Fabric morphology, structure, or feature queries. Do not assume that the exact edition is hosted or that legacy CTS navigation works.
 
 **Details:** [Greek member structural audit and remaining blocker](https://github.com/alexsosn/Agora/issues/292), [Context-Fabric](plugins/context-fabric.md#important-limitations), and [Perseus limitations](plugins/perseus.md#important-limitations).
 
