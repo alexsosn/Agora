@@ -77,12 +77,45 @@ class ReleaseFrontDoorTests(unittest.TestCase):
             self.assertIn("## " + symptom, recovery)
         self.assertIn("network", recovery.lower())
 
-    def test_public_install_docs_rerun_existing_eight_cell_live_smoke(self):
-        self.assertIn('"README.md"', self.live_smoke)
-        self.assertIn('"wiki/guides/installation.md"', self.live_smoke)
+    def test_docs_only_push_does_not_trigger_unrelated_live_mcp_matrix(self):
+        # This workflow's live matrix runs packaged plugin transports, not the
+        # README/installation commands or actual Codex/Claude applications.
+        # A text-only first-user guide correction stays on Foundation's docs gate.
+        paths = self.live_smoke.split("\n  push:\n    paths:\n", 1)[1].split(
+            "\npermissions:", 1
+        )[0]
+        self.assertNotIn('"README.md"', paths)
+        self.assertNotIn('"wiki/guides/installation.md"', paths)
+
+        # Preserve the actual runtime, registry/verification, and compatibility
+        # triggers: a mixed or substantive change must still invoke live MCP.
+        for required in (
+            '".gitattributes"',
+            '"registry/plugins.yaml"',
+            '"registry/providers.yaml"',
+            '"registry/verification-checks.yaml"',
+            '"registry/schema/plugins.schema.json"',
+            '"wiki/guides/compatibility.md"',
+            '"plugins/context-fabric/src/**"',
+            '"plugins/context-fabric/uv.lock"',
+            '"plugins/perseus/runtime-constraints.txt"',
+            '"plugins/sefaria/runtime-constraints.txt"',
+            '"plugins/sedra/uv.lock"',
+            '"verification/mcp-smoke/uv.lock"',
+            '"scripts/generate_marketplaces.py"',
+            '"scripts/smoke_mcp_plugin.py"',
+            '"tests/test_verification_evidence.py"',
+            '".github/workflows/external-mcp-smoke.yml"',
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, paths)
+
+        self.assertIn("workflow_dispatch:", self.live_smoke)
+        self.assertIn("schedule:", self.live_smoke)
         self.assertIn("plugin: [context-fabric, perseus, sefaria, sedra]", self.live_smoke)
         self.assertIn("--client codex", self.live_smoke)
         self.assertIn("--client claude", self.live_smoke)
+        self.assertIn("local-runtime-platform:", self.live_smoke)
 
 
 if __name__ == "__main__":
