@@ -43,7 +43,7 @@ class CopticScriptoriumMaterializerRegistryTests(unittest.TestCase):
         self.assertIn("--plugin copticscriptorium-tf", workflow)
         self.assertIn("--materializer copticscriptorium-text-fabric", workflow)
         self.assertIn("--sandbox required", workflow)
-        self.assertIn('assert acquisition["ref"] == "3ac067f1709a0012daf39ea8da2fac79980176a5"', workflow)
+        self.assertIn('assert acquisition["ref"] == "6fb51458e7156dd5387c2b2dca207aac1692e4d0"', workflow)
         self.assertIn('assert acquisition["sparse_patterns"] == ["/*/*_TT/**", "/*/*_TT.zip"]', workflow)
         self.assertIn("github.event.pull_request.head.sha || github.sha", workflow)
         self.assertIn('test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"', workflow)

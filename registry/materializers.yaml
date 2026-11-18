@@ -60,7 +60,7 @@ plugins:
     name: CopticScriptorium-TF
     description: Convert Coptic Scriptorium TT source trees into local native Text-Fabric artifacts.
     repository: alexsosn/CopticScriptorium-TF
-    ref: 3cde20ec41efb1cacf1710643f01f924f11cbf0b
+    ref: fa8222549031cb7c42cb7317522d01d0f83d3ed8
     version: 0.1.0
     manifest: agora.materializer.json
     package:
