@@ -106,8 +106,10 @@ Look up this Syriac word in SEDRA, distinguish the returned word-form data from 
 ```
 
 ```text
-Using CAL, make one bounded cal_lexicon_lookup(query="br", lemma_key="br N") call. Report the entry and exact source provenance, preserve ambiguity and do not retry upstream rate limits. See the first-success guide: wiki/guides/first-success/cal.md.
+Using CAL, make one bounded cal_lexicon_lookup(query="br", lemma_key="br N") call. Report the entry and exact source provenance, preserve ambiguity and do not retry upstream rate limits.
 ```
+
+For the complete CAL first lookup procedure, see the [CAL first-success guide](wiki/guides/first-success/cal.md).
 
 For corpus research, Agora's bundled skills encourage the agent to inspect the selected resource's schema, annotation conventions, and limitations before interpreting results.
 
