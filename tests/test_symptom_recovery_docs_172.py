@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import re
 import unittest
+from pathlib import Path
 
 import yaml
-from pathlib import Path
 
 from scripts import generate_plugin_docs
 
