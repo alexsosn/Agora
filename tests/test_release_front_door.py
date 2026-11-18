@@ -27,6 +27,19 @@ class ReleaseFrontDoorTests(unittest.TestCase):
         self.assertIn("Desktop only", self.readme)
         self.assertIn("ChatGPT", self.readme)
 
+    def test_front_door_defers_mutable_resource_counts_to_generated_catalog(self):
+        for doc in (self.readme, self.install):
+            self.assertNotRegex(doc, r"\b\d+\s+registered (?:upstream )?resources\b")
+        self.assertIn("[resource catalog](wiki/guides/resources.md)", self.readme)
+        self.assertIn("[resource catalog](resources.md)", self.install)
+
+    def test_cal_first_contact_prerequisites_and_prompt_are_visible(self):
+        self.assertIn("CAL uses `uvx`", self.install)
+        self.assertIn("live Comprehensive Aramaic Lexicon (CAL)", self.install)
+        self.assertIn("cal_lexicon_lookup", self.readme)
+        self.assertIn("br N", self.readme)
+        self.assertIn("first-success/cal.md", self.readme)
+
     def test_installation_documents_host_owned_removal_without_marketplace_deletion(self):
         self.assertIn("claude plugin uninstall", self.install)
         self.assertIn("codex plugin remove", self.install)

@@ -34,7 +34,7 @@ With the current plugins you can, for example:
 - ask the agent to inspect corpus schema and annotation before constructing a query instead of guessing feature names;
 - keep corpus-specific research guidance alongside the tools that use it.
 
-The current Context-Fabric catalog contains **39 registered upstream resources**. Corpora are acquired lazily, so installing the plugin does not download all of them.
+The [resource catalog](wiki/guides/resources.md) is generated from Agora's canonical registry and lists currently registered corpora and collections. Corpus data are acquired lazily, so installing Context-Fabric does not download the whole catalog.
 
 Context-Fabric also accepts [user-supplied native TF corpora and feature modules](wiki/guides/context-fabric-local-import.md) through `install_local_corpus`, without adding them to the canonical catalog.
 
@@ -104,6 +104,12 @@ Using Sefaria, retrieve Genesis 1:1 in Hebrew and English and show the linked cl
 ```text
 Look up this Syriac word in SEDRA, distinguish the returned word-form data from lexeme data, and preserve ambiguous analyses rather than choosing one silently: ܡܠܟܐ
 ```
+
+```text
+Using CAL, make one bounded cal_lexicon_lookup(query="br", lemma_key="br N") call. Report the entry and exact source provenance, preserve ambiguity and do not retry upstream rate limits.
+```
+
+For the complete CAL first lookup procedure, see the [CAL first-success guide](wiki/guides/first-success/cal.md).
 
 For corpus research, Agora's bundled skills encourage the agent to inspect the selected resource's schema, annotation conventions, and limitations before interpreting results.
 

@@ -81,7 +81,8 @@ The current local MCP launch configurations use `uv`/`uvx`:
 - Context-Fabric uses `uv run` against the bundled plugin project;
 - Perseus uses `uvx` to run pinned upstream `perseus-mcp==1.0.2`;
 - Codex's Sefaria bridge uses `uvx` with pinned `mcp-proxy==0.12.0` and its MCP-SDK compatibility constraint;
-- SEDRA uses `uv run` against the bundled adapter project.
+- SEDRA uses `uv run` against the bundled adapter project;
+- CAL uses `uvx` to launch pinned `cal-mcp==0.1.0` as a local stdio server.
 
 Install `uv` using Astral's supported installation method for your operating system if it is not already available on `PATH`.
 
@@ -96,7 +97,8 @@ Network access is needed for:
 - initial acquisition of a Context-Fabric corpus that is not cached locally;
 - live Perseus/Scaife access;
 - Sefaria's hosted MCP endpoint;
-- SEDRA IV API lookups.
+- SEDRA IV API lookups;
+- live Comprehensive Aramaic Lexicon (CAL) lookups from the local CAL-MCP server.
 
 Context-Fabric corpus data remains external to Agora and is acquired lazily only when selected.
 
@@ -110,7 +112,7 @@ You do not need all five plugins for every project.
 - Install **Sefaria** for Jewish texts, translations, links/commentaries, dictionaries, topics, and manuscript resources exposed by the official Sefaria MCP.
 - Install **SEDRA** for Syriac word-form and lexeme lookup against SEDRA IV.
 
-Installing Context-Fabric does not download all 37 registered resources. Corpus acquisition is lazy.
+Installing Context-Fabric does not download everything in the [resource catalog](resources.md). Corpus acquisition is lazy.
 
 ## Context-Fabric first load and cache
 

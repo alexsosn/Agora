@@ -54,6 +54,24 @@ class FirstSuccessTutorialContracts(unittest.TestCase):
                     self.assertIn(term, doc)
         self.assertTrue(generate_plugin_docs.check())
 
+    def test_cal_first_success_explains_current_client_evidence(self):
+        import yaml
+
+        plugins = yaml.safe_load((ROOT / "registry/plugins.yaml").read_text(encoding="utf-8"))["plugins"]
+        cal = next(row for row in plugins if row["id"] == "cal")
+        body = (TUTORIALS / "cal.md").read_text(encoding="utf-8")
+        self.assertEqual("verified", cal["verification"]["clients"]["codex"]["status"])
+        self.assertEqual("community", cal["verification"]["clients"]["claude"]["status"])
+        self.assertEqual("community", cal["verification"]["status"])
+        self.assertIn("Codex", body)
+        self.assertIn("38234918961", body)
+        self.assertIn("Claude", body)
+        self.assertIn("community", body.lower())
+        self.assertIn("actual-client", body)
+        self.assertNotIn("prospective Agora client status remains", body)
+        self.assertIn("normally", body.lower())
+        self.assertNotIn("uses two actual upstream GET requests", body)
+
     def test_bhsa_first_query_is_schema_first_and_reports_count_unit(self):
         body = (TUTORIALS / "context-fabric.md").read_text(encoding="utf-8")
         self.assertLess(body.index("prepare_corpus"), body.index("load_corpus"))
