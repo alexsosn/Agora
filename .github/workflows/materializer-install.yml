@@ -846,6 +846,9 @@ jobs:
             --install-root "$RUNNER_TEMP/materializers" \
             --sandbox required
 
+      - name: Install Text-Fabric reader in host verification environment
+        run: python -m pip install 'text-fabric>=13.1,<14'
+
       - name: Load actual native TF output and verify source, licence and host receipt
         shell: bash
         env:
