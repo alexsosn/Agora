@@ -2,7 +2,7 @@
 
 ## Product outcome gate — read before selecting work
 
-At the start of **every autonomous development episode**, read [PRODUCT_GOALS.md](PRODUCT_GOALS.md) and [the autonomous development policy](wiki/agentic-development-policy.md). The most important remaining researcher journey controls work selection; a GitHub issue label, test count, or attractive infrastructure task does not override that goal.
+At the start of **every autonomous development episode**, read [PRODUCT_GOALS.md](PRODUCT_GOALS.md) and [the autonomous development policy](docs/agentic-development-policy.md). The most important remaining researcher journey controls work selection; a GitHub issue label, test count, or attractive infrastructure task does not override that goal.
 
 Before implementation, state the researcher outcome, observed evidence, simplest reuse-first solution, and public-interface acceptance check. Prefer finishing active PRs, user-facing functionality and actual releases. Do not build adapters, workflow-specific infrastructure, certification protocols or speculative hardening without demonstrating a concrete blocker or realistic risk. Two cycles without measurable user progress require reassessment, not automatic backlog expansion. Maintain proportional research/plan/TDD/test gates and logically independent, real-code/data-grounded adversarial review for each PR finalized.
 
