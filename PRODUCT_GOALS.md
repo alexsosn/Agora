@@ -22,7 +22,7 @@ The published v1.0 marketplace baseline and prospective v1.1 additions must not 
 ## Current product focus
 
 - Correct first-researcher discovery, installation and comprehension (the documented user journeys in #163).
-- Honest version/compatibility documentation and source identity, including real mismatches such as Pseudepigrapha version drift (#304).
+- Honest version/compatibility documentation and source identity, including preventing a recurrence of documented Pseudepigrapha registry/guide drift (#304).
 - Successful bounded use of current plugins and real corpus/source-backed smoke tests; repair real broken paths.
 - Add new converters, materializers and corpora only after their upstream release/use path is ready. Avoid duplicate providers for equivalent functionality.
 
