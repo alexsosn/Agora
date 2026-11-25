@@ -680,6 +680,7 @@ def render_pr_body(proposals: list[ReleaseProposal]) -> str:
         [
             "",
             "**Draft proposal — not an approved release.** Before merge, review the candidate against the existing exact-pin contracts and real-source E2E source checkout; intentionally update dependent pins only after verifying the new immutable commit, and rerun the full Foundation suite and relevant real-source acceptance on the final PR head. Passive discovery does not validate candidate runtime behavior.",
+            "This fixed, bot-owned proposal branch is refreshed by later scheduled checks. Do not commit manual approval/test changes to it; create a separate maintainer-owned promotion PR from the candidate after review so your edits cannot be overwritten.",
             "Review is still required. The registry keeps immutable commit SHAs, this automation never auto-merges, and the existing explicit code-execution approval remains required before third-party packaging/build code can run.",
             "",
         ]
