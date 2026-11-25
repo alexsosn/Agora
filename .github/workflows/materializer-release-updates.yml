@@ -105,6 +105,11 @@ jobs:
             gh pr edit "$number" \
               --title "registry: propose materializer release updates" \
               --body-file "${{ steps.discover.outputs.body }}"
+            # This fixed bot branch is rewritten on discovery refresh; any
+            # previous ready-for-review status no longer certifies this head.
+            if [[ "$(gh pr view "$number" --json isDraft --jq .isDraft)" != "true" ]]; then
+              gh pr ready "$number" --undo
+            fi
           fi
 
       - name: Close obsolete fixed review PR after successful no-op discovery
