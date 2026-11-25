@@ -62,7 +62,9 @@ jobs:
           python scripts/generate_marketplaces.py --check
           python scripts/generate_context_fabric_catalog.py --check
           python scripts/generate_release_status.py --check
-          python -m unittest discover -s tests -v
+          # Candidate proposal tests only: reviewed exact-release pin and real-source
+          # acceptance tests intentionally remain promotion gates on the draft PR.
+          python -m unittest tests.test_materializer_release_updates -v
 
       - name: Create or refresh the fixed review PR
         if: steps.discover.outputs.changed == 'true'
@@ -94,6 +96,7 @@ jobs:
             --jq '.[0].number // empty')"
           if [[ -z "$number" ]]; then
             gh pr create \
+              --draft \
               --base main \
               --head automation/materializer-releases \
               --title "registry: propose materializer release updates" \
