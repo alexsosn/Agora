@@ -62,7 +62,9 @@ jobs:
           python scripts/generate_marketplaces.py --check
           python scripts/generate_context_fabric_catalog.py --check
           python scripts/generate_release_status.py --check
-          python -m unittest discover -s tests -v
+          # Candidate proposal tests only: reviewed exact-release pin and real-source
+          # acceptance tests intentionally remain promotion gates on the draft PR.
+          python -m unittest tests.test_materializer_release_updates -v
 
       - name: Create or refresh the fixed review PR
         if: steps.discover.outputs.changed == 'true'
@@ -94,6 +96,7 @@ jobs:
             --jq '.[0].number // empty')"
           if [[ -z "$number" ]]; then
             gh pr create \
+              --draft \
               --base main \
               --head automation/materializer-releases \
               --title "registry: propose materializer release updates" \
@@ -102,6 +105,11 @@ jobs:
             gh pr edit "$number" \
               --title "registry: propose materializer release updates" \
               --body-file "${{ steps.discover.outputs.body }}"
+            # This fixed bot branch is rewritten on discovery refresh; any
+            # previous ready-for-review status no longer certifies this head.
+            if [[ "$(gh pr view "$number" --json isDraft --jq .isDraft)" != "true" ]]; then
+              gh pr ready "$number" --undo
+            fi
           fi
 
       - name: Close obsolete fixed review PR after successful no-op discovery
