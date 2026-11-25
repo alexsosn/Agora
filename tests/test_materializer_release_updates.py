@@ -527,6 +527,8 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("exact-pin", body)
         self.assertIn("real-source", body)
         self.assertIn("before merge", body.lower())
+        self.assertIn("bot-owned", body)
+        self.assertIn("separate", body)
 
     def test_workflow_uses_github_token_not_pat_and_discovery_never_installs_candidate(self):
         path = ROOT / ".github/workflows/materializer-release-updates.yml"
