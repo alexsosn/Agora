@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,7 +59,7 @@ def main():
         warp = {name: (parent_path / name).read_bytes()
                 for name in ("otype.tf", "oslots.tf", "otext.tf")}
 
-        loaded = service.load("aleppo", features=["bhsa", "aleppo_extant", "book", "chapter", "verse"],
+        loaded = service.load("aleppo", features=["bhsa", "aleppo_extant", "book", "chapter", "verse", "g_word_norm"],
                               source_mode="offline")
         try:
             assert loaded["source_revision"] == ALEPPO_PIN
@@ -69,12 +70,13 @@ def main():
             ruth = api.T.nodeFromSection(("Ruth", 1, 7))
             assert api.F.aleppo_extant.v(genesis) == 0
             assert api.F.aleppo_extant.v(ruth) == 1
-            ruth_bhsa = {forward[w] for w in api.L.d(ruth, otype="word") if w in forward}
+            ruth_bhsa = {forward[w]: api.F.g_word_norm.v(w)
+                         for w in api.L.d(ruth, otype="word") if w in forward}
             assert ruth_bhsa
         finally:
             service.unload(loaded["logical_name"])
 
-        base = service.load("bhsa", version="2021", features=["g_cons", "book", "chapter", "verse"],
+        base = service.load("bhsa", version="2021", features=["g_cons", "book", "chapter", "verse", "g_word_utf8"],
                             source_mode="offline")
         try:
             assert base["source_revision"] == BHSA_PIN
@@ -83,7 +85,15 @@ def main():
             assert len(api.F.otype.s("word")) == 426590
             assert api.F.g_cons.v(1) == "B"
             ruth = api.T.nodeFromSection(("Ruth", 1, 7))
-            assert ruth_bhsa <= set(api.L.d(ruth, otype="word"))
+            assert set(ruth_bhsa) <= set(api.L.d(ruth, otype="word"))
+            # Source README provides these three actual Ruth 1:7 pairs.
+            # NFC preserves the accents while removing canonical encoding differences.
+            norm = lambda text: unicodedata.normalize("NFC", text)
+            observed = {(norm(a), norm(api.F.g_word_utf8.v(b)))
+                        for b, a in ruth_bhsa.items() if a and api.F.g_word_utf8.v(b)}
+            expected = {("הָֽיְתָה", "הָיְתָה"), ("שָּׁ֔מָּה", "שָׁ֔מָּה"),
+                        ("כַלֹּותֶ֖יהָ", "כַלֹּתֶ֖יהָ")}
+            assert {(norm(a), norm(b)) for a, b in expected} <= observed, observed
         finally:
             service.unload(base["logical_name"])
 
