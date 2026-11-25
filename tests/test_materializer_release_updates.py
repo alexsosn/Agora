@@ -516,6 +516,10 @@ class WorkflowContractTests(unittest.TestCase):
             "          else:\n", 1
         )[0]
         self.assertIn("--draft", create)
+        # A refreshed proposal cannot silently stay ready after an automated rewrite.
+        refresh = text.split("            gh pr edit \\\n", 1)[1]
+        self.assertIn('gh pr view "$number" --json isDraft', refresh)
+        self.assertIn('gh pr ready "$number" --undo', refresh)
 
     def test_candidate_pr_body_requires_fresh_release_approval_and_real_source_gate(self):
         body = _module().render_pr_body([])
