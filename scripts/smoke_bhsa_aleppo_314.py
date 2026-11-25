@@ -87,6 +87,13 @@ def main():
         finally:
             service.unload(base["logical_name"])
 
+        # Offline mode requires a materialized module snapshot, not just Git metadata.
+        prepared = service.prepare("bhsa", version="2021", modules=[MODULE],
+                                   source_mode="require-fresh")
+        assert prepared["source_revision"] == BHSA_PIN
+        assert prepared["modules"][0]["source_revision"] == ALEPPO_PIN
+        assert Path(prepared["path"], "aleppo.tf").is_file()
+
         for iteration in range(2):
             if iteration:
                 service = ContextFabricService(catalog, ContextFabricResolver(catalog, store),
