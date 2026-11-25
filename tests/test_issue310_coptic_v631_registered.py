@@ -53,6 +53,33 @@ class CopticV631RegisteredSourceMigrationTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", workflow)
         self.assertIn("Full registered automatic pinned Git acquisition", workflow)
 
+    def test_mcp_count_requires_exact_integer_and_template_not_just_non_null(self):
+        from tests.live_issue214_full_coptic import assert_query_count
+
+        template = "word pos=APST"
+        assert_query_count({"template": template, "total_count": 313}, template, 313)
+        for bad in (
+            None, {}, {"error": "invalid search"},
+            {"template": template, "total_count": 0},
+            {"template": template, "total_count": 312},
+            {"template": template, "total_count": "313"},
+            {"template": template, "total_count": 313.0},
+            {"template": "word", "total_count": 313},
+            {"template": template, "total_count": 313, "error": "failed"},
+        ):
+            with self.subTest(bad=bad), self.assertRaises(AssertionError):
+                assert_query_count(bad, template, 313)
+        with self.assertRaises(AssertionError):
+            assert_query_count({"template": template, "total_count": True}, template, 1)
+
+    def test_live_mcp_query_compares_native_pos_count(self):
+        verifier = (ROOT / "tests/live_issue214_full_coptic.py").read_text(encoding="utf-8")
+        self.assertIn('api.F.pos.s("APST")', verifier)
+        self.assertIn('"word pos=APST"', verifier)
+        self.assertIn('assert_query_count(count, "word", EXPECTED_SLOTS)', verifier)
+        self.assertIn('assert_query_count(pos_count, "word pos=APST", expected_apst)', verifier)
+        self.assertNotIn('assert count is not None', verifier)
+
     def test_old_source_is_not_passed_off_as_a_new_registered_release(self):
         for path in (
             "tests/test_copticscriptorium_materializer_registry.py",
