@@ -517,7 +517,7 @@ class WorkflowContractTests(unittest.TestCase):
         )[0]
         self.assertIn("--draft", create)
         # A refreshed proposal cannot silently stay ready after an automated rewrite.
-        refresh = text.split("            gh pr edit \\\n", 1)[1]
+        refresh = text.split('gh pr edit "$number"', 1)[1]
         self.assertIn('gh pr view "$number" --json isDraft', refresh)
         self.assertIn('gh pr ready "$number" --undo', refresh)
 
