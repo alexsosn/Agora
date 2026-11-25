@@ -9,7 +9,7 @@ resources:
   disciplines: [biblical-studies, semitic-linguistics]
   period: 1000-200 BCE
   description: Biblia Hebraica Stuttgartensia Amstelodamensis.
-  upstream: {repository: ETCBC/bhsa}
+  upstream: {repository: ETCBC/bhsa, ref: 4db00e2157915495e1a4d3d57e41223df24775da}
   acquisition: {strategy: repository, lazy: true}
   licenses:
     data: CC-BY-NC-4.0
