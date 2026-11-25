@@ -493,6 +493,37 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertLess(validate, push)
         self.assertGreaterEqual(text.count("automation/materializer-releases"), 2)
 
+    def test_release_candidate_preflight_does_not_run_old_approved_pin_tests(self):
+        """A passive proposal must reach a draft PR even when old reviewed pins differ."""
+        text = (ROOT / ".github/workflows/materializer-release-updates.yml").read_text(
+            encoding="utf-8"
+        )
+        preflight = text.split("      - name: Validate proposed canonical state\n", 1)[1].split(
+            "      - name: Create or refresh the fixed review PR\n", 1
+        )[0]
+        self.assertIn("if: steps.discover.outputs.changed == 'true'", preflight)
+        self.assertIn("python scripts/validate_registry.py", preflight)
+        for generator in (
+            "generate_marketplaces.py --check",
+            "generate_context_fabric_catalog.py --check",
+            "generate_release_status.py --check",
+        ):
+            self.assertIn(generator, preflight)
+        self.assertIn("python -m unittest tests.test_materializer_release_updates -v", preflight)
+        self.assertNotIn("python -m unittest discover -s tests", preflight)
+        # An unreviewed release proposal may not masquerade as merge-ready.
+        create = text.split("            gh pr create \\\n", 1)[1].split(
+            "          else:\n", 1
+        )[0]
+        self.assertIn("--draft", create)
+
+    def test_candidate_pr_body_requires_fresh_release_approval_and_real_source_gate(self):
+        body = _module().render_pr_body([])
+        self.assertIn("draft", body.lower())
+        self.assertIn("exact-pin", body)
+        self.assertIn("real-source", body)
+        self.assertIn("before merge", body)
+
     def test_workflow_uses_github_token_not_pat_and_discovery_never_installs_candidate(self):
         path = ROOT / ".github/workflows/materializer-release-updates.yml"
         self.assertTrue(path.is_file())
