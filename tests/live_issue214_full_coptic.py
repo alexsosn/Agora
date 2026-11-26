@@ -14,8 +14,6 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
-from tf.fabric import Fabric
-
 from scripts.agora_install_materializer import (
     installation_path,
     load_registry,
@@ -23,7 +21,7 @@ from scripts.agora_install_materializer import (
 )
 from scripts.context_fabric_mcp_result import decode_mcp_result
 
-UPSTREAM_COMMIT = "3ac067f1709a0012daf39ea8da2fac79980176a5"
+UPSTREAM_COMMIT = "6fb51458e7156dd5387c2b2dca207aac1692e4d0"
 UPSTREAM_URL = "https://github.com/CopticScriptorium/corpora.git"
 SPARSE = ["/*/*_TT/**", "/*/*_TT.zip"]
 EXPECTED_RECORDS = 2_628
@@ -31,7 +29,19 @@ EXPECTED_SLOTS = 2_394_354
 EXPECTED_MIN_TF_FILES = 120  # previously observed 130 native TF features
 
 
-def validate_registered_output(root: Path, install_root: Path) -> Path:
+def assert_query_count(response: object, template: str, expected: int) -> None:
+    """Reject semantic errors and wrong/truncated counts, even on MCP success."""
+    assert isinstance(response, dict), "MCP search returned a non-object result"
+    assert "error" not in response, "MCP search returned a semantic error"
+    assert response.get("template") == template, "MCP search returned the wrong template"
+    actual = response.get("total_count")
+    assert type(actual) is int, "MCP search count must be an integer"
+    assert actual == expected, f"MCP count {actual} differs from native count {expected}"
+
+
+def validate_registered_output(root: Path, install_root: Path) -> tuple[Path, int]:
+    from tf.fabric import Fabric
+
     plugin = select_plugin(load_registry(), "copticscriptorium-tf")
     assert plugin["repository"] == "alexsosn/CopticScriptorium-TF"
     assert re.fullmatch(r"[0-9a-f]{40}", plugin["ref"])
@@ -109,22 +119,26 @@ def validate_registered_output(root: Path, install_root: Path) -> Path:
     assert api.F.otype.maxSlot == EXPECTED_SLOTS
     assert len(api.F.otype.s("document")) == EXPECTED_RECORDS
     assert any(api.F.lemma.v(w) for w in range(1, min(1001, EXPECTED_SLOTS + 1)))
+    expected_apst = sum(
+        1 for w in api.F.pos.s("APST") if api.F.otype.v(w) == "word"
+    )
+    assert 0 < expected_apst < EXPECTED_SLOTS, "native APST control is not discriminating"
     # Native edges, not JSON/XML serialized structures.
     assert api.E.dependency_head is not None
     print(
         json.dumps(
             {"stage": "native-tf-reload", "slots": api.F.otype.maxSlot,
-             "documents": EXPECTED_RECORDS},
+             "documents": EXPECTED_RECORDS, "apst_words": expected_apst},
             sort_keys=True,
         ),
         flush=True,
     )
     del api
     gc.collect()
-    return tf_dir
+    return tf_dir, expected_apst
 
 
-async def verify_context_fabric(source: Path) -> None:
+async def verify_context_fabric(source: Path, expected_apst: int) -> None:
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
 
@@ -198,7 +212,15 @@ async def verify_context_fabric(source: Path) -> None:
                 "search", corpus=logical_name, template="word",
                 return_type="count",
             )
-            assert count is not None, "Context-Fabric did not return a query result"
+            assert_query_count(count, "word", EXPECTED_SLOTS)
+            pos_count = await call(
+                "search", corpus=logical_name, template="word pos=APST",
+                return_type="count",
+            )
+            assert_query_count(pos_count, "word pos=APST", expected_apst)
+            print(json.dumps({"stage": "mcp-native-count-parity",
+                              "words": EXPECTED_SLOTS, "apst_words": expected_apst}),
+                  flush=True)
             await call("unload_corpus", logical_name=logical_name)
             removed = await call("remove_cached_corpus", resource_id=rid)
             assert removed.get("complete"), removed
@@ -216,8 +238,8 @@ async def verify_context_fabric(source: Path) -> None:
 def main() -> None:
     output = Path(os.environ["COPTIC_FULL_OUTPUT"])
     install_root = Path(os.environ["COPTIC_INSTALL_ROOT"])
-    tf_dir = validate_registered_output(output, install_root)
-    asyncio.run(verify_context_fabric(tf_dir))
+    tf_dir, expected_apst = validate_registered_output(output, install_root)
+    asyncio.run(verify_context_fabric(tf_dir, expected_apst))
     print("PASS full registered pinned Coptic Git → native TF → Context-Fabric", flush=True)
 
 
