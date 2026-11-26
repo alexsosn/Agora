@@ -73,7 +73,7 @@ class AleppoNativeCorpusRegistration203Tests(unittest.TestCase):
         evidence = " ".join(row["licenses"]["evidence"]["sources"])
         self.assertIn("/blob/" + PIN + "/tf/1.0/otext.tf", evidence)
 
-    def test_schema_bundled_projection_and_no_reverse_module_shortcut(self):
+    def test_schema_bundled_projection_and_separate_reverse_module_contract(self):
         row = self.rows[0]
         schema = json.loads((ROOT / "registry/schema/resources.schema.json").read_text())
         self.assertEqual([], list(Draft202012Validator(schema).iter_errors({
@@ -87,10 +87,18 @@ class AleppoNativeCorpusRegistration203Tests(unittest.TestCase):
         self.assertEqual(1, sum(1 for item in generated["resources"] if item["id"] == "aleppo"))
         self.assertFalse(check(ROOT), "generated runtime catalog must be fresh")
         modules = yaml.safe_load((ROOT / "registry/feature-modules.yaml").read_text())
-        self.assertFalse(any(
-            item.get("id") == "aleppo" or item.get("upstream", {}).get("repository") == "MartijnNaaijer/aleppo"
-            for item in modules["resources"]
-        ), "reverse BHSA 2021 projection needs a separate alignment contract")
+        reverse = [
+            item for item in modules["resources"]
+            if item.get("id") == "aleppo" or item.get("upstream", {}).get("repository") == "MartijnNaaijer/aleppo"
+        ]
+        self.assertEqual(["bhsa-aleppo-alignment"], [item["id"] for item in reverse])
+        module = reverse[0]
+        self.assertEqual(module["kind"], "feature-module")
+        self.assertEqual(module["parent"], "bhsa")
+        self.assertEqual(module["compatibility"]["parent_versions"], ["2021"])
+        self.assertEqual(module["module"]["status"], "optional")
+        self.assertEqual(module["upstream"]["ref"], PIN)
+        self.assertEqual(module["upstream"]["tf_path"], "tf/bhsa-mapping/2021")
         mats = yaml.safe_load((ROOT / "registry/materializers.yaml").read_text())
         self.assertFalse(any(item.get("id") == "aleppo" for item in mats["plugins"]))
         self.assertNotIn("aleppo", yaml.safe_load((ROOT / "registry/v0.1.yaml").read_text())["required_resources"])

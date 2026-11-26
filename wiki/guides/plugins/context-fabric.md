@@ -96,6 +96,7 @@ The module `bhsa-aleppo-alignment` adds the original upstream integer node featu
 ```text
 prepare_corpus(resource_id="bhsa", version="2021", modules=["bhsa-aleppo-alignment"])
 load_corpus(resource_id="bhsa", version="2021", modules=["bhsa-aleppo-alignment"], features=["aleppo", "g_cons", "g_word_utf8", "qere_utf8"])
+prepare_corpus(resource_id="aleppo")
 load_corpus(resource_id="aleppo", features=["bhsa", "bhsa_seg", "g_word_norm", "g_cons", "qere_norm", "aleppo_extant"])
 ```
 
@@ -103,7 +104,7 @@ For example, locate Ruth 1:7 in the Aleppo corpus, confirm that `aleppo_extant=1
 
 The inverse feature has 30 absent BHSA slots; the forward feature has one absent Aleppo slot. Two Aleppo words (215227 and 215228) map to BHSA 215256; the reverse points to 215227 only. For all candidates use the forward feature, not just the inverse. Use mapped word IDs rather than verse-number equality because upstream documents 118 versification differences. `aleppo_extant=1` includes partly extant verses; a word in such a verse is not necessarily attested in the surviving codex. The edition supplies lost passages from other Tiberian manuscripts. Do not transfer BHSA linguistic annotations as though they describe a distinct Aleppo reading.
 
-The mapping and Aleppo edition are **CC BY-SA 4.0**, attributed to מקרא על פי המסורה (Hebrew Wikisource); BHSA retains its own **CC BY-NC 4.0** terms. Record both loaded source revisions and feature names. See the [pinned upstream documentation](https://github.com/MartijnNaaijer/aleppo/blob/db38ddc918fd5d6e47a118f24545bd925975a597/README.md). Integration evidence is community until the dedicated real-data consumer check passes.
+The mapping and Aleppo edition are **CC BY-SA 4.0**, attributed to מקרא על פי המסורה (Hebrew Wikisource); BHSA retains its own **CC BY-NC 4.0** terms. Record both loaded source revisions and feature names. See the [pinned upstream documentation](https://github.com/MartijnNaaijer/aleppo/blob/db38ddc918fd5d6e47a118f24545bd925975a597/README.md). The [25 November 2026 pinned-data consumer check](https://github.com/alexsosn/Agora/actions/runs/45517352501) verified both mapping directions, the missing and non-bijective mappings, the unchanged BHSA warp features, and a warm offline overlay reload. Registry verification remains community; a separate autonomous agent/client journey and exhaustive versification audit are not established by this check.
 
 ## Important limitations
 
