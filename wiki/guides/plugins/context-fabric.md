@@ -85,9 +85,26 @@ prepare_corpus(resource_id="bhsa", version="2021", modules=["bhsa-cantillation-t
 load_corpus(resource_id="bhsa", version="2021", modules=["bhsa-cantillation-trees"], features=["g_cons", "cantillation_system", "cantillation_depth", "cantillation_alignment"])
 ```
 
-Inspect the loaded schema and actual feature values before interpreting them. The live 10 October 2026 acceptance verified BHSA Genesis 1:1 words and cantillation `system=prose`, `depth=2`, and `alignment=exact` on BHSA verse node `1414389`; these are representative checks, **not** an audit of all verse alignments. The module's `sources.json` records the BHSA source commit `4db00e2157915495e1a4d3d57e41223df24775da`; the tested module source revision is `445413fa5267b5c1c637d523f07f8a4cf0b3dded`. Registry acquisition currently follows upstream refs, so review the resolved `source_revision` fields on each load; the version label alone does not establish node identity when upstream changes.
+Inspect the loaded schema and actual feature values before interpreting them. The live 10 October 2026 acceptance verified BHSA Genesis 1:1 words and cantillation `system=prose`, `depth=2`, and `alignment=exact` on BHSA verse node `1414389`; these are representative checks, **not** an audit of all verse alignments. The module's `sources.json` records the BHSA source commit `4db00e2157915495e1a4d3d57e41223df24775da`; the tested module source revision is `445413fa5267b5c1c637d523f07f8a4cf0b3dded`. The registry pins the BHSA and cantillation source commits; still review the resolved `source_revision` fields on each load; the version label alone does not establish node identity when upstream changes.
 
 The BHSA parent corpus is listed under **CC BY-NC 4.0** in Agora, while the cantillation feature files declare **CC BY 4.0** and cite MorphHB provenance. Preserve attribution, source revisions, and the rights of *each* layer; loading the module does not relax the BHSA noncommercial restriction. The acceptance workflow downloads source data into runner-local caches and does not distribute converted corpora.
+
+## Optional BHSA–Aleppo word alignment
+
+The module `bhsa-aleppo-alignment` adds the original upstream integer node feature `aleppo` to BHSA 2021. It refers to word IDs in the separately selectable Aleppo 1.0 corpus, pinned to `db38ddc918fd5d6e47a118f24545bd925975a597`. It does not add Aleppo readings or morphology directly to BHSA nodes. Prepare and load both resources with their own logical names:
+
+```text
+prepare_corpus(resource_id="bhsa", version="2021", modules=["bhsa-aleppo-alignment"])
+load_corpus(resource_id="bhsa", version="2021", modules=["bhsa-aleppo-alignment"], features=["aleppo", "g_cons", "g_word_utf8", "qere_utf8"])
+prepare_corpus(resource_id="aleppo")
+load_corpus(resource_id="aleppo", features=["bhsa", "bhsa_seg", "g_word_norm", "g_cons", "qere_norm", "aleppo_extant"])
+```
+
+For example, locate Ruth 1:7 in the Aleppo corpus, confirm that `aleppo_extant=1` on the verse, then follow each word's `bhsa` value to the BHSA logical corpus. Compare Aleppo `g_word_norm` with BHSA `g_word_utf8`; the upstream README illustrates differences in meteg, dagesh and plene spelling in this verse. Normalize the precomposed Hebrew shin/sin forms (U+FB2A/U+FB2B) to shin plus the appropriate combining dot before comparison. Compare consonants separately using `g_cons`, and compare qere separately using the corresponding qere features. Do not silently conflate pointed ketiv with qere or classify all Unicode differences as manuscript variants.
+
+The inverse feature has 30 absent BHSA slots; the forward feature has one absent Aleppo slot. Two Aleppo words (215227 and 215228) map to BHSA 215256; the reverse points to 215227 only. For all candidates use the forward feature, not just the inverse. Use mapped word IDs rather than verse-number equality because upstream documents 118 versification differences. `aleppo_extant=1` includes partly extant verses; a word in such a verse is not necessarily attested in the surviving codex. The edition supplies lost passages from other Tiberian manuscripts. Do not transfer BHSA linguistic annotations as though they describe a distinct Aleppo reading.
+
+The mapping and Aleppo edition are **CC BY-SA 4.0**, attributed to מקרא על פי המסורה (Hebrew Wikisource); BHSA retains its own **CC BY-NC 4.0** terms. Record both loaded source revisions and feature names. See the [pinned upstream documentation](https://github.com/MartijnNaaijer/aleppo/blob/db38ddc918fd5d6e47a118f24545bd925975a597/README.md). The [25 November 2026 pinned-data consumer check](https://github.com/alexsosn/Agora/actions/runs/45517352501) verified both mapping directions, the missing and non-bijective mappings, the unchanged BHSA warp features, and a warm offline overlay reload. Registry verification remains community; a separate autonomous agent/client journey and exhaustive versification audit are not established by this check.
 
 ## Important limitations
 

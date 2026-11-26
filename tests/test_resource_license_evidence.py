@@ -106,8 +106,8 @@ class ResourceLicenseEvidenceTests(unittest.TestCase):
         self.assertTrue(without, "old modules can omit evidence")
         self.assertEqual(
             [item["id"] for item in with_evidence],
-            ["tischendorf-morphology-additions"],
-            "the new module must retain its reviewed source license evidence",
+            ["tischendorf-morphology-additions", "bhsa-aleppo-alignment"],
+            "both modules must retain their reviewed source license evidence",
         )
         errors = validate_registry()
         self.assertFalse(
