@@ -4,8 +4,8 @@ plugins:
     name: Burns contextual feature module for reviewed CUC
     description: Produce a user-local Burns cultic-vocabulary Text-Fabric feature module over existing reviewed CUC 0.2.8 word nodes without duplicating the parent warp.
     repository: alexsosn/CTC-TF
-    ref: ed6c7059803ff1adee057f5bd94d3ca661aac187
-    version: 0.3.0
+    ref: 039810645f0b606cef07b733ab3867ebb9f1fe12
+    version: 0.3.1
     release_tracking:
       mode: github-releases
       channel: stable
